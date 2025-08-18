@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>社内向けAI活用セミナー (8月19日)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* カスタムスタイル */
+      body {
+        font-family: "Noto Sans JP", "Inter", sans-serif;
+        background-color: #f8f9fa;
+        color: #212529;
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .gradient-bg-dark {
+        background: linear-gradient(135deg, #303f9f 0%, #192a56 100%);
+      }
+      .section-title {
+        font-weight: 700;
+        font-size: 2.25rem;
+        line-height: 2.5rem;
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+      .card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+      }
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+      .card-content {
+        flex-grow: 1;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background-color: #e2e8f0;
+        border-radius: 2px;
+      }
+      .timeline-item {
+        position: relative;
+        width: 50%;
+        padding-bottom: 3rem;
+      }
+      .timeline-item:nth-child(odd) {
+        left: 0;
+        padding-right: 2rem;
+        text-align: right;
+      }
+      .timeline-item:nth-child(even) {
+        left: 50%;
+        padding-left: 2rem;
+        text-align: left;
+      }
+      .timeline-dot {
+        content: "";
+        position: absolute;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border: 4px solid #667eea;
+        border-radius: 50%;
+        z-index: 10;
+      }
+      .timeline-item:nth-child(odd) .timeline-dot {
+        right: -10px;
+        transform: translateX(50%);
+      }
+      .timeline-item:nth-child(even) .timeline-dot {
+        left: -10px;
+        transform: translateX(-50%);
+      }
+      .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+      }
+      .fade-in.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .icon-box {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .prompt-card {
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ヘッダー -->
+    <header
+      class="bg-white/80 backdrop-blur-md fixed top-0 left-0 right-0 z-50 shadow-sm"
+    >
+      <div
+        class="container mx-auto px-6 py-3 flex justify-between items-center"
+      >
+        <h1 class="text-xl font-bold text-gray-800">AI活用セミナー</h1>
+        <nav>
+          <a
+            href="#agenda"
+            class="text-gray-600 hover:text-indigo-600 px-3 py-2"
+            >アジェンダ</a
+          >
+          <a
+            href="#why-learn-ai"
+            class="text-gray-600 hover:text-indigo-600 px-3 py-2"
+            >なぜ今学ぶのか</a
+          >
+          <a
+            href="#details"
+            class="text-gray-600 hover:text-indigo-600 px-3 py-2"
+            >セミナー詳細</a
+          >
+          <a
+            href="#notebooklm"
+            class="text-gray-600 hover:text-indigo-600 px-3 py-2"
+            >NoteBookLM</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- ヒーローセクション -->
+      <section class="gradient-bg text-white pt-32 pb-20">
+        <div class="container mx-auto px-6 text-center">
+          <p class="font-bold text-2xl mb-2 fade-in">2025年8月19日 開催</p>
+          <h2
+            class="text-5xl md:text-6xl font-extrabold mb-4 fade-in"
+            style="transition-delay: 100ms"
+          >
+            社内向けAI活用セミナー
+          </h2>
+          <p
+            class="text-xl md:text-2xl max-w-3xl mx-auto mb-8 fade-in"
+            style="transition-delay: 200ms"
+          >
+            主要AIの使い分けから、社内情報を安全に活用する「NoteBookLM」まで。
+            <br />明日からの業務効率化の第一歩を踏み出しましょう。
+          </p>
+          <div
+            class="bg-white/20 rounded-lg p-6 max-w-2xl mx-auto fade-in"
+            style="transition-delay: 300ms"
+          >
+            <h3 class="font-bold text-lg mb-2">セミナーの目的</h3>
+            <p>
+              現在の契約中AIツール（Gemini, ChatGPT,
+              Claude）の業務における使い分けと、社内情報を安全に活用できる「NoteBookLM」の可能性を理解し、業務効率化の第一歩を踏み出す。
+            </p>
+            <div class="mt-4 pt-4 border-t border-white/30">
+              <p>
+                <strong class="font-semibold">対象者:</strong>
+                全社員（特にAIの概要と業務活用のポイントを短時間で把握したい方）
+              </p>
+              <p><strong class="font-semibold">所要時間:</strong> 60分</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- アジェンダ -->
+      <section id="agenda" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-6">
+          <h2 class="section-title fade-in">
+            セミナーアジェンダ
+            <span class="text-gray-500 text-2xl">(計60分)</span>
+          </h2>
+          <div class="relative max-w-3xl mx-auto timeline">
+            <!-- 1. オープニング -->
+            <div class="timeline-item fade-in">
+              <div class="timeline-dot"></div>
+              <div class="card text-left">
+                <p class="text-indigo-600 font-bold">5分</p>
+                <h3 class="text-xl font-bold mb-2">1. オープニング</h3>
+                <p class="text-gray-600">
+                  なぜ今、AIを学ぶ必要があるのか？この60分で何を得られるか、セミナー全体の流れを共有します。
+                </p>
+              </div>
+            </div>
+            <!-- 2. 知識編 -->
+            <div class="timeline-item fade-in">
+              <div class="timeline-dot"></div>
+              <div class="card">
+                <p class="text-indigo-600 font-bold">30分</p>
+                <h3 class="text-xl font-bold mb-2">
+                  2.【知識編】生成AIの全体像を掴む
+                </h3>
+                <p class="text-gray-600">
+                  生成AIの基本から主要ツールの使い分け、良い回答を引き出すコツまでを解説します。
+                </p>
+              </div>
+            </div>
+            <!-- 3. 実践編 -->
+            <div class="timeline-item fade-in">
+              <div class="timeline-dot"></div>
+              <div class="card text-left">
+                <p class="text-indigo-600 font-bold">20分</p>
+                <h3 class="text-xl font-bold mb-2">
+                  3.【実践編】明日から使えるAI活用術
+                </h3>
+                <p class="text-gray-600">
+                  NoteBookLMのライブデモを通じて、社内情報を活用した具体的な業務改善イメージを掴みます。
+                </p>
+              </div>
+            </div>
+            <!-- 4. まとめとQ&A -->
+            <div class="timeline-item fade-in">
+              <div class="timeline-dot"></div>
+              <div class="card">
+                <p class="text-indigo-600 font-bold">5分</p>
+                <h3 class="text-xl font-bold mb-2">4. まとめとQ&A</h3>
+                <p class="text-gray-600">
+                  本日の内容を振り返り、次のステップをご案内。皆さまからのご質問にお答えします。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- なぜ今AIを学ぶのかセクション -->
+      <section id="why-learn-ai" class="py-20">
+        <div class="container mx-auto px-6">
+          <h2 class="section-title fade-in">
+            なぜ今、AIを学ぶ必要があるのか？
+          </h2>
+          <p
+            class="text-center text-lg text-gray-600 max-w-3xl mx-auto mb-12 fade-in"
+          >
+            今、AIを学ぶことは、個人のキャリアと日本の未来にとって極めて重要です。その理由は、爆発的に成長する市場、深刻な人材不足、そして社会に不可欠な技術となりつつある現状にあります。
+          </p>
+          <div class="grid md:grid-cols-3 gap-8">
+            <!-- 1. 市場規模 -->
+            <div class="card fade-in" style="transition-delay: 100ms">
+              <div class="icon-box bg-blue-100 text-blue-600 mx-auto mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="20" x2="12" y2="10"></line>
+                  <line x1="18" y1="20" x2="18" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="16"></line>
+                </svg>
+              </div>
+              <div class="card-content">
+                <h3 class="text-xl font-bold text-center mb-3">
+                  1. 桁違いの成長を続けるAI市場
+                </h3>
+                <p class="text-gray-600">
+                  AI市場は想像を上回る速度で拡大。この成長市場に身を置くことは、大きなビジネスチャンスに繋がります。
+                </p>
+              </div>
+              <div class="mt-4 pt-4 border-t">
+                <p class="text-sm text-gray-500">国内市場 (2029年予測)</p>
+                <p class="text-2xl font-bold text-blue-600">4兆 1,873億円</p>
+              </div>
+              <div class="mt-2 pt-2 border-t">
+                <p class="text-sm text-gray-500">
+                  世界の生成AI支出 (2025年予測)
+                </p>
+                <p class="text-2xl font-bold text-blue-600">約97兆円</p>
+              </div>
+            </div>
+            <!-- 2. 人材不足 -->
+            <div class="card fade-in" style="transition-delay: 200ms">
+              <div class="icon-box bg-red-100 text-red-600 mx-auto mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <div class="card-content">
+                <h3 class="text-xl font-bold text-center mb-3">
+                  2. 深刻なAI人材ギャップ
+                </h3>
+                <p class="text-gray-600">
+                  市場の急成長に対し、AI人材は圧倒的に不足。今スキルを学ぶことで、市場価値の高い人材になる絶好の機会です。
+                </p>
+              </div>
+              <div class="mt-4 pt-4 border-t">
+                <p class="text-sm text-gray-500">AI人材不足 (2030年予測)</p>
+                <p class="text-2xl font-bold text-red-600">約79万人</p>
+              </div>
+              <div class="mt-2 pt-2 border-t">
+                <p class="text-sm text-gray-500">国内企業の生成AI活用率</p>
+                <p class="text-2xl font-bold text-red-600">17.3%</p>
+              </div>
+            </div>
+            <!-- 3. 社会の変化 -->
+            <div class="card fade-in" style="transition-delay: 300ms">
+              <div class="icon-box bg-green-100 text-green-600 mx-auto mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21.5 12c0-5.25-4.25-9.5-9.5-9.5S2.5 6.75 2.5 12s4.25 9.5 9.5 9.5s9.5-4.25 9.5-9.5z"
+                  ></path>
+                  <path d="M12 2L12 22"></path>
+                  <path d="M2 12H22"></path>
+                </svg>
+              </div>
+              <div class="card-content">
+                <h3 class="text-xl font-bold text-center mb-3">
+                  3. 「知らない」では済まされない変化
+                </h3>
+                <p class="text-gray-600">
+                  AIはあらゆるビジネスパーソン必須の「リテラシー」に。業務効率化や新たな価値創造が各所で始まっています。
+                </p>
+              </div>
+              <ul class="mt-4 pt-4 border-t text-sm text-gray-600 space-y-2">
+                <li>
+                  <strong class="text-gray-700">業務効率化:</strong>
+                  配送伝票の入力自動化で月8,400時間の作業を削減。
+                </li>
+                <li>
+                  <strong class="text-gray-700">新たな価値創造:</strong>
+                  AIによる似合い度判定やCM企画など、新サービスが続々登場。
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- セミナー詳細：知識編 -->
+      <section id="details" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-6">
+          <h2 class="section-title fade-in">セミナー詳細：知識編</h2>
+
+          <!-- 生成AIとは何か？ -->
+          <div class="mb-20 fade-in">
+            <h3 class="text-2xl font-bold text-center mb-4">
+              生成AIとは何か？ (5分)
+            </h3>
+            <p
+              class="text-center text-lg text-gray-600 max-w-3xl mx-auto mb-12"
+            >
+              専門家の視点から、生成AIについて5分で理解できるよう、その本質、従来AIとの違い、仕事へのインパクト、そして「できること」と「できないこと」を分かりやすく解説します。
+            </p>
+
+            <!-- 本質: 創造するAI -->
+            <div
+              class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200 mb-12"
+            >
+              <h4 class="text-2xl font-bold text-center mb-6 text-indigo-700">
+                生成AIとは？ ―「創造する」AI
+              </h4>
+              <p class="text-gray-700 mb-6">
+                生成AI（ジェネレーティブAI）とは、新しい、オリジナルのコンテンツを自ら「生成（create）」できるAIのことです。文章、画像、音楽、プログラムコードなど、多種多様なデータをゼロから創り出す能力を持っています。
+              </p>
+              <!-- たとえるなら -->
+              <div class="grid md:grid-cols-2 gap-6 text-center">
+                <div class="bg-gray-100 p-6 rounded-lg">
+                  <h5 class="font-bold mb-2">従来のAI</h5>
+                  <p>
+                    大量の犬の写真から「これは犬だ」と見分ける（認識・分類する）ことができる<strong
+                      class="text-gray-800"
+                      >鑑定士</strong
+                    >。
+                  </p>
+                </div>
+                <div
+                  class="bg-indigo-50 p-6 rounded-lg border-2 border-indigo-200"
+                >
+                  <h5 class="font-bold text-indigo-800 mb-2">生成AI</h5>
+                  <p>
+                    「かわいい犬の絵を描いて」という注文に応じて、世界に一枚しかない絵を描く<strong
+                      class="text-indigo-800"
+                      >アーティスト</strong
+                    >。
+                  </p>
+                </div>
+              </div>
+              <p class="text-center mt-6 font-semibold text-gray-800">
+                この「創造性」こそが、生成AIの最も画期的な点です。
+              </p>
+            </div>
+
+            <!-- 従来AIとの違い -->
+            <div
+              class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200 mb-12"
+            >
+              <h4 class="text-2xl font-bold text-center mb-6 text-indigo-700">
+                AIとの違いは「目的」
+              </h4>
+              <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
+                <!-- 従来のAI -->
+                <div>
+                  <h5 class="text-xl font-bold mb-3 border-b-2 pb-2">
+                    従来のAI (識別系AI)
+                  </h5>
+                  <dl class="space-y-3">
+                    <dt class="font-semibold">主目的</dt>
+                    <dd class="pl-4 text-gray-600">データの分析・分類・予測</dd>
+                    <dt class="font-semibold">役割</dt>
+                    <dd class="pl-4 text-gray-600">
+                      正解を見つける、異常を検知する
+                    </dd>
+                    <dt class="font-semibold">アウトプット</dt>
+                    <dd class="pl-4 text-gray-600">数値、ラベル、分類結果</dd>
+                    <dt class="font-semibold">対話</dt>
+                    <dd class="pl-4 text-gray-600">比較的、定型的</dd>
+                  </dl>
+                </div>
+                <!-- 生成AI -->
+                <div>
+                  <h5
+                    class="text-xl font-bold mb-3 border-b-2 pb-2 text-indigo-700"
+                  >
+                    生成AI (生成系AI)
+                  </h5>
+                  <dl class="space-y-3">
+                    <dt class="font-semibold">主目的</dt>
+                    <dd class="pl-4 text-gray-600">
+                      新しいコンテンツの創造・生成
+                    </dd>
+                    <dt class="font-semibold">役割</dt>
+                    <dd class="pl-4 text-gray-600">
+                      アイデアを出す、表現する、要約する
+                    </dd>
+                    <dt class="font-semibold">アウトプット</dt>
+                    <dd class="pl-4 text-gray-600">
+                      文章、画像、コード、音楽など
+                    </dd>
+                    <dt class="font-semibold">対話</dt>
+                    <dd class="pl-4 text-gray-600">
+                      人間のように自然で、文脈を理解した対話
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+              <p class="text-center mt-6 font-semibold text-gray-800">
+                従来のAIが「認識と判断」の専門家であるのに対し、生成AIは「表現と創造」の専門家なのです。
+              </p>
+            </div>
+
+            <!-- 仕事へのインパクト -->
+            <div class="max-w-5xl mx-auto mb-12">
+              <h4 class="text-2xl font-bold text-center mb-6 text-indigo-700">
+                仕事へのインパクト ―「代替」ではなく「協業」へ
+              </h4>
+              <p class="text-center text-gray-700 mb-8">
+                生成AIは、私たちの仕事を奪う存在というよりは、<strong
+                  class="text-indigo-600"
+                  >能力を拡張してくれる「優秀なパートナー」</strong
+                >と捉えるべきです。
+              </p>
+              <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md border">
+                  <h5 class="font-bold mb-2">1. 定型業務の自動化</h5>
+                  <p class="text-sm text-gray-600">
+                    メール作成、議事録要約、データ入力などを自動化し、人間はより創造的な仕事に集中できます。
+                  </p>
+                  <p class="text-xs text-gray-500 mt-3 bg-gray-50 p-2 rounded">
+                    例:
+                    三菱UFJ銀行では、月22万時間もの労働時間削減を見込んでいます。
+                  </p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border">
+                  <h5 class="font-bold mb-2">2. 知的生産性の飛躍的向上</h5>
+                  <p class="text-sm text-gray-600">
+                    企画書の草案、ブレインストーミング、コード生成など、アイデア出しや制作の初動を大幅に加速させます。
+                  </p>
+                  <p class="text-xs text-gray-500 mt-3 bg-gray-50 p-2 rounded">
+                    例:
+                    セブン-イレブンでは、商品企画期間を10分の1に短縮しました。
+                  </p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border">
+                  <h5 class="font-bold mb-2">3. 新たなスキルの要求</h5>
+                  <p class="text-sm text-gray-600">
+                    的確な指示を出す能力や、生成物を評価・編集する能力が不可欠に。AIを「使う側」へのスキルシフトが求められます。
+                  </p>
+                  <p class="text-xs text-gray-500 mt-3 bg-gray-50 p-2 rounded">
+                    世界の4人に1人の仕事がAIによって変革を受けると予測されています。(ILO)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- できること・できないこと -->
+            <div class="max-w-5xl mx-auto">
+              <h4 class="text-2xl font-bold text-center mb-6 text-indigo-700">
+                生成AIの「できること」と「できないこと」
+              </h4>
+              <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                  <h4 class="text-xl font-semibold text-green-700 mb-3">
+                    ✅ できること（得意なこと）
+                  </h4>
+                  <ul class="space-y-3 text-gray-600">
+                    <li>
+                      <strong>文章生成・要約・翻訳:</strong>
+                      メール、レポート、ブログ記事などをテーマに沿って作成。長文を数行に要約。
+                    </li>
+                    <li>
+                      <strong>アイデアの壁打ち:</strong>
+                      新規事業のアイデア、イベント企画など、多様な切り口から提案を無限に生成。
+                    </li>
+                    <li>
+                      <strong>クリエイティブ制作:</strong>
+                      指示に基づき、写実的な画像、イラスト、ロゴ、プレゼン資料などを生成。
+                    </li>
+                    <li>
+                      <strong>プログラミング:</strong>
+                      仕様を伝えるだけで、プログラムコードを生成したり、既存コードの誤りを修正。
+                    </li>
+                    <li>
+                      <strong>情報分析・抽出:</strong>
+                      大量の資料やデータの中から、関連する情報を探し出し、要点を整理して提示。
+                    </li>
+                  </ul>
+                </div>
+                <div class="bg-red-50 p-6 rounded-lg border border-red-200">
+                  <h4 class="text-xl font-semibold text-red-700 mb-3">
+                    ❌ できないこと（苦手なこと・課題）
+                  </h4>
+                  <ul class="space-y-3 text-gray-600">
+                    <li>
+                      <strong>事実確認・正確性の保証:</strong>
+                      もっともらしい嘘（ハルシネーション）を生成することがある。最新情報や未来予測は不可。
+                    </li>
+                    <li>
+                      <strong>感情の真の理解:</strong>
+                      共感しているように振る舞うことはできるが、感情を「感じる」ことはできない。
+                    </li>
+                    <li>
+                      <strong>倫理的・常識的な判断:</strong>
+                      データに基づかない複雑な倫理観や、文脈に応じた常識的な判断は苦手。
+                    </li>
+                    <li>
+                      <strong>完全にゼロからの創造:</strong>
+                      学習データのパターンを再構成して生成するため、全く新しい概念の創出はできない。
+                    </li>
+                    <li>
+                      <strong>自己の意識・責任:</strong>
+                      最終的なアウトプットに対する責任は、常に利用する人間にある。
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <p
+                class="text-center mt-8 font-semibold text-gray-800 max-w-3xl mx-auto"
+              >
+                生成AIは強力なツールですが、その特性を正しく理解し、苦手な部分は人間が補うという「協業」の姿勢が極めて重要になります。
+              </p>
+            </div>
+          </div>
+
+          <!-- 主要AIの使い分け戦略 (改良版) -->
+          <div class="mb-16 fade-in">
+            <h3 class="text-2xl font-bold text-center mb-4">
+              主要AIの使い分け戦略 (10分)
+            </h3>
+            <p
+              class="text-center text-lg text-gray-600 max-w-3xl mx-auto mb-12"
+            >
+              「どのAIが一番か」ではなく<strong class="text-indigo-600"
+                >「どのタスクに、どのモデル／モードを使うか」</strong
+              >を最適化することが生産性の鍵です。
+            </p>
+
+            <!-- 各AIの詳細 -->
+            <div class="space-y-12">
+              <!-- Gemini -->
+              <div class="card p-8">
+                <div class="flex flex-col md:flex-row items-center gap-6 mb-6">
+                  <div class="icon-box bg-blue-100 text-blue-600 flex-shrink-0">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-2xl font-bold">
+                      1. Gemini (Google) — 「情報参謀／思考モデルファミリー」
+                    </h4>
+                    <p class="text-gray-600">
+                      「思考」能力を持つモデル群。高精度なPro、高速なFlash/Flash-Liteなど、用途に応じて選択可能。
+                    </p>
+                  </div>
+                </div>
+                <h5 class="font-bold text-lg mb-3">🎯 モデル別の使い分け</h5>
+                <div class="space-y-4">
+                  <div class="bg-blue-50 p-4 rounded-lg">
+                    <h6 class="font-bold text-blue-800">Gemini 2.5 Pro</h6>
+                    <p class="text-sm text-gray-700">
+                      <strong>強み:</strong>
+                      高度な推論、長文・大量データ（テキスト/コード/画像/音声/動画）の横断処理。<br /><strong
+                        >具体例:</strong
+                      >
+                      大規模レポートの要点抽出＋戦略立案、コードベース全体を読み込んだ自動リファクタ提案。
+                    </p>
+                  </div>
+                  <div class="bg-blue-50 p-4 rounded-lg">
+                    <h6 class="font-bold text-blue-800">
+                      Gemini 2.5 Flash / Flash-Lite
+                    </h6>
+                    <p class="text-sm text-gray-700">
+                      <strong>強み:</strong>
+                      低レイテンシ・高スループット。チャットや大量要約、データ抽出などの実運用向けにコスト効率が良い。<br /><strong
+                        >具体例:</strong
+                      >
+                      カスタマーサポートのリアルタイム応答、週次ニュースの大量自動要約。
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-auto pt-4 border-t border-gray-200">
+                  <p class="font-semibold">
+                    💡 選び方の指針:
+                    <span class="font-normal text-gray-600"
+                      >「正確で深い推論」ならPro、「大量・高速・低コスト」ならFlash
+                      / Flash-Lite。</span
+                    >
+                  </p>
+                </div>
+              </div>
+
+              <!-- ChatGPT -->
+              <div class="card p-8">
+                <div class="flex flex-col md:flex-row items-center gap-6 mb-6">
+                  <div
+                    class="icon-box bg-green-100 text-green-600 flex-shrink-0"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-2xl font-bold">
+                      2. ChatGPT (OpenAI) — 「万能なクリエイティブ・パートナー」
+                    </h4>
+                    <p class="text-gray-600">
+                      対話の自然さと創造性に加え、UI上で速度や思考の深さをモードで選択できるのが特徴。
+                    </p>
+                  </div>
+                </div>
+                <h5 class="font-bold text-lg mb-3">
+                  🎯 モデル別＋“速度／思考”モードの使い分け
+                </h5>
+                <div class="space-y-4">
+                  <div class="bg-green-50 p-4 rounded-lg">
+                    <h6 class="font-bold text-green-800">
+                      GPT-5系 (Thinking / Pro)
+                    </h6>
+                    <p class="text-sm text-gray-700">
+                      <strong>強み:</strong>
+                      深い内部推論を常に使うモード。複雑な論理問題、研究的検討、高度なコード解析や長文の精査に。<br /><strong
+                        >具体例:</strong
+                      >
+                      新規機能の設計・アーキテクチャ提案、難解なバグのトラブルシュート。
+                    </p>
+                  </div>
+                  <div class="bg-green-50 p-4 rounded-lg">
+                    <h6 class="font-bold text-green-800">
+                      GPT-4o (Fast / Auto)
+                    </h6>
+                    <p class="text-sm text-gray-700">
+                      <strong>強み:</strong>
+                      マルチモーダル能力、低遅延・汎用性を重視。コスト・速度のバランスが良い。<br /><strong
+                        >具体例:</strong
+                      >
+                      マルチモーダルチャットボット、音声入力を含むインタラクティブUX、日常的な短い要約やQA。
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-auto pt-4 border-t border-gray-200">
+                  <p class="font-semibold">
+                    💡 選び方の指針:
+                    <span class="font-normal text-gray-600"
+                      >「深い技術的思考や最高品質」ならThinking/Pro、「速度とマルチモーダル」ならFast/Auto。</span
+                    >
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 戦略的使い分けサマリー -->
+            <div class="mt-16">
+              <h4 class="text-2xl font-bold text-center mb-6">
+                戦略的使い分けワークフロー（実例）
+              </h4>
+              <div class="max-w-4xl mx-auto">
+                <div class="flex items-center space-x-4">
+                  <!-- Step 1 -->
+                  <div
+                    class="flex-1 text-center p-4 bg-white rounded-lg shadow-md"
+                  >
+                    <p class="font-bold text-indigo-600">起点：市場スキャン</p>
+                    <p class="text-sm text-gray-600">
+                      最新ニュース・データを高速収集・要約
+                    </p>
+                    <p class="font-bold text-sm mt-2 text-blue-600">
+                      → Gemini 2.5 Flash
+                    </p>
+                  </div>
+                  <div class="text-2xl font-bold text-gray-400">&rarr;</div>
+                  <!-- Step 2 -->
+                  <div
+                    class="flex-1 text-center p-4 bg-white rounded-lg shadow-md"
+                  >
+                    <p class="font-bold text-indigo-600">肉付け：仮説立案</p>
+                    <p class="text-sm text-gray-600">
+                      要点からブレスト、企画案や草案を作成
+                    </p>
+                    <p class="font-bold text-sm mt-2 text-green-600">
+                      → ChatGPT (GPT-5, Fast/Auto)
+                    </p>
+                  </div>
+                  <div class="text-2xl font-bold text-gray-400">&rarr;</div>
+                  <!-- Step 3 -->
+                  <div
+                    class="flex-1 text-center p-4 bg-white rounded-lg shadow-md"
+                  >
+                    <p class="font-bold text-indigo-600">
+                      仕上げ：最終チェック
+                    </p>
+                    <p class="text-sm text-gray-600">
+                      法務・技術的精査、最終文面の整備
+                    </p>
+                    <p class="font-bold text-sm mt-2 text-purple-600">
+                      → ChatGPT (Thinking/Pro) or Gemini 2.5 Pro
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AIから良い回答を引き出すコツ -->
+          <div class="fade-in">
+            <h3 class="text-2xl font-bold text-center mb-4">
+              AIから良い回答を引き出すコツ (5分)
+            </h3>
+            <p
+              class="text-center text-lg text-gray-600 max-w-3xl mx-auto mb-12"
+            >
+              AIを「指示に忠実な高性能ツール」として扱い、<strong
+                class="text-indigo-600"
+                >「役割」「目的」「条件」</strong
+              >を明確に伝える「プロンプト」が全てを決定します。
+            </p>
+
+            <!-- ダメなプロンプト vs 神プロンプト -->
+            <div class="max-w-5xl mx-auto mb-12">
+              <h4 class="text-xl font-bold text-center mb-6">
+                具体例で見る「ダメなプロンプト」と「神プロンプト」
+              </h4>
+              <!-- 例1: ビジネスメール -->
+              <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <h5 class="font-bold text-red-700 mb-3">
+                    ❌ ダメなプロンプト
+                  </h5>
+                  <p class="text-gray-600">
+                    新製品の発売を知らせるメールを書いて。
+                  </p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <h5 class="font-bold text-green-700 mb-3">✅ 神プロンプト</h5>
+                  <ul class="text-sm text-gray-700 space-y-1">
+                    <li>
+                      <strong>【役割】</strong
+                      >経験豊富なBtoB企業のマーケティング担当者。
+                    </li>
+                    <li>
+                      <strong>【目的】</strong
+                      >優良顧客に新製品の先行発売を知らせるメールを作成。
+                    </li>
+                    <li>
+                      <strong>【条件】</strong
+                      >丁寧なトーン、特長を箇条書き、特別割引の案内を含める。
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <!-- 例2: アイデア出し -->
+              <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <h5 class="font-bold text-red-700 mb-3">
+                    ❌ ダメなプロンプト
+                  </h5>
+                  <p class="text-gray-600">YouTubeの企画案を考えて。</p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <h5 class="font-bold text-green-700 mb-3">✅ 神プロンプト</h5>
+                  <ul class="text-sm text-gray-700 space-y-1">
+                    <li>
+                      <strong>【役割】</strong
+                      >登録者100万人超えのビジネス系YouTuber。
+                    </li>
+                    <li>
+                      <strong>【目的】</strong
+                      >AIツール活用術に関する新しい動画企画を5つ提案。
+                    </li>
+                    <li>
+                      <strong>【条件】</strong
+                      >ターゲットは20代、具体的で実践的な内容、刺激的なタイトル。
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- 汎用テンプレート -->
+            <div
+              class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200"
+            >
+              <h4 class="text-xl font-bold text-center mb-4">
+                AIにとって最も理解しやすい構成テンプレート
+              </h4>
+              <div class="prompt-card bg-gray-800 text-white text-sm">
+                <pre><code># 命令書
+
+## 0. CONTEXT (この指示の背景)
+* 現状・課題: {なぜこのタスクが必要なのか？}
+* 最終的な用途: {この成果物を何に使うのか？}
+
+---
+
+## 1. ROLE (AIの役割)
+* あなたは、{AIに演じてほしい、最も的確な専門家}です。
+
+---
+
+## 2. GOAL (達成すべき目的)
+* 最も重要なタスク: {実行してほしいことを「動詞」で明確に指定}
+* 具体的な成果物: {上記のタスクによる最終アウトプット}
+
+---
+
+## 3. FORMAT (成果物の形式)
+* 構造: {マークダウン、JSON、箇条書き、表形式など}
+* スタイル: {プロフェッショナル、フレンドリーなど}
+* 言語: {日本語、英語など}
+* 分量: {約〇〇字、〇項目、など}
+
+---
+
+## 4. CONSTRAINTS & EXAMPLES (制約と参考例)
+* 必須要件 (Do):
+    * {必ず含めてほしい要素やキーワード}
+* 禁止事項 (Don't):
+    * {絶対に含めてほしくない要素や表現}
+* 参考例 (Example):
+"""
+{ここに模範となる文章、データなどを貼り付け}
+"""</code></pre>
+              </div>
+              <p class="text-center mt-6 font-semibold text-gray-800">
+                AIに何かを頼む前に、このテンプレートを意識するだけで、AIはあなたの最強の思考パートナーへと変貌します。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- NoteBookLMセクション (改良版) -->
+      <section id="notebooklm" class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+          <h2 class="section-title fade-in">
+            社内情報を安全に活用する「NoteBookLM」
+          </h2>
+          <p
+            class="text-center text-lg text-gray-600 max-w-3xl mx-auto mb-12 fade-in"
+          >
+            多くの企業が抱える「AIを使いたいが、情報漏洩が怖い」というジレンマを根本から解決するゲームチェンジャー、NotebookLMの本質と強みを解説します。
+          </p>
+
+          <!-- NotebookLMとは？ -->
+          <div
+            class="max-w-4xl mx-auto bg-gray-50 p-8 rounded-2xl shadow-lg border border-gray-200 mb-12 fade-in"
+          >
+            <h4 class="text-2xl font-bold text-center mb-6 text-indigo-700">
+              NotebookLMとは？―「社内情報専用のAI頭脳」
+            </h4>
+            <p class="text-gray-700 mb-6 text-center">
+              あなたがアップロードした情報（ソース）だけを知識源として動作する、完全にプライベートなAIアシスタントです。
+            </p>
+            <div class="grid md:grid-cols-2 gap-6 text-center">
+              <div class="bg-gray-200 p-6 rounded-lg">
+                <h5 class="font-bold mb-2">一般的なAIチャット</h5>
+                <p>
+                  インターネット上の膨大な公開情報で学習した<strong
+                    class="text-gray-800"
+                    >「博識な外部の専門家」</strong
+                  >
+                </p>
+              </div>
+              <div
+                class="bg-indigo-100 p-6 rounded-lg border-2 border-indigo-300"
+              >
+                <h5 class="font-bold text-indigo-800 mb-2">NotebookLM</h5>
+                <p>
+                  あなたが提供した資料しか読めない<strong
+                    class="text-indigo-800"
+                    >「機密情報厳守の、超優秀な社内アシスタント」</strong
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- なぜ情報漏洩リスクがないのか？ -->
+          <div class="max-w-5xl mx-auto mb-12 fade-in">
+            <h4 class="text-2xl font-bold text-center mb-6">
+              なぜ情報漏洩リスクがないのか？― NotebookLMの2つの鉄壁ルール
+            </h4>
+            <div class="grid md:grid-cols-2 gap-8">
+              <div
+                class="bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500"
+              >
+                <h5 class="font-bold text-lg mb-2">
+                  1. あなたのデータは、AIの学習に一切使われない
+                </h5>
+                <p class="text-gray-600">
+                  アップロードした機密情報は、Googleの汎用AIモデルのトレーニングには決して利用されません。データはあなたのアカウント内だけで完結します。
+                </p>
+              </div>
+              <div
+                class="bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500"
+              >
+                <h5 class="font-bold text-lg mb-2">
+                  2. 回答は、100%あなたの情報源（ソース）に基づく
+                </h5>
+                <p class="text-gray-600">
+                  AIの「創造」や「推測」を極力行わず、資料の読解に特化。回答の横には引用元が表示され、クリック一つで根拠を確認でき、AIの嘘を防ぎます。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- NotebookLMの強み -->
+          <div class="fade-in">
+            <h4 class="text-2xl font-bold text-center mb-8">
+              NotebookLMの強み：静的な「資料の山」が、対話可能な「知の泉」に変わる
+            </h4>
+            <div class="grid md:grid-cols-2 gap-8">
+              <div class="card p-6">
+                <h5 class="font-bold text-lg mb-3">
+                  1. 複雑な社内規定・マニュアルの即時検索
+                </h5>
+                <p class="text-gray-600 mb-4">
+                  数百ページの就業規則や経費精算マニュアルから、自然言語で質問するだけで該当箇所を瞬時に探し出し、要約します。
+                </p>
+                <blockquote class="text-sm bg-gray-100 p-3 rounded-lg">
+                  「大阪から東京へ2泊3日の出張をする場合、宿泊費の上限はいくらですか？関連規定を引用して教えて。」
+                </blockquote>
+              </div>
+              <div class="card p-6">
+                <h5 class="font-bold text-lg mb-3">
+                  2. 膨大な議事録・過去資料からのナレッジ抽出
+                </h5>
+                <p class="text-gray-600 mb-4">
+                  過去のプロジェクトの議事録、日報、報告書をすべて読み込ませ、組織の「暗黙知」を掘り起こします。
+                </p>
+                <blockquote class="text-sm bg-gray-100 p-3 rounded-lg">
+                  「過去のAプロジェクトとBプロジェクトの議事録から、共通して発生した課題とその対策をリストアップして。」
+                </blockquote>
+              </div>
+              <div class="card p-6">
+                <h5 class="font-bold text-lg mb-3">
+                  3. 営業・カスタマーサポートの高度化
+                </h5>
+                <p class="text-gray-600 mb-4">
+                  製品カタログ、技術仕様書、FAQをソースにすれば、新人でもベテランのように的確な顧客対応が可能になります。
+                </p>
+                <blockquote class="text-sm bg-gray-100 p-3 rounded-lg">
+                  「製品Xについて『接続が不安定』という問い合わせがあった。考えられる原因と対処法をマニュアルから探して、顧客への回答メール案を作成して。」
+                </blockquote>
+              </div>
+              <div class="card p-6">
+                <h5 class="font-bold text-lg mb-3">4. アイデア創出と壁打ち</h5>
+                <p class="text-gray-600 mb-4">
+                  複数の企画書や市場調査レポートを横断的に分析・比較させ、新たなインサイトを得るための壁打ち相手になります。
+                </p>
+                <blockquote class="text-sm bg-gray-100 p-3 rounded-lg">
+                  「これら3つの新規事業案のメリットとデメリットを比較する表を作成し、最もリスクが低い案について、その根拠を説明して。」
+                </blockquote>
+              </div>
+            </div>
+          </div>
+
+          <!-- 結論 -->
+          <div
+            class="mt-16 max-w-4xl mx-auto text-center bg-indigo-600 text-white p-8 rounded-2xl shadow-2xl fade-in"
+          >
+            <h4 class="text-2xl font-bold mb-4">
+              結論：企業の知的生産性を根底から引き上げる戦略的基盤
+            </h4>
+            <p>
+              NotebookLMは、眠っている社内ナレッジを、全社員が安全かつ自由自在に引き出せる「対話型の知のデータベース」へと変貌させる、まさに待望のツールです。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 実践編 開始セクション -->
+      <section id="jissen-start" class="py-20 gradient-bg-dark text-white">
+        <div class="container mx-auto px-6 text-center">
+          <h2 class="text-4xl md:text-5xl font-extrabold mb-4 fade-in">
+            【実践編】
+          </h2>
+          <p
+            class="text-xl md:text-2xl max-w-3xl mx-auto fade-in"
+            style="transition-delay: 100ms"
+          >
+            ここからはライブデモです！<br />
+            <span class="font-bold">明日から使えるAI活用術 (20分)</span>
+            を開始します。
+          </p>
+        </div>
+      </section>
+
+      <!-- まとめとQ&A -->
+      <section class="gradient-bg text-white py-20">
+        <div class="container mx-auto px-6 text-center">
+          <h2 class="text-4xl font-bold mb-4 fade-in">まとめと次のステップ</h2>
+          <p
+            class="max-w-2xl mx-auto mb-8 fade-in"
+            style="transition-delay: 100ms"
+          >
+            この60分で、AI活用の基礎と実践的なツールを学びました。
+            ぜひ明日からの業務にお役立てください。
+          </p>
+          <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+            <div
+              class="bg-white/20 p-6 rounded-lg fade-in"
+              style="transition-delay: 200ms"
+            >
+              <h3 class="text-xl font-bold mb-3">本日の振り返り</h3>
+              <ul class="list-disc list-inside space-y-2">
+                <li>生成AIの基本と可能性を理解した</li>
+                <li>主要AIツールの得意分野と使い分けを学んだ</li>
+                <li>安全な社内情報活用ツール「NoteBookLM」を知った</li>
+              </ul>
+            </div>
+            <div
+              class="bg-white/20 p-6 rounded-lg fade-in"
+              style="transition-delay: 300ms"
+            >
+              <h3 class="text-xl font-bold mb-3">次のステップのご案内</h3>
+              <p class="mb-4">
+                さらに深く学びたい方向けに、より詳細なハンズオンワークショップの開催を予定しています。ご興味のある方は、ぜひご参加ください！
+              </p>
+              <button
+                class="bg-white text-indigo-600 font-bold py-2 px-6 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                ワークショップに興味あり
+              </button>
+            </div>
+          </div>
+          <div class="mt-12 fade-in" style="transition-delay: 400ms">
+            <h3 class="text-2xl font-bold mb-4">総合質疑応答</h3>
+            <p>セミナーに関するご質問をお待ちしております。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-gray-800 text-white py-6">
+      <div class="container mx-auto px-6 text-center">
+        <p>&copy; 2025 Your Company Name. All Rights Reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // スムーズスクロール
+        document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+          anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute("href")).scrollIntoView({
+              behavior: "smooth",
+            });
+          });
+        });
+
+        // フェードインアニメーション
+        const faders = document.querySelectorAll(".fade-in");
+        const appearOptions = {
+          threshold: 0.1, // 要素が10%見えたら発火
+          rootMargin: "0px 0px -50px 0px", // 少し早めに発火させる
+        };
+
+        const appearOnScroll = new IntersectionObserver(function (
+          entries,
+          observer
+        ) {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) {
+              return;
+            } else {
+              entry.target.classList.add("visible");
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        appearOptions);
+
+        faders.forEach((fader) => {
+          appearOnScroll.observe(fader);
+        });
+      });
+    </script>
+  </body>
+</html>
