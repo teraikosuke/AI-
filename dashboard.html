@@ -1,2053 +1,1614 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>業務ダッシュボード</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="dashboard.css" />
-  </head>
-  <body class="bg-slate-100">
-    <div class="flex min-h-screen transition-all duration-300">
-      <aside
-        id="sidebar"
-        class="w-64 bg-slate-900 text-slate-100 flex flex-col transition-all duration-300 ease-in-out"
-      >
-        <div
-          class="px-6 py-5 border-b border-slate-700 flex items-start justify-between gap-3"
-        >
-          <div>
-            <p
-              class="text-sm uppercase tracking-wide text-slate-400 sidebar-title-text"
-            >
-              Recruiting Ops
-            </p>
-            <h1 class="text-xl font-semibold mt-2 sidebar-title-text">
-              業務ダッシュボード
-            </h1>
-          </div>
-          <button
-            id="sidebarToggle"
-            class="mt-1 px-2 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 rounded-md border border-slate-700 transition"
-            aria-label="サイドバーの開閉"
-            type="button"
-          >
-            ⪡⪢
-          </button>
-        </div>
-        <nav class="flex-1 overflow-y-auto">
-          <ul class="px-3 py-4 space-y-1">
-            <li>
-              <button
-                data-target="yield"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white bg-slate-800 text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-indigo-400"></span>
-                <span class="nav-label">歩留管理（総合）</span>
-              </button>
-            </li>
-            <li>
-              <button
-                data-target="ad-spend"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="nav-label">広告費管理</span>
-              </button>
-            </li>
-            <li>
-              <button
-                data-target="introduction"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="nav-label">紹介実績管理</span>
-              </button>
-            </li>
-            <li>
-              <button
-                data-target="tele-ops"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="nav-label">テレアポ実績管理</span>
-              </button>
-            </li>
-            <li>
-              <button
-                data-target="ad-performance"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="nav-label">広告管理</span>
-              </button>
-            </li>
-            <li>
-              <button
-                data-target="tele-log"
-                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
-              >
-                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="nav-label">テレアポ管理</span>
-              </button>
-            </li>
-          </ul>
-        </nav>
-        <div class="px-6 py-4 border-t border-slate-800 text-sm text-slate-400">
-          保存済みビューや通知は次期開発で追加予定
-        </div>
-      </aside>
 
-      <div class="flex-1 flex flex-col">
-        <header class="bg-white border-b border-slate-200">
-          <div
-            class="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
-          >
-            <div>
-              <h2 id="pageTitle" class="text-2xl font-semibold text-slate-900">
-                歩留管理（総合）
-              </h2>
-              <p id="pageSubtitle" class="text-sm text-slate-500 mt-1">
-                フィルター適用後の歩留KPIとトレンドをスプレッドシート形式で確認
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap"
-              >
-                ビューを保存
-              </button>
-              <button
-                class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap"
-              >
-                共有
-              </button>
-              <button
-                class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 whitespace-nowrap"
-              >
-                CSVエクスポート
-              </button>
-            </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>業務ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+
+<body class="bg-slate-100">
+  <div class="flex min-h-screen transition-all duration-300">
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-100 flex flex-col transition-all duration-300 ease-in-out">
+      <div class="px-6 py-5 border-b border-slate-700 flex items-start justify-between gap-3">
+        <div>
+          <p class="text-sm uppercase tracking-wide text-slate-400 sidebar-title-text">
+            Recruiting Ops
+          </p>
+          <h1 class="text-xl font-semibold mt-2 sidebar-title-text">
+            業務ダッシュボード
+          </h1>
+        </div>
+        <button id="sidebarToggle"
+          class="mt-1 px-2 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 rounded-md border border-slate-700 transition"
+          aria-label="サイドバーの開閉" type="button">
+          ⪡⪢
+        </button>
+      </div>
+      <nav class="flex-1 overflow-y-auto">
+        <ul class="px-3 py-4 space-y-1">
+          <li>
+            <button data-target="yield"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white bg-slate-800 text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-indigo-400"></span>
+              <span class="nav-label">歩留管理（総合）</span>
+            </button>
+          </li>
+          <li>
+            <button data-target="ad-spend"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+              <span class="nav-label">広告費管理</span>
+            </button>
+          </li>
+          <li>
+            <button data-target="introduction"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+              <span class="nav-label">紹介実績管理</span>
+            </button>
+          </li>
+          <li>
+            <button data-target="tele-ops"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+              <span class="nav-label">テレアポ実績管理</span>
+            </button>
+          </li>
+          <li>
+            <button data-target="ad-performance"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+              <span class="nav-label">広告管理</span>
+            </button>
+          </li>
+          <li>
+            <button data-target="tele-log"
+              class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3">
+              <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+              <span class="nav-label">テレアポ管理</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+      <div class="px-6 py-4 border-t border-slate-800 text-sm text-slate-400">
+        保存済みビューや通知は次期開発で追加予定
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col">
+      <header class="bg-white border-b border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div>
+            <h2 id="pageTitle" class="text-2xl font-semibold text-slate-900">
+              歩留管理（総合）
+            </h2>
+            <p id="pageSubtitle" class="text-sm text-slate-500 mt-1">
+              フィルター適用後の歩留KPIとトレンドをスプレッドシート形式で確認
+            </p>
           </div>
-          <div
-            class="flex flex-wrap items-center gap-3 px-6 pb-4 border-t border-slate-200 pt-4 bg-slate-50"
-          >
-            <div class="flex flex-col text-xs text-slate-500">
-              <label for="filter-period" class="mb-1"
-                ><span class="whitespace-nowrap">期間</span></label
-              >
-              <select
-                id="filter-period"
-                class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option>今月</option>
-                <option>先月</option>
-                <option>四半期</option>
-                <option>年度</option>
-                <option>カスタム</option>
-              </select>
-            </div>
-            <div class="flex flex-col text-xs text-slate-500">
-              <label for="filter-role" class="mb-1"
-                ><span class="whitespace-nowrap">職種</span></label
-              >
-              <select
-                id="filter-role"
-                class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option>すべて</option>
-                <option>エンジニア</option>
-                <option>セールス</option>
-                <option>カスタマーサクセス</option>
-              </select>
-            </div>
-            <div class="flex flex-col text-xs text-slate-500">
-              <label for="filter-channel" class="mb-1"
-                ><span class="whitespace-nowrap">媒体</span></label
-              >
-              <select
-                id="filter-channel"
-                class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option>すべて</option>
-                <option>Indeed</option>
-                <option>求人ボックス</option>
-                <option>リクナビ</option>
-              </select>
-            </div>
-            <div class="flex flex-col text-xs text-slate-500">
-              <label for="filter-owner" class="mb-1"
-                ><span class="whitespace-nowrap">担当者</span></label
-              >
-              <select
-                id="filter-owner"
-                class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option>すべて</option>
-                <option>CAチーム</option>
-                <option>CSチーム</option>
-                <option>広告運用</option>
-              </select>
-            </div>
-            <div class="flex-1"></div>
-            <div class="flex flex-col text-xs text-slate-500">
-              <label for="search" class="mb-1"
-                ><span class="whitespace-nowrap">検索</span></label
-              >
-              <input
-                id="search"
-                type="search"
-                class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                placeholder="候補者名や求人IDで検索"
-              />
-            </div>
+          <div class="flex items-center gap-2">
             <button
-              class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-100 whitespace-nowrap"
-            >
-              フィルターをリセット
+              class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
+              ビューを保存
+            </button>
+            <button
+              class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
+              共有
+            </button>
+            <button
+              class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 whitespace-nowrap">
+              CSVエクスポート
             </button>
           </div>
-        </header>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 px-6 pb-4 border-t border-slate-200 pt-4 bg-slate-50">
+          <div class="flex flex-col text-xs text-slate-500">
+            <label for="filter-period" class="mb-1"><span class="whitespace-nowrap">期間</span></label>
+            <select id="filter-period" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+              <option>今月</option>
+              <option>先月</option>
+              <option>四半期</option>
+              <option>年度</option>
+              <option>カスタム</option>
+            </select>
+          </div>
+          <div class="flex flex-col text-xs text-slate-500">
+            <label for="filter-role" class="mb-1"><span class="whitespace-nowrap">職種</span></label>
+            <select id="filter-role" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+              <option>すべて</option>
+              <option>エンジニア</option>
+              <option>セールス</option>
+              <option>カスタマーサクセス</option>
+            </select>
+          </div>
+          <div class="flex flex-col text-xs text-slate-500">
+            <label for="filter-channel" class="mb-1"><span class="whitespace-nowrap">媒体</span></label>
+            <select id="filter-channel" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+              <option>すべて</option>
+              <option>Indeed</option>
+              <option>求人ボックス</option>
+              <option>リクナビ</option>
+            </select>
+          </div>
+          <div class="flex flex-col text-xs text-slate-500">
+            <label for="filter-owner" class="mb-1"><span class="whitespace-nowrap">担当者</span></label>
+            <select id="filter-owner" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+              <option>すべて</option>
+              <option>CAチーム</option>
+              <option>CSチーム</option>
+              <option>広告運用</option>
+            </select>
+          </div>
+          <div class="flex-1"></div>
+          <div class="flex flex-col text-xs text-slate-500">
+            <label for="search" class="mb-1"><span class="whitespace-nowrap">検索</span></label>
+            <input id="search" type="search" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+              placeholder="候補者名や求人IDで検索" />
+          </div>
+          <button
+            class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-100 whitespace-nowrap">
+            フィルターをリセット
+          </button>
+        </div>
+      </header>
 
-        <main class="flex-1 overflow-y-auto p-6 space-y-6">
-          <section data-page="yield" class="page-section space-y-6">
-            <div class="card-grid">
-              <div class="kpi-card">
-                <strong>一次歩留</strong>
-                <span>72%</span>
-                <p class="text-xs text-slate-500 mt-1">目標 68%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>二次歩留</strong>
-                <span>54%</span>
-                <p class="text-xs text-slate-500 mt-1">前月比 +4pt</p>
-              </div>
-              <div class="kpi-card">
-                <strong>決定数</strong>
-                <span>38</span>
-                <p class="text-xs text-slate-500 mt-1">先月 32</p>
-              </div>
-              <div class="kpi-card">
-                <strong>定着30日</strong>
-                <span>92%</span>
-                <p class="text-xs text-slate-500 mt-1">警告域 80%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>返金率</strong>
-                <span>3%</span>
-                <p class="text-xs text-slate-500 mt-1">閾値 5%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>TAT（平均）</strong>
-                <span>8.4日</span>
-                <p class="text-xs text-slate-500 mt-1">ベスト 6.2日</p>
-              </div>
-              <div class="kpi-card">
-                <strong>No-Show率</strong>
-                <span>6%</span>
-                <p class="text-xs text-slate-500 mt-1">前月比 -1pt</p>
+      <main class="flex-1 overflow-y-auto p-6 space-y-6">
+        <section data-page="yield" class="page-section space-y-6">
+          <div class="card-grid">
+            <div class="kpi-card">
+              <strong>一次歩留</strong>
+              <span>72%</span>
+              <p class="text-xs text-slate-500 mt-1">目標 68%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>二次歩留</strong>
+              <span>54%</span>
+              <p class="text-xs text-slate-500 mt-1">前月比 +4pt</p>
+            </div>
+            <div class="kpi-card">
+              <strong>決定数</strong>
+              <span>38</span>
+              <p class="text-xs text-slate-500 mt-1">先月 32</p>
+            </div>
+            <div class="kpi-card">
+              <strong>定着30日</strong>
+              <span>92%</span>
+              <p class="text-xs text-slate-500 mt-1">警告域 80%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>返金率</strong>
+              <span>3%</span>
+              <p class="text-xs text-slate-500 mt-1">閾値 5%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>TAT（平均）</strong>
+              <span>8.4日</span>
+              <p class="text-xs text-slate-500 mt-1">ベスト 6.2日</p>
+            </div>
+            <div class="kpi-card">
+              <strong>No-Show率</strong>
+              <span>6%</span>
+              <p class="text-xs text-slate-500 mt-1">前月比 -1pt</p>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                4軸比較サマリー
+              </h3>
+              <div class="flex gap-2 text-sm">
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  媒体別
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  職種別
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  時期別
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  面接官別
+                </button>
               </div>
             </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  4軸比較サマリー
-                </h3>
-                <div class="flex gap-2 text-sm">
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    媒体別
-                  </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    職種別
-                  </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    時期別
-                  </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    面接官別
-                  </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-6">
-                <div
-                  class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                >
-                  レーダー / バブルチャート領域
-                </div>
-                <div
-                  class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                >
-                  分布比較チャート領域
-                </div>
+            <div class="grid grid-cols-2 gap-6">
+              <div
+                class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                レーダー / バブルチャート領域
               </div>
               <div
-                class="h-48 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-              >
-                時系列トレンド（CV数・歩留・TAT）ラインチャート領域
+                class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                分布比較チャート領域
+              </div>
+            </div>
+            <div
+              class="h-48 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+              時系列トレンド（CV数・歩留・TAT）ラインチャート領域
+            </div>
+          </div>
+
+          <div class="section-shell space-y-5">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                  CA担当一覧（歩留トンネル）
+                </h3>
+                <p class="text-sm text-slate-500">
+                  ボトルネックと滞留案件を即座に把握し、次アクションへ誘導
+                </p>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <label for="roleSelect" class="text-xs font-semibold text-slate-500 whitespace-nowrap">表示ロール</label>
+                <select id="roleSelect" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="general">一般ユーザー</option>
+                  <option value="manager">マネージャー</option>
+                </select>
               </div>
             </div>
 
-            <div class="section-shell space-y-5">
-              <div class="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                  >
-                    CA担当一覧（歩留トンネル）
-                  </h3>
-                  <p class="text-sm text-slate-500">
-                    ボトルネックと滞留案件を即座に把握し、次アクションへ誘導
-                  </p>
-                </div>
-                <div class="flex items-center gap-2 text-sm">
-                  <label
-                    for="roleSelect"
-                    class="text-xs font-semibold text-slate-500 whitespace-nowrap"
-                    >表示ロール</label
-                  >
-                  <select
-                    id="roleSelect"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="general">一般ユーザー</option>
-                    <option value="manager">マネージャー</option>
+            <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+              <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
+                絞り込み（AND）
+              </h4>
+              <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 text-xs text-slate-500">
+                <label class="flex flex-col gap-1">
+                  <span class="whitespace-nowrap">紹介する求職者名（部分一致）</span>
+                  <input id="filterCandidateName" type="search"
+                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="候補者名で検索" />
+                </label>
+                <label class="flex flex-col gap-1">
+                  <span class="whitespace-nowrap">紹介先企業</span>
+                  <select id="filterCompany" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                    <option>すべて</option>
+                    <option>ABC株式会社</option>
+                    <option>XYZホールディングス</option>
+                    <option>DEF株式会社</option>
                   </select>
-                </div>
-              </div>
-
-              <div
-                class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3"
-              >
-                <h4
-                  class="text-sm font-semibold text-slate-700 whitespace-nowrap"
-                >
-                  絞り込み（AND）
-                </h4>
-                <div
-                  class="grid grid-cols-1 xl:grid-cols-3 gap-4 text-xs text-slate-500"
-                >
-                  <label class="flex flex-col gap-1">
-                    <span class="whitespace-nowrap"
-                      >紹介する求職者名（部分一致）</span
-                    >
-                    <input
-                      id="filterCandidateName"
-                      type="search"
-                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                      placeholder="候補者名で検索"
-                    />
-                  </label>
-                  <label class="flex flex-col gap-1">
-                    <span class="whitespace-nowrap">紹介先企業</span>
-                    <select
-                      id="filterCompany"
-                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                    >
-                      <option>すべて</option>
-                      <option>ABC株式会社</option>
-                      <option>XYZホールディングス</option>
-                      <option>DEF株式会社</option>
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1">
-                    <span class="whitespace-nowrap">担当社員</span>
-                    <select
-                      id="filterOwner"
-                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                    >
-                      <option>すべて</option>
-                      <option>佐藤（CA）</option>
-                      <option>田中（CA）</option>
-                      <option>山本（CS）</option>
-                    </select>
-                  </label>
-                  <div class="flex flex-col gap-1">
-                    <span class="whitespace-nowrap">初回接点日時（範囲）</span>
-                    <div class="flex items-center gap-2">
-                      <input
-                        id="filterInitialFrom"
-                        type="date"
-                        class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm flex-1"
-                      />
-                      <span class="text-slate-400">〜</span>
-                      <input
-                        id="filterInitialTo"
-                        type="date"
-                        class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <span class="whitespace-nowrap"
-                      >現在フェーズ（複数選択）</span
-                    >
-                    <div class="flex flex-wrap gap-3 text-xs text-slate-600">
-                      <label
-                        class="inline-flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <input
-                          type="checkbox"
-                          class="phase-filter"
-                          value="新規面談"
-                          checked
-                        />
-                        新規面談
-                      </label>
-                      <label
-                        class="inline-flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <input
-                          type="checkbox"
-                          class="phase-filter"
-                          value="面接前"
-                          checked
-                        />
-                        面接前
-                      </label>
-                      <label
-                        class="inline-flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <input
-                          type="checkbox"
-                          class="phase-filter"
-                          value="内定承諾待ち"
-                        />
-                        内定承諾待ち
-                      </label>
-                      <label
-                        class="inline-flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <input
-                          type="checkbox"
-                          class="phase-filter"
-                          value="内定承諾"
-                        />
-                        内定承諾
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div
-                  class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-dashed border-slate-200"
-                >
-                  <div class="flex items-center gap-2 text-sm text-slate-500">
-                    <label
-                      for="sortKey"
-                      class="text-xs font-semibold text-slate-500 whitespace-nowrap"
-                      >並び替え</label
-                    >
-                    <select
-                      id="sortKey"
-                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="phase">現在フェーズ（内定→新規）</option>
-                      <option value="initial">初回接点日時</option>
-                      <option value="stuck">滞留日数</option>
-                    </select>
-                    <button
-                      id="sortDirection"
-                      class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium hover:bg-slate-100 whitespace-nowrap"
-                      data-order="desc"
-                    >
-                      降順
-                    </button>
-                  </div>
+                </label>
+                <label class="flex flex-col gap-1">
+                  <span class="whitespace-nowrap">担当社員</span>
+                  <select id="filterOwner" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                    <option>すべて</option>
+                    <option>佐藤（CA）</option>
+                    <option>田中（CA）</option>
+                    <option>山本（CS）</option>
+                  </select>
+                </label>
+                <div class="flex flex-col gap-1">
+                  <span class="whitespace-nowrap">初回接点日時（範囲）</span>
                   <div class="flex items-center gap-2">
-                    <button
-                      id="filterReset"
-                      class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap"
-                    >
-                      条件をクリア
-                    </button>
-                    <button
-                      id="filterApply"
-                      class="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500 whitespace-nowrap"
-                    >
-                      フィルターを適用
-                    </button>
+                    <input id="filterInitialFrom" type="date"
+                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm flex-1" />
+                    <span class="text-slate-400">〜</span>
+                    <input id="filterInitialTo" type="date"
+                      class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm flex-1" />
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <span class="whitespace-nowrap">現在フェーズ（複数選択）</span>
+                  <div class="flex flex-wrap gap-3 text-xs text-slate-600">
+                    <label class="inline-flex items-center gap-1 whitespace-nowrap">
+                      <input type="checkbox" class="phase-filter" value="新規面談" checked />
+                      新規面談
+                    </label>
+                    <label class="inline-flex items-center gap-1 whitespace-nowrap">
+                      <input type="checkbox" class="phase-filter" value="面接前" checked />
+                      面接前
+                    </label>
+                    <label class="inline-flex items-center gap-1 whitespace-nowrap">
+                      <input type="checkbox" class="phase-filter" value="内定承諾待ち" />
+                      内定承諾待ち
+                    </label>
+                    <label class="inline-flex items-center gap-1 whitespace-nowrap">
+                      <input type="checkbox" class="phase-filter" value="内定承諾" />
+                      内定承諾
+                    </label>
                   </div>
                 </div>
               </div>
-
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1200px]">
-                  <thead>
-                    <tr>
-                      <th>初回接点日時</th>
-                      <th class="whitespace-nowrap">紹介する求職者名</th>
-                      <th>紹介先企業</th>
-                      <th>担当社員</th>
-                      <th class="whitespace-nowrap">求職者の住所</th>
-                      <th>電話番号</th>
-                      <th>メールアドレス</th>
-                      <th class="whitespace-nowrap">現在のフェーズ</th>
-                      <th>フェーズ遷移タイムライン</th>
-                    </tr>
-                  </thead>
-                  <tbody id="candidateTableBody">
-                    <tr
-                      class="candidate-row cursor-pointer hover:bg-indigo-50"
-                      data-name="田中太郎"
-                      data-company="ABC株式会社"
-                      data-address="東京都港区南青山1-2-3"
-                      data-phone-full="03-1234-5678"
-                      data-phone-masked="***-****-5678"
-                      data-email-full="tanaka.taro@example.com"
-                      data-email-masked="tanaka***@example.com"
-                      data-phase="内定承諾待ち"
-                      data-owner="佐藤（CA）"
-                      data-initial="2024-05-10"
-                      data-initial-datetime="2024-05-10T14:20"
-                      data-timeline="新規面談|2024/05/10;紹介可能|2024/05/12;企業に紹介|2024/05/13;面接前|2024/05/16;面接後|2024/05/22;内定獲得|2024/05/26;内定承諾待ち|2024/05/27"
-                      data-stuck-days="4"
-                      data-next-action="6/02 内定承諾フォロー（メール＋架電）"
-                      data-memo="オファー条件の再確認待ち。kintoneコメント参照。"
-                    >
-                      <td>2024/05/10 14:20</td>
-                      <td
-                        class="text-indigo-700 font-semibold underline whitespace-nowrap"
-                      >
-                        田中太郎
-                      </td>
-                      <td>ABC株式会社</td>
-                      <td>佐藤（CA）</td>
-                      <td class="whitespace-nowrap">東京都港区南青山1-2-3</td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="phone"
-                          data-full="03-1234-5678"
-                          data-masked="***-****-5678"
-                          >***-****-5678</span
-                        >
-                      </td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="email"
-                          data-full="tanaka.taro@example.com"
-                          data-masked="tanaka***@example.com"
-                          >tanaka***@example.com</span
-                        >
-                      </td>
-                      <td class="whitespace-nowrap">
-                        <span class="inline-flex items-center gap-2">
-                          <span
-                            class="px-2 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700"
-                            >内定承諾待ち</span
-                          >
-                        </span>
-                      </td>
-                      <td>
-                        <div class="flex flex-wrap">
-                          <span class="phase-chip active">新規面談 5/10</span>
-                          <span class="phase-chip active">紹介可能 5/12</span>
-                          <span class="phase-chip active">企業に紹介 5/13</span>
-                          <span class="phase-chip active">面接前 5/16</span>
-                          <span class="phase-chip active">面接後 5/22</span>
-                          <span class="phase-chip active">内定獲得 5/26</span>
-                          <span class="phase-chip active"
-                            >内定承諾待ち 5/27</span
-                          >
-                          <span class="phase-chip pending">内定承諾 ー</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr
-                      class="candidate-row cursor-pointer hover:bg-indigo-50"
-                      data-name="佐藤花子"
-                      data-company="XYZホールディングス"
-                      data-address="神奈川県川崎市中原区4-5-6"
-                      data-phone-full="050-5566-7788"
-                      data-phone-masked="050-****-7788"
-                      data-email-full="sato.hanako@example.com"
-                      data-email-masked="sato***@example.com"
-                      data-phase="面接前"
-                      data-owner="田中（CA）"
-                      data-initial="2024-05-08"
-                      data-initial-datetime="2024-05-08T10:05"
-                      data-timeline="新規面談|2024/05/08;紹介可能|2024/05/09;企業に紹介|2024/05/10;面接前|2024/05/15"
-                      data-stuck-days="7"
-                      data-next-action="5/31 一次面接日程の企業リマインド"
-                      data-memo="一次日程確定が遅延。面接官の調整待ち。"
-                    >
-                      <td>2024/05/08 10:05</td>
-                      <td
-                        class="text-indigo-700 font-semibold underline whitespace-nowrap"
-                      >
-                        佐藤花子
-                      </td>
-                      <td>XYZホールディングス</td>
-                      <td>田中（CA）</td>
-                      <td class="whitespace-nowrap">
-                        神奈川県川崎市中原区4-5-6
-                      </td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="phone"
-                          data-full="050-5566-7788"
-                          data-masked="050-****-7788"
-                          >050-****-7788</span
-                        >
-                      </td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="email"
-                          data-full="sato.hanako@example.com"
-                          data-masked="sato***@example.com"
-                          >sato***@example.com</span
-                        >
-                      </td>
-                      <td class="whitespace-nowrap">
-                        <span class="inline-flex items-center gap-2">
-                          <span
-                            class="px-2 py-1 rounded-md text-xs font-semibold bg-sky-100 text-sky-700"
-                            >面接前</span
-                          >
-                          <span class="text-rose-600 text-xs font-semibold"
-                            >滞留7日</span
-                          >
-                        </span>
-                      </td>
-                      <td>
-                        <div class="flex flex-wrap">
-                          <span class="phase-chip active">新規面談 5/08</span>
-                          <span class="phase-chip active">紹介可能 5/09</span>
-                          <span class="phase-chip active">企業に紹介 5/10</span>
-                          <span class="phase-chip active">面接前 5/15</span>
-                          <span class="phase-chip pending">面接後 ー</span>
-                          <span class="phase-chip pending">内定獲得 ー</span>
-                          <span class="phase-chip pending"
-                            >内定承諾待ち ー</span
-                          >
-                          <span class="phase-chip pending">内定承諾 ー</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr
-                      class="candidate-row cursor-pointer hover:bg-indigo-50"
-                      data-name="伊藤健"
-                      data-company="DEF株式会社"
-                      data-address="千葉県船橋市本町7-8-9"
-                      data-phone-full="080-9999-1122"
-                      data-phone-masked="080-****-1122"
-                      data-email-full="ito.ken@example.com"
-                      data-email-masked="ito***@example.com"
-                      data-phase="内定承諾"
-                      data-owner="山本（CS）"
-                      data-initial="2024-04-28"
-                      data-initial-datetime="2024-04-28T09:40"
-                      data-timeline="新規面談|2024/04/28;紹介可能|2024/04/30;企業に紹介|2024/05/01;面接前|2024/05/04;面接後|2024/05/09;内定獲得|2024/05/12;内定承諾待ち|2024/05/13;内定承諾|2024/05/14"
-                      data-stuck-days="0"
-                      data-next-action="6/14 入社後30日ヒアリング"
-                      data-memo="入社予定 6/01。書類は全て完了。"
-                    >
-                      <td>2024/04/28 09:40</td>
-                      <td
-                        class="text-indigo-700 font-semibold underline whitespace-nowrap"
-                      >
-                        伊藤健
-                      </td>
-                      <td>DEF株式会社</td>
-                      <td>山本（CS）</td>
-                      <td class="whitespace-nowrap">千葉県船橋市本町7-8-9</td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="phone"
-                          data-full="080-9999-1122"
-                          data-masked="080-****-1122"
-                          >080-****-1122</span
-                        >
-                      </td>
-                      <td>
-                        <span
-                          class="contact-field"
-                          data-type="email"
-                          data-full="ito.ken@example.com"
-                          data-masked="ito***@example.com"
-                          >ito***@example.com</span
-                        >
-                      </td>
-                      <td class="whitespace-nowrap">
-                        <span class="inline-flex items-center gap-2">
-                          <span
-                            class="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700"
-                            >内定承諾</span
-                          >
-                        </span>
-                      </td>
-                      <td>
-                        <div class="flex flex-wrap">
-                          <span class="phase-chip active">新規面談 4/28</span>
-                          <span class="phase-chip active">紹介可能 4/30</span>
-                          <span class="phase-chip active">企業に紹介 5/01</span>
-                          <span class="phase-chip active">面接前 5/04</span>
-                          <span class="phase-chip active">面接後 5/09</span>
-                          <span class="phase-chip active">内定獲得 5/12</span>
-                          <span class="phase-chip active"
-                            >内定承諾待ち 5/13</span
-                          >
-                          <span class="phase-chip active">内定承諾 5/14</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-
-          <section data-page="ad-spend" class="page-section space-y-6 hidden">
-            <div class="card-grid">
-              <div class="kpi-card">
-                <strong>日次達成率</strong>
-                <span>87%</span>
-                <p class="text-xs text-slate-500 mt-1">目標 90%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>週次達成率</strong>
-                <span>92%</span>
-                <p class="text-xs text-slate-500 mt-1">トレンド +3pt</p>
-              </div>
-              <div class="kpi-card">
-                <strong>月次達成率</strong>
-                <span>79%</span>
-                <p class="text-xs text-slate-500 mt-1">警告: 要対策</p>
-              </div>
-              <div class="kpi-card">
-                <strong>返金額</strong>
-                <span>¥280,000</span>
-                <p class="text-xs text-slate-500 mt-1">閾値 20万円</p>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  媒体×CA/CS テーブル
-                </h3>
-                <div class="flex gap-2 text-sm">
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    列の表示管理
+              <div
+                class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-dashed border-slate-200">
+                <div class="flex items-center gap-2 text-sm text-slate-500">
+                  <label for="sortKey" class="text-xs font-semibold text-slate-500 whitespace-nowrap">並び替え</label>
+                  <select id="sortKey" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                    <option value="phase">現在フェーズ（内定→新規）</option>
+                    <option value="initial">初回接点日時</option>
+                    <option value="stuck">滞留日数</option>
+                  </select>
+                  <button id="sortDirection"
+                    class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium hover:bg-slate-100 whitespace-nowrap"
+                    data-order="desc">
+                    降順
                   </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    ピボット表示
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="filterReset"
+                    class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
+                    条件をクリア
+                  </button>
+                  <button id="filterApply"
+                    class="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500 whitespace-nowrap">
+                    フィルターを適用
                   </button>
                 </div>
               </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1000px]">
+            </div>
+
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1200px]">
+                <thead>
+                  <tr>
+                    <th>初回接点日時</th>
+                    <th class="whitespace-nowrap">紹介する求職者名</th>
+                    <th>紹介先企業</th>
+                    <th>担当社員</th>
+                    <th class="whitespace-nowrap">求職者の住所</th>
+                    <th>電話番号</th>
+                    <th>メールアドレス</th>
+                    <th class="whitespace-nowrap">現在のフェーズ</th>
+                    <th>フェーズ遷移タイムライン</th>
+                  </tr>
+                </thead>
+                <tbody id="candidateTableBody">
+                  <tr class="candidate-row cursor-pointer hover:bg-indigo-50" data-name="田中太郎" data-company="ABC株式会社"
+                    data-address="東京都港区南青山1-2-3" data-phone-full="03-1234-5678" data-phone-masked="***-****-5678"
+                    data-email-full="tanaka.taro@example.com" data-email-masked="tanaka***@example.com"
+                    data-phase="内定承諾待ち" data-owner="佐藤（CA）" data-initial="2024-05-10"
+                    data-initial-datetime="2024-05-10T14:20"
+                    data-timeline="新規面談|2024/05/10;紹介可能|2024/05/12;企業に紹介|2024/05/13;面接前|2024/05/16;面接後|2024/05/22;内定獲得|2024/05/26;内定承諾待ち|2024/05/27"
+                    data-stuck-days="4" data-next-action="6/02 内定承諾フォロー（メール＋架電）"
+                    data-memo="オファー条件の再確認待ち。kintoneコメント参照。">
+                    <td>2024/05/10 14:20</td>
+                    <td class="text-indigo-700 font-semibold underline whitespace-nowrap">
+                      田中太郎
+                    </td>
+                    <td>ABC株式会社</td>
+                    <td>佐藤（CA）</td>
+                    <td class="whitespace-nowrap">東京都港区南青山1-2-3</td>
+                    <td>
+                      <span class="contact-field" data-type="phone" data-full="03-1234-5678"
+                        data-masked="***-****-5678">***-****-5678</span>
+                    </td>
+                    <td>
+                      <span class="contact-field" data-type="email" data-full="tanaka.taro@example.com"
+                        data-masked="tanaka***@example.com">tanaka***@example.com</span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                      <span class="inline-flex items-center gap-2">
+                        <span
+                          class="px-2 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700">内定承諾待ち</span>
+                      </span>
+                    </td>
+                    <td>
+                      <div class="flex flex-wrap">
+                        <span class="phase-chip active">新規面談 5/10</span>
+                        <span class="phase-chip active">紹介可能 5/12</span>
+                        <span class="phase-chip active">企業に紹介 5/13</span>
+                        <span class="phase-chip active">面接前 5/16</span>
+                        <span class="phase-chip active">面接後 5/22</span>
+                        <span class="phase-chip active">内定獲得 5/26</span>
+                        <span class="phase-chip active">内定承諾待ち 5/27</span>
+                        <span class="phase-chip pending">内定承諾 ー</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="candidate-row cursor-pointer hover:bg-indigo-50" data-name="佐藤花子"
+                    data-company="XYZホールディングス" data-address="神奈川県川崎市中原区4-5-6" data-phone-full="050-5566-7788"
+                    data-phone-masked="050-****-7788" data-email-full="sato.hanako@example.com"
+                    data-email-masked="sato***@example.com" data-phase="面接前" data-owner="田中（CA）"
+                    data-initial="2024-05-08" data-initial-datetime="2024-05-08T10:05"
+                    data-timeline="新規面談|2024/05/08;紹介可能|2024/05/09;企業に紹介|2024/05/10;面接前|2024/05/15" data-stuck-days="7"
+                    data-next-action="5/31 一次面接日程の企業リマインド" data-memo="一次日程確定が遅延。面接官の調整待ち。">
+                    <td>2024/05/08 10:05</td>
+                    <td class="text-indigo-700 font-semibold underline whitespace-nowrap">
+                      佐藤花子
+                    </td>
+                    <td>XYZホールディングス</td>
+                    <td>田中（CA）</td>
+                    <td class="whitespace-nowrap">
+                      神奈川県川崎市中原区4-5-6
+                    </td>
+                    <td>
+                      <span class="contact-field" data-type="phone" data-full="050-5566-7788"
+                        data-masked="050-****-7788">050-****-7788</span>
+                    </td>
+                    <td>
+                      <span class="contact-field" data-type="email" data-full="sato.hanako@example.com"
+                        data-masked="sato***@example.com">sato***@example.com</span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                      <span class="inline-flex items-center gap-2">
+                        <span class="px-2 py-1 rounded-md text-xs font-semibold bg-sky-100 text-sky-700">面接前</span>
+                        <span class="text-rose-600 text-xs font-semibold">滞留7日</span>
+                      </span>
+                    </td>
+                    <td>
+                      <div class="flex flex-wrap">
+                        <span class="phase-chip active">新規面談 5/08</span>
+                        <span class="phase-chip active">紹介可能 5/09</span>
+                        <span class="phase-chip active">企業に紹介 5/10</span>
+                        <span class="phase-chip active">面接前 5/15</span>
+                        <span class="phase-chip pending">面接後 ー</span>
+                        <span class="phase-chip pending">内定獲得 ー</span>
+                        <span class="phase-chip pending">内定承諾待ち ー</span>
+                        <span class="phase-chip pending">内定承諾 ー</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="candidate-row cursor-pointer hover:bg-indigo-50" data-name="伊藤健" data-company="DEF株式会社"
+                    data-address="千葉県船橋市本町7-8-9" data-phone-full="080-9999-1122" data-phone-masked="080-****-1122"
+                    data-email-full="ito.ken@example.com" data-email-masked="ito***@example.com" data-phase="内定承諾"
+                    data-owner="山本（CS）" data-initial="2024-04-28" data-initial-datetime="2024-04-28T09:40"
+                    data-timeline="新規面談|2024/04/28;紹介可能|2024/04/30;企業に紹介|2024/05/01;面接前|2024/05/04;面接後|2024/05/09;内定獲得|2024/05/12;内定承諾待ち|2024/05/13;内定承諾|2024/05/14"
+                    data-stuck-days="0" data-next-action="6/14 入社後30日ヒアリング" data-memo="入社予定 6/01。書類は全て完了。">
+                    <td>2024/04/28 09:40</td>
+                    <td class="text-indigo-700 font-semibold underline whitespace-nowrap">
+                      伊藤健
+                    </td>
+                    <td>DEF株式会社</td>
+                    <td>山本（CS）</td>
+                    <td class="whitespace-nowrap">千葉県船橋市本町7-8-9</td>
+                    <td>
+                      <span class="contact-field" data-type="phone" data-full="080-9999-1122"
+                        data-masked="080-****-1122">080-****-1122</span>
+                    </td>
+                    <td>
+                      <span class="contact-field" data-type="email" data-full="ito.ken@example.com"
+                        data-masked="ito***@example.com">ito***@example.com</span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                      <span class="inline-flex items-center gap-2">
+                        <span
+                          class="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700">内定承諾</span>
+                      </span>
+                    </td>
+                    <td>
+                      <div class="flex flex-wrap">
+                        <span class="phase-chip active">新規面談 4/28</span>
+                        <span class="phase-chip active">紹介可能 4/30</span>
+                        <span class="phase-chip active">企業に紹介 5/01</span>
+                        <span class="phase-chip active">面接前 5/04</span>
+                        <span class="phase-chip active">面接後 5/09</span>
+                        <span class="phase-chip active">内定獲得 5/12</span>
+                        <span class="phase-chip active">内定承諾待ち 5/13</span>
+                        <span class="phase-chip active">内定承諾 5/14</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section data-page="ad-spend" class="page-section space-y-6 hidden">
+          <div class="card-grid">
+            <div class="kpi-card">
+              <strong>日次達成率</strong>
+              <span>87%</span>
+              <p class="text-xs text-slate-500 mt-1">目標 90%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>週次達成率</strong>
+              <span>92%</span>
+              <p class="text-xs text-slate-500 mt-1">トレンド +3pt</p>
+            </div>
+            <div class="kpi-card">
+              <strong>月次達成率</strong>
+              <span>79%</span>
+              <p class="text-xs text-slate-500 mt-1">警告: 要対策</p>
+            </div>
+            <div class="kpi-card">
+              <strong>返金額</strong>
+              <span>¥280,000</span>
+              <p class="text-xs text-slate-500 mt-1">閾値 20万円</p>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                媒体×CA/CS テーブル
+              </h3>
+              <div class="flex gap-2 text-sm">
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  列の表示管理
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  ピボット表示
+                </button>
+              </div>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1000px]">
+                <thead>
+                  <tr>
+                    <th class="fixed-col bg-indigo-50 whitespace-nowrap">
+                      媒体
+                    </th>
+                    <th class="whitespace-nowrap">区分</th>
+                    <th class="whitespace-nowrap">担当候補者数</th>
+                    <th class="whitespace-nowrap">面談設定</th>
+                    <th class="whitespace-nowrap">内定</th>
+                    <th class="whitespace-nowrap">入社</th>
+                    <th class="whitespace-nowrap">定着90</th>
+                    <th class="whitespace-nowrap">返金額</th>
+                    <th class="whitespace-nowrap">日次達成率</th>
+                    <th class="whitespace-nowrap">週次達成率</th>
+                    <th class="whitespace-nowrap">月次達成率</th>
+                    <th class="whitespace-nowrap">備考</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fixed-col font-medium">Indeed</td>
+                    <td>CAチーム</td>
+                    <td>58</td>
+                    <td>41</td>
+                    <td>12</td>
+                    <td>10</td>
+                    <td>89%</td>
+                    <td>¥120,000</td>
+                    <td>84%</td>
+                    <td>90%</td>
+                    <td>81%</td>
+                    <td>CPA改善中</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">Indeed</td>
+                    <td>CSチーム</td>
+                    <td>36</td>
+                    <td>24</td>
+                    <td>8</td>
+                    <td>7</td>
+                    <td>94%</td>
+                    <td>¥40,000</td>
+                    <td>91%</td>
+                    <td>95%</td>
+                    <td>88%</td>
+                    <td>採用要件変更反映待ち</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">求人ボックス</td>
+                    <td>CAチーム</td>
+                    <td>44</td>
+                    <td>30</td>
+                    <td>9</td>
+                    <td>8</td>
+                    <td>92%</td>
+                    <td>¥80,000</td>
+                    <td>88%</td>
+                    <td>94%</td>
+                    <td>76%</td>
+                    <td>面談設定リードタイム改善</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                個票：パイプライン / 滞留 / 次アクション
+              </h3>
+              <div class="flex gap-2 text-sm">
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  通知設定
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  メモ履歴
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h4 class="text-sm font-semibold text-slate-700 mb-2">
+                  パイプライン
+                </h4>
+                <ul class="space-y-2 text-sm text-slate-600">
+                  <li>・一次待ち 12 件</li>
+                  <li>・二次待ち 8 件</li>
+                  <li>・内定フォロー中 5 件</li>
+                  <li>・入社前手続き 3 件</li>
+                </ul>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h4 class="text-sm font-semibold text-slate-700 mb-2">
+                  滞留警告
+                </h4>
+                <ul class="space-y-2 text-sm text-slate-600">
+                  <li class="text-amber-600">
+                    ・一次面談アサイン待ち（4日）: 高橋様
+                  </li>
+                  <li class="text-rose-600">
+                    ・オファー提示から7日経過: 田中様
+                  </li>
+                  <li>・書類選考返答待ち: 3件</li>
+                </ul>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h4 class="text-sm font-semibold text-slate-700 mb-2">
+                  次アクション期限
+                </h4>
+                <table class="table-grid">
                   <thead>
                     <tr>
-                      <th class="fixed-col bg-indigo-50 whitespace-nowrap">
-                        媒体
-                      </th>
-                      <th class="whitespace-nowrap">区分</th>
-                      <th class="whitespace-nowrap">担当候補者数</th>
-                      <th class="whitespace-nowrap">面談設定</th>
-                      <th class="whitespace-nowrap">内定</th>
-                      <th class="whitespace-nowrap">入社</th>
-                      <th class="whitespace-nowrap">定着90</th>
-                      <th class="whitespace-nowrap">返金額</th>
-                      <th class="whitespace-nowrap">日次達成率</th>
-                      <th class="whitespace-nowrap">週次達成率</th>
-                      <th class="whitespace-nowrap">月次達成率</th>
-                      <th class="whitespace-nowrap">備考</th>
+                      <th>候補者</th>
+                      <th>期限</th>
+                      <th>担当</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td class="fixed-col font-medium">Indeed</td>
-                      <td>CAチーム</td>
-                      <td>58</td>
-                      <td>41</td>
-                      <td>12</td>
-                      <td>10</td>
-                      <td>89%</td>
-                      <td>¥120,000</td>
-                      <td>84%</td>
-                      <td>90%</td>
-                      <td>81%</td>
-                      <td>CPA改善中</td>
+                      <td>鈴木様</td>
+                      <td class="text-rose-600 font-semibold">本日</td>
+                      <td>佐藤</td>
                     </tr>
                     <tr>
-                      <td class="fixed-col font-medium">Indeed</td>
-                      <td>CSチーム</td>
-                      <td>36</td>
-                      <td>24</td>
-                      <td>8</td>
-                      <td>7</td>
-                      <td>94%</td>
-                      <td>¥40,000</td>
-                      <td>91%</td>
-                      <td>95%</td>
-                      <td>88%</td>
-                      <td>採用要件変更反映待ち</td>
+                      <td>小林様</td>
+                      <td>翌営業日</td>
+                      <td>田中</td>
                     </tr>
                     <tr>
-                      <td class="fixed-col font-medium">求人ボックス</td>
-                      <td>CAチーム</td>
-                      <td>44</td>
-                      <td>30</td>
-                      <td>9</td>
-                      <td>8</td>
-                      <td>92%</td>
-                      <td>¥80,000</td>
-                      <td>88%</td>
-                      <td>94%</td>
-                      <td>76%</td>
-                      <td>面談設定リードタイム改善</td>
+                      <td>伊藤様</td>
+                      <td class="text-amber-600">+2日</td>
+                      <td>山本</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+          </div>
+        </section>
 
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  個票：パイプライン / 滞留 / 次アクション
+        <section data-page="introduction" class="page-section space-y-6 hidden">
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                  ピボット：クライアント×案件×ステージ
                 </h3>
-                <div class="flex gap-2 text-sm">
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    通知設定
-                  </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    メモ履歴
-                  </button>
+                <p class="text-sm text-slate-500">
+                  スプレッドシートライクな集計でステージ別進捗を確認
+                </p>
+              </div>
+              <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                ピボットをエクスポート
+              </button>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1000px]">
+                <thead>
+                  <tr>
+                    <th class="fixed-col bg-indigo-50 whitespace-nowrap">
+                      クライアント
+                    </th>
+                    <th class="whitespace-nowrap">案件</th>
+                    <th class="whitespace-nowrap">提案件数</th>
+                    <th class="whitespace-nowrap">書類選考</th>
+                    <th class="whitespace-nowrap">一次面接</th>
+                    <th class="whitespace-nowrap">二次面接</th>
+                    <th class="whitespace-nowrap">内定</th>
+                    <th class="whitespace-nowrap">入社</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fixed-col font-medium">ABC株式会社</td>
+                    <td>バックエンドエンジニア</td>
+                    <td>14</td>
+                    <td>9</td>
+                    <td>6</td>
+                    <td>3</td>
+                    <td>2</td>
+                    <td>1</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">ABC株式会社</td>
+                    <td>CSマネージャー</td>
+                    <td>8</td>
+                    <td>6</td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>2</td>
+                    <td>2</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">XYZホールディングス</td>
+                    <td>営業リーダー</td>
+                    <td>11</td>
+                    <td>7</td>
+                    <td>4</td>
+                    <td>2</td>
+                    <td>1</td>
+                    <td>1</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                候補者進捗タイムライン
+              </h3>
+              <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                タイムラインをCSV出力
+              </button>
+            </div>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-semibold text-slate-700">
+                      田中太郎
+                    </h4>
+                    <p class="text-xs text-slate-500">
+                      案件: ABC社 バックエンドエンジニア
+                    </p>
+                  </div>
+                  <span class="text-xs font-semibold text-emerald-600">ステータス: 入社</span>
+                </div>
+                <ol class="mt-4 space-y-2 text-sm text-slate-600">
+                  <li>・ 5/12 提案済み</li>
+                  <li>・ 5/14 書類選考通過</li>
+                  <li>・ 5/18 一次通過</li>
+                  <li>・ 5/26 二次通過</li>
+                  <li>・ 5/30 内定承諾</li>
+                  <li>・ 6/15 入社</li>
+                </ol>
+                <div class="mt-3 text-xs text-slate-500">
+                  面接予定: 無し / 返金: 無し
                 </div>
               </div>
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-2">
-                    パイプライン
-                  </h4>
-                  <ul class="space-y-2 text-sm text-slate-600">
-                    <li>・一次待ち 12 件</li>
-                    <li>・二次待ち 8 件</li>
-                    <li>・内定フォロー中 5 件</li>
-                    <li>・入社前手続き 3 件</li>
-                  </ul>
+              <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-semibold text-slate-700">
+                      佐藤花子
+                    </h4>
+                    <p class="text-xs text-slate-500">
+                      案件: XYZ社 営業リーダー
+                    </p>
+                  </div>
+                  <span class="text-xs font-semibold text-amber-600">ステータス: 二次面接中</span>
                 </div>
-                <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-2">
-                    滞留警告
-                  </h4>
-                  <ul class="space-y-2 text-sm text-slate-600">
-                    <li class="text-amber-600">
-                      ・一次面談アサイン待ち（4日）: 高橋様
-                    </li>
-                    <li class="text-rose-600">
-                      ・オファー提示から7日経過: 田中様
-                    </li>
-                    <li>・書類選考返答待ち: 3件</li>
-                  </ul>
+                <ol class="mt-4 space-y-2 text-sm text-slate-600">
+                  <li>・ 5/10 提案済み</li>
+                  <li>・ 5/11 書類選考通過</li>
+                  <li>・ 5/20 一次通過</li>
+                  <li class="text-amber-600">・ 6/01 二次予定</li>
+                </ol>
+                <div class="mt-3 text-xs text-slate-500">
+                  面接予定: 6/01 15:00 / 辞退: 無し
                 </div>
-                <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-2">
-                    次アクション期限
-                  </h4>
-                  <table class="table-grid">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section data-page="tele-ops" class="page-section space-y-6 hidden">
+          <div class="card-grid">
+            <div class="kpi-card">
+              <strong>30日チェック</strong>
+              <span>88%</span>
+              <p class="text-xs text-slate-500 mt-1">未完了 2件</p>
+            </div>
+            <div class="kpi-card">
+              <strong>60日チェック</strong>
+              <span>82%</span>
+              <p class="text-xs text-slate-500 mt-1">要追跡 3件</p>
+            </div>
+            <div class="kpi-card">
+              <strong>90日チェック</strong>
+              <span>76%</span>
+              <p class="text-xs text-slate-500 mt-1">警告: 滞留中</p>
+            </div>
+            <div class="kpi-card">
+              <strong>返金総額</strong>
+              <span>¥360,000</span>
+              <p class="text-xs text-slate-500 mt-1">確定 4件</p>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+              入社者チェック表
+            </h3>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[900px]">
+                <thead>
+                  <tr>
+                    <th class="fixed-col bg-indigo-50 whitespace-nowrap">
+                      候補者
+                    </th>
+                    <th class="whitespace-nowrap">入社日</th>
+                    <th class="whitespace-nowrap">30日</th>
+                    <th class="whitespace-nowrap">60日</th>
+                    <th class="whitespace-nowrap">90日</th>
+                    <th class="whitespace-nowrap">コメント</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fixed-col font-medium">田中太郎</td>
+                    <td>2024/04/01</td>
+                    <td><input type="checkbox" checked /></td>
+                    <td><input type="checkbox" checked /></td>
+                    <td><input type="checkbox" /></td>
+                    <td>フォロー面談6/10予定</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">佐藤花子</td>
+                    <td>2024/04/15</td>
+                    <td><input type="checkbox" checked /></td>
+                    <td><input type="checkbox" /></td>
+                    <td><input type="checkbox" /></td>
+                    <td>60日連絡要</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">伊藤健</td>
+                    <td>2024/03/25</td>
+                    <td><input type="checkbox" checked /></td>
+                    <td><input type="checkbox" checked /></td>
+                    <td><input type="checkbox" checked /></td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                返金一覧（自動計算）
+              </h3>
+              <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                返金ルール設定
+              </button>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[900px]">
+                <thead>
+                  <tr>
+                    <th class="fixed-col bg-indigo-50 whitespace-nowrap">
+                      候補者
+                    </th>
+                    <th class="whitespace-nowrap">案件</th>
+                    <th class="whitespace-nowrap">入社日</th>
+                    <th class="whitespace-nowrap">辞退日</th>
+                    <th class="whitespace-nowrap">返金率</th>
+                    <th class="whitespace-nowrap">自動計算額</th>
+                    <th class="whitespace-nowrap">確定</th>
+                    <th class="whitespace-nowrap">備考</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fixed-col font-medium">山田太郎</td>
+                    <td>ABC社 CS</td>
+                    <td>2024/02/01</td>
+                    <td>2024/04/05</td>
+                    <td>50%</td>
+                    <td>¥180,000</td>
+                    <td>
+                      <button class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">
+                        確定する
+                      </button>
+                    </td>
+                    <td>規定どおり</td>
+                  </tr>
+                  <tr>
+                    <td class="fixed-col font-medium">鈴木花子</td>
+                    <td>XYZ社 営業</td>
+                    <td>2024/01/20</td>
+                    <td>2024/03/01</td>
+                    <td>30%</td>
+                    <td>¥120,000</td>
+                    <td>
+                      <button class="px-2 py-1 bg-slate-200 rounded">
+                        確定済み
+                      </button>
+                    </td>
+                    <td>担当者連絡済み</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap">
+                  辞退理由ヒートマップ
+                </h3>
+                <div
+                  class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                  理由×媒体/CA/案件のクロス集計ヒートマップ
+                </div>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap">
+                  Fee / 請求ステータス
+                </h3>
+                <div class="overflow-auto rounded-lg border border-slate-200">
+                  <table class="table-grid min-w-[600px]">
                     <thead>
                       <tr>
-                        <th>候補者</th>
-                        <th>期限</th>
-                        <th>担当</th>
+                        <th class="whitespace-nowrap">案件</th>
+                        <th class="whitespace-nowrap">想定金額</th>
+                        <th class="whitespace-nowrap">確定金額</th>
+                        <th class="whitespace-nowrap">請求書</th>
+                        <th class="whitespace-nowrap">入金</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>鈴木様</td>
-                        <td class="text-rose-600 font-semibold">本日</td>
-                        <td>佐藤</td>
+                        <td>ABC社 CS</td>
+                        <td>¥600,000</td>
+                        <td>¥580,000</td>
+                        <td>確定済み</td>
+                        <td class="text-emerald-600 font-medium">入金済み</td>
                       </tr>
                       <tr>
-                        <td>小林様</td>
-                        <td>翌営業日</td>
-                        <td>田中</td>
-                      </tr>
-                      <tr>
-                        <td>伊藤様</td>
-                        <td class="text-amber-600">+2日</td>
-                        <td>山本</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section
-            data-page="introduction"
-            class="page-section space-y-6 hidden"
-          >
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                  >
-                    ピボット：クライアント×案件×ステージ
-                  </h3>
-                  <p class="text-sm text-slate-500">
-                    スプレッドシートライクな集計でステージ別進捗を確認
-                  </p>
-                </div>
-                <button
-                  class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                >
-                  ピボットをエクスポート
-                </button>
-              </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1000px]">
-                  <thead>
-                    <tr>
-                      <th class="fixed-col bg-indigo-50 whitespace-nowrap">
-                        クライアント
-                      </th>
-                      <th class="whitespace-nowrap">案件</th>
-                      <th class="whitespace-nowrap">提案件数</th>
-                      <th class="whitespace-nowrap">書類選考</th>
-                      <th class="whitespace-nowrap">一次面接</th>
-                      <th class="whitespace-nowrap">二次面接</th>
-                      <th class="whitespace-nowrap">内定</th>
-                      <th class="whitespace-nowrap">入社</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="fixed-col font-medium">ABC株式会社</td>
-                      <td>バックエンドエンジニア</td>
-                      <td>14</td>
-                      <td>9</td>
-                      <td>6</td>
-                      <td>3</td>
-                      <td>2</td>
-                      <td>1</td>
-                    </tr>
-                    <tr>
-                      <td class="fixed-col font-medium">ABC株式会社</td>
-                      <td>CSマネージャー</td>
-                      <td>8</td>
-                      <td>6</td>
-                      <td>4</td>
-                      <td>3</td>
-                      <td>2</td>
-                      <td>2</td>
-                    </tr>
-                    <tr>
-                      <td class="fixed-col font-medium">XYZホールディングス</td>
-                      <td>営業リーダー</td>
-                      <td>11</td>
-                      <td>7</td>
-                      <td>4</td>
-                      <td>2</td>
-                      <td>1</td>
-                      <td>1</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  候補者進捗タイムライン
-                </h3>
-                <button
-                  class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                >
-                  タイムラインをCSV出力
-                </button>
-              </div>
-              <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <h4 class="text-sm font-semibold text-slate-700">
-                        田中太郎
-                      </h4>
-                      <p class="text-xs text-slate-500">
-                        案件: ABC社 バックエンドエンジニア
-                      </p>
-                    </div>
-                    <span class="text-xs font-semibold text-emerald-600"
-                      >ステータス: 入社</span
-                    >
-                  </div>
-                  <ol class="mt-4 space-y-2 text-sm text-slate-600">
-                    <li>・ 5/12 提案済み</li>
-                    <li>・ 5/14 書類選考通過</li>
-                    <li>・ 5/18 一次通過</li>
-                    <li>・ 5/26 二次通過</li>
-                    <li>・ 5/30 内定承諾</li>
-                    <li>・ 6/15 入社</li>
-                  </ol>
-                  <div class="mt-3 text-xs text-slate-500">
-                    面接予定: 無し / 返金: 無し
-                  </div>
-                </div>
-                <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <h4 class="text-sm font-semibold text-slate-700">
-                        佐藤花子
-                      </h4>
-                      <p class="text-xs text-slate-500">
-                        案件: XYZ社 営業リーダー
-                      </p>
-                    </div>
-                    <span class="text-xs font-semibold text-amber-600"
-                      >ステータス: 二次面接中</span
-                    >
-                  </div>
-                  <ol class="mt-4 space-y-2 text-sm text-slate-600">
-                    <li>・ 5/10 提案済み</li>
-                    <li>・ 5/11 書類選考通過</li>
-                    <li>・ 5/20 一次通過</li>
-                    <li class="text-amber-600">・ 6/01 二次予定</li>
-                  </ol>
-                  <div class="mt-3 text-xs text-slate-500">
-                    面接予定: 6/01 15:00 / 辞退: 無し
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section data-page="tele-ops" class="page-section space-y-6 hidden">
-            <div class="card-grid">
-              <div class="kpi-card">
-                <strong>30日チェック</strong>
-                <span>88%</span>
-                <p class="text-xs text-slate-500 mt-1">未完了 2件</p>
-              </div>
-              <div class="kpi-card">
-                <strong>60日チェック</strong>
-                <span>82%</span>
-                <p class="text-xs text-slate-500 mt-1">要追跡 3件</p>
-              </div>
-              <div class="kpi-card">
-                <strong>90日チェック</strong>
-                <span>76%</span>
-                <p class="text-xs text-slate-500 mt-1">警告: 滞留中</p>
-              </div>
-              <div class="kpi-card">
-                <strong>返金総額</strong>
-                <span>¥360,000</span>
-                <p class="text-xs text-slate-500 mt-1">確定 4件</p>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <h3
-                class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-              >
-                入社者チェック表
-              </h3>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[900px]">
-                  <thead>
-                    <tr>
-                      <th class="fixed-col bg-indigo-50 whitespace-nowrap">
-                        候補者
-                      </th>
-                      <th class="whitespace-nowrap">入社日</th>
-                      <th class="whitespace-nowrap">30日</th>
-                      <th class="whitespace-nowrap">60日</th>
-                      <th class="whitespace-nowrap">90日</th>
-                      <th class="whitespace-nowrap">コメント</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="fixed-col font-medium">田中太郎</td>
-                      <td>2024/04/01</td>
-                      <td><input type="checkbox" checked /></td>
-                      <td><input type="checkbox" checked /></td>
-                      <td><input type="checkbox" /></td>
-                      <td>フォロー面談6/10予定</td>
-                    </tr>
-                    <tr>
-                      <td class="fixed-col font-medium">佐藤花子</td>
-                      <td>2024/04/15</td>
-                      <td><input type="checkbox" checked /></td>
-                      <td><input type="checkbox" /></td>
-                      <td><input type="checkbox" /></td>
-                      <td>60日連絡要</td>
-                    </tr>
-                    <tr>
-                      <td class="fixed-col font-medium">伊藤健</td>
-                      <td>2024/03/25</td>
-                      <td><input type="checkbox" checked /></td>
-                      <td><input type="checkbox" checked /></td>
-                      <td><input type="checkbox" checked /></td>
-                      <td></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  返金一覧（自動計算）
-                </h3>
-                <button
-                  class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                >
-                  返金ルール設定
-                </button>
-              </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[900px]">
-                  <thead>
-                    <tr>
-                      <th class="fixed-col bg-indigo-50 whitespace-nowrap">
-                        候補者
-                      </th>
-                      <th class="whitespace-nowrap">案件</th>
-                      <th class="whitespace-nowrap">入社日</th>
-                      <th class="whitespace-nowrap">辞退日</th>
-                      <th class="whitespace-nowrap">返金率</th>
-                      <th class="whitespace-nowrap">自動計算額</th>
-                      <th class="whitespace-nowrap">確定</th>
-                      <th class="whitespace-nowrap">備考</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="fixed-col font-medium">山田太郎</td>
-                      <td>ABC社 CS</td>
-                      <td>2024/02/01</td>
-                      <td>2024/04/05</td>
-                      <td>50%</td>
-                      <td>¥180,000</td>
-                      <td>
-                        <button
-                          class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded"
-                        >
-                          確定する
-                        </button>
-                      </td>
-                      <td>規定どおり</td>
-                    </tr>
-                    <tr>
-                      <td class="fixed-col font-medium">鈴木花子</td>
-                      <td>XYZ社 営業</td>
-                      <td>2024/01/20</td>
-                      <td>2024/03/01</td>
-                      <td>30%</td>
-                      <td>¥120,000</td>
-                      <td>
-                        <button class="px-2 py-1 bg-slate-200 rounded">
-                          確定済み
-                        </button>
-                      </td>
-                      <td>担当者連絡済み</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-6">
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap"
-                  >
-                    辞退理由ヒートマップ
-                  </h3>
-                  <div
-                    class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                  >
-                    理由×媒体/CA/案件のクロス集計ヒートマップ
-                  </div>
-                </div>
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap"
-                  >
-                    Fee / 請求ステータス
-                  </h3>
-                  <div class="overflow-auto rounded-lg border border-slate-200">
-                    <table class="table-grid min-w-[600px]">
-                      <thead>
-                        <tr>
-                          <th class="whitespace-nowrap">案件</th>
-                          <th class="whitespace-nowrap">想定金額</th>
-                          <th class="whitespace-nowrap">確定金額</th>
-                          <th class="whitespace-nowrap">請求書</th>
-                          <th class="whitespace-nowrap">入金</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>ABC社 CS</td>
-                          <td>¥600,000</td>
-                          <td>¥580,000</td>
-                          <td>確定済み</td>
-                          <td class="text-emerald-600 font-medium">入金済み</td>
-                        </tr>
-                        <tr>
-                          <td>XYZ社 営業</td>
-                          <td>¥720,000</td>
-                          <td>¥0</td>
-                          <td class="text-amber-600 font-medium">
-                            想定→確定待ち
-                          </td>
-                          <td>未入金</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3
-                  class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap"
-                >
-                  工程別TAT分析
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div
-                    class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                  >
-                    箱ひげ図（TAT分布）
-                  </div>
-                  <div
-                    class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                  >
-                    平均TATの推移
-                  </div>
-                  <div
-                    class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm"
-                  >
-                    中央値TATの推移
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section
-            data-page="ad-performance"
-            class="page-section space-y-6 hidden"
-          >
-            <div class="section-shell space-y-4">
-              <div class="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                  >
-                    集計フィルター
-                  </h3>
-                  <p class="text-sm text-slate-500">
-                    期間・媒体・求人・部門を指定して費用対効果を比較します
-                  </p>
-                </div>
-                <div class="flex items-center gap-2 text-sm">
-                  <label
-                    for="currencySelect"
-                    class="text-xs font-semibold text-slate-500"
-                    >基準通貨</label
-                  >
-                  <select
-                    id="currencySelect"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="JPY">JPY (¥)</option>
-                    <option value="USD">USD ($)</option>
-                  </select>
-                </div>
-              </div>
-              <div
-                class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs text-slate-500"
-              >
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">期間開始</span>
-                  <input
-                    id="adFilterFrom"
-                    type="date"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  />
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">期間終了</span>
-                  <input
-                    id="adFilterTo"
-                    type="date"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  />
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">媒体</span>
-                  <select
-                    id="adFilterMedia"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">すべて</option>
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">求人</span>
-                  <select
-                    id="adFilterJob"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">すべて</option>
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">部門</span>
-                  <select
-                    id="adFilterDepartment"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">すべて</option>
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="whitespace-nowrap">集計単位</span>
-                  <select
-                    id="adFilterGranularity"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="monthly">月次</option>
-                    <option value="weekly">週次</option>
-                    <option value="daily">日次</option>
-                  </select>
-                </label>
-              </div>
-              <div
-                class="flex flex-wrap items-center justify-end gap-2 text-sm"
-              >
-                <button
-                  id="adFilterReset"
-                  class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap"
-                >
-                  条件をクリア
-                </button>
-                <button
-                  id="adFilterApply"
-                  class="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 whitespace-nowrap"
-                >
-                  フィルターを適用
-                </button>
-              </div>
-            </div>
-
-            <div class="card-grid">
-              <div class="kpi-card">
-                <strong>総支払額</strong>
-                <span id="kpiTotalCost">¥0</span>
-                <p class="text-xs text-slate-500 mt-1" id="kpiTotalCostNote">
-                  フィルター適用後
-                </p>
-              </div>
-              <div class="kpi-card">
-                <strong>応募数</strong>
-                <span id="kpiTotalApplications">0</span>
-                <p
-                  class="text-xs text-slate-500 mt-1"
-                  id="kpiTotalApplicationsNote"
-                >
-                  媒体経由応募
-                </p>
-              </div>
-              <div class="kpi-card">
-                <strong>Cost/Apply</strong>
-                <span id="kpiCostApply">¥0</span>
-                <p class="text-xs text-slate-500 mt-1">応募単価</p>
-              </div>
-              <div class="kpi-card">
-                <strong>Cost/Hire</strong>
-                <span id="kpiCostHire">—</span>
-                <p class="text-xs text-slate-500 mt-1">内定単価</p>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  媒体別サマリー
-                </h3>
-                <button
-                  id="exportMediaSummary"
-                  class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap"
-                >
-                  CSVエクスポート
-                </button>
-              </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1100px]">
-                  <thead>
-                    <tr>
-                      <th class="whitespace-nowrap">媒体</th>
-                      <th class="whitespace-nowrap">支払額</th>
-                      <th class="whitespace-nowrap">Impr</th>
-                      <th class="whitespace-nowrap">Clicks</th>
-                      <th class="whitespace-nowrap">応募</th>
-                      <th class="whitespace-nowrap">紹介送付</th>
-                      <th class="whitespace-nowrap">内定承諾</th>
-                      <th class="whitespace-nowrap">CTR</th>
-                      <th class="whitespace-nowrap">応募CVR</th>
-                      <th class="whitespace-nowrap">Cost/Apply</th>
-                      <th class="whitespace-nowrap">Cost/Intro</th>
-                      <th class="whitespace-nowrap">Cost/Hire</th>
-                    </tr>
-                  </thead>
-                  <tbody id="mediaSummaryTableBody">
-                    <tr>
-                      <td colspan="12" class="text-center text-slate-500 py-6">
-                        データがありません。CSV取込またはサンプル読み込みを行ってください。
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3
-                    class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                  >
-                    求人別詳細
-                  </h3>
-                  <p class="text-sm text-slate-500">
-                    選択した求人の費用・応募・紹介・内定承諾の推移を確認
-                  </p>
-                </div>
-                <div class="flex items-center gap-2 text-sm">
-                  <label
-                    for="jobDetailSelect"
-                    class="text-xs font-semibold text-slate-500 whitespace-nowrap"
-                    >求人を選択</label
-                  >
-                  <select
-                    id="jobDetailSelect"
-                    class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="auto">フィルター結果から自動選択</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div class="border border-slate-200 rounded-xl bg-slate-50 p-4">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-3">
-                    推移（折れ線グラフ）
-                  </h4>
-                  <svg
-                    id="jobDetailChart"
-                    viewBox="0 0 600 260"
-                    class="w-full h-64 bg-white border border-slate-200 rounded-lg"
-                  ></svg>
-                  <div class="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
-                    <span class="inline-flex items-center gap-1">
-                      <span class="w-3 h-3 rounded-full bg-indigo-500"></span
-                      >費用
-                    </span>
-                    <span class="inline-flex items-center gap-1">
-                      <span class="w-3 h-3 rounded-full bg-emerald-500"></span
-                      >応募
-                    </span>
-                    <span class="inline-flex items-center gap-1">
-                      <span class="w-3 h-3 rounded-full bg-sky-500"></span
-                      >紹介送付
-                    </span>
-                    <span class="inline-flex items-center gap-1">
-                      <span class="w-3 h-3 rounded-full bg-amber-500"></span
-                      >内定承諾
-                    </span>
-                  </div>
-                </div>
-                <div class="border border-slate-200 rounded-xl bg-white p-4">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-3">
-                    指標サマリー
-                  </h4>
-                  <dl
-                    class="grid grid-cols-2 gap-4 text-sm text-slate-600"
-                    id="jobDetailSummary"
-                  >
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        支払額
-                      </dt>
-                      <dd data-field="cost">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        応募
-                      </dt>
-                      <dd data-field="applications">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        紹介送付
-                      </dt>
-                      <dd data-field="introductions">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        内定承諾
-                      </dt>
-                      <dd data-field="hires">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        CTR
-                      </dt>
-                      <dd data-field="ctr">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        応募CVR
-                      </dt>
-                      <dd data-field="cvr">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        Cost/Apply
-                      </dt>
-                      <dd data-field="cpa">-</dd>
-                    </div>
-                    <div>
-                      <dt
-                        class="text-xs uppercase tracking-wide text-slate-400"
-                      >
-                        Cost/Hire
-                      </dt>
-                      <dd data-field="cph">-</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1100px]">
-                  <thead>
-                    <tr>
-                      <th class="whitespace-nowrap">期間</th>
-                      <th class="whitespace-nowrap">媒体</th>
-                      <th class="whitespace-nowrap">支払額</th>
-                      <th class="whitespace-nowrap">Impr</th>
-                      <th class="whitespace-nowrap">Clicks</th>
-                      <th class="whitespace-nowrap">応募</th>
-                      <th class="whitespace-nowrap">紹介送付</th>
-                      <th class="whitespace-nowrap">内定承諾</th>
-                      <th class="whitespace-nowrap">Cost/Apply</th>
-                      <th class="whitespace-nowrap">Cost/Intro</th>
-                      <th class="whitespace-nowrap">Cost/Hire</th>
-                      <th class="whitespace-nowrap">ハイライト</th>
-                    </tr>
-                  </thead>
-                  <tbody id="jobDetailTableBody">
-                    <tr>
-                      <td colspan="12" class="text-center text-slate-500 py-6">
-                        該当データがありません。
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  未突合ジョブキュー
-                </h3>
-                <div class="flex items-center gap-2 text-sm">
-                  <button
-                    id="resolveUnmatched"
-                    class="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 whitespace-nowrap"
-                  >
-                    選択したマッピングを適用
-                  </button>
-                  <button
-                    id="clearUnmatchedSelections"
-                    class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap"
-                  >
-                    選択をクリア
-                  </button>
-                </div>
-              </div>
-              <p class="text-sm text-slate-500">
-                CSVに含まれる求人IDが既存 `jobs.id`
-                と突合できない場合、ここに表示されます。
-                手動で求人を選択すると突合され、指標に反映されます。
-              </p>
-              <div
-                id="unmatchedEmptyState"
-                class="border border-dashed border-slate-300 rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-500"
-              >
-                未突合データはありません。
-              </div>
-              <div
-                id="unmatchedTableWrapper"
-                class="overflow-auto rounded-lg border border-slate-200 hidden"
-              >
-                <table class="table-grid min-w-[900px]">
-                  <thead>
-                    <tr>
-                      <th class="whitespace-nowrap">媒体</th>
-                      <th class="whitespace-nowrap">求人ID（CSV）</th>
-                      <th class="whitespace-nowrap">期間</th>
-                      <th class="whitespace-nowrap">支払額</th>
-                      <th class="whitespace-nowrap">応募</th>
-                      <th class="whitespace-nowrap">内定承諾</th>
-                      <th class="whitespace-nowrap">マッピング</th>
-                    </tr>
-                  </thead>
-                  <tbody id="unmatchedTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  CSV取込・ログ
-                </h3>
-                <div class="flex items-center gap-2 text-sm">
-                  <button
-                    id="downloadCsvTemplate"
-                    class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap"
-                  >
-                    テンプレートをダウンロード
-                  </button>
-                  <button
-                    id="loadSampleData"
-                    class="px-3 py-2 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 whitespace-nowrap"
-                  >
-                    サンプルデータを読み込む
-                  </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div
-                  class="border border-dashed border-indigo-300 rounded-xl p-6 bg-indigo-50"
-                >
-                  <p class="text-sm font-semibold text-slate-700">
-                    CSVアップロード（Indeed / 求人ボックス / エンポケ）
-                  </p>
-                  <p class="text-xs text-slate-500 mt-1">
-                    列構成: media, job_id, period_start, period_end,
-                    impressions, clicks, applications, introductions, hires,
-                    cost, currency
-                  </p>
-                  <label
-                    class="mt-4 flex flex-col items-center justify-center gap-2 border border-indigo-200 border-dashed rounded-lg py-6 cursor-pointer hover:bg-indigo-100 transition"
-                  >
-                    <span
-                      class="text-sm font-medium text-indigo-600 whitespace-nowrap"
-                    >
-                      CSVファイルを選択
-                    </span>
-                    <span class="text-xs text-slate-500">UTF-8 / 最大 5MB</span>
-                    <input
-                      id="adCsvInput"
-                      type="file"
-                      accept=".csv"
-                      class="hidden"
-                    />
-                  </label>
-                  <p class="text-xs text-slate-500 mt-4">
-                    アップロード後、バリデーションを実施し、突合結果を下表に記録します。
-                  </p>
-                </div>
-                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-3">
-                    取込結果ログ
-                  </h4>
-                  <table class="table-grid">
-                    <thead>
-                      <tr>
-                        <th class="whitespace-nowrap">日時</th>
-                        <th class="whitespace-nowrap">ファイル名</th>
-                        <th class="whitespace-nowrap">件数</th>
-                        <th class="whitespace-nowrap">結果</th>
-                      </tr>
-                    </thead>
-                    <tbody id="importLogBody">
-                      <tr>
-                        <td colspan="4" class="text-center text-slate-500 py-4">
-                          取込履歴はまだありません。
+                        <td>XYZ社 営業</td>
+                        <td>¥720,000</td>
+                        <td>¥0</td>
+                        <td class="text-amber-600 font-medium">
+                          想定→確定待ち
                         </td>
+                        <td>未入金</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
-          </section>
 
-          <section data-page="tele-log" class="page-section space-y-6 hidden">
-            <div class="card-grid">
-              <div class="kpi-card">
-                <strong>通電率</strong>
-                <span>62%</span>
-                <p class="text-xs text-slate-500 mt-1">目標 65%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>設定率</strong>
-                <span>34%</span>
-                <p class="text-xs text-slate-500 mt-1">前日比 +2pt</p>
-              </div>
-              <div class="kpi-card">
-                <strong>実施率</strong>
-                <span>28%</span>
-                <p class="text-xs text-slate-500 mt-1">N=132</p>
-              </div>
-              <div class="kpi-card">
-                <strong>No-Show率</strong>
-                <span>7%</span>
-                <p class="text-xs text-slate-500 mt-1">アラート 10%</p>
-              </div>
-              <div class="kpi-card">
-                <strong>クロージング率</strong>
-                <span>12%</span>
-                <p class="text-xs text-slate-500 mt-1">改善推移 +3pt</p>
-              </div>
-            </div>
-
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  架電ログ
-                </h3>
-                <div class="flex gap-2 text-sm">
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    日別表示
-                  </button>
-                  <button
-                    class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                  >
-                    担当者別表示
-                  </button>
+            <div>
+              <h3 class="text-lg font-semibold text-slate-800 mb-3 whitespace-nowrap">
+                工程別TAT分析
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div
+                  class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                  箱ひげ図（TAT分布）
+                </div>
+                <div
+                  class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                  平均TATの推移
+                </div>
+                <div
+                  class="h-40 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                  中央値TATの推移
                 </div>
               </div>
-              <div class="overflow-auto rounded-lg border border-slate-200">
-                <table class="table-grid min-w-[1000px]">
+            </div>
+          </div>
+        </section>
+
+        <section data-page="ad-performance" class="page-section space-y-6 hidden">
+          <div class="section-shell space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                  集計フィルター
+                </h3>
+                <p class="text-sm text-slate-500">
+                  期間・媒体・求人・部門を指定して費用対効果を比較します
+                </p>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <label for="currencySelect" class="text-xs font-semibold text-slate-500">基準通貨</label>
+                <select id="currencySelect" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="JPY">JPY (¥)</option>
+                  <option value="USD">USD ($)</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs text-slate-500">
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">期間開始</span>
+                <input id="adFilterFrom" type="date"
+                  class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">期間終了</span>
+                <input id="adFilterTo" type="date"
+                  class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">媒体</span>
+                <select id="adFilterMedia" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="all">すべて</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">求人</span>
+                <select id="adFilterJob" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="all">すべて</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">部門</span>
+                <select id="adFilterDepartment" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="all">すべて</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="whitespace-nowrap">集計単位</span>
+                <select id="adFilterGranularity" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="monthly">月次</option>
+                  <option value="weekly">週次</option>
+                  <option value="daily">日次</option>
+                </select>
+              </label>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2 text-sm">
+              <button id="adFilterReset"
+                class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap">
+                条件をクリア
+              </button>
+              <button id="adFilterApply"
+                class="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 whitespace-nowrap">
+                フィルターを適用
+              </button>
+            </div>
+          </div>
+
+          <div class="card-grid">
+            <div class="kpi-card">
+              <strong>総支払額</strong>
+              <span id="kpiTotalCost">¥0</span>
+              <p class="text-xs text-slate-500 mt-1" id="kpiTotalCostNote">
+                フィルター適用後
+              </p>
+            </div>
+            <div class="kpi-card">
+              <strong>応募数</strong>
+              <span id="kpiTotalApplications">0</span>
+              <p class="text-xs text-slate-500 mt-1" id="kpiTotalApplicationsNote">
+                媒体経由応募
+              </p>
+            </div>
+            <div class="kpi-card">
+              <strong>Cost/Apply</strong>
+              <span id="kpiCostApply">¥0</span>
+              <p class="text-xs text-slate-500 mt-1">応募単価</p>
+            </div>
+            <div class="kpi-card">
+              <strong>Cost/Hire</strong>
+              <span id="kpiCostHire">—</span>
+              <p class="text-xs text-slate-500 mt-1">内定単価</p>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                媒体別サマリー
+              </h3>
+              <button id="exportMediaSummary"
+                class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
+                CSVエクスポート
+              </button>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1100px]">
+                <thead>
+                  <tr>
+                    <th class="whitespace-nowrap">媒体</th>
+                    <th class="whitespace-nowrap">支払額</th>
+                    <th class="whitespace-nowrap">Impr</th>
+                    <th class="whitespace-nowrap">Clicks</th>
+                    <th class="whitespace-nowrap">応募</th>
+                    <th class="whitespace-nowrap">紹介送付</th>
+                    <th class="whitespace-nowrap">内定承諾</th>
+                    <th class="whitespace-nowrap">CTR</th>
+                    <th class="whitespace-nowrap">応募CVR</th>
+                    <th class="whitespace-nowrap">Cost/Apply</th>
+                    <th class="whitespace-nowrap">Cost/Intro</th>
+                    <th class="whitespace-nowrap">Cost/Hire</th>
+                  </tr>
+                </thead>
+                <tbody id="mediaSummaryTableBody">
+                  <tr>
+                    <td colspan="12" class="text-center text-slate-500 py-6">
+                      データがありません。CSV取込またはサンプル読み込みを行ってください。
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                  求人別詳細
+                </h3>
+                <p class="text-sm text-slate-500">
+                  選択した求人の費用・応募・紹介・内定承諾の推移を確認
+                </p>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <label for="jobDetailSelect"
+                  class="text-xs font-semibold text-slate-500 whitespace-nowrap">求人を選択</label>
+                <select id="jobDetailSelect" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+                  <option value="auto">フィルター結果から自動選択</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div class="border border-slate-200 rounded-xl bg-slate-50 p-4">
+                <h4 class="text-sm font-semibold text-slate-700 mb-3">
+                  推移（折れ線グラフ）
+                </h4>
+                <svg id="jobDetailChart" viewBox="0 0 600 260"
+                  class="w-full h-64 bg-white border border-slate-200 rounded-lg"></svg>
+                <div class="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>費用
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>応募
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-full bg-sky-500"></span>紹介送付
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-full bg-amber-500"></span>内定承諾
+                  </span>
+                </div>
+              </div>
+              <div class="border border-slate-200 rounded-xl bg-white p-4">
+                <h4 class="text-sm font-semibold text-slate-700 mb-3">
+                  指標サマリー
+                </h4>
+                <dl class="grid grid-cols-2 gap-4 text-sm text-slate-600" id="jobDetailSummary">
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      支払額
+                    </dt>
+                    <dd data-field="cost">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      応募
+                    </dt>
+                    <dd data-field="applications">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      紹介送付
+                    </dt>
+                    <dd data-field="introductions">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      内定承諾
+                    </dt>
+                    <dd data-field="hires">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      CTR
+                    </dt>
+                    <dd data-field="ctr">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      応募CVR
+                    </dt>
+                    <dd data-field="cvr">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      Cost/Apply
+                    </dt>
+                    <dd data-field="cpa">-</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-slate-400">
+                      Cost/Hire
+                    </dt>
+                    <dd data-field="cph">-</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1100px]">
+                <thead>
+                  <tr>
+                    <th class="whitespace-nowrap">期間</th>
+                    <th class="whitespace-nowrap">媒体</th>
+                    <th class="whitespace-nowrap">支払額</th>
+                    <th class="whitespace-nowrap">Impr</th>
+                    <th class="whitespace-nowrap">Clicks</th>
+                    <th class="whitespace-nowrap">応募</th>
+                    <th class="whitespace-nowrap">紹介送付</th>
+                    <th class="whitespace-nowrap">内定承諾</th>
+                    <th class="whitespace-nowrap">Cost/Apply</th>
+                    <th class="whitespace-nowrap">Cost/Intro</th>
+                    <th class="whitespace-nowrap">Cost/Hire</th>
+                    <th class="whitespace-nowrap">ハイライト</th>
+                  </tr>
+                </thead>
+                <tbody id="jobDetailTableBody">
+                  <tr>
+                    <td colspan="12" class="text-center text-slate-500 py-6">
+                      該当データがありません。
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                未突合ジョブキュー
+              </h3>
+              <div class="flex items-center gap-2 text-sm">
+                <button id="resolveUnmatched"
+                  class="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 whitespace-nowrap">
+                  選択したマッピングを適用
+                </button>
+                <button id="clearUnmatchedSelections"
+                  class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap">
+                  選択をクリア
+                </button>
+              </div>
+            </div>
+            <p class="text-sm text-slate-500">
+              CSVに含まれる求人IDが既存 `jobs.id`
+              と突合できない場合、ここに表示されます。
+              手動で求人を選択すると突合され、指標に反映されます。
+            </p>
+            <div id="unmatchedEmptyState"
+              class="border border-dashed border-slate-300 rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              未突合データはありません。
+            </div>
+            <div id="unmatchedTableWrapper" class="overflow-auto rounded-lg border border-slate-200 hidden">
+              <table class="table-grid min-w-[900px]">
+                <thead>
+                  <tr>
+                    <th class="whitespace-nowrap">媒体</th>
+                    <th class="whitespace-nowrap">求人ID（CSV）</th>
+                    <th class="whitespace-nowrap">期間</th>
+                    <th class="whitespace-nowrap">支払額</th>
+                    <th class="whitespace-nowrap">応募</th>
+                    <th class="whitespace-nowrap">内定承諾</th>
+                    <th class="whitespace-nowrap">マッピング</th>
+                  </tr>
+                </thead>
+                <tbody id="unmatchedTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                CSV取込・ログ
+              </h3>
+              <div class="flex items-center gap-2 text-sm">
+                <button id="downloadCsvTemplate"
+                  class="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-100 whitespace-nowrap">
+                  テンプレートをダウンロード
+                </button>
+                <button id="loadSampleData"
+                  class="px-3 py-2 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 whitespace-nowrap">
+                  サンプルデータを読み込む
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="border border-dashed border-indigo-300 rounded-xl p-6 bg-indigo-50">
+                <p class="text-sm font-semibold text-slate-700">
+                  CSVアップロード（Indeed / 求人ボックス / エンポケ）
+                </p>
+                <p class="text-xs text-slate-500 mt-1">
+                  列構成: media, job_id, period_start, period_end,
+                  impressions, clicks, applications, introductions, hires,
+                  cost, currency
+                </p>
+                <label
+                  class="mt-4 flex flex-col items-center justify-center gap-2 border border-indigo-200 border-dashed rounded-lg py-6 cursor-pointer hover:bg-indigo-100 transition">
+                  <span class="text-sm font-medium text-indigo-600 whitespace-nowrap">
+                    CSVファイルを選択
+                  </span>
+                  <span class="text-xs text-slate-500">UTF-8 / 最大 5MB</span>
+                  <input id="adCsvInput" type="file" accept=".csv" class="hidden" />
+                </label>
+                <p class="text-xs text-slate-500 mt-4">
+                  アップロード後、バリデーションを実施し、突合結果を下表に記録します。
+                </p>
+              </div>
+              <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                <h4 class="text-sm font-semibold text-slate-700 mb-3">
+                  取込結果ログ
+                </h4>
+                <table class="table-grid">
                   <thead>
                     <tr>
                       <th class="whitespace-nowrap">日時</th>
-                      <th class="whitespace-nowrap">担当者</th>
-                      <th class="whitespace-nowrap">相手</th>
-                      <th class="whitespace-nowrap">通電</th>
-                      <th class="whitespace-nowrap">アポ設定</th>
-                      <th class="whitespace-nowrap">実施</th>
-                      <th class="whitespace-nowrap">No-Show</th>
-                      <th class="whitespace-nowrap">メモ</th>
+                      <th class="whitespace-nowrap">ファイル名</th>
+                      <th class="whitespace-nowrap">件数</th>
+                      <th class="whitespace-nowrap">結果</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="importLogBody">
                     <tr>
-                      <td>2024/05/29 10:30</td>
-                      <td>佐藤</td>
-                      <td>ABC社 田中様</td>
-                      <td>◯</td>
-                      <td>◯</td>
-                      <td>予定</td>
-                      <td>-</td>
-                      <td>一次→6/3 15:00設定</td>
-                    </tr>
-                    <tr>
-                      <td>2024/05/29 11:45</td>
-                      <td>田中</td>
-                      <td>XYZ社 鈴木様</td>
-                      <td>◯</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>一次日程打診中</td>
-                    </tr>
-                    <tr>
-                      <td>2024/05/29 13:20</td>
-                      <td>山本</td>
-                      <td>DEF社 佐々木様</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>再架電予定 5/31</td>
+                      <td colspan="4" class="text-center text-slate-500 py-4">
+                        取込履歴はまだありません。
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+          </div>
+        </section>
 
-            <div class="section-shell space-y-4">
-              <div class="flex items-center justify-between">
-                <h3
-                  class="text-lg font-semibold text-slate-800 whitespace-nowrap"
-                >
-                  CTI CSV / 手入力取り込み
-                </h3>
-                <button
-                  class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap"
-                >
-                  手入力フォームを開く
+        <section data-page="tele-log" class="page-section space-y-6 hidden">
+          <div class="card-grid">
+            <div class="kpi-card">
+              <strong>通電率</strong>
+              <span>62%</span>
+              <p class="text-xs text-slate-500 mt-1">目標 65%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>設定率</strong>
+              <span>34%</span>
+              <p class="text-xs text-slate-500 mt-1">前日比 +2pt</p>
+            </div>
+            <div class="kpi-card">
+              <strong>実施率</strong>
+              <span>28%</span>
+              <p class="text-xs text-slate-500 mt-1">N=132</p>
+            </div>
+            <div class="kpi-card">
+              <strong>No-Show率</strong>
+              <span>7%</span>
+              <p class="text-xs text-slate-500 mt-1">アラート 10%</p>
+            </div>
+            <div class="kpi-card">
+              <strong>クロージング率</strong>
+              <span>12%</span>
+              <p class="text-xs text-slate-500 mt-1">改善推移 +3pt</p>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                架電ログ
+              </h3>
+              <div class="flex gap-2 text-sm">
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  日別表示
+                </button>
+                <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                  担当者別表示
                 </button>
               </div>
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div
-                  class="border border-dashed border-indigo-300 rounded-xl p-6 bg-indigo-50"
-                >
-                  <p class="text-sm font-semibold text-slate-700">
-                    CSVアップロード（CTIエクスポート）
-                  </p>
-                  <p class="text-xs text-slate-500 mt-1">
-                    日時・担当・通電結果をまとめて登録します
-                  </p>
-                  <label
-                    class="mt-4 flex flex-col items-center justify-center gap-2 border border-indigo-200 border-dashed rounded-lg py-6 cursor-pointer hover:bg-indigo-100 transition"
-                  >
-                    <span
-                      class="text-sm font-medium text-indigo-600 whitespace-nowrap"
-                      >CSVファイルを選択</span
-                    >
-                    <span class="text-xs text-slate-500">UTF-8 / 2MBまで</span>
-                    <input type="file" class="hidden" />
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200">
+              <table class="table-grid min-w-[1000px]">
+                <thead>
+                  <tr>
+                    <th class="whitespace-nowrap">日時</th>
+                    <th class="whitespace-nowrap">担当者</th>
+                    <th class="whitespace-nowrap">相手</th>
+                    <th class="whitespace-nowrap">通電</th>
+                    <th class="whitespace-nowrap">アポ設定</th>
+                    <th class="whitespace-nowrap">実施</th>
+                    <th class="whitespace-nowrap">No-Show</th>
+                    <th class="whitespace-nowrap">メモ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>2024/05/29 10:30</td>
+                    <td>佐藤</td>
+                    <td>ABC社 田中様</td>
+                    <td>◯</td>
+                    <td>◯</td>
+                    <td>予定</td>
+                    <td>-</td>
+                    <td>一次→6/3 15:00設定</td>
+                  </tr>
+                  <tr>
+                    <td>2024/05/29 11:45</td>
+                    <td>田中</td>
+                    <td>XYZ社 鈴木様</td>
+                    <td>◯</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>一次日程打診中</td>
+                  </tr>
+                  <tr>
+                    <td>2024/05/29 13:20</td>
+                    <td>山本</td>
+                    <td>DEF社 佐々木様</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>再架電予定 5/31</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section-shell space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+                CTI CSV / 手入力取り込み
+              </h3>
+              <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap">
+                手入力フォームを開く
+              </button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="border border-dashed border-indigo-300 rounded-xl p-6 bg-indigo-50">
+                <p class="text-sm font-semibold text-slate-700">
+                  CSVアップロード（CTIエクスポート）
+                </p>
+                <p class="text-xs text-slate-500 mt-1">
+                  日時・担当・通電結果をまとめて登録します
+                </p>
+                <label
+                  class="mt-4 flex flex-col items-center justify-center gap-2 border border-indigo-200 border-dashed rounded-lg py-6 cursor-pointer hover:bg-indigo-100 transition">
+                  <span class="text-sm font-medium text-indigo-600 whitespace-nowrap">CSVファイルを選択</span>
+                  <span class="text-xs text-slate-500">UTF-8 / 2MBまで</span>
+                  <input type="file" class="hidden" />
+                </label>
+              </div>
+              <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                <h4 class="text-sm font-semibold text-slate-700 mb-3">
+                  手入力 (最小項目)
+                </h4>
+                <form class="space-y-3 text-sm text-slate-600">
+                  <div class="grid grid-cols-2 gap-3">
+                    <label class="flex flex-col gap-1">
+                      <span class="whitespace-nowrap">日時</span>
+                      <input type="datetime-local" class="border border-slate-300 rounded-md px-3 py-2" />
+                    </label>
+                    <label class="flex flex-col gap-1">
+                      <span class="whitespace-nowrap">担当者</span>
+                      <input type="text" class="border border-slate-300 rounded-md px-3 py-2" placeholder="CA / CS" />
+                    </label>
+                  </div>
+                  <label class="flex flex-col gap-1">
+                    <span class="whitespace-nowrap">相手</span>
+                    <input type="text" class="border border-slate-300 rounded-md px-3 py-2" placeholder="企業・候補者" />
                   </label>
-                </div>
-                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                  <h4 class="text-sm font-semibold text-slate-700 mb-3">
-                    手入力 (最小項目)
-                  </h4>
-                  <form class="space-y-3 text-sm text-slate-600">
-                    <div class="grid grid-cols-2 gap-3">
-                      <label class="flex flex-col gap-1">
-                        <span class="whitespace-nowrap">日時</span>
-                        <input
-                          type="datetime-local"
-                          class="border border-slate-300 rounded-md px-3 py-2"
-                        />
-                      </label>
-                      <label class="flex flex-col gap-1">
-                        <span class="whitespace-nowrap">担当者</span>
-                        <input
-                          type="text"
-                          class="border border-slate-300 rounded-md px-3 py-2"
-                          placeholder="CA / CS"
-                        />
-                      </label>
-                    </div>
+                  <div class="grid grid-cols-2 gap-3">
                     <label class="flex flex-col gap-1">
-                      <span class="whitespace-nowrap">相手</span>
-                      <input
-                        type="text"
-                        class="border border-slate-300 rounded-md px-3 py-2"
-                        placeholder="企業・候補者"
-                      />
+                      <span class="whitespace-nowrap">結果</span>
+                      <select class="border border-slate-300 rounded-md px-3 py-2">
+                        <option>通電</option>
+                        <option>不在</option>
+                        <option>折返し待ち</option>
+                      </select>
                     </label>
-                    <div class="grid grid-cols-2 gap-3">
-                      <label class="flex flex-col gap-1">
-                        <span class="whitespace-nowrap">結果</span>
-                        <select
-                          class="border border-slate-300 rounded-md px-3 py-2"
-                        >
-                          <option>通電</option>
-                          <option>不在</option>
-                          <option>折返し待ち</option>
-                        </select>
-                      </label>
-                      <label class="flex flex-col gap-1">
-                        <span class="whitespace-nowrap">次アクション</span>
-                        <input
-                          type="date"
-                          class="border border-slate-300 rounded-md px-3 py-2"
-                        />
-                      </label>
-                    </div>
                     <label class="flex flex-col gap-1">
-                      メモ
-                      <textarea
-                        rows="3"
-                        class="border border-slate-300 rounded-md px-3 py-2"
-                        placeholder="応対内容・ヒアリング結果"
-                      ></textarea>
+                      <span class="whitespace-nowrap">次アクション</span>
+                      <input type="date" class="border border-slate-300 rounded-md px-3 py-2" />
                     </label>
-                    <button
-                      type="button"
-                      class="px-3 py-2 bg-indigo-600 text-white rounded-md whitespace-nowrap"
-                    >
-                      保存
-                    </button>
-                  </form>
-                </div>
+                  </div>
+                  <label class="flex flex-col gap-1">
+                    メモ
+                    <textarea rows="3" class="border border-slate-300 rounded-md px-3 py-2"
+                      placeholder="応対内容・ヒアリング結果"></textarea>
+                  </label>
+                  <button type="button" class="px-3 py-2 bg-indigo-600 text-white rounded-md whitespace-nowrap">
+                    保存
+                  </button>
+                </form>
               </div>
             </div>
-          </section>
-        </main>
-      </div>
+          </div>
+        </section>
+      </main>
     </div>
+  </div>
 
-    <div id="drawerOverlay" class="drawer-overlay"></div>
-    <aside id="candidateDrawer" class="detail-drawer">
-      <div
-        class="px-6 py-5 border-b border-slate-200 flex items-start justify-between"
-      >
-        <div>
-          <h3 id="drawerName" class="text-xl font-semibold text-slate-900">
-            候補者名
-          </h3>
-          <p class="text-sm text-slate-500 mt-1">
-            <span id="drawerCompany">企業名</span> / 担当:
-            <span id="drawerOwner">担当者</span>
-          </p>
-          <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-            <span
-              class="px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 font-semibold"
-              id="drawerPhase"
-              >フェーズ</span
-            >
-            <span
-              class="px-2 py-1 rounded-md bg-slate-100 text-slate-700"
-              id="drawerInitial"
-              >初回接点 -</span
-            >
-            <span
-              class="px-2 py-1 rounded-md bg-rose-50 text-rose-600 font-semibold"
-              id="drawerStuck"
-              >滞留0日</span
-            >
-          </div>
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <aside id="candidateDrawer" class="detail-drawer">
+    <div class="px-6 py-5 border-b border-slate-200 flex items-start justify-between">
+      <div>
+        <h3 id="drawerName" class="text-xl font-semibold text-slate-900">
+          候補者名
+        </h3>
+        <p class="text-sm text-slate-500 mt-1">
+          <span id="drawerCompany">企業名</span> / 担当:
+          <span id="drawerOwner">担当者</span>
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+          <span class="px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 font-semibold" id="drawerPhase">フェーズ</span>
+          <span class="px-2 py-1 rounded-md bg-slate-100 text-slate-700" id="drawerInitial">初回接点 -</span>
+          <span class="px-2 py-1 rounded-md bg-rose-50 text-rose-600 font-semibold" id="drawerStuck">滞留0日</span>
         </div>
-        <button
-          id="drawerClose"
-          class="text-slate-400 hover:text-slate-600 transition"
-          aria-label="閉じる"
-        >
-          ✕
-        </button>
       </div>
-      <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-        <section class="space-y-2">
-          <h4 class="text-sm font-semibold text-slate-700">連絡先</h4>
-          <dl class="grid grid-cols-1 gap-3 text-sm text-slate-600">
-            <div>
-              <dt class="text-xs uppercase tracking-wide text-slate-400">
-                住所
-              </dt>
-              <dd id="drawerAddress">-</dd>
-            </div>
-            <div>
-              <dt class="text-xs uppercase tracking-wide text-slate-400">
-                電話
-              </dt>
-              <dd id="drawerPhone">-</dd>
-            </div>
-            <div>
-              <dt class="text-xs uppercase tracking-wide text-slate-400">
-                メール
-              </dt>
-              <dd id="drawerEmail">-</dd>
-            </div>
-          </dl>
-          <p class="text-xs text-slate-400">
-            ※編集はkintone側で行います。ロールによってマスク制御されます。
-          </p>
-        </section>
-        <section class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-slate-700">
-              進捗タイムライン
-            </h4>
-            <span class="text-xs text-slate-400"
-              >フェーズ順: 新規面談 → 内定承諾</span
-            >
+      <button id="drawerClose" class="text-slate-400 hover:text-slate-600 transition" aria-label="閉じる">
+        ✕
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+      <section class="space-y-2">
+        <h4 class="text-sm font-semibold text-slate-700">連絡先</h4>
+        <dl class="grid grid-cols-1 gap-3 text-sm text-slate-600">
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-400">
+              住所
+            </dt>
+            <dd id="drawerAddress">-</dd>
           </div>
-          <div id="drawerTimeline" class="space-y-4"></div>
-        </section>
-        <section class="space-y-2">
-          <h4 class="text-sm font-semibold text-slate-700">次アクション</h4>
-          <div
-            id="drawerNextAction"
-            class="text-sm text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3"
-          >
-            -
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-400">
+              電話
+            </dt>
+            <dd id="drawerPhone">-</dd>
           </div>
-        </section>
-        <section class="space-y-2">
-          <h4 class="text-sm font-semibold text-slate-700">メモ</h4>
-          <div
-            id="drawerMemo"
-            class="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3"
-          >
-            -
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-400">
+              メール
+            </dt>
+            <dd id="drawerEmail">-</dd>
           </div>
-        </section>
-      </div>
-      <div class="px-6 py-4 border-t border-slate-200 text-xs text-slate-500">
-        更に詳細が必要な場合は「個票を開く」をクリックし、kintoneのレコードを参照してください。
-      </div>
-    </aside>
-    <script src="dashboard.js" defer></script>
-  </body>
+        </dl>
+        <p class="text-xs text-slate-400">
+          ※編集はkintone側で行います。ロールによってマスク制御されます。
+        </p>
+      </section>
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-semibold text-slate-700">
+            進捗タイムライン
+          </h4>
+          <span class="text-xs text-slate-400">フェーズ順: 新規面談 → 内定承諾</span>
+        </div>
+        <div id="drawerTimeline" class="space-y-4"></div>
+      </section>
+      <section class="space-y-2">
+        <h4 class="text-sm font-semibold text-slate-700">次アクション</h4>
+        <div id="drawerNextAction"
+          class="text-sm text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
+          -
+        </div>
+      </section>
+      <section class="space-y-2">
+        <h4 class="text-sm font-semibold text-slate-700">メモ</h4>
+        <div id="drawerMemo" class="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          -
+        </div>
+      </section>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-200 text-xs text-slate-500">
+      更に詳細が必要な場合は「個票を開く」をクリックし、kintoneのレコードを参照してください。
+    </div>
+  </aside>
+  <script src="dashboard.js" defer></script>
+</body>
+
 </html>
+aaaaa
