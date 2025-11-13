@@ -1,3 +1,14 @@
+const DEBUG = false;
+
+// 初期化フラグ
+let initializationFlags = {
+  legacyNavigation: false,
+  kpiEventListeners: false,
+  candidatesManagement: false,
+  teleapoManagement: false,
+  referralEventListeners: false
+};
+
 const sections = document.querySelectorAll(".page-section");
 const navLinks = document.querySelectorAll(".nav-link");
 const title = document.getElementById("pageTitle");
@@ -27,19 +38,9 @@ const pageMeta = {
     title: "候補者管理",
     subtitle: "応募者の詳細情報と架電履歴を一元管理し、採用プロセスを効率化",
   },
-  "ad-spend": {
-    title: "広告費管理",
-    subtitle:
-      "媒体×CA/CSの成果を日/週/月単位で把握し、滞留や次アクションを管理",
-  },
   introduction: {
     title: "各企業の紹介実績管理",
     subtitle: "クライアント／案件別のステージ進捗と候補者タイムラインを整理",
-  },
-  "tele-ops": {
-    title: "テレアポ実績管理",
-    subtitle:
-      "入社後フォロー・返金・辞退理由を表形式でトラッキングし、TATを分析",
   },
   "ad-performance": {
     title: "広告管理",
@@ -54,30 +55,6 @@ const pageMeta = {
     subtitle: "架電ログと指標カードを一元管理し、CSV取込や手入力で更新",
   },
 };
-
-navLinks.forEach((link) => {
-  link.addEventListener("click", () => {
-    const target = link.dataset.target;
-
-    sections.forEach((section) => {
-      if (section.dataset.page === target) {
-        section.classList.remove("hidden");
-      } else {
-        section.classList.add("hidden");
-      }
-    });
-
-    navLinks.forEach((btn) => {
-      btn.classList.remove("bg-slate-800", "text-white");
-    });
-    link.classList.add("bg-slate-800", "text-white");
-
-    if (pageMeta[target]) {
-      title.textContent = pageMeta[target].title;
-      subtitle.textContent = pageMeta[target].subtitle;
-    }
-  });
-});
 
 const jobCatalog = [
   {
@@ -1685,7 +1662,11 @@ const applyCandidateFilters = () => {
       visible = activePhases.has(row.dataset.phase);
     }
 
-    row.style.display = visible ? "" : "none";
+    if (visible) {
+      row.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+    }
     row.dataset.visible = visible ? "true" : "false";
   });
 
@@ -2298,6 +2279,11 @@ const handleKpiRangeChange = (section) => {
 
 // イベントリスナーの設定
 const setupKpiEventListeners = () => {
+  if (initializationFlags.kpiEventListeners) {
+    if (DEBUG) console.log('KPI event listeners already initialized');
+    return;
+  }
+
   // 期間変更
   const personalRangeStart = document.getElementById('personalRangeStart');
   const personalRangeEnd = document.getElementById('personalRangeEnd');
@@ -2352,18 +2338,21 @@ const setupKpiEventListeners = () => {
       const currentView = viewToggle.dataset.view;
       
       if (currentView === 'table') {
-        tableView.style.display = 'none';
-        cardView.style.display = 'block';
+        tableView.classList.add('hidden');
+        cardView.classList.remove('hidden');
         viewToggle.dataset.view = 'card';
         viewToggle.querySelector('.toggle-text').textContent = '表形式';
       } else {
-        tableView.style.display = 'block';
-        cardView.style.display = 'none';
+        tableView.classList.remove('hidden');
+        cardView.classList.add('hidden');
         viewToggle.dataset.view = 'table';
         viewToggle.querySelector('.toggle-text').textContent = 'カード表示';
       }
     });
   }
+
+  initializationFlags.kpiEventListeners = true;
+  if (DEBUG) console.log('KPI event listeners initialized');
 };
 
 // 初期化
@@ -4521,14 +4510,11 @@ const showCompanyDrawer = (companyId) => {
   }
   
   // ドロワーを表示
-  console.log('Showing drawer...'); // デバッグログ
+  if (DEBUG) console.log('Showing drawer...');
   overlay.classList.remove('hidden');
-  overlay.classList.add('visible'); // CSS用のクラス追加
+  overlay.classList.add('visible');
   drawer.classList.remove('hidden');
-  drawer.classList.add('open'); // CSS用のクラス追加
-  
-  // フォールバック: インラインスタイルも設定
-  overlay.style.display = 'block';
+  drawer.classList.add('open');
   overlay.style.position = 'fixed';
   overlay.style.inset = '0';
   overlay.style.background = 'rgba(15, 23, 42, 0.6)';
@@ -4565,9 +4551,7 @@ const hideCompanyDrawer = () => {
   
   if (overlay) {
     overlay.classList.add('hidden');
-    overlay.classList.remove('visible'); // CSS用のクラス削除
-    // インラインスタイルをクリア
-    overlay.style.display = 'none';
+    overlay.classList.remove('visible');
   }
   
   if (drawer) {
@@ -4780,11 +4764,16 @@ const setupMatchingEventListeners = () => {
 
 // 古いdata-target方式のナビゲーション処理
 const setupLegacyNavigation = () => {
+  if (initializationFlags.legacyNavigation) {
+    if (DEBUG) console.log('Legacy navigation already initialized');
+    return;
+  }
+
   document.querySelectorAll('[data-target]').forEach(button => {
     button.addEventListener('click', (e) => {
       e.preventDefault();
       const targetPage = button.getAttribute('data-target');
-      console.log('Legacy navigation clicked, target:', targetPage);
+      if (DEBUG) console.log('Legacy navigation clicked, target:', targetPage);
       
       // 全てのページを隠す
       document.querySelectorAll('[data-page]').forEach(page => {
@@ -4793,12 +4782,12 @@ const setupLegacyNavigation = () => {
       
       // 対象ページを表示
       const pageElement = document.querySelector(`[data-page="${targetPage}"]`);
-      console.log('Legacy navigation page element found:', !!pageElement, 'for target:', targetPage);
+      if (DEBUG) console.log('Legacy navigation page element found:', !!pageElement, 'for target:', targetPage);
       
       if (pageElement) {
         pageElement.classList.remove('hidden');
-        console.log('Legacy navigation page displayed:', targetPage);
-        console.log('Page classes:', pageElement.className);
+        if (DEBUG) console.log('Legacy navigation page displayed:', targetPage);
+        if (DEBUG) console.log('Page classes:', pageElement.className);
       } else {
         console.error('Legacy navigation page not found:', targetPage);
       }
@@ -4810,6 +4799,9 @@ const setupLegacyNavigation = () => {
       initializeTargetPage(targetPage);
     });
   });
+
+  initializationFlags.legacyNavigation = true;
+  if (DEBUG) console.log('Legacy navigation initialized');
 };
 
 // レガシーナビゲーション状態を更新
@@ -4832,7 +4824,7 @@ const initializeTargetPage = (target) => {
   
   // 少し遅延して初期化を実行
   setTimeout(() => {
-    if (target === 'tele-ops' || target === 'tele-log') {
+    if (target === 'tele-log') {
       console.log('Initializing telemarketing management...'); // デバッグログ
       initializeTeleapoManagement(); // 正しい関数名に修正
     } else if (target === 'referral') {
@@ -4904,7 +4896,7 @@ const updateNavigationState = (currentPage) => {
 
 // 現在のページの初期化
 const initializeCurrentPage = (pageName) => {
-  if (pageName === 'telemarketing' || pageName === 'tele-log' || pageName === 'tele-ops') {
+  if (pageName === 'telemarketing' || pageName === 'tele-log') {
     console.log('Initializing teleapo management for page:', pageName); // デバッグログ
     initializeTeleapoManagement(); // 正しい関数名に修正
   } else if (pageName === 'referral') {

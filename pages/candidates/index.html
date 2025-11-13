@@ -1,0 +1,109 @@
+<div class="section-shell space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+        候補者一覧
+      </h3>
+      <p class="text-sm text-slate-500">
+        応募者の詳細情報と架電管理を一元管理
+      </p>
+    </div>
+  </div>
+
+  <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+    <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
+      絞り込み
+    </h4>
+    <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 text-xs text-slate-500">
+      <label class="flex flex-col gap-1">
+        <span class="whitespace-nowrap">応募年月日（開始）</span>
+        <input
+          id="candidatesFilterDateFrom"
+          type="date"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="whitespace-nowrap">応募年月日（終了）</span>
+        <input
+          id="candidatesFilterDateTo"
+          type="date"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="whitespace-nowrap">応募媒体</span>
+        <select
+          id="candidatesFilterSource"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">すべて</option>
+          <option value="Indeed">Indeed</option>
+          <option value="求人ボックス">求人ボックス</option>
+          <option value="リクナビ">リクナビ</option>
+          <option value="マイナビ">マイナビ</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="whitespace-nowrap">求職者名</span>
+        <input
+          id="candidatesFilterName"
+          type="search"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+          placeholder="候補者名で検索"
+        />
+      </label>
+    </div>
+    <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 text-xs text-slate-500">
+      <label class="flex flex-col gap-1">
+        <span class="whitespace-nowrap">応募求人名</span>
+        <input
+          id="candidatesFilterJobTitle"
+          type="search"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+          placeholder="求人名で検索"
+        />
+      </label>
+      <div class="flex items-end gap-2">
+        <button
+          id="candidatesFilterReset"
+          class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap"
+        >
+          条件をクリア
+        </button>
+        <div id="candidatesFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
+          20件
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overflow-auto rounded-lg border border-slate-200">
+    <table class="table-grid min-w-[1200px]">
+      <thead>
+        <tr>
+          <th class="cursor-pointer hover:bg-slate-100" data-sort="appliedAt">
+            応募日
+            <span class="ml-1 text-xs opacity-50">↕</span>
+          </th>
+          <th>応募されたサイト</th>
+          <th class="cursor-pointer hover:bg-slate-100" data-sort="name">
+            求職者名
+            <span class="ml-1 text-xs opacity-50">↕</span>
+          </th>
+          <th>電話番号</th>
+          <th>メールアドレス</th>
+          <th>応募求人名</th>
+          <th class="cursor-pointer hover:bg-slate-100" data-sort="companyName">
+            応募した企業名
+            <span class="ml-1 text-xs opacity-50">↕</span>
+          </th>
+          <th>住所</th>
+        </tr>
+      </thead>
+      <tbody id="candidatesTableBody">
+        <!-- JavaScriptで生成される候補者データ -->
+      </tbody>
+    </table>
+  </div>
+</div>

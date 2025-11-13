@@ -1,0 +1,322 @@
+<!-- KPI v2: テレアポ管理 -->
+<section data-page="teleapo" data-kpi="v2" class="kpi-v2-wrapper space-y-6">
+  <!-- 個人成績 -->
+  <div class="kpi-v2-section">
+    <div class="kpi-v2-header">
+      <h3 class="kpi-v2-title">個人成績</h3>
+      <div class="kpi-v2-range-picker">
+        <input type="date" id="teleapoPersonalRangeStart" class="kpi-v2-date-input" value="2024-11-01" />
+        <span class="kpi-v2-date-separator">〜</span>
+        <input type="date" id="teleapoPersonalRangeEnd" class="kpi-v2-date-input" value="2024-11-13" />
+      </div>
+    </div>
+
+    <!-- 4KPI 数の行 -->
+    <div class="kpi-v2-scroll-wrapper">
+      <div class="kpi-v2-row" data-kpi-type="counts">
+        <div class="kpi-v2-card" data-kpi="dials">
+          <div class="kpi-v2-label">架電数</div>
+          <div class="kpi-v2-value" id="teleapoPersonalDials">156</div>
+          <div class="kpi-v2-meta">今期個人実績</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="connects">
+          <div class="kpi-v2-label">通電数</div>
+          <div class="kpi-v2-value" id="teleapoPersonalConnects">78</div>
+          <div class="kpi-v2-meta">今期個人実績</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="sets">
+          <div class="kpi-v2-label">設定数</div>
+          <div class="kpi-v2-value" id="teleapoPersonalSets">23</div>
+          <div class="kpi-v2-meta">今期個人実績</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="shows">
+          <div class="kpi-v2-label">着座数</div>
+          <div class="kpi-v2-value" id="teleapoPersonalShows">19</div>
+          <div class="kpi-v2-meta">今期個人実績</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3KPI 率の行 -->
+    <div class="kpi-v2-scroll-wrapper">
+      <div class="kpi-v2-row" data-kpi-type="rates">
+        <div class="kpi-v2-card" data-kpi="connectRate">
+          <div class="kpi-v2-label">通電率</div>
+          <div class="kpi-v2-value" id="teleapoPersonalConnectRate">50%</div>
+          <div class="kpi-v2-meta">通電数 78 / 架電数 156</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="setRate">
+          <div class="kpi-v2-label">設定率</div>
+          <div class="kpi-v2-value" id="teleapoPersonalSetRate">29%</div>
+          <div class="kpi-v2-meta">設定数 23 / 通電数 78</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="showRate">
+          <div class="kpi-v2-label">着座率</div>
+          <div class="kpi-v2-value" id="teleapoPersonalShowRate">83%</div>
+          <div class="kpi-v2-meta">着座数 19 / 設定数 23</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 折れ線グラフ: 期間内推移 -->
+    <div class="kpi-v2-chart-section">
+      <h4 class="kpi-v2-chart-title">期間内推移</h4>
+      <div class="kpi-v2-chart-container">
+        <svg id="teleapoPersonalTrendChart" class="kpi-v2-svg-chart" viewBox="0 0 800 300">
+          <!-- チャートはJavaScriptで描画 -->
+        </svg>
+        <div class="kpi-v2-chart-legend" id="teleapoPersonalChartLegend">
+          <!-- 凡例はJavaScriptで生成 -->
+        </div>
+      </div>
+      <div class="kpi-v2-chart-tooltip" id="teleapoPersonalChartTooltip"></div>
+    </div>
+  </div>
+
+  <!-- 社内成績 -->
+  <div class="kpi-v2-section">
+    <div class="kpi-v2-header">
+      <h3 class="kpi-v2-title">社内成績</h3>
+      <div class="kpi-v2-range-picker">
+        <input type="date" id="teleapoCompanyRangeStart" class="kpi-v2-date-input" value="2024-11-01" />
+        <span class="kpi-v2-date-separator">〜</span>
+        <input type="date" id="teleapoCompanyRangeEnd" class="kpi-v2-date-input" value="2024-11-13" />
+      </div>
+    </div>
+
+    <!-- 全体成績 -->
+    <div class="kpi-v2-subsection">
+      <h4 class="kpi-v2-subtitle">全体成績</h4>
+      
+      <!-- 全体 4KPI 数の行 -->
+      <div class="kpi-v2-scroll-wrapper">
+        <div class="kpi-v2-row" data-kpi-type="counts">
+          <div class="kpi-v2-card" data-kpi="dials">
+            <div class="kpi-v2-label">架電数</div>
+            <div class="kpi-v2-value" id="teleapoCompanyDials">1,247</div>
+            <div class="kpi-v2-meta">全社員合計</div>
+          </div>
+          <div class="kpi-v2-card" data-kpi="connects">
+            <div class="kpi-v2-label">通電数</div>
+            <div class="kpi-v2-value" id="teleapoCompanyConnects">623</div>
+            <div class="kpi-v2-meta">全社員合計</div>
+          </div>
+          <div class="kpi-v2-card" data-kpi="sets">
+            <div class="kpi-v2-label">設定数</div>
+            <div class="kpi-v2-value" id="teleapoCompanySets">187</div>
+            <div class="kpi-v2-meta">全社員合計</div>
+          </div>
+          <div class="kpi-v2-card" data-kpi="shows">
+            <div class="kpi-v2-label">着座数</div>
+            <div class="kpi-v2-value" id="teleapoCompanyShows">154</div>
+            <div class="kpi-v2-meta">全社員合計</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全体 3KPI 率の行 -->
+      <div class="kpi-v2-scroll-wrapper">
+        <div class="kpi-v2-row" data-kpi-type="rates">
+          <div class="kpi-v2-card" data-kpi="connectRate">
+            <div class="kpi-v2-label">通電率</div>
+            <div class="kpi-v2-value" id="teleapoCompanyConnectRate">50%</div>
+            <div class="kpi-v2-meta">通電数 623 / 架電数 1,247</div>
+          </div>
+          <div class="kpi-v2-card" data-kpi="setRate">
+            <div class="kpi-v2-label">設定率</div>
+            <div class="kpi-v2-value" id="teleapoCompanySetRate">30%</div>
+            <div class="kpi-v2-meta">設定数 187 / 通電数 623</div>
+          </div>
+          <div class="kpi-v2-card" data-kpi="showRate">
+            <div class="kpi-v2-label">着座率</div>
+            <div class="kpi-v2-value" id="teleapoCompanyShowRate">82%</div>
+            <div class="kpi-v2-meta">着座数 154 / 設定数 187</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 社員成績 -->
+    <div class="kpi-v2-subsection">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="text-lg font-semibold text-slate-800">社員成績</h4>
+        <div class="flex items-center gap-3">
+          <input type="text" id="teleapoEmployeeSearchInput" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="社員名で検索..." />
+          <select id="teleapoEmployeeSortSelect" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="name-asc">社員名（昇順）</option>
+            <option value="dials-desc">架電数（降順）</option>
+            <option value="shows-desc">着座数（降順）</option>
+            <option value="connectRate-desc">通電率（降順）</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- テーブル表示 -->
+      <div class="overflow-auto rounded-lg border border-slate-200">
+        <table class="table-grid min-w-[800px]">
+          <thead>
+            <tr>
+              <th class="whitespace-nowrap">社員名</th>
+              <th class="whitespace-nowrap">架電数</th>
+              <th class="whitespace-nowrap">通電数</th>
+              <th class="whitespace-nowrap">設定数</th>
+              <th class="whitespace-nowrap">着座数</th>
+              <th class="whitespace-nowrap">通電率</th>
+              <th class="whitespace-nowrap">設定率</th>
+              <th class="whitespace-nowrap">着座率</th>
+            </tr>
+          </thead>
+          <tbody id="teleapoEmployeeTableBody">
+            <!-- JavaScriptで生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 架電ログ -->
+<div class="section-shell space-y-4">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">架電ログ</h3>
+    <div class="flex items-center gap-2">
+      <input type="date" id="teleapoLogRangeStart" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" value="2024-11-01" />
+      <span class="text-slate-500">〜</span>
+      <input type="date" id="teleapoLogRangeEnd" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" value="2024-11-13" />
+    </div>
+  </div>
+
+  <!-- フィルタと検索 -->
+  <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+    <h4 class="text-sm font-semibold text-slate-700">絞り込み条件</h4>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs text-slate-500">
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-slate-500">担当者</label>
+        <select id="teleapoLogEmployeeFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+          <option value="">全員</option>
+          <option value="佐藤">佐藤</option>
+          <option value="田中">田中</option>
+          <option value="山本">山本</option>
+          <option value="鈴木">鈴木</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-slate-500">アポ結果</label>
+        <select id="teleapoLogResultFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+          <option value="">全て</option>
+          <option value="通電">通電</option>
+          <option value="不在">不在</option>
+          <option value="設定">設定</option>
+          <option value="着座">着座</option>
+          <option value="コールバック">コールバック</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-slate-500">相手名検索</label>
+        <input type="text" id="teleapoLogTargetSearch" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
+      </div>
+      <div class="flex items-end gap-2">
+        <button id="teleapoLogFilterReset" class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
+          条件をクリア
+        </button>
+        <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
+          25件
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ログテーブル -->
+  <div class="overflow-auto rounded-lg border border-slate-200">
+    <table class="table-grid min-w-[1200px]" id="teleapoLogTable">
+      <thead>
+        <tr>
+          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="datetime">
+            日時
+            <span class="ml-1 text-xs text-slate-400">▼</span>
+          </th>
+          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="employee">担当者</th>
+          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="target">相手</th>
+          <th>電話番号</th>
+          <th>メールアドレス</th>
+          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="result">アポ結果</th>
+          <th>メモ</th>
+        </tr>
+      </thead>
+      <tbody id="teleapoLogTableBody">
+        <tr>
+          <td class="whitespace-nowrap">2024/11/13 10:30</td>
+          <td>佐藤</td>
+          <td>ABC社 田中様</td>
+          <td>03-1234-5678</td>
+          <td>tanaka@abc-corp.co.jp</td>
+          <td>
+            <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold">設定</span>
+          </td>
+          <td>一次面談→11/20 15:00設定</td>
+        </tr>
+        <tr>
+          <td class="whitespace-nowrap">2024/11/13 11:45</td>
+          <td>田中</td>
+          <td>XYZ社 鈴木様</td>
+          <td>03-9876-5432</td>
+          <td>suzuki@xyz-inc.co.jp</td>
+          <td>
+            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">通電</span>
+          </td>
+          <td>一次日程打診中</td>
+        </tr>
+        <tr>
+          <td class="whitespace-nowrap">2024/11/13 13:20</td>
+          <td>山本</td>
+          <td>DEF社 佐々木様</td>
+          <td>03-5555-1111</td>
+          <td>sasaki@def-ltd.co.jp</td>
+          <td>
+            <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold">不在</span>
+          </td>
+          <td>再架電予定 11/14</td>
+        </tr>
+        <tr>
+          <td class="whitespace-nowrap">2024/11/13 14:15</td>
+          <td>鈴木</td>
+          <td>GHI株式会社 高橋様</td>
+          <td>03-2222-9999</td>
+          <td>takahashi@ghi-group.com</td>
+          <td>
+            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">着座</span>
+          </td>
+          <td>面談完了、次回フォローアップ予定</td>
+        </tr>
+        <tr>
+          <td class="whitespace-nowrap">2024/11/13 15:30</td>
+          <td>佐藤</td>
+          <td>JKL商事 山田様</td>
+          <td>03-7777-3333</td>
+          <td>yamada@jkl-trading.jp</td>
+          <td>
+            <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-semibold">コールバック</span>
+          </td>
+          <td>16:00に折り返し予定</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ページネーション -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2 text-sm text-slate-500">
+      <button class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" id="teleapoLogPrevBtn" disabled>前のページ</button>
+      <span class="px-3 py-2 text-sm" id="teleapoLogPageInfo">1 / 1</span>
+      <button class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" id="teleapoLogNextBtn" disabled>次のページ</button>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <label class="text-xs text-slate-500">表示件数</label>
+      <select class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" id="teleapoLogPageSize">
+        <option value="25">25件</option>
+        <option value="50" selected>50件</option>
+        <option value="100">100件</option>
+      </select>
+    </div>
+  </div>
+</div>

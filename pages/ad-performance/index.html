@@ -1,0 +1,77 @@
+<div class="section-shell space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+      広告管理
+    </h3>
+    <div class="flex items-center gap-4">
+      <!-- 媒体名フィルタ -->
+      <div class="flex items-center gap-2">
+        <label for="adMediaFilter" class="text-sm text-slate-600 whitespace-nowrap">媒体名:</label>
+        <input
+          id="adMediaFilter"
+          type="text"
+          placeholder="媒体名で検索"
+          class="w-48 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+      <button
+        id="exportAdManagement"
+        class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap"
+      >
+        CSVエクスポート
+      </button>
+    </div>
+  </div>
+  
+  <!-- ページネーション上部 -->
+  <div class="flex items-center justify-between text-sm text-slate-600">
+    <div id="adManagementInfo" class="text-slate-500">0件中 0-0件表示</div>
+    <div class="flex items-center gap-2">
+      <button id="adManagementPrevBtn" class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>前へ</button>
+      <span id="adManagementPageInfo" class="px-2">1 / 1</span>
+      <button id="adManagementNextBtn" class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>次へ</button>
+    </div>
+  </div>
+
+  <div class="overflow-auto rounded-lg border border-slate-200">
+    <table class="table-grid min-w-[1000px]">
+      <thead>
+        <tr>
+          <th class="fixed-col bg-indigo-50 whitespace-nowrap">媒体名</th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="applications">
+            応募者数 <span class="sort-indicator ml-1">↕</span>
+          </th>
+          <th class="whitespace-nowrap">面接設定</th>
+          <th class="whitespace-nowrap">内定</th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hired">
+            入社 <span class="sort-indicator ml-1">↕</span>
+          </th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retention">
+            定着率(30日) <span class="sort-indicator ml-1">↕</span>
+          </th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">
+            返金額(税込) <span class="sort-indicator ml-1">↕</span>
+          </th>
+          <th class="whitespace-nowrap">有効応募者数</th>
+        </tr>
+      </thead>
+      <tbody id="adManagementTableBody">
+        <tr>
+          <td colspan="8" class="text-center text-slate-500 py-6">
+            読み込み中...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ページネーション下部 -->
+  <div class="flex items-center justify-between text-sm text-slate-600">
+    <div class="text-slate-500">50件/ページ</div>
+    <div class="flex items-center gap-2">
+      <button id="adManagementPrevBtn2" class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>前へ</button>
+      <span id="adManagementPageInfo2" class="px-2">1 / 1</span>
+      <button id="adManagementNextBtn2" class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>次へ</button>
+    </div>
+  </div>
+</div>

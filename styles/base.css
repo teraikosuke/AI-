@@ -1,0 +1,78 @@
+/* Base styles and fonts */
+body {
+  font-family: "Noto Sans JP", "Inter", sans-serif;
+}
+
+/* Table base styles */
+.table-grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-grid th,
+.table-grid td {
+  border: 1px solid #d1d5db;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.85rem;
+  background-color: #ffffff;
+}
+
+.table-grid thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8fafc;
+  z-index: 5;
+}
+
+.table-grid tbody tr:nth-child(even) td {
+  background-color: #f1f5f9;
+}
+
+.table-grid tbody tr:hover td {
+  background-color: #e2e8f0;
+}
+
+.table-grid .fixed-col {
+  position: sticky;
+  left: 0;
+  background-color: #eef2ff;
+  z-index: 4;
+}
+
+/* Layout grids */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+/* KPI Card base styles */
+.kpi-card {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 0.85rem;
+  padding: 1rem 1.25rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.kpi-card strong {
+  display: block;
+  color: #1e293b;
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.kpi-card span {
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+/* Section shell */
+.section-shell {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}

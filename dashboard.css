@@ -1,3 +1,36 @@
+:root {
+  --primary-blue: #3b82f6;
+  --primary-indigo: #6366f1;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --heatmap-cell-1: #f7fafc;
+  --heatmap-cell-2: #e2e8f0;
+  --heatmap-cell-3: #cbd5e1;
+  --heatmap-cell-4: #94a3b8;
+  --heatmap-cell-5: #64748b;
+  --heatmap-cell-6: #475569;
+  --heatmap-cell-7: #334155;
+  --heatmap-cell-8: #1e293b;
+  --heatmap-cell-9: #1a365d;
+}
+
+/* ユーティリティクラス */
+.hidden { display: none !important; }
+.visible { display: block !important; }
+.flex-hidden { display: none !important; }
+.flex-visible { display: flex !important; }
+
+body {
+  font-family: "Noto Sans JP", "Inter", sans-serif;
+}
+
 body {
   font-family: "Noto Sans JP", "Inter", sans-serif;
 }
@@ -1257,6 +1290,17 @@ body {
   color: #6b7280;
   opacity: 0.7;
 }
+
+/* ヒートマップセル用クラス */
+[data-page] .heatmap-cell-1 { background-color: var(--heatmap-cell-1); }
+[data-page] .heatmap-cell-2 { background-color: var(--heatmap-cell-2); }
+[data-page] .heatmap-cell-3 { background-color: var(--heatmap-cell-3); }
+[data-page] .heatmap-cell-4 { background-color: var(--heatmap-cell-4); }
+[data-page] .heatmap-cell-5 { background-color: var(--heatmap-cell-5); }
+[data-page] .heatmap-cell-6 { background-color: var(--heatmap-cell-6); }
+[data-page] .heatmap-cell-7 { background-color: var(--heatmap-cell-7); }
+[data-page] .heatmap-cell-8 { background-color: var(--heatmap-cell-8); }
+[data-page] .heatmap-cell-9 { background-color: var(--heatmap-cell-9); }
 
 [data-page="ad-performance"] .sortable:hover .sort-indicator {
   opacity: 1;
