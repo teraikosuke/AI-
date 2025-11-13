@@ -1,64 +1,9 @@
 <!-- Yield Page - Team Development Modular Structure -->
 
-<!-- KPI v2: 個人成績・全体セクション -->
-<section data-kpi="v2" class="kpi-v2-wrapper space-y-6">
-  
-  <!-- 個人成績セクション（チーム開発用） -->
-  <div id="personal-section" class="kpi-v2-section">
-    <div class="kpi-v2-header">
-      <h3 class="kpi-v2-title">個人成績</h3>
-      <div class="kpi-v2-range-picker">
-        <input type="date" id="personalRangeStart" class="kpi-v2-date-input" />
-        <span class="kpi-v2-date-separator">〜</span>
-        <input type="date" id="personalRangeEnd" class="kpi-v2-date-input" />
-      </div>
-    </div>
-    
-    <!-- 個人成績セクションの内容はpersonal/personal.htmlから動的に読み込み -->
-    <div id="personal-content-container">
-      <!-- PersonalSection.mount()でコンテンツが挿入されます -->
-    </div>
-  </div>
 
-  <!-- 社内成績セクション（チーム開発用） -->
-  <div id="company-section" class="kpi-v2-section">
-    <div class="kpi-v2-header">
-      <h3 class="kpi-v2-title">社内成績</h3>
-      <div class="kpi-v2-range-picker">
-        <input type="date" id="companyRangeStart" class="kpi-v2-date-input" />
-        <span class="kpi-v2-date-separator">〜</span>
-        <input type="date" id="companyRangeEnd" class="kpi-v2-date-input" />
-      </div>
-    </div>
-    
-    <!-- 社内成績セクションの内容はcompany/company.htmlから動的に読み込み -->
-    <div id="company-content-container">
-      <!-- CompanySection.mount()でコンテンツが挿入されます -->
-    </div>
-  </div>
-
-  <!-- ４軸比較セクション（チーム開発用） -->
-  <div id="comparison-section" class="kpi-v2-section">
-    <div class="kpi-v2-header">
-      <h3 class="kpi-v2-title">４軸比較</h3>
-      <div class="kpi-v2-controls">
-        <!-- 軸切り替えコントロール -->
-        <div class="axis-controls">
-          <!-- ComparisonSection.mount()でコントロールが挿入されます -->
-        </div>
-      </div>
-    </div>
-    
-    <!-- ４軸比較セクションの内容はcomparison/comparison.htmlから動的に読み込み -->
-    <div id="comparison-content-container">
-      <!-- ComparisonSection.mount()でコンテンツが挿入されます -->
-    </div>
-  </div>
-
-</section>
 
 <!-- 従来のコンテンツ（フォールバック用・非表示） -->
-<section data-kpi="v2" class="kpi-v2-wrapper space-y-6" id="fallback-content" style="display: none;">
+<section data-kpi="v2" class="kpi-v2-wrapper space-y-6" id="fallback-content" >
   <!-- 個人成績 -->
   <div class="kpi-v2-section">
     <div class="kpi-v2-header">

@@ -3,6 +3,11 @@ body {
   font-family: "Noto Sans JP", "Inter", sans-serif;
 }
 
+/* Role-based access control */
+[data-role] {
+  display: none;
+}
+
 /* Table base styles */
 .table-grid {
   width: 100%;

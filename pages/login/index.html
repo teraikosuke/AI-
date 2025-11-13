@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<div class="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="w-full max-w-md space-y-8">
+    <div>
+      <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+        ログイン
+      </h2>
+    </div>
+    <form class="mt-8 space-y-6" id="loginForm">
+      <div class="space-y-4">
+        <div>
+          <label for="email" class="sr-only">メールアドレス</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            class="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+            placeholder="メールアドレス"
+          />
+        </div>
+        <div>
+          <label for="password" class="sr-only">パスワード</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            class="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+            placeholder="パスワード"
+          />
+        </div>
+      </div>
+
+      <div id="errorMessage" class="hidden text-sm text-red-600 text-center"></div>
+
+      <div>
+        <button
+          type="submit"
+          class="group relative flex w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
+          ログイン
+        </button>
+      </div>
+    </form>
+
+    <div class="text-sm text-gray-600 text-center">
+      <p>開発用アカウント:</p>
+      <p>管理者: admin@example.com / admin123</p>
+      <p>一般: member@example.com / member123</p>
+    </div>
+  </div>
+</div>
