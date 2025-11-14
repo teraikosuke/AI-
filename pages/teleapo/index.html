@@ -87,7 +87,7 @@
     <!-- 全体成績 -->
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">全体成績</h4>
-      
+
       <!-- 全体 4KPI 数の行 -->
       <div class="kpi-v2-scroll-wrapper">
         <div class="kpi-v2-row" data-kpi-type="counts">
@@ -141,7 +141,8 @@
       <div class="flex items-center justify-between mb-4">
         <h4 class="text-lg font-semibold text-slate-800">社員成績</h4>
         <div class="flex items-center gap-3">
-          <input type="text" id="teleapoEmployeeSearchInput" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="社員名で検索..." />
+          <input type="text" id="teleapoEmployeeSearchInput"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="社員名で検索..." />
           <select id="teleapoEmployeeSortSelect" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
             <option value="name-asc">社員名（昇順）</option>
             <option value="dials-desc">架電数（降順）</option>
@@ -180,9 +181,11 @@
   <div class="flex items-center justify-between">
     <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">架電ログ</h3>
     <div class="flex items-center gap-2">
-      <input type="date" id="teleapoLogRangeStart" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" value="2024-11-01" />
+      <input type="date" id="teleapoLogRangeStart" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        value="2024-11-01" />
       <span class="text-slate-500">〜</span>
-      <input type="date" id="teleapoLogRangeEnd" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" value="2024-11-13" />
+      <input type="date" id="teleapoLogRangeEnd" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        value="2024-11-13" />
     </div>
   </div>
 
@@ -213,10 +216,12 @@
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-xs font-semibold text-slate-500">相手名検索</label>
-        <input type="text" id="teleapoLogTargetSearch" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
+        <input type="text" id="teleapoLogTargetSearch"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
       </div>
       <div class="flex items-end gap-2">
-        <button id="teleapoLogFilterReset" class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
+        <button id="teleapoLogFilterReset"
+          class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
           条件をクリア
         </button>
         <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
@@ -306,9 +311,13 @@
   <!-- ページネーション -->
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2 text-sm text-slate-500">
-      <button class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" id="teleapoLogPrevBtn" disabled>前のページ</button>
+      <button
+        class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        id="teleapoLogPrevBtn" disabled>前のページ</button>
       <span class="px-3 py-2 text-sm" id="teleapoLogPageInfo">1 / 1</span>
-      <button class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" id="teleapoLogNextBtn" disabled>次のページ</button>
+      <button
+        class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        id="teleapoLogNextBtn" disabled>次のページ</button>
     </div>
     <div class="flex items-center gap-2 text-sm">
       <label class="text-xs text-slate-500">表示件数</label>
@@ -320,3 +329,4 @@
     </div>
   </div>
 </div>
+aaaa
