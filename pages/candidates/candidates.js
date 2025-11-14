@@ -1,389 +1,1322 @@
 // Candidates Page JavaScript Module
+const filterConfig = [
+  { id: 'candidatesFilterYear', event: 'change' },
+  { id: 'candidatesFilterMonth', event: 'change' },
+  { id: 'candidatesFilterDay', event: 'change' },
+  { id: 'candidatesFilterSource', event: 'change' },
+  { id: 'candidatesFilterName', event: 'input' },
+  { id: 'candidatesFilterCompany', event: 'input' },
+  { id: 'candidatesFilterAdvisor', event: 'input' },
+  { id: 'candidatesFilterValid', event: 'change' },
+  { id: 'candidatesFilterPhase', event: 'change' }
+];
+
+const reportStatusOptions = ['LINE報告済み', '個人シート反映済み', '請求書送付済み'];
+const finalResultOptions = ['----', 'リリース(転居不可)', 'リリース(精神疾患)', 'リリース(人柄)', '飛び', '辞退', '承諾'];
+const refundReportOptions = ['LINE報告済み', '企業報告済み'];
+const modalHandlers = {
+  closeButton: null,
+  overlay: null,
+  keydown: null
+};
+
+let allCandidates = [];
+let filteredCandidates = [];
+let selectedCandidateId = null;
+
 export function mount() {
-  console.log('Candidates page mounted');
-  
-  // ページがマウントされた後に実行する初期化処理
   initializeCandidatesFilters();
-  initializeCandidatesTable();
+  initializeSortControl();
+  initializeTableInteraction();
+  initializeDetailModal();
   loadCandidatesData();
 }
 
 export function unmount() {
-  console.log('Candidates page unmounted');
-  
-  // ページがアンマウントされる前のクリーンアップ処理
   cleanupCandidatesEventListeners();
 }
 
-// フィルターの初期化
 function initializeCandidatesFilters() {
-  const dateFrom = document.getElementById('candidatesFilterDateFrom');
-  const dateTo = document.getElementById('candidatesFilterDateTo');
-  const source = document.getElementById('candidatesFilterSource');
-  const name = document.getElementById('candidatesFilterName');
-  const jobTitle = document.getElementById('candidatesFilterJobTitle');
-  const resetBtn = document.getElementById('candidatesFilterReset');
-  
-  // 初期日付設定（過去30日）
-  const today = new Date().toISOString().split('T')[0];
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
-  if (dateFrom) dateFrom.value = thirtyDaysAgo;
-  if (dateTo) dateTo.value = today;
-  
-  // フィルターイベントリスナー
-  [dateFrom, dateTo, source, name, jobTitle].forEach(element => {
+  filterConfig.forEach(({ id, event }) => {
+    const element = document.getElementById(id);
     if (element) {
-      element.addEventListener('change', applyCandidatesFilter);
-      element.addEventListener('input', applyCandidatesFilter);
+      element.addEventListener(event, handleFilterChange);
     }
   });
-  
-  if (resetBtn) {
-    resetBtn.addEventListener('click', resetCandidatesFilters);
+
+  const resetButton = document.getElementById('candidatesFilterReset');
+  if (resetButton) {
+    resetButton.addEventListener('click', handleFilterReset);
   }
 }
 
-// テーブルの初期化
-function initializeCandidatesTable() {
-  const tableHeaders = document.querySelectorAll('[data-sort]');
-  
-  tableHeaders.forEach(header => {
-    header.addEventListener('click', handleCandidatesSort);
+function initializeSortControl() {
+  const sortSelect = document.getElementById('candidatesSortOrder');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', handleFilterChange);
+  }
+}
+
+function initializeTableInteraction() {
+  const tableBody = document.getElementById('candidatesTableBody');
+  if (tableBody) {
+    tableBody.addEventListener('click', handleTableClick);
+  }
+}
+
+function loadCandidatesData() {
+  allCandidates = getMockCandidates();
+  handleFilterChange();
+}
+
+function handleFilterChange() {
+  const filters = collectFilters();
+  const filtered = applyFilters(allCandidates, filters);
+  const sorted = sortCandidates(filtered, filters.sortOrder);
+  filteredCandidates = sorted;
+  renderCandidatesTable(sorted);
+  updateCandidatesCount(sorted.length);
+  refreshSelectionState();
+}
+
+function collectFilters() {
+  return {
+    year: getElementValue('candidatesFilterYear'),
+    month: getElementValue('candidatesFilterMonth'),
+    day: getElementValue('candidatesFilterDay'),
+    source: getElementValue('candidatesFilterSource'),
+    name: getElementValue('candidatesFilterName'),
+    company: getElementValue('candidatesFilterCompany'),
+    advisor: getElementValue('candidatesFilterAdvisor'),
+    valid: getElementValue('candidatesFilterValid'),
+    phase: getElementValue('candidatesFilterPhase'),
+    sortOrder: getElementValue('candidatesSortOrder') || 'desc'
+  };
+}
+
+function getElementValue(id) {
+  const element = document.getElementById(id);
+  return element ? element.value.trim() : '';
+}
+
+function applyFilters(list, filters) {
+  return list.filter(candidate => {
+    const [year, month, day] = candidate.registeredDate.split('-');
+    if (filters.year && year !== filters.year) return false;
+    if (filters.month && month !== filters.month) return false;
+    if (filters.day && day !== filters.day) return false;
+    if (filters.source && candidate.source !== filters.source) return false;
+    if (filters.phase && candidate.phase !== filters.phase) return false;
+    if (filters.valid && String(candidate.validApplication) !== filters.valid) return false;
+
+    if (filters.name && !candidate.candidateName.toLowerCase().includes(filters.name.toLowerCase())) {
+      return false;
+    }
+
+    if (filters.company && !candidate.companyName.toLowerCase().includes(filters.company.toLowerCase())) {
+      return false;
+    }
+
+    if (filters.advisor && !candidate.advisorName.toLowerCase().includes(filters.advisor.toLowerCase())) {
+      return false;
+    }
+
+    return true;
   });
 }
 
-// 候補者データの読み込み
-async function loadCandidatesData() {
-  try {
-    // 実際のAPIコールはここで行う
-    // const data = await fetch('/api/candidates').then(r => r.json());
-    
-    // モック候補者データ
-    const candidatesData = [
-      {
-        id: 1,
-        appliedAt: '2024-11-01',
-        source: 'Indeed',
-        name: '田中太郎',
-        phone: '090-1234-5678',
-        email: 'tanaka@example.com',
-        jobTitle: '営業職（正社員）',
-        companyName: 'ABC株式会社',
-        address: '東京都港区1-2-3'
-      },
-      {
-        id: 2,
-        appliedAt: '2024-11-02',
-        source: '求人ボックス',
-        name: '佐藤花子',
-        phone: '080-2345-6789',
-        email: 'sato@example.com',
-        jobTitle: 'エンジニア職（正社員）',
-        companyName: 'XYZ株式会社',
-        address: '大阪府大阪市北区4-5-6'
-      },
-      {
-        id: 3,
-        appliedAt: '2024-11-03',
-        source: 'リクナビ',
-        name: '山田次郎',
-        phone: '070-3456-7890',
-        email: 'yamada@example.com',
-        jobTitle: 'マーケティング職（正社員）',
-        companyName: 'DEF株式会社',
-        address: '愛知県名古屋市中区7-8-9'
-      },
-      {
-        id: 4,
-        appliedAt: '2024-11-04',
-        source: 'マイナビ',
-        name: '鈴木美咲',
-        phone: '050-4567-8901',
-        email: 'suzuki@example.com',
-        jobTitle: '事務職（正社員）',
-        companyName: 'GHI株式会社',
-        address: '福岡県福岡市博多区10-11-12'
-      },
-      {
-        id: 5,
-        appliedAt: '2024-11-05',
-        source: 'Indeed',
-        name: '伊藤健一',
-        phone: '090-5678-9012',
-        email: 'ito@example.com',
-        jobTitle: '人事職（正社員）',
-        companyName: 'JKL株式会社',
-        address: '神奈川県横浜市中区13-14-15'
-      }
-    ];
-    
-    updateCandidatesTable(candidatesData);
-    updateCandidatesCount(candidatesData.length);
-    
-  } catch (error) {
-    console.error('Failed to load candidates data:', error);
-  }
+function sortCandidates(list, order) {
+  const sorted = [...list];
+  sorted.sort((a, b) => {
+    const aTime = new Date(a.registeredDate).getTime();
+    const bTime = new Date(b.registeredDate).getTime();
+    return order === 'asc' ? aTime - bTime : bTime - aTime;
+  });
+  return sorted;
 }
 
-// テーブル表示の更新
-function updateCandidatesTable(candidates) {
+function renderCandidatesTable(list) {
   const tableBody = document.getElementById('candidatesTableBody');
   if (!tableBody) return;
-  
-  if (candidates.length === 0) {
+
+  if (list.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="text-center text-slate-500 py-8">
-          条件に一致する候補者が見つかりません
-        </td>
+        <td colspan="22" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
       </tr>
     `;
     return;
   }
-  
-  tableBody.innerHTML = candidates.map(candidate => `
-    <tr class="candidate-item hover:bg-slate-50" data-candidate-id="${candidate.id}">
-      <td>${formatDate(candidate.appliedAt)}</td>
-      <td>
-        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSourceBadgeClass(candidate.source)}">
-          ${candidate.source}
-        </span>
-      </td>
-      <td class="font-medium text-slate-900">${candidate.name}</td>
-      <td>
-        <span class="contact-field cursor-pointer text-blue-600 hover:text-blue-800" 
-              data-type="phone" 
-              data-full="${candidate.phone}" 
-              data-masked="${maskPhone(candidate.phone)}">
-          ${maskPhone(candidate.phone)}
-        </span>
-      </td>
-      <td>
-        <span class="contact-field cursor-pointer text-blue-600 hover:text-blue-800" 
-              data-type="email" 
-              data-full="${candidate.email}" 
-              data-masked="${maskEmail(candidate.email)}">
-          ${maskEmail(candidate.email)}
-        </span>
-      </td>
-      <td class="text-sm">${candidate.jobTitle}</td>
-      <td class="font-medium">${candidate.companyName}</td>
-      <td class="text-sm text-slate-600">${candidate.address}</td>
+
+  tableBody.innerHTML = list.map(candidate => buildTableRow(candidate)).join('');
+  highlightSelectedRow();
+}
+
+function buildTableRow(candidate) {
+  const age = candidate.age ?? calculateAge(candidate.birthday);
+  return `
+    <tr class="candidate-item" data-id="${candidate.id}">
+      <td>${renderValidityBadge(candidate.validApplication)}</td>
+      <td>${renderStatusChip(candidate.phoneConnected)}</td>
+      <td>${renderStatusChip(candidate.smsSent)}</td>
+      <td>${candidate.advisorName || '-'}</td>
+      <td>${candidate.callerName || '-'}</td>
+      <td><span class="candidate-phase-pill">${candidate.phase}</span></td>
+      <td>${formatDateJP(candidate.registeredDate)}</td>
+      <td>${candidate.source}</td>
+      <td>${candidate.companyName}</td>
+      <td>${candidate.jobName}</td>
+      <td class="font-semibold text-slate-900">${candidate.candidateName}</td>
+      <td>${candidate.phone}</td>
+      <td>${formatDateJP(candidate.birthday)}</td>
+      <td>${age ? `${age}歳` : '-'}</td>
+      <td class="cell-wrap">${candidate.memo || '-'}</td>
+      <td>${formatDateJP(candidate.firstContactPlannedAt)}</td>
+      <td>${formatDateJP(candidate.firstContactAt)}</td>
+      <td>${renderStatusChip(candidate.attendanceConfirmed, '確認済', '未')}</td>
+      <td>${candidate.email}</td>
+      <td>${formatDateJP(candidate.callDate)}</td>
+      <td>${formatDateJP(candidate.scheduleConfirmedAt)}</td>
+      <td>${candidate.resumeStatus || '-'}</td>
     </tr>
-  `).join('');
-  
-  // 連絡先クリックイベントを再バインド
-  bindContactFieldEvents();
+  `;
 }
 
-// 件数表示の更新
+function renderValidityBadge(isValid) {
+  const tone = isValid ? 'candidate-pill-positive' : 'candidate-pill-warning';
+  const label = isValid ? '有効' : '無効';
+  return `<span class="candidate-pill ${tone}">${label}</span>`;
+}
+
+function renderStatusChip(value, positiveLabel = '済', negativeLabel = '未') {
+  const tone = value ? 'candidate-pill-positive' : 'candidate-pill-muted';
+  const label = value ? positiveLabel : negativeLabel;
+  return `<span class="candidate-pill ${tone}">${label}</span>`;
+}
+
 function updateCandidatesCount(count) {
-  const countElement = document.getElementById('candidatesFilterCount');
-  if (countElement) {
-    countElement.textContent = `${count}件`;
+  const element = document.getElementById('candidatesResultCount');
+  if (element) {
+    element.textContent = `${count}件`;
   }
 }
 
-// フィルター適用
-function applyCandidatesFilter() {
-  const dateFrom = document.getElementById('candidatesFilterDateFrom')?.value || '';
-  const dateTo = document.getElementById('candidatesFilterDateTo')?.value || '';
-  const source = document.getElementById('candidatesFilterSource')?.value || '';
-  const name = document.getElementById('candidatesFilterName')?.value || '';
-  const jobTitle = document.getElementById('candidatesFilterJobTitle')?.value || '';
-  
-  const rows = document.querySelectorAll('.candidate-item');
-  let visibleCount = 0;
-  
+function refreshSelectionState() {
+  if (!selectedCandidateId) {
+    highlightSelectedRow();
+    return;
+  }
+
+  const candidate = filteredCandidates.find(item => item.id === selectedCandidateId);
+  if (!candidate) {
+    closeCandidateModal();
+    return;
+  }
+
+  if (isCandidateModalOpen()) {
+    renderCandidateDetail(candidate);
+  }
+  highlightSelectedRow();
+}
+
+function highlightSelectedRow() {
+  const rows = document.querySelectorAll('#candidatesTableBody .candidate-item');
+  const modalOpen = isCandidateModalOpen();
   rows.forEach(row => {
-    let show = true;
-    const candidate = getCandidateFromRow(row);
-    
-    if (dateFrom && candidate.appliedAt < dateFrom) show = false;
-    if (dateTo && candidate.appliedAt > dateTo) show = false;
-    if (source && candidate.source !== source) show = false;
-    if (name && !candidate.name.toLowerCase().includes(name.toLowerCase())) show = false;
-    if (jobTitle && !candidate.jobTitle.toLowerCase().includes(jobTitle.toLowerCase())) show = false;
-    
-    row.style.display = show ? '' : 'none';
-    if (show) visibleCount++;
+    const active = modalOpen && selectedCandidateId && row.dataset.id === selectedCandidateId;
+    row.classList.toggle('is-active', Boolean(active));
   });
-  
-  updateCandidatesCount(visibleCount);
 }
 
-// フィルターリセット
-function resetCandidatesFilters() {
-  // 日付以外をクリア
-  document.getElementById('candidatesFilterSource').value = '';
-  document.getElementById('candidatesFilterName').value = '';
-  document.getElementById('candidatesFilterJobTitle').value = '';
-  
-  // すべての行を表示
-  const rows = document.querySelectorAll('.candidate-item');
-  rows.forEach(row => row.style.display = '');
-  
-  updateCandidatesCount(rows.length);
+function handleTableClick(event) {
+  const row = event.target.closest('tr[data-id]');
+  if (!row) return;
+  const candidate = filteredCandidates.find(item => item.id === row.dataset.id);
+  if (!candidate) return;
+  selectedCandidateId = candidate.id;
+  renderCandidateDetail(candidate);
+  openCandidateModal();
+  highlightSelectedRow();
 }
 
-// ソート処理
-function handleCandidatesSort(event) {
-  const header = event.currentTarget;
-  const sortField = header.dataset.sort;
-  const currentDirection = header.dataset.direction || 'asc';
-  const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
-  
-  // すべてのソートインジケーターをリセット
-  document.querySelectorAll('[data-sort]').forEach(h => {
-    h.dataset.direction = '';
-    const indicator = h.querySelector('.ml-1');
-    if (indicator) indicator.textContent = '↕';
+function handleFilterReset() {
+  filterConfig.forEach(({ id }) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.value = '';
   });
-  
-  // 現在の列のソート方向を更新
-  header.dataset.direction = newDirection;
-  const indicator = header.querySelector('.ml-1');
-  if (indicator) {
-    indicator.textContent = newDirection === 'asc' ? '↑' : '↓';
+
+  const sortSelect = document.getElementById('candidatesSortOrder');
+  if (sortSelect) {
+    sortSelect.value = 'desc';
   }
-  
-  sortCandidatesTable(sortField, newDirection);
+
+  selectedCandidateId = null;
+  closeCandidateModal({ clearSelection: false });
+  handleFilterChange();
 }
 
-// テーブルソート実行
-function sortCandidatesTable(field, direction) {
-  const tableBody = document.getElementById('candidatesTableBody');
-  const rows = Array.from(tableBody.querySelectorAll('.candidate-item'));
-  
-  rows.sort((a, b) => {
-    let aValue, bValue;
-    
-    switch (field) {
-      case 'appliedAt':
-        aValue = a.children[0].textContent;
-        bValue = b.children[0].textContent;
-        break;
-      case 'name':
-        aValue = a.children[2].textContent;
-        bValue = b.children[2].textContent;
-        break;
-      case 'companyName':
-        aValue = a.children[6].textContent;
-        bValue = b.children[6].textContent;
-        break;
-      default:
-        return 0;
+function renderCandidateDetail(candidate) {
+  const container = document.getElementById('candidateDetailContent');
+  if (!container) return;
+
+  if (!candidate) {
+    container.innerHTML = getCandidateDetailPlaceholder();
+    return;
+  }
+
+  const header = `
+    <div class="candidate-detail-header">
+      <div>
+        <span class="candidate-phase-pill">${candidate.phase}</span>
+        <h3>${candidate.candidateName}</h3>
+        <p>${candidate.companyName} / ${candidate.jobName}</p>
+        <p class="candidate-contact-row">
+          <span>${candidate.phone}</span>
+          <span>${candidate.email}</span>
+        </p>
+      </div>
+      <div class="candidate-detail-header-meta">
+        <div><strong>担当</strong><span>${candidate.advisorName}</span></div>
+        <div><strong>登録日</strong><span>${formatDateJP(candidate.registeredDate)}</span></div>
+        <div><strong>次回アクション</strong><span>${formatDateJP(candidate.actionInfo?.nextActionDate)}</span></div>
+      </div>
+    </div>
+  `;
+
+  const registrationSection = renderDetailSection('登録情報', renderInfoGrid([
+    { label: '登録日', value: formatDateJP(candidate.registeredDate) },
+    { label: '更新日時', value: formatDateTimeJP(candidate.updatedAt) },
+    { label: '媒体登録日', value: formatDateJP(candidate.mediaRegisteredAt) },
+    { label: '担当者', value: candidate.advisorName },
+    { label: '通電実施者', value: candidate.callerName },
+    { label: '担当パートナー', value: candidate.partnerName },
+    { label: '紹介可能性', value: candidate.introductionChance },
+    { label: '流入媒体', value: candidate.source }
+  ]));
+
+  const meetingSection = renderDetailSection('面談', renderMeetingSection(candidate));
+  const applicantInfoSection = renderDetailSection('求職者情報', renderApplicantInfoSection(candidate));
+  const hearingSection = renderDetailSection('ヒアリング事項', renderHearingSection(candidate));
+  const progressSection = renderDetailSection('選考進捗', renderSelectionProgressSection(candidate));
+  const afterAcceptanceSection = renderDetailSection('入社承諾後', renderAfterAcceptanceSection(candidate));
+  const refundSection = renderDetailSection('返金・減額【自動入力】', renderRefundSection(candidate));
+  const nextActionSection = renderDetailSection('次回アクション日【対応可否】', renderNextActionSection(candidate));
+  const csSection = renderDetailSection('CS項目', renderCsSection(candidate));
+  const memoSection = renderDetailSection('自由メモ記入欄', renderMemoSection(candidate));
+
+  container.innerHTML = `
+    ${header}
+    <div class="candidate-detail-sections">
+      ${registrationSection}
+      ${meetingSection}
+      ${applicantInfoSection}
+      ${hearingSection}
+      ${progressSection}
+      ${afterAcceptanceSection}
+      ${refundSection}
+      ${nextActionSection}
+      ${csSection}
+      ${memoSection}
+    </div>
+  `;
+
+  attachDetailPanelEvents();
+}
+
+function getCandidateDetailPlaceholder() {
+  return `
+    <div class="candidate-detail-empty">
+      <p class="text-sm text-slate-500">候補者行をクリックすると詳細が表示されます。</p>
+      <p class="text-xs text-slate-400">面談予定・書類リンク・選考進捗・CS項目などをまとめて確認できます。</p>
+    </div>
+  `;
+}
+
+function setCandidateDetailPlaceholder() {
+  const container = document.getElementById('candidateDetailContent');
+  if (container) {
+    container.innerHTML = getCandidateDetailPlaceholder();
+  }
+}
+
+function renderDetailSection(title, body) {
+  return `
+    <section class="candidate-detail-section">
+      <header class="candidate-detail-section-header">
+        <h4>${title}</h4>
+      </header>
+      <div class="candidate-detail-section-body">
+        ${body}
+      </div>
+    </section>
+  `;
+}
+
+function renderInfoGrid(items) {
+  return `
+    <dl class="detail-grid">
+      ${items
+        .map(item => {
+          return `
+            <div class="detail-grid-item">
+              <dt>${item.label}</dt>
+              <dd>${formatDisplayValue(item.value)}</dd>
+            </div>
+          `;
+        })
+        .join('')}
+    </dl>
+  `;
+}
+
+function renderMeetingSection(candidate) {
+  const items = [
+    { label: 'SMS送信確認', value: candidate.smsConfirmed ? '済' : '未' },
+    { label: 'フェーズ', value: candidate.phase },
+    { label: '通電日', value: formatDateJP(candidate.callDate) },
+    { label: '日程確定日', value: formatDateJP(candidate.scheduleConfirmedAt) },
+    { label: '新規接触予定日', value: formatDateJP(candidate.firstContactPlannedAt) },
+    { label: '新規接触日', value: formatDateJP(candidate.firstContactAt) },
+    { label: '着座確認', value: candidate.attendanceConfirmed ? '確認済' : '未' },
+    { label: '企業への推薦日', value: formatDateJP(candidate.recommendationDate) }
+  ];
+
+  const meetings = candidate.meetingPlans || [];
+
+  return `
+    ${renderInfoGrid(items)}
+    <div class="repeatable-block">
+      <div class="repeatable-header">
+        <h5>2回目以降の面談予定</h5>
+        <button type="button" id="addMeetingButton" class="repeatable-add-btn">＋ 面談予定を追加</button>
+      </div>
+      <div class="repeatable-list" id="candidateMeetingList">
+        ${meetings.map(plan => renderMeetingPlanRow(plan)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderMeetingPlanRow(plan) {
+  return `
+    <div class="repeatable-row meeting-row">
+      <label>${plan.sequence}回目面談予定日</label>
+      <input type="date" class="repeatable-input" value="${plan.plannedDate || ''}" />
+      <label class="meeting-check">
+        <input type="checkbox" ${plan.attendance ? 'checked' : ''} />
+        着座確認
+      </label>
+    </div>
+  `;
+}
+
+function renderApplicantInfoSection(candidate) {
+  const infoItems = [
+    { label: '求職者コード', value: candidate.candidateCode },
+    { label: '求職者名', value: candidate.candidateName },
+    { label: '求職者名（ヨミガナ）', value: candidate.candidateKana },
+    { label: '応募企業名', value: candidate.companyName },
+    { label: '応募求人名', value: candidate.jobName },
+    { label: '勤務地', value: candidate.workLocation },
+    { label: '面談動画リンク', value: renderLink(candidate.meetingVideoLink) },
+    { label: '履歴書（送付用）', value: renderLink(candidate.resumeForSend) },
+    { label: '職務経歴書（送付用）', value: renderLink(candidate.workHistoryForSend) },
+    { label: '生年月日', value: formatDateJP(candidate.birthday) },
+    { label: '年齢', value: candidate.age ? `${candidate.age}歳` : '-' },
+    { label: '性別', value: candidate.gender },
+    { label: '最終学歴', value: candidate.education },
+    { label: '電話番号', value: candidate.phone },
+    { label: 'メールアドレス', value: candidate.email },
+    { label: '郵便番号', value: candidate.postalCode },
+    { label: '現住所', value: candidate.address },
+    { label: '市区町村', value: candidate.city },
+    { label: '連絡希望時間帯', value: candidate.contactTime },
+    { label: '備考', value: candidate.remarks || candidate.memo }
+  ];
+
+  const resumeRows = (candidate.resumeDocuments || []).map(doc => renderResumeRow(doc)).join('');
+
+  return `
+    ${renderInfoGrid(infoItems)}
+    <div class="repeatable-block">
+      <div class="repeatable-header">
+        <h5>経歴書</h5>
+        <button type="button" id="addResumeButton" class="repeatable-add-btn">＋ 経歴書を追加</button>
+      </div>
+      <div class="repeatable-list" id="candidateResumeList">
+        ${resumeRows}
+      </div>
+    </div>
+  `;
+}
+
+function renderResumeRow(doc) {
+  return `
+    <div class="repeatable-row">
+      <label>${doc.label}</label>
+      <input type="text" class="repeatable-input" value="${doc.value || ''}" placeholder="リンクまたはメモを入力" />
+    </div>
+  `;
+}
+
+function renderHearingSection(candidate) {
+  const hearing = candidate.hearing || {};
+  const textareaItems = [
+    { key: 'relocation', label: '転居' },
+    { key: 'desiredArea', label: '希望エリア' },
+    { key: 'timing', label: '転職時期' },
+    { key: 'desiredJob', label: '希望職種' },
+    { key: 'firstInterviewMemo', label: '初回面談メモ' },
+    { key: 'currentIncome', label: '現年収' },
+    { key: 'desiredIncome', label: '希望年収' },
+    { key: 'reason', label: '転職理由・転職軸' },
+    { key: 'interviewPreference', label: '面接希望日' },
+    { key: 'recommendationText', label: '推薦文' },
+    { key: 'otherSelections', label: '他社選考状況' }
+  ];
+
+  const textareaGrid = textareaItems
+    .map(item => {
+      return `
+        <label class="detail-textarea-field">
+          <span>${item.label}</span>
+          <textarea rows="2">${hearing[item.key] || ''}</textarea>
+        </label>
+      `;
+    })
+    .join('');
+
+  const statusSelect = `
+    <label class="detail-textarea-field">
+      <span>就業ステータス</span>
+      <select class="filter-input">
+        ${['未回答', '就業中', '離職中']
+          .map(option => `<option value="${option}" ${option === hearing.employmentStatus ? 'selected' : ''}>${option}</option>`)
+          .join('')}
+      </select>
+    </label>
+  `;
+
+  return `<div class="detail-textarea-grid">${textareaGrid + statusSelect}</div>`;
+}
+
+function renderSelectionProgressSection(candidate) {
+  const rows = (candidate.selectionProgress || []).map(row => renderSelectionRow(row)).join('');
+  return `
+    <div class="repeatable-header">
+      <h5>企業ごとの進捗</h5>
+      <button type="button" id="addSelectionRowButton" class="repeatable-add-btn">＋ 企業を追加</button>
+    </div>
+    <div class="detail-table-wrapper">
+      <table class="detail-table min-w-[1000px]">
+        <thead>
+          <tr>
+            <th>受験企業名</th>
+            <th>応募経路</th>
+            <th>推薦日</th>
+            <th>面接設定日</th>
+            <th>面接日</th>
+            <th>内定日</th>
+            <th>クロージング予定日</th>
+            <th>内定承諾日</th>
+            <th>入社日</th>
+            <th>入社前辞退日</th>
+            <th>紹介FEE</th>
+            <th>選考状況</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody id="selectionProgressBody">
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSelectionRow(row = {}) {
+  const buildCell = (value = '', type = 'text') =>
+    `<td><input type="${type}" class="detail-table-input" value="${value || ''}" /></td>`;
+
+  return `
+    <tr>
+      ${buildCell(row.companyName)}
+      ${buildCell(row.route)}
+      ${buildCell(row.recommendationDate, 'date')}
+      ${buildCell(row.interviewSetupDate, 'date')}
+      ${buildCell(row.interviewDate, 'date')}
+      ${buildCell(row.offerDate, 'date')}
+      ${buildCell(row.closingDate, 'date')}
+      ${buildCell(row.acceptanceDate, 'date')}
+      ${buildCell(row.onboardingDate, 'date')}
+      ${buildCell(row.preJoinDeclineDate, 'date')}
+      ${buildCell(row.fee)}
+      ${buildCell(row.status)}
+      ${buildCell(row.notes)}
+    </tr>
+  `;
+}
+
+function renderAfterAcceptanceSection(candidate) {
+  const data = candidate.afterAcceptance || {};
+  return `
+    ${renderInfoGrid([
+      { label: '受注金額（税抜）', value: data.amount },
+      { label: '職種', value: data.jobCategory }
+    ])}
+    <div class="detail-checkbox-row">
+      ${reportStatusOptions
+        .map(option => {
+          const checked = data.reportStatuses?.includes(option) ? 'checked' : '';
+          return `
+            <label class="cs-checkbox">
+              <input type="checkbox" ${checked} />
+              <span>${option}</span>
+            </label>
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+}
+
+function renderRefundSection(candidate) {
+  const info = candidate.refundInfo || {};
+  return `
+    ${renderInfoGrid([
+      { label: '退職日', value: formatDateJP(info.resignationDate) },
+      { label: '返金・減額（税抜）', value: info.refundAmount }
+    ])}
+    <label class="detail-textarea-field">
+      <span>返金報告</span>
+      <select class="filter-input">
+        <option value="">選択してください</option>
+        ${refundReportOptions
+          .map(option => `<option value="${option}" ${option === info.reportStatus ? 'selected' : ''}>${option}</option>`)
+          .join('')}
+      </select>
+    </label>
+  `;
+}
+
+function renderNextActionSection(candidate) {
+  const action = candidate.actionInfo || {};
+  return `
+    <div class="detail-grid">
+      <div class="detail-grid-item">
+        <dt>次回アクション日</dt>
+        <dd><input type="date" class="detail-inline-input" value="${action.nextActionDate || ''}" /></dd>
+      </div>
+      <div class="detail-grid-item">
+        <dt>最終結果</dt>
+        <dd>
+          <select class="filter-input">
+            ${finalResultOptions
+              .map(option => `<option value="${option}" ${option === action.finalResult ? 'selected' : ''}>${option}</option>`)
+              .join('')}
+          </select>
+        </dd>
+      </div>
+    </div>
+  `;
+}
+
+function renderCsSection(candidate) {
+  const checklist = candidate.csChecklist || {};
+  const csItems = [
+    { key: 'validConfirmed', label: '有効応募確認' },
+    { key: 'connectConfirmed', label: '通電確認' },
+    { key: 'dial1', label: '1回目架電' },
+    { key: 'dial2', label: '2回目架電' },
+    { key: 'dial3', label: '3回目架電' },
+    { key: 'dial4', label: '4回目架電' },
+    { key: 'dial5', label: '5回目架電' },
+    { key: 'dial6', label: '6回目架電' },
+    { key: 'dial7', label: '7回目架電' },
+    { key: 'dial8', label: '8回目架電' },
+    { key: 'dial9', label: '9回目架電' },
+    { key: 'dial10', label: '10回目架電' }
+  ];
+
+  return `
+    <div class="cs-checkbox-grid">
+      ${csItems
+        .map(item => {
+          const checked = checklist[item.key] ? 'checked' : '';
+          return `
+            <label class="cs-checkbox">
+              <input type="checkbox" ${checked} />
+              <span>${item.label}</span>
+            </label>
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+}
+
+function renderMemoSection(candidate) {
+  return `
+    <label class="detail-textarea-field">
+      <span>自由メモ</span>
+      <textarea rows="4" id="candidateFreeMemo">${candidate.memoDetail || ''}</textarea>
+    </label>
+  `;
+}
+
+function attachDetailPanelEvents() {
+  const meetingButton = document.getElementById('addMeetingButton');
+  if (meetingButton) {
+    meetingButton.addEventListener('click', () => {
+      const list = document.getElementById('candidateMeetingList');
+      if (!list) return;
+      const nextSequence = list.children.length + 2;
+      list.insertAdjacentHTML(
+        'beforeend',
+        renderMeetingPlanRow({ sequence: nextSequence, plannedDate: '', attendance: false })
+      );
+    });
+  }
+
+  const resumeButton = document.getElementById('addResumeButton');
+  if (resumeButton) {
+    resumeButton.addEventListener('click', () => {
+      const list = document.getElementById('candidateResumeList');
+      if (!list) return;
+      const nextIndex = list.children.length + 1;
+      list.insertAdjacentHTML(
+        'beforeend',
+        renderResumeRow({ label: `経歴書${nextIndex}`, value: '' })
+      );
+    });
+  }
+
+  const selectionButton = document.getElementById('addSelectionRowButton');
+  if (selectionButton) {
+    selectionButton.addEventListener('click', () => {
+      const tableBody = document.getElementById('selectionProgressBody');
+      if (!tableBody) return;
+      tableBody.insertAdjacentHTML('beforeend', renderSelectionRow({}));
+    });
+  }
+}
+
+function initializeDetailModal() {
+  const modal = document.getElementById('candidateDetailModal');
+  const closeButton = document.getElementById('candidateDetailClose');
+
+  if (modal) {
+    modalHandlers.overlay = event => {
+      if (event.target === modal) {
+        closeCandidateModal();
+      }
+    };
+    modal.addEventListener('click', modalHandlers.overlay);
+  }
+
+  if (closeButton) {
+    modalHandlers.closeButton = () => closeCandidateModal();
+    closeButton.addEventListener('click', modalHandlers.closeButton);
+  }
+
+  modalHandlers.keydown = event => {
+    if (event.key === 'Escape' && isCandidateModalOpen()) {
+      closeCandidateModal();
     }
-    
-    const comparison = aValue.localeCompare(bValue, 'ja');
-    return direction === 'asc' ? comparison : -comparison;
-  });
-  
-  // ソート済み行を再描画
-  tableBody.innerHTML = '';
-  rows.forEach(row => tableBody.appendChild(row));
-}
-
-// 連絡先フィールドイベント
-function bindContactFieldEvents() {
-  const contactFields = document.querySelectorAll('.contact-field');
-  contactFields.forEach(field => {
-    field.addEventListener('click', handleContactFieldClick);
-  });
-}
-
-function handleContactFieldClick(event) {
-  const field = event.target;
-  const type = field.dataset.type;
-  const fullValue = field.dataset.full;
-  const maskedValue = field.dataset.masked;
-  
-  // 権限チェック（実際の実装では認証システムと連携）
-  const hasPermission = checkContactPermission();
-  
-  if (hasPermission) {
-    field.textContent = field.textContent === fullValue ? maskedValue : fullValue;
-  } else {
-    alert('連絡先情報を表示する権限がありません。');
-  }
-}
-
-// ユーティリティ関数
-function getCandidateFromRow(row) {
-  const cells = row.children;
-  return {
-    appliedAt: parseDate(cells[0].textContent),
-    source: cells[1].textContent.trim(),
-    name: cells[2].textContent,
-    jobTitle: cells[5].textContent
   };
+  document.addEventListener('keydown', modalHandlers.keydown);
 }
 
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ja-JP');
+function openCandidateModal() {
+  const modal = document.getElementById('candidateDetailModal');
+  if (!modal) return;
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('has-modal-open');
 }
 
-function parseDate(displayDate) {
-  // "2024/11/1" -> "2024-11-01"
-  const parts = displayDate.split('/');
-  return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-}
-
-function getSourceBadgeClass(source) {
-  const classes = {
-    'Indeed': 'bg-blue-100 text-blue-700',
-    '求人ボックス': 'bg-green-100 text-green-700',
-    'リクナビ': 'bg-orange-100 text-orange-700',
-    'マイナビ': 'bg-purple-100 text-purple-700'
-  };
-  return classes[source] || 'bg-gray-100 text-gray-700';
-}
-
-function maskPhone(phone) {
-  // "090-1234-5678" -> "090-****-5678"
-  const parts = phone.split('-');
-  if (parts.length === 3) {
-    return `${parts[0]}-****-${parts[2]}`;
+function closeCandidateModal({ clearSelection = true } = {}) {
+  const modal = document.getElementById('candidateDetailModal');
+  if (!modal) return;
+  const wasOpen = modal.classList.contains('is-open');
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (wasOpen) {
+    setCandidateDetailPlaceholder();
   }
-  return '***-****-****';
-}
-
-function maskEmail(email) {
-  // "tanaka@example.com" -> "tan***@example.com"
-  const [local, domain] = email.split('@');
-  if (local.length > 3) {
-    return `${local.substring(0, 3)}***@${domain}`;
+  document.body.classList.remove('has-modal-open');
+  if (clearSelection) {
+    selectedCandidateId = null;
   }
-  return `***@${domain}`;
+  highlightSelectedRow();
 }
 
-function checkContactPermission() {
-  // 実際の権限チェックロジック
-  // 今はダミーでtrueを返す
-  return true;
+function isCandidateModalOpen() {
+  const modal = document.getElementById('candidateDetailModal');
+  return modal ? modal.classList.contains('is-open') : false;
+}
+
+function formatDateJP(dateLike) {
+  if (!dateLike) return '-';
+  const date = new Date(dateLike);
+  if (Number.isNaN(date.getTime())) return dateLike;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
+
+function formatDateTimeJP(dateTimeLike) {
+  if (!dateTimeLike) return '-';
+  const date = new Date(dateTimeLike);
+  if (Number.isNaN(date.getTime())) return dateTimeLike;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${formatDateJP(dateTimeLike)} ${hours}:${minutes}`;
+}
+
+function formatDisplayValue(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
+}
+
+function renderLink(url) {
+  if (!url) return '-';
+  return `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>`;
+}
+
+function calculateAge(birthday) {
+  if (!birthday) return null;
+  const birthDate = new Date(birthday);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
 }
 
 function cleanupCandidatesEventListeners() {
-  console.log('Cleaning up candidates page event listeners');
-  
-  // 特定のイベントリスナーを削除
-  const elements = [
-    'candidatesFilterDateFrom',
-    'candidatesFilterDateTo', 
-    'candidatesFilterSource',
-    'candidatesFilterName',
-    'candidatesFilterJobTitle',
-    'candidatesFilterReset'
-  ];
-  
-  elements.forEach(id => {
+  closeCandidateModal({ clearSelection: false });
+  filterConfig.forEach(({ id, event }) => {
     const element = document.getElementById(id);
     if (element) {
-      element.removeEventListener('change', applyCandidatesFilter);
-      element.removeEventListener('input', applyCandidatesFilter);
-      element.removeEventListener('click', resetCandidatesFilters);
+      element.removeEventListener(event, handleFilterChange);
     }
   });
+
+  const resetButton = document.getElementById('candidatesFilterReset');
+  if (resetButton) {
+    resetButton.removeEventListener('click', handleFilterReset);
+  }
+
+  const sortSelect = document.getElementById('candidatesSortOrder');
+  if (sortSelect) {
+    sortSelect.removeEventListener('change', handleFilterChange);
+  }
+
+  const tableBody = document.getElementById('candidatesTableBody');
+  if (tableBody) {
+    tableBody.removeEventListener('click', handleTableClick);
+  }
+
+  const modal = document.getElementById('candidateDetailModal');
+  const closeButton = document.getElementById('candidateDetailClose');
+
+  if (modal && modalHandlers.overlay) {
+    modal.removeEventListener('click', modalHandlers.overlay);
+    modalHandlers.overlay = null;
+  }
+
+  if (closeButton && modalHandlers.closeButton) {
+    closeButton.removeEventListener('click', modalHandlers.closeButton);
+    modalHandlers.closeButton = null;
+  }
+
+  if (modalHandlers.keydown) {
+    document.removeEventListener('keydown', modalHandlers.keydown);
+    modalHandlers.keydown = null;
+  }
+}
+
+function getMockCandidates() {
+  return [
+    {
+      id: 'cand-001',
+      candidateCode: 'C-2024-001',
+      candidateName: '田中 太郎',
+      candidateKana: 'タナカ タロウ',
+      jobName: '法人営業（東京）',
+      companyName: 'ABC株式会社',
+      workLocation: '東京都港区',
+      validApplication: true,
+      phoneConnected: true,
+      smsSent: true,
+      advisorName: '佐藤アドバイザー',
+      callerName: '山本オペレーター',
+      phase: '初回面談設定',
+      registeredDate: '2024-11-01',
+      updatedAt: '2024-11-07T09:45:00',
+      mediaRegisteredAt: '2024-10-29',
+      source: 'Indeed',
+      phone: '090-1234-5678',
+      email: 'tanaka@example.com',
+      birthday: '1991-02-14',
+      age: 33,
+      gender: '男性',
+      education: '早稲田大学 商学部',
+      postalCode: '105-0001',
+      address: '東京都港区虎ノ門1-1-1',
+      city: '港区',
+      contactTime: '平日 10:00-19:00',
+      remarks: '転居相談あり',
+      memo: '初回面談予定調整中',
+      smsConfirmed: true,
+      firstContactPlannedAt: '2024-11-05',
+      firstContactAt: '2024-11-06',
+      attendanceConfirmed: true,
+      callDate: '2024-11-03',
+      scheduleConfirmedAt: '2024-11-04',
+      resumeStatus: '提出済',
+      recommendationDate: '2024-11-08',
+      meetingVideoLink: 'https://example.com/videos/tanaka',
+      resumeForSend: 'https://example.com/docs/tanaka_resume.pdf',
+      workHistoryForSend: 'https://example.com/docs/tanaka_history.pdf',
+      partnerName: '高橋パートナー',
+      introductionChance: '高い',
+      newActionDate: '2024-11-10',
+      actionInfo: { nextActionDate: '2024-11-18', finalResult: '----' },
+      meetingPlans: [
+        { sequence: 2, plannedDate: '2024-11-12', attendance: false },
+        { sequence: 3, plannedDate: '', attendance: false }
+      ],
+      resumeDocuments: [{ label: '経歴書1', value: 'Google Drive - 田中太郎' }],
+      hearing: {
+        relocation: '福岡への転居希望あり',
+        desiredArea: '九州エリア（福岡市）',
+        timing: '3ヶ月以内',
+        desiredJob: '法人営業職',
+        firstInterviewMemo: 'オンラインで30分の面談を実施',
+        currentIncome: '520万円',
+        desiredIncome: '600万円',
+        reason: '成長環境と裁量を求めて',
+        interviewPreference: '平日夜 18時以降',
+        recommendationText: '営業経験豊富でコミュニケーション力が高い',
+        otherSelections: '2社で一次面接進行中',
+        employmentStatus: '就業中'
+      },
+      selectionProgress: [
+        {
+          companyName: 'ABC株式会社',
+          route: 'Indeed',
+          recommendationDate: '2024-11-08',
+          interviewSetupDate: '2024-11-09',
+          interviewDate: '2024-11-12',
+          offerDate: '',
+          closingDate: '',
+          acceptanceDate: '',
+          onboardingDate: '',
+          preJoinDeclineDate: '',
+          fee: '30%',
+          status: '一次面接予定',
+          notes: '営業本部長との面接'
+        }
+      ],
+      afterAcceptance: {
+        amount: '1,200,000円',
+        jobCategory: '営業',
+        reportStatuses: ['LINE報告済み']
+      },
+      refundInfo: { resignationDate: '', refundAmount: '', reportStatus: '' },
+      csChecklist: {
+        validConfirmed: true,
+        connectConfirmed: true,
+        dial1: true,
+        dial2: true,
+        dial3: false,
+        dial4: false,
+        dial5: false,
+        dial6: false,
+        dial7: false,
+        dial8: false,
+        dial9: false,
+        dial10: false
+      },
+      memoDetail: '初回面談で家族構成と転居スケジュールをヒアリング済み。'
+    },
+    {
+      id: 'cand-002',
+      candidateCode: 'C-2024-014',
+      candidateName: '佐藤 花子',
+      candidateKana: 'サトウ ハナコ',
+      jobName: 'カスタマーサクセス',
+      companyName: 'XYZソリューションズ',
+      workLocation: '大阪府大阪市',
+      validApplication: true,
+      phoneConnected: true,
+      smsSent: false,
+      advisorName: '中村アドバイザー',
+      callerName: '上田オペレーター',
+      phase: '一次面接調整',
+      registeredDate: '2024-10-25',
+      updatedAt: '2024-11-05T13:20:00',
+      mediaRegisteredAt: '2024-10-18',
+      source: '求人ボックス',
+      phone: '080-2345-6789',
+      email: 'sato@example.com',
+      birthday: '1995-07-03',
+      gender: '女性',
+      education: '神戸大学 経営学部',
+      postalCode: '530-0001',
+      address: '大阪府大阪市北区2-2-2',
+      city: '大阪市北区',
+      contactTime: '終日可（SMS希望）',
+      remarks: '第二志望として別業界も検討中',
+      memo: '一次面接日程調整中',
+      smsConfirmed: false,
+      firstContactPlannedAt: '2024-10-27',
+      firstContactAt: '2024-10-28',
+      attendanceConfirmed: false,
+      callDate: '2024-10-26',
+      scheduleConfirmedAt: '2024-10-30',
+      resumeStatus: '未提出',
+      recommendationDate: '2024-11-02',
+      meetingVideoLink: '',
+      resumeForSend: '',
+      workHistoryForSend: '',
+      partnerName: '佐々木パートナー',
+      introductionChance: '中',
+      actionInfo: { nextActionDate: '2024-11-15', finalResult: '----' },
+      meetingPlans: [{ sequence: 2, plannedDate: '2024-11-20', attendance: false }],
+      resumeDocuments: [],
+      hearing: {
+        relocation: '不可（大阪限定）',
+        desiredArea: '大阪市内',
+        timing: '半年以内',
+        desiredJob: 'CS・サポート職',
+        firstInterviewMemo: '初回面談で志望動機を深掘り',
+        currentIncome: '420万円',
+        desiredIncome: '480万円',
+        reason: 'スキルを活かせる職場を希望',
+        interviewPreference: '火木の午前',
+        recommendationText: 'サブスクビジネス経験者',
+        otherSelections: '1社内定保留中',
+        employmentStatus: '就業中'
+      },
+      selectionProgress: [
+        {
+          companyName: 'XYZソリューションズ',
+          route: '求人ボックス',
+          recommendationDate: '2024-11-02',
+          interviewSetupDate: '2024-11-05',
+          interviewDate: '',
+          offerDate: '',
+          closingDate: '',
+          acceptanceDate: '',
+          onboardingDate: '',
+          preJoinDeclineDate: '',
+          fee: '25%',
+          status: '一次面接日程調整',
+          notes: '採用担当：小林様'
+        }
+      ],
+      afterAcceptance: { amount: '', jobCategory: '', reportStatuses: [] },
+      refundInfo: { resignationDate: '', refundAmount: '', reportStatus: '' },
+      csChecklist: {
+        validConfirmed: true,
+        connectConfirmed: true,
+        dial1: true,
+        dial2: true,
+        dial3: true,
+        dial4: false,
+        dial5: false,
+        dial6: false,
+        dial7: false,
+        dial8: false,
+        dial9: false,
+        dial10: false
+      },
+      memoDetail: '一次面接調整中。別求人との比較資料を送付予定。'
+    },
+    {
+      id: 'cand-003',
+      candidateCode: 'C-2024-025',
+      candidateName: '山田 次郎',
+      candidateKana: 'ヤマダ ジロウ',
+      jobName: 'プロジェクトマネージャー',
+      companyName: 'TechForward株式会社',
+      workLocation: '愛知県名古屋市',
+      validApplication: true,
+      phoneConnected: true,
+      smsSent: true,
+      advisorName: '石井アドバイザー',
+      callerName: '田島オペレーター',
+      phase: '内定承諾待ち',
+      registeredDate: '2024-09-15',
+      updatedAt: '2024-11-06T18:45:00',
+      mediaRegisteredAt: '2024-09-10',
+      source: 'マイナビ',
+      phone: '070-9876-5432',
+      email: 'yamada@example.com',
+      birthday: '1988-11-20',
+      gender: '男性',
+      education: '名古屋工業大学 情報工学科',
+      postalCode: '460-0008',
+      address: '愛知県名古屋市中区3-3-3',
+      city: '名古屋市中区',
+      contactTime: '平日 9:00-18:00',
+      remarks: '年収交渉中',
+      memo: '内定承諾確認待ち',
+      smsConfirmed: true,
+      firstContactPlannedAt: '2024-09-18',
+      firstContactAt: '2024-09-18',
+      attendanceConfirmed: true,
+      callDate: '2024-09-16',
+      scheduleConfirmedAt: '2024-09-17',
+      resumeStatus: '受領済',
+      recommendationDate: '2024-09-19',
+      meetingVideoLink: 'https://example.com/videos/yamada',
+      resumeForSend: 'https://example.com/docs/yamada_resume.pdf',
+      workHistoryForSend: 'https://example.com/docs/yamada_history.pdf',
+      partnerName: '川村パートナー',
+      introductionChance: '非常に高い',
+      actionInfo: { nextActionDate: '2024-11-11', finalResult: '承諾' },
+      meetingPlans: [{ sequence: 2, plannedDate: '2024-10-02', attendance: true }],
+      resumeDocuments: [
+        { label: '経歴書1', value: '最新スキルシート2024' },
+        { label: '経歴書2', value: '成果資料リンク' }
+      ],
+      hearing: {
+        relocation: '可（条件付き）',
+        desiredArea: '名古屋市内',
+        timing: '即時',
+        desiredJob: 'IT系PM',
+        firstInterviewMemo: '開発体制の課題を指摘',
+        currentIncome: '780万円',
+        desiredIncome: '850万円',
+        reason: 'さらなる裁量とリモート比率向上を希望',
+        interviewPreference: '終日可（リモート）',
+        recommendationText: 'マネジメント経験豊富、英語対応可',
+        otherSelections: '1社で最終面接待ち',
+        employmentStatus: '離職中'
+      },
+      selectionProgress: [
+        {
+          companyName: 'TechForward株式会社',
+          route: 'マイナビ',
+          recommendationDate: '2024-09-19',
+          interviewSetupDate: '2024-09-21',
+          interviewDate: '2024-09-25',
+          offerDate: '2024-10-05',
+          closingDate: '2024-10-10',
+          acceptanceDate: '',
+          onboardingDate: '2024-12-01',
+          preJoinDeclineDate: '',
+          fee: '35%',
+          status: '内定承諾待ち',
+          notes: '年収交渉中'
+        }
+      ],
+      afterAcceptance: {
+        amount: '1,800,000円',
+        jobCategory: 'PM',
+        reportStatuses: ['LINE報告済み', '個人シート反映済み']
+      },
+      refundInfo: { resignationDate: '', refundAmount: '', reportStatus: '' },
+      csChecklist: {
+        validConfirmed: true,
+        connectConfirmed: true,
+        dial1: true,
+        dial2: true,
+        dial3: true,
+        dial4: true,
+        dial5: true,
+        dial6: true,
+        dial7: false,
+        dial8: false,
+        dial9: false,
+        dial10: false
+      },
+      memoDetail: '入社承諾連絡を11/11までに実施予定。'
+    },
+    {
+      id: 'cand-004',
+      candidateCode: 'C-2024-033',
+      candidateName: '鈴木 未来',
+      candidateKana: 'スズキ ミライ',
+      jobName: 'UI/UXデザイナー',
+      companyName: 'CreativePlus',
+      workLocation: '東京都渋谷区',
+      validApplication: true,
+      phoneConnected: false,
+      smsSent: true,
+      advisorName: '藤本アドバイザー',
+      callerName: '森山オペレーター',
+      phase: '入社準備',
+      registeredDate: '2024-09-12',
+      updatedAt: '2024-11-02T16:10:00',
+      mediaRegisteredAt: '2024-09-01',
+      source: 'doda',
+      phone: '050-3333-2222',
+      email: 'suzuki@example.com',
+      birthday: '1993-05-11',
+      gender: '女性',
+      education: '千葉大学 デザイン学科',
+      postalCode: '150-0002',
+      address: '東京都渋谷区渋谷2-2-2',
+      city: '渋谷区',
+      contactTime: '平日 13:00-21:00',
+      remarks: 'リモート勤務希望',
+      memo: '入社書類回収中',
+      smsConfirmed: true,
+      firstContactPlannedAt: '2024-09-14',
+      firstContactAt: '2024-09-15',
+      attendanceConfirmed: true,
+      callDate: '2024-09-13',
+      scheduleConfirmedAt: '2024-09-16',
+      resumeStatus: '提出済',
+      recommendationDate: '2024-09-18',
+      meetingVideoLink: '',
+      resumeForSend: 'https://example.com/docs/suzuki_resume.pdf',
+      workHistoryForSend: 'https://example.com/docs/suzuki_history.pdf',
+      partnerName: '森口パートナー',
+      introductionChance: '高い',
+      actionInfo: { nextActionDate: '2024-11-09', finalResult: '承諾' },
+      meetingPlans: [],
+      resumeDocuments: [{ label: '経歴書1', value: 'Portfolio URL' }],
+      hearing: {
+        relocation: '不可（関東圏内）',
+        desiredArea: '渋谷・新宿エリア',
+        timing: '1ヶ月以内',
+        desiredJob: 'UI/UXデザイン',
+        firstInterviewMemo: 'ポートフォリオ説明に強み',
+        currentIncome: '600万円',
+        desiredIncome: '700万円',
+        reason: 'ミッションフィット',
+        interviewPreference: 'リモート面談希望',
+        recommendationText: 'Figmaスペシャリスト',
+        otherSelections: 'なし',
+        employmentStatus: '就業中'
+      },
+      selectionProgress: [
+        {
+          companyName: 'CreativePlus',
+          route: 'doda',
+          recommendationDate: '2024-09-18',
+          interviewSetupDate: '2024-09-22',
+          interviewDate: '2024-09-25',
+          offerDate: '2024-10-05',
+          closingDate: '2024-10-15',
+          acceptanceDate: '2024-10-20',
+          onboardingDate: '2024-12-01',
+          preJoinDeclineDate: '',
+          fee: '28%',
+          status: '入社準備中',
+          notes: '在籍証明待ち'
+        }
+      ],
+      afterAcceptance: {
+        amount: '1,500,000円',
+        jobCategory: 'デザイナー',
+        reportStatuses: ['LINE報告済み', '個人シート反映済み', '請求書送付済み']
+      },
+      refundInfo: { resignationDate: '', refundAmount: '', reportStatus: '' },
+      csChecklist: {
+        validConfirmed: true,
+        connectConfirmed: false,
+        dial1: true,
+        dial2: true,
+        dial3: true,
+        dial4: true,
+        dial5: true,
+        dial6: true,
+        dial7: true,
+        dial8: true,
+        dial9: false,
+        dial10: false
+      },
+      memoDetail: '入社書類の最終チェック中。'
+    },
+    {
+      id: 'cand-005',
+      candidateCode: 'C-2023-112',
+      candidateName: '伊藤 圭介',
+      candidateKana: 'イトウ ケイスケ',
+      jobName: 'バックオフィス責任者',
+      companyName: 'NextStage株式会社',
+      workLocation: '神奈川県横浜市',
+      validApplication: false,
+      phoneConnected: false,
+      smsSent: false,
+      advisorName: '大谷アドバイザー',
+      callerName: '今井オペレーター',
+      phase: 'クローズ',
+      registeredDate: '2023-12-05',
+      updatedAt: '2024-01-10T10:15:00',
+      mediaRegisteredAt: '2023-12-01',
+      source: 'リクナビ',
+      phone: '090-7777-8888',
+      email: 'ito@example.com',
+      birthday: '1985-04-30',
+      gender: '男性',
+      education: '中央大学 経済学部',
+      postalCode: '220-0001',
+      address: '神奈川県横浜市西区1-1-1',
+      city: '横浜市西区',
+      contactTime: '午前中のみ',
+      remarks: '家庭の事情で転職停止',
+      memo: '転職活動停止のためクローズ',
+      smsConfirmed: false,
+      firstContactPlannedAt: '2023-12-06',
+      firstContactAt: '',
+      attendanceConfirmed: false,
+      callDate: '2023-12-06',
+      scheduleConfirmedAt: '',
+      resumeStatus: '未提出',
+      recommendationDate: '',
+      meetingVideoLink: '',
+      resumeForSend: '',
+      workHistoryForSend: '',
+      partnerName: '該当なし',
+      introductionChance: '低い',
+      actionInfo: { nextActionDate: '', finalResult: 'リリース(転居不可)' },
+      meetingPlans: [],
+      resumeDocuments: [],
+      hearing: {
+        relocation: '不可',
+        desiredArea: '横浜市内のみ',
+        timing: '未定',
+        desiredJob: '管理部門',
+        firstInterviewMemo: '初回面談前に離脱',
+        currentIncome: '680万円',
+        desiredIncome: '700万円',
+        reason: 'ワークライフバランス改善',
+        interviewPreference: '',
+        recommendationText: 'リファレンス良好',
+        otherSelections: 'なし',
+        employmentStatus: '就業中'
+      },
+      selectionProgress: [],
+      afterAcceptance: { amount: '', jobCategory: '', reportStatuses: [] },
+      refundInfo: { resignationDate: '', refundAmount: '', reportStatus: '' },
+      csChecklist: {
+        validConfirmed: false,
+        connectConfirmed: false,
+        dial1: true,
+        dial2: true,
+        dial3: false,
+        dial4: false,
+        dial5: false,
+        dial6: false,
+        dial7: false,
+        dial8: false,
+        dial9: false,
+        dial10: false
+      },
+      memoDetail: '家庭の事情で無期限延期。'
+    }
+  ];
 }

@@ -1,109 +1,217 @@
-<div class="section-shell space-y-5">
-  <div class="flex flex-wrap items-center justify-between gap-4">
+<div class="section-shell space-y-6" id="candidatesPage">
+  <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
-        候補者一覧
-      </h3>
-      <p class="text-sm text-slate-500">
-        応募者の詳細情報と架電管理を一元管理
-      </p>
+      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">候補者管理</h3>
+      <p class="text-sm text-slate-500">応募者の選考状況・面談予定・CS項目を1画面で把握</p>
     </div>
+    <button class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500">
+      新規候補者を登録
+    </button>
   </div>
 
-  <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
-    <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
-      絞り込み
-    </h4>
-    <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 text-xs text-slate-500">
-      <label class="flex flex-col gap-1">
-        <span class="whitespace-nowrap">応募年月日（開始）</span>
-        <input
-          id="candidatesFilterDateFrom"
-          type="date"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-        />
+  <div class="candidates-filter-card border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">絞り込み条件</h4>
+      <div class="flex items-center gap-2">
+        <button id="candidatesFilterReset" class="px-3 py-1.5 border border-slate-300 rounded-md text-xs hover:bg-white">
+          条件をクリア
+        </button>
+        <span class="text-xs text-slate-500">自動で候補者一覧を更新</span>
+      </div>
+    </div>
+    <div class="candidates-filter-grid">
+      <label class="filter-field">
+        <span>登録年</span>
+        <select id="candidatesFilterYear" class="filter-input">
+          <option value="">すべて</option>
+          <option value="2023">2023</option>
+          <option value="2024" selected>2024</option>
+          <option value="2025">2025</option>
+        </select>
       </label>
-      <label class="flex flex-col gap-1">
-        <span class="whitespace-nowrap">応募年月日（終了）</span>
-        <input
-          id="candidatesFilterDateTo"
-          type="date"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-        />
+      <label class="filter-field">
+        <span>登録月</span>
+        <select id="candidatesFilterMonth" class="filter-input">
+          <option value="">すべて</option>
+          <option value="01">1月</option>
+          <option value="02">2月</option>
+          <option value="03">3月</option>
+          <option value="04">4月</option>
+          <option value="05">5月</option>
+          <option value="06">6月</option>
+          <option value="07">7月</option>
+          <option value="08">8月</option>
+          <option value="09">9月</option>
+          <option value="10">10月</option>
+          <option value="11">11月</option>
+          <option value="12">12月</option>
+        </select>
       </label>
-      <label class="flex flex-col gap-1">
-        <span class="whitespace-nowrap">応募媒体</span>
-        <select
-          id="candidatesFilterSource"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-        >
+      <label class="filter-field">
+        <span>登録日</span>
+        <select id="candidatesFilterDay" class="filter-input">
+          <option value="">すべて</option>
+          <option value="01">1日</option>
+          <option value="02">2日</option>
+          <option value="03">3日</option>
+          <option value="04">4日</option>
+          <option value="05">5日</option>
+          <option value="06">6日</option>
+          <option value="07">7日</option>
+          <option value="08">8日</option>
+          <option value="09">9日</option>
+          <option value="10">10日</option>
+          <option value="11">11日</option>
+          <option value="12">12日</option>
+          <option value="13">13日</option>
+          <option value="14">14日</option>
+          <option value="15">15日</option>
+          <option value="16">16日</option>
+          <option value="17">17日</option>
+          <option value="18">18日</option>
+          <option value="19">19日</option>
+          <option value="20">20日</option>
+          <option value="21">21日</option>
+          <option value="22">22日</option>
+          <option value="23">23日</option>
+          <option value="24">24日</option>
+          <option value="25">25日</option>
+          <option value="26">26日</option>
+          <option value="27">27日</option>
+          <option value="28">28日</option>
+          <option value="29">29日</option>
+          <option value="30">30日</option>
+          <option value="31">31日</option>
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>応募媒体</span>
+        <select id="candidatesFilterSource" class="filter-input">
           <option value="">すべて</option>
           <option value="Indeed">Indeed</option>
           <option value="求人ボックス">求人ボックス</option>
           <option value="リクナビ">リクナビ</option>
           <option value="マイナビ">マイナビ</option>
+          <option value="doda">doda</option>
         </select>
       </label>
-      <label class="flex flex-col gap-1">
-        <span class="whitespace-nowrap">求職者名</span>
-        <input
-          id="candidatesFilterName"
-          type="search"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-          placeholder="候補者名で検索"
-        />
+      <label class="filter-field">
+        <span>求職者名</span>
+        <input id="candidatesFilterName" type="search" class="filter-input" placeholder="例：田中太郎" />
+      </label>
+      <label class="filter-field">
+        <span>応募企業名</span>
+        <input id="candidatesFilterCompany" type="search" class="filter-input" placeholder="例：ABC株式会社" />
+      </label>
+      <label class="filter-field">
+        <span>担当アドバイザー名</span>
+        <input id="candidatesFilterAdvisor" type="search" class="filter-input" placeholder="例：佐藤" />
+      </label>
+      <label class="filter-field">
+        <span>有効応募</span>
+        <select id="candidatesFilterValid" class="filter-input">
+          <option value="">すべて</option>
+          <option value="true">有効</option>
+          <option value="false">無効</option>
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>フェーズ</span>
+        <select id="candidatesFilterPhase" class="filter-input">
+          <option value="">すべて</option>
+          <option value="初回面談設定">初回面談設定</option>
+          <option value="一次面接調整">一次面接調整</option>
+          <option value="内定承諾待ち">内定承諾待ち</option>
+          <option value="入社準備">入社準備</option>
+          <option value="クローズ">クローズ</option>
+        </select>
       </label>
     </div>
-    <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 text-xs text-slate-500">
-      <label class="flex flex-col gap-1">
-        <span class="whitespace-nowrap">応募求人名</span>
-        <input
-          id="candidatesFilterJobTitle"
-          type="search"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-          placeholder="求人名で検索"
-        />
-      </label>
-      <div class="flex items-end gap-2">
-        <button
-          id="candidatesFilterReset"
-          class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap"
-        >
-          条件をクリア
-        </button>
-        <div id="candidatesFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
-          20件
+  </div>
+
+  <div class="candidates-main-grid">
+    <div class="candidates-table-card border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div class="candidates-table-toolbar">
+        <div class="text-sm text-slate-600">
+          <span class="font-semibold text-slate-900" id="candidatesResultCount">0件</span>
+          の候補者を表示
         </div>
+        <label class="flex items-center gap-2 text-xs text-slate-500">
+          並び替え
+          <select id="candidatesSortOrder" class="filter-input w-36">
+            <option value="desc">新しい順</option>
+            <option value="asc">古い順</option>
+          </select>
+        </label>
+      </div>
+      <div class="overflow-auto">
+        <table class="table-grid w-full">
+          <colgroup>
+            <col style="width: 90px" />
+            <col style="width: 90px" />
+            <col style="width: 100px" />
+            <col style="width: 150px" />
+            <col style="width: 150px" />
+            <col style="width: 150px" />
+            <col style="width: 130px" />
+            <col style="width: 130px" />
+            <col style="width: 180px" />
+            <col style="width: 190px" />
+            <col style="width: 140px" />
+            <col style="width: 150px" />
+            <col style="width: 130px" />
+            <col style="width: 80px" />
+            <col style="width: 240px" />
+            <col style="width: 150px" />
+            <col style="width: 150px" />
+            <col style="width: 130px" />
+            <col style="width: 210px" />
+            <col style="width: 130px" />
+            <col style="width: 130px" />
+            <col style="width: 160px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>有効応募</th>
+              <th>通電</th>
+              <th>SMS送信</th>
+              <th>担当アドバイザー</th>
+              <th>通電実施者</th>
+              <th>フェーズ</th>
+              <th>登録日</th>
+              <th>流入媒体</th>
+              <th>応募企業名</th>
+              <th>応募求人名</th>
+              <th>求職者名</th>
+              <th>電話番号</th>
+              <th>生年月日</th>
+              <th>年齢</th>
+              <th>備考</th>
+              <th>新規接触予定日</th>
+              <th>新規接触日</th>
+              <th>着座確認</th>
+              <th>メールアドレス</th>
+              <th>通電日</th>
+              <th>日程確定日</th>
+              <th>経歴書</th>
+            </tr>
+          </thead>
+          <tbody id="candidatesTableBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <div class="overflow-auto rounded-lg border border-slate-200">
-    <table class="table-grid min-w-[1200px]">
-      <thead>
-        <tr>
-          <th class="cursor-pointer hover:bg-slate-100" data-sort="appliedAt">
-            応募日
-            <span class="ml-1 text-xs opacity-50">↕</span>
-          </th>
-          <th>応募されたサイト</th>
-          <th class="cursor-pointer hover:bg-slate-100" data-sort="name">
-            求職者名
-            <span class="ml-1 text-xs opacity-50">↕</span>
-          </th>
-          <th>電話番号</th>
-          <th>メールアドレス</th>
-          <th>応募求人名</th>
-          <th class="cursor-pointer hover:bg-slate-100" data-sort="companyName">
-            応募した企業名
-            <span class="ml-1 text-xs opacity-50">↕</span>
-          </th>
-          <th>住所</th>
-        </tr>
-      </thead>
-      <tbody id="candidatesTableBody">
-        <!-- JavaScriptで生成される候補者データ -->
-      </tbody>
-    </table>
+  <div class="candidate-detail-modal" id="candidateDetailModal" aria-hidden="true">
+    <div class="candidate-detail-card" role="dialog" aria-modal="true" aria-labelledby="candidateDetailModalHeading">
+      <h2 id="candidateDetailModalHeading" class="sr-only">候補者詳細</h2>
+      <button type="button" class="candidate-detail-close" id="candidateDetailClose" aria-label="閉じる">×</button>
+      <div id="candidateDetailContent">
+        <div class="candidate-detail-empty">
+          <p class="text-sm text-slate-500">候補者行をクリックすると詳細が表示されます。</p>
+          <p class="text-xs text-slate-400">面談予定・書類リンク・選考進捗・CS項目などをまとめて確認できます。</p>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
