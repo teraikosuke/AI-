@@ -299,3 +299,151 @@
   color: #1e293b;
   font-weight: 600;
 }
+
+[data-kpi="v2"] .kpi-v2-preset-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+[data-kpi="v2"] .period-preset-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+[data-kpi="v2"] .period-preset-btn:hover,
+[data-kpi="v2"] .period-preset-btn.active {
+  border-color: #6366f1;
+  background-color: #eef2ff;
+}
+
+[data-kpi="v2"] .goal-input {
+  width: 5rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background-color: #fff;
+}
+
+[data-kpi="v2"] .kpi-v2-chart-container svg {
+  width: 100%;
+  height: auto;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+[data-kpi="v2"] .kpi-v2-search-input,
+[data-kpi="v2"] .kpi-v2-sort-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background-color: #ffffff;
+}
+
+[data-kpi="v2"] .kpi-v2-search-input {
+  width: 180px;
+}
+
+[data-kpi="v2"] .kpi-v2-view-toggle {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #6366f1;
+  border-radius: 0.375rem;
+  background-color: #ffffff;
+  color: #6366f1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-kpi="v2"] .kpi-v2-view-toggle:hover {
+  background-color: #6366f1;
+  color: #ffffff;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table th,
+[data-kpi="v2"] .kpi-v2-employee-table td {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* 社員カード表示 */
+[data-kpi="v2"] .kpi-v2-employee-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
+}
+
+[data-kpi="v2"] .kpi-v2-employee-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  font-size: 0.75rem;
+}
