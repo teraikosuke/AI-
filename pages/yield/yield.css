@@ -1,89 +1,4 @@
-/* Yield page specific styles - Inherits base KPI v2 styles from base.css */
-
-/* Yield specific chart and employee styles */
-[data-kpi="v2"] .chart-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .chart-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-}
-
-[data-kpi="v2"] .employee-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .employee-controls {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .employee-search {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .employee-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .employee-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .employee-card:hover {
-  border-color: #c7d2fe;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
-  transform: translateY(-1px);
-}
-
-[data-kpi="v2"] .employee-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .employee-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  font-size: 0.875rem;
-}
-
-[data-kpi="v2"] .employee-stat {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 0.375rem;
-}
-
-[data-kpi="v2"] .employee-stat-label {
-  color: #64748b;
-  font-weight: 500;
-}
-
-[data-kpi="v2"] .employee-stat-value {
-  color: #1e293b;
-  font-weight: 600;
-}
+/* Yield page specific styles */
 
 /* ===== KPI v2: 個人成績・全体セクション ===== */
 [data-kpi="v2"] .kpi-v2-section {
@@ -149,16 +64,92 @@
 
 /* 統合カード（上段） */
 [data-kpi="v2"] .kpi-v2-summary-unified {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: linear-gradient(180deg, #f9fafb 0%, #eef2ff 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
   display: flex;
   gap: 2rem;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   align-items: center;
+  --achievement-progress: 0.65;
+}
+
+[data-kpi="v2"] .kpi-v2-summary-unified.summary-neutral {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-achievement-section {
+  text-align: left;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-value-large {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-progress-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #4f46e5, #22d3ee);
+  width: calc(var(--achievement-progress, 0.65) * 100%);
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-progress {
+  position: relative;
+  height: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-progress span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #6366f1, #22d3ee);
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-target-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-target-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.95rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-target-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-target-label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+[data-kpi="v2"] .summary-neutral .kpi-v2-target-value {
+  font-weight: 600;
+  color: #0f172a;
 }
 
 [data-kpi="v2"] .kpi-v2-achievement-section {
@@ -244,41 +235,126 @@
   min-width: max-content;
 }
 
+[data-kpi="v2"] .kpi-v2-row[data-kpi-type="rates"] {
+  margin-top: 1.5rem;
+}
+
 [data-kpi="v2"] .kpi-v2-row:last-child {
   margin-bottom: 0;
 }
 
 [data-kpi="v2"] .kpi-v2-card {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: linear-gradient(180deg, #f9fafb 0%, #eef2ff 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 1rem;
+  padding: 1.3rem 1.5rem;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
   flex: 0 0 auto;
-  width: 160px;
+  min-width: 200px;
   scroll-snap-align: start;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 [data-kpi="v2"] .kpi-v2-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  border-color: #c7d2fe;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
 }
 
 [data-kpi="v2"] .kpi-v2-label {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #475569;
+  color: #334155;
   margin-bottom: 0.5rem;
   line-height: 1.3;
 }
 
 [data-kpi="v2"] .kpi-v2-value {
-  font-size: 1.125rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
+  color: #2563eb;
+  line-height: 1.35;
+}
+
+[data-kpi="v2"] .kpi-v2-meta {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.35rem;
+}
+
+[data-kpi="v2"] .kpi-v2-subsection {
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.95));
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+[data-kpi="v2"] .kpi-v2-subsection:last-child {
+  margin-bottom: 0;
+}
+
+[data-kpi="v2"] .kpi-v2-subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+[data-kpi="v2"] .kpi-v2-subtitle::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+[data-kpi="v2"] .kpi-v2-chart-section {
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+[data-kpi="v2"] .kpi-v2-chart-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+[data-kpi="v2"] .chart-single-center {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+[data-kpi="v2"] .kpi-v2-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1.25rem;
+  row-gap: 1.5rem;
+}
+
+[data-kpi="v2"] .kpi-v2-chart-container {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.875rem;
+  padding: 1.25rem;
+  min-height: 220px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+[data-kpi="v2"] .kpi-v2-chart-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Responsive adjustments */
@@ -296,6 +372,30 @@
   [data-kpi="v2"] .kpi-v2-card {
     width: 140px;
     padding: 0.875rem 1rem;
+  }
+  
+  [data-kpi="v2"] .kpi-v2-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-kpi="v2"] .kpi-v2-scroll-wrapper {
+    overflow: visible;
+  }
+  
+  [data-kpi="v2"] .kpi-v2-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    min-width: 100%;
+    gap: 1.25rem;
+    scroll-snap-type: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  [data-kpi="v2"] .kpi-v2-row {
+    grid-template-columns: repeat(7, minmax(180px, 1fr));
   }
 }
 
@@ -385,351 +485,71 @@
   font-weight: 600;
 }
 
-/* ===== KPI v2: 個人成績・全体セクション ===== */
-[data-kpi="v2"] .kpi-v2-section {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  border: 1px solid #e2e8f0;
-  padding: 1.5rem;
-  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.08);
+[data-kpi="v2"] .table-white .kpi-v2-employee-table {
+  background: #ffffff;
+  border-collapse: collapse;
 }
 
-[data-kpi="v2"] .kpi-v2-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-title {
-  font-size: 1.125rem;
+[data-kpi="v2"] .table-white .kpi-v2-employee-table th {
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
+  color: #475569;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.6rem 0.75rem;
 }
 
-[data-kpi="v2"] .kpi-v2-range-picker {
+[data-kpi="v2"] .table-white .kpi-v2-employee-table td {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 0.6rem 0.75rem;
+}
+
+[data-kpi="v2"] .table-white .kpi-v2-employee-table tbody tr:nth-child(odd) td {
+  background: rgba(248, 250, 252, 0.6);
+}
+
+[data-kpi="v2"] .table-white .kpi-v2-employee-table tbody tr:hover td {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+[data-kpi="v2"] .kpi-v2-preset-group {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-[data-kpi="v2"] .kpi-v2-date-input {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+[data-kpi="v2"] .period-preset-btn {
+  border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #475569;
-  min-width: 140px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input:focus {
-  outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-[data-kpi="v2"] .kpi-v2-date-separator {
-  color: #64748b;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-row {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-/* 統合カード（上段） */
-[data-kpi="v2"] .kpi-v2-summary-unified {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1rem 1.5rem; /* 縮小されたパディング */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-section {
-  flex: 1;
-  text-align: center;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-target-section {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card,
-[data-kpi="v2"] .kpi-v2-target-card {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1.25rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card {
-  text-align: center;
-}
-
-[data-kpi="v2"] .kpi-v2-value-large {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #4338ca;
-  line-height: 1.2;
-}
-
-[data-kpi="v2"] .kpi-v2-current {
-  color: #059669;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-separator {
-  color: #64748b;
-  margin: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-target {
-  color: #64748b;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-  margin: 0 -0.5rem;
-  padding: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar {
-  height: 6px;
-  margin-top: 8px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 3px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
-}
-
-[data-kpi="v2"] .kpi-v2-row {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  scroll-snap-type: x mandatory;
-  min-width: max-content;
-}
-
-[data-kpi="v2"] .kpi-v2-row:last-child {
-  margin-bottom: 0;
-}
-
-[data-kpi="v2"] .kpi-v2-card {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  flex: 0 0 auto;
-  width: 160px;
-  scroll-snap-align: start;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  border-color: #c7d2fe;
-}
-
-[data-kpi="v2"] .kpi-v2-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-[data-kpi="v2"] .kpi-v2-value {
-  font-size: 1.75rem;
-  font-weight: 700;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
   color: #0f172a;
-  line-height: 1.2;
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-meta {
   font-size: 0.75rem;
-  color: #64748b;
-  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-/* ワイドスクリーン対応 */
-@media (min-width: 1280px) {
-  [data-kpi="v2"] .kpi-v2-row {
-    gap: 1.5rem;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-card {
-    width: calc((100% - 9rem) / 7); /* 7等分 - ガター調整 */
-    min-width: 140px;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-summary-row {
-    gap: 2rem;
-  }
+[data-kpi="v2"] .period-preset-btn:hover,
+[data-kpi="v2"] .period-preset-btn.active {
+  border-color: #6366f1;
+  background-color: #eef2ff;
 }
 
-/* モバイル調整 */
-@media (max-width: 768px) {
-  [data-kpi="v2"] .kpi-v2-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-range-picker {
-    justify-content: center;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-summary-row {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-row {
-    gap: 1rem;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-card {
-    width: 140px;
-  }
-  
-  [data-kpi="v2"] .kpi-v2-section {
-    padding: 1.25rem;
-  }
+[data-kpi="v2"] .goal-input {
+  width: 5rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background-color: #fff;
 }
 
-/* アクセシビリティ: フォーカスリング */
-[data-kpi="v2"] .kpi-v2-card:focus-within {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-}
-
-/* 率の行の特別なスタイリング */
-[data-kpi="v2"] .kpi-v2-row[data-kpi-type="rates"] .kpi-v2-card {
-  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
-  border-color: #fbbf24;
-}
-
-[data-kpi="v2"] .kpi-v2-row[data-kpi-type="rates"] .kpi-v2-value {
-  color: #b45309;
-}
-
-/* サブセクション */
-[data-kpi="v2"] .kpi-v2-subsection {
-  margin-bottom: 2rem;
-}
-
-[data-kpi="v2"] .kpi-v2-subsection:last-child {
-  margin-bottom: 0;
-}
-
-[data-kpi="v2"] .kpi-v2-subtitle {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 1rem;
-}
-
-/* チャートセクション */
-[data-kpi="v2"] .kpi-v2-chart-section {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-container {
-  position: relative;
-}
-
-[data-kpi="v2"] .kpi-v2-svg-chart {
+[data-kpi="v2"] .kpi-v2-chart-container svg {
   width: 100%;
   height: auto;
-  max-height: 300px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
 }
 
-[data-kpi="v2"] .kpi-v2-chart-legend {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-[data-kpi="v2"] .kpi-v2-legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-tooltip {
-  position: absolute;
-  background-color: #1f2937;
-  color: #ffffff;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  pointer-events: none;
-  z-index: 10;
-  display: none;
-}
-
-/* 社員成績 */
 [data-kpi="v2"] .kpi-v2-employee-header {
   display: flex;
   justify-content: space-between;
@@ -838,115 +658,5 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem 1rem;
-  font-size: 0.75rem;
-}
-
-[data-kpi="v2"] .kpi-v2-metric-item {
-  display: flex;
-  justify-content: space-between;
-}
-
-[data-kpi="v2"] .kpi-v2-metric-label {
-  color: #64748b;
-}
-
-[data-kpi="v2"] .kpi-v2-metric-value {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #334155;
-  padding: 0.75rem 0.5rem;
-  text-align: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="0"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="1"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="2"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="3"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="4"] {
-  opacity: 0.5;
-  font-style: italic;
-}
-
-[data-page="teleapo"] .kpi-v2-filters {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background-color: #f8fafc;
-  margin-bottom: 1rem;
-}
-
-[data-page="teleapo"] .kpi-v2-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-[data-page="teleapo"] .kpi-v2-filter-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-[data-page="teleapo"] .kpi-v2-filter-select,
-[data-page="teleapo"] .kpi-v2-search-input {
-  background-color: white;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-}
-
-[data-page="teleapo"] .kpi-v2-pagination {
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-[data-page="teleapo"] .kpi-v2-page-btn {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-}
-
-[data-page="teleapo"] .kpi-v2-page-btn:hover:not(:disabled) {
-  background-color: #f1f5f9;
-}
-
-[data-page="teleapo"] .kpi-v2-page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-[data-page="teleapo"] .kpi-v2-page-info {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #475569;
-}
-
-[data-page="teleapo"] .kpi-v2-page-size {
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
 }
