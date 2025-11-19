@@ -1,110 +1,343 @@
-<!-- KPI v2: 個人成績・全体セクション -->
-<section data-kpi="v2" class="kpi-v2-wrapper space-y-6">
-  <!-- 個人成績 -->
-  <div class="kpi-v2-section">
-    <div class="kpi-v2-header">
-      <h3 class="kpi-v2-title">個人成績</h3>
-      <div class="kpi-v2-range-picker">
-        <input type="date" id="personalRangeStart" class="kpi-v2-date-input" />
-        <span class="kpi-v2-date-separator">〜</span>
-        <input type="date" id="personalRangeEnd" class="kpi-v2-date-input" />
+<!-- Yield Page - Redesigned Structure -->
+
+<!-- 個人成績セクション -->
+<section class="yield-block" id="personal-performance">
+  <header class="yield-block-header">
+    <h2 class="yield-block-title">個人成績</h2>
+  </header>
+  
+  <!-- 1. 今日の実績 -->
+  <div class="yield-subsection" id="daily-performance">
+    <h3 class="yield-subsection-title">今日の実績</h3>
+    <div class="kpi-v2-row">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案数</div>
+        <div class="kpi-v2-value-wrapper">
+          <span class="kpi-v2-value" id="dailyProposals">3</span>
+          <span class="kpi-v2-target-separator">/</span>
+          <input type="number" class="kpi-v2-target-input" id="dailyProposalsTarget" value="5" min="0">
+        </div>
+        <div class="kpi-v2-progress" id="dailyProposalsProgress">60%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦数</div>
+        <div class="kpi-v2-value-wrapper">
+          <span class="kpi-v2-value" id="dailyRecommendations">2</span>
+          <span class="kpi-v2-target-separator">/</span>
+          <input type="number" class="kpi-v2-target-input" id="dailyRecommendationsTarget" value="4" min="0">
+        </div>
+        <div class="kpi-v2-progress" id="dailyRecommendationsProgress">50%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">面談設定数</div>
+        <div class="kpi-v2-value-wrapper">
+          <span class="kpi-v2-value" id="dailyInterviews">1</span>
+          <span class="kpi-v2-target-separator">/</span>
+          <input type="number" class="kpi-v2-target-input" id="dailyInterviewsTarget" value="3" min="0">
+        </div>
+        <div class="kpi-v2-progress" id="dailyInterviewsProgress">33%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定数</div>
+        <div class="kpi-v2-value-wrapper">
+          <span class="kpi-v2-value" id="dailyOffers">1</span>
+          <span class="kpi-v2-target-separator">/</span>
+          <input type="number" class="kpi-v2-target-input" id="dailyOffersTarget" value="2" min="0">
+        </div>
+        <div class="kpi-v2-progress" id="dailyOffersProgress">50%</div>
       </div>
     </div>
+  </div>
+
+  <!-- 2. 今月の実績 -->
+  <div class="yield-subsection" id="monthly-performance">
+    <h3 class="yield-subsection-title">今月の実績</h3>
     
-    <!-- 売り上げ達成率と目標金額（統合カード） -->
+    <!-- 売上達成率 -->
     <div class="kpi-v2-summary-unified">
       <div class="kpi-v2-achievement-section">
         <div class="kpi-v2-label">売り上げ達成率</div>
-        <div class="kpi-v2-value kpi-v2-value-large" id="personalAchievementRate">33%</div>
+        <div class="kpi-v2-value kpi-v2-value-large" id="monthlyAchievementRate">65%</div>
       </div>
       <div class="kpi-v2-target-section">
         <div class="kpi-v2-label">現状 / 目標金額</div>
         <div class="kpi-v2-value">
-          <span class="kpi-v2-current" id="personalCurrent">¥957,000</span>
+          <span class="kpi-v2-current" id="monthlyCurrent">¥1,950,000</span>
           <span class="kpi-v2-separator">/</span>
-          <span class="kpi-v2-target" id="personalTarget">¥3,000,000</span>
+          <input type="number" class="kpi-v2-target-input-large" id="monthlyTarget" value="3000000" min="0">
         </div>
       </div>
     </div>
 
-    <!-- 7KPI 数の行 -->
-    <div class="kpi-v2-scroll-wrapper">
-      <div class="kpi-v2-row" data-kpi-type="counts">
-        <div class="kpi-v2-card" data-kpi="proposals">
-          <div class="kpi-v2-label">提案数</div>
-          <div class="kpi-v2-value" id="personalProposals">10</div>
-          <div class="kpi-v2-meta">新規面談数 30(10)</div>
+    <!-- 今月の数値 -->
+    <div class="kpi-v2-row">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案数</div>
+        <div class="kpi-v2-value" id="monthlyProposals">28</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦数</div>
+        <div class="kpi-v2-value" id="monthlyRecommendations">25</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">面談設定数</div>
+        <div class="kpi-v2-value" id="monthlyInterviews">20</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定数</div>
+        <div class="kpi-v2-value" id="monthlyOffers">15</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">承諾数</div>
+        <div class="kpi-v2-value" id="monthlyAccepts">12</div>
+      </div>
+    </div>
+
+    <!-- 今月の率 -->
+    <div class="kpi-v2-row">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案率</div>
+        <div class="kpi-v2-value" id="monthlyProposalRate">85%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦率</div>
+        <div class="kpi-v2-value" id="monthlyRecommendationRate">89%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">面談設定率</div>
+        <div class="kpi-v2-value" id="monthlyInterviewRate">80%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定率</div>
+        <div class="kpi-v2-value" id="monthlyOfferRate">75%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">承諾率</div>
+        <div class="kpi-v2-value" id="monthlyAcceptRate">80%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 期間ごとの歩留まり -->
+  <div class="yield-subsection" id="period-performance">
+    <h3 class="yield-subsection-title">期間ごとの歩留まり</h3>
+    
+    <!-- 期間選択 -->
+    <div class="yield-period-selector">
+      <div class="yield-period-presets">
+        <button type="button" class="yield-period-btn active" data-period="3m">直近3ヶ月</button>
+        <button type="button" class="yield-period-btn" data-period="6m">直近6ヶ月</button>
+        <button type="button" class="yield-period-btn" data-period="1y">直近1年</button>
+      </div>
+      <div class="yield-period-custom">
+        <input type="date" id="periodStart" class="kpi-v2-date-input">
+        <span class="kpi-v2-date-separator">〜</span>
+        <input type="date" id="periodEnd" class="kpi-v2-date-input">
+      </div>
+    </div>
+
+    <!-- 期間データ -->
+    <div class="kpi-v2-row" id="periodData">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案数</div>
+        <div class="kpi-v2-value" id="periodProposals">68</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案率</div>
+        <div class="kpi-v2-value" id="periodProposalRate">87%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦率</div>
+        <div class="kpi-v2-value" id="periodRecommendationRate">85%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定率</div>
+        <div class="kpi-v2-value" id="periodOfferRate">78%</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">承諾率</div>
+        <div class="kpi-v2-value" id="periodAcceptRate">82%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 個人グラフ -->
+  <div class="yield-subsection" id="personal-charts">
+    <h3 class="yield-subsection-title">個人グラフ</h3>
+    <div class="yield-chart-container">
+      <div class="yield-chart-header">
+        <h4>月次推移（提案率〜承諾率）</h4>
+        <select id="personalChartPeriod" class="yield-chart-period-select">
+          <option value="6m">直近6ヶ月</option>
+          <option value="1y">直近1年</option>
+          <option value="custom">カスタム期間</option>
+        </select>
+      </div>
+      <div class="yield-chart-placeholder" id="personalTrendChart">
+        <div class="chart-placeholder-content">
+          <div class="chart-placeholder-icon">📈</div>
+          <p>個人月次推移グラフ</p>
+          <span class="chart-placeholder-note">Chart.js で実装予定</span>
         </div>
-        <div class="kpi-v2-card" data-kpi="recommendations">
-          <div class="kpi-v2-label">推薦数</div>
-          <div class="kpi-v2-value" id="personalRecommendations">10</div>
-          <div class="kpi-v2-meta">推薦数 30(10)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 社内成績セクション -->
+<section class="yield-block" id="company-performance">
+  <header class="yield-block-header">
+    <h2 class="yield-block-title">社内成績</h2>
+  </header>
+
+  <!-- 5. 全体成績 -->
+  <div class="yield-subsection" id="overall-performance">
+    <h3 class="yield-subsection-title">全体成績</h3>
+    <div class="kpi-v2-row">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案数</div>
+        <div class="kpi-v2-value" id="companyProposals">156</div>
+        <div class="kpi-v2-meta">全社合計</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦数</div>
+        <div class="kpi-v2-value" id="companyRecommendations">142</div>
+        <div class="kpi-v2-meta">全社合計</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定数</div>
+        <div class="kpi-v2-value" id="companyOffers">98</div>
+        <div class="kpi-v2-meta">全社合計</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">承諾数</div>
+        <div class="kpi-v2-value" id="companyAccepts">76</div>
+        <div class="kpi-v2-meta">全社合計</div>
+      </div>
+    </div>
+    <div class="kpi-v2-row">
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">提案率</div>
+        <div class="kpi-v2-value" id="companyProposalRate">87%</div>
+        <div class="kpi-v2-meta">全社平均</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">推薦率</div>
+        <div class="kpi-v2-value" id="companyRecommendationRate">91%</div>
+        <div class="kpi-v2-meta">全社平均</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">内定率</div>
+        <div class="kpi-v2-value" id="companyOfferRate">69%</div>
+        <div class="kpi-v2-meta">全社平均</div>
+      </div>
+      <div class="kpi-v2-card">
+        <div class="kpi-v2-label">承諾率</div>
+        <div class="kpi-v2-value" id="companyAcceptRate">78%</div>
+        <div class="kpi-v2-meta">全社平均</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 社員成績 -->
+  <div class="yield-subsection" id="employee-performance">
+    <h3 class="yield-subsection-title">社員成績</h3>
+    
+    <!-- 社員成績コントロール -->
+    <div class="kpi-v2-employee-header">
+      <div class="kpi-v2-employee-controls">
+        <input type="text" id="employeeSearchInput" class="kpi-v2-search-input" placeholder="社員名で検索..." />
+        <select id="employeeSortSelect" class="kpi-v2-sort-select">
+          <option value="name-asc">社員名（昇順）</option>
+          <option value="proposals-desc">提案数（降順）</option>
+          <option value="offers-desc">内定数（降順）</option>
+          <option value="acceptRate-desc">承諾率（降順）</option>
+        </select>
+        <button id="employeeViewToggle" class="kpi-v2-view-toggle" data-view="table">
+          <span class="toggle-text">カード表示</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- テーブル表示 -->
+    <div id="employeeTableView" class="kpi-v2-employee-table-wrapper">
+      <div class="kpi-v2-scroll-wrapper">
+        <table class="kpi-v2-employee-table">
+          <thead>
+            <tr>
+              <th scope="col">社員名</th>
+              <th scope="col">提案数</th>
+              <th scope="col">推薦数</th>
+              <th scope="col">面談設定数</th>
+              <th scope="col">面談実施数</th>
+              <th scope="col">内定数</th>
+              <th scope="col">承諾数</th>
+              <th scope="col">提案率</th>
+              <th scope="col">推薦率</th>
+              <th scope="col">面談設定率</th>
+              <th scope="col">面談実施率</th>
+              <th scope="col">内定率</th>
+              <th scope="col">承諾率</th>
+            </tr>
+          </thead>
+          <tbody id="employeeTableBody">
+            <!-- JavaScriptで生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- カード表示 -->
+    <div id="employeeCardView" class="kpi-v2-employee-card-wrapper hidden">
+      <div class="kpi-v2-scroll-wrapper">
+        <div class="kpi-v2-employee-cards" id="employeeCardContainer">
+          <!-- JavaScriptで生成 -->
         </div>
-        <div class="kpi-v2-card" data-kpi="interviewsScheduled">
-          <div class="kpi-v2-label">面談設定数</div>
-          <div class="kpi-v2-value" id="personalInterviewsScheduled">10</div>
-          <div class="kpi-v2-meta">面談設定数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="interviewsHeld">
-          <div class="kpi-v2-label">面談実施数</div>
-          <div class="kpi-v2-value" id="personalInterviewsHeld">10</div>
-          <div class="kpi-v2-meta">面談実施数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="offers">
-          <div class="kpi-v2-label">内定数</div>
-          <div class="kpi-v2-value" id="personalOffers">10</div>
-          <div class="kpi-v2-meta">内定数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="accepts">
-          <div class="kpi-v2-label">承諾数</div>
-          <div class="kpi-v2-value" id="personalAccepts">10</div>
-          <div class="kpi-v2-meta">承諾数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="hires">
-          <div class="kpi-v2-label">決定数</div>
-          <div class="kpi-v2-value" id="personalHires">10</div>
-          <div class="kpi-v2-meta">提案数 30(10)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 社内グラフ -->
+  <div class="yield-subsection" id="company-charts">
+    <h3 class="yield-subsection-title">社内グラフ</h3>
+    
+    <!-- 全体推移グラフ -->
+    <div class="yield-chart-container">
+      <div class="yield-chart-header">
+        <h4>社内全体の推移</h4>
+        <select id="companyChartType" class="yield-chart-type-select">
+          <option value="counts">提案数〜内定数</option>
+          <option value="rates">提案率〜承諾率</option>
+        </select>
+      </div>
+      <div class="yield-chart-placeholder" id="companyOverallChart">
+        <div class="chart-placeholder-content">
+          <div class="chart-placeholder-icon">📊</div>
+          <p>社内全体推移グラフ</p>
+          <span class="chart-placeholder-note">Chart.js で実装予定</span>
         </div>
       </div>
     </div>
 
-    <!-- 7KPI 率の行 -->
-    <div class="kpi-v2-scroll-wrapper">
-      <div class="kpi-v2-row" data-kpi-type="rates">
-        <div class="kpi-v2-card" data-kpi="proposalRate">
-          <div class="kpi-v2-label">提案率</div>
-          <div class="kpi-v2-value" id="personalProposalRate">33%</div>
-          <div class="kpi-v2-meta">提案数 10/ 新規面談数 30(10)</div>
+    <!-- 社員比較グラフ -->
+    <div class="yield-chart-container">
+      <div class="yield-chart-header">
+        <h4>社員ごとの推移</h4>
+        <select id="employeeComparisonType" class="yield-chart-type-select">
+          <option value="monthly">月次比較</option>
+          <option value="cumulative">累積比較</option>
+        </select>
+      </div>
+      <div class="yield-chart-placeholder" id="employeeComparisonChart">
+        <div class="chart-placeholder-content">
+          <div class="chart-placeholder-icon">👥</div>
+          <p>社員比較グラフ</p>
+          <span class="chart-placeholder-note">Chart.js で実装予定</span>
         </div>
-        <div class="kpi-v2-card" data-kpi="recommendationRate">
-          <div class="kpi-v2-label">推薦率</div>
-          <div class="kpi-v2-value" id="personalRecommendationRate">33%</div>
-          <div class="kpi-v2-meta">推薦数 10/ 提案数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="interviewScheduleRate">
-          <div class="kpi-v2-label">面談設定率</div>
-          <div class="kpi-v2-value" id="personalInterviewScheduleRate">33%</div>
-          <div class="kpi-v2-meta">面談設定数 10/ 推薦数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="interviewHeldRate">
-          <div class="kpi-v2-label">面談実施率</div>
-          <div class="kpi-v2-value" id="personalInterviewHeldRate">33%</div>
-          <div class="kpi-v2-meta">面談実施数 10/面談設定数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="offerRate">
-          <div class="kpi-v2-label">内定率</div>
-          <div class="kpi-v2-value" id="personalOfferRate">33%</div>
-          <div class="kpi-v2-meta">内定数 10/ 面談実施数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="acceptRate">
-          <div class="kpi-v2-label">承諾率</div>
-          <div class="kpi-v2-value" id="personalAcceptRate">33%</div>
-          <div class="kpi-v2-meta">承諾数 10/ 内定数 30(10)</div>
-        </div>
-        <div class="kpi-v2-card" data-kpi="hireRate">
-          <div class="kpi-v2-label">決定率</div>
-          <div class="kpi-v2-value" id="personalHireRate">33%</div>
-          <div class="kpi-v2-meta">決定数 10/ 提案数 30(10)</div>
+      </div>
+    </div>
+  </div>
+</section>
         </div>
       </div>
     </div>

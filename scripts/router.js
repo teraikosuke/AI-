@@ -46,7 +46,7 @@ function loadPageCSS(page) {
   if (pageCSS[page]) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = pageCSS[page];
+    link.href = '/' + pageCSS[page]; // 絶対パスに修正
     link.dataset.pageCSS = page;
     document.head.appendChild(link);
     currentCSS = link;
