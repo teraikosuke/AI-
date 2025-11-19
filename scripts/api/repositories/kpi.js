@@ -4,11 +4,11 @@
  */
 
 import { defaultApiClient } from '../client.js';
-import { TypeValidators, TypeCasters } from '../types/index.js';
+import { TypeValidators, TypeCasters } from '../../types/index.js';
 
 /**
- * @typedef {import('../types/index.js').KpiData} KpiData
- * @typedef {import('../types/index.js').Employee} Employee
+ * @typedef {import('../../types/index.js').KpiData} KpiData
+ * @typedef {import('../../types/index.js').Employee} Employee
  */
 
 export class KpiRepository {

@@ -41,6 +41,18 @@ export class RepositoryFactory {
     this.clearAllCaches();
     this._kpiRepository = null;
   }
+
+  /**
+   * 互換API: 既存コード向けにリポジトリオブジェクトを生成
+   * @param {import('./client.js').defaultApiClient} apiClient
+   * @returns {{kpi: KpiRepository}}
+   */
+  static create(apiClient = defaultApiClient) {
+    const factory = new RepositoryFactory(apiClient);
+    return {
+      kpi: factory.getKpiRepository()
+    };
+  }
 }
 
 // デフォルトのリポジトリファクトリーインスタンス
