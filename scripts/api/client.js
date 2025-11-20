@@ -22,7 +22,8 @@
 
 export class ApiClient {
   constructor(baseUrl = '', options = {}) {
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // 末尾のスラッシュを削除
+    // APIサーバーのベースURL（例: http://localhost:3000）
+    this.baseUrl = (baseUrl || 'http://localhost:3000').replace(/\/$/, '');
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       ...options.headers
@@ -132,6 +133,7 @@ export class ApiClient {
     const config = {
       method: options.method || 'GET',
       headers: { ...this.defaultHeaders, ...options.headers },
+      credentials: 'include'
     };
 
     if (options.body && config.method !== 'GET') {
@@ -155,37 +157,13 @@ export class ApiClient {
     }, this.timeout);
 
     try {
-      // 実際のAPI環境では fetch(url, config) を使用
-      // モック環境ではモックレスポンスを返す
-      const response = await this.mockFetch(url, config);
+      const response = await fetch(url, config);
       clearTimeout(timeoutId);
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;
     }
-  }
-
-  /**
-   * モックfetch実装（開発環境用）
-   * @param {string} url 
-   * @param {RequestInit} config 
-   * @returns {Promise<Response>}
-   */
-  async mockFetch(url, config) {
-    // 実際のAPIが利用可能になるまでのモック実装
-    await this.delay(100); // ネットワーク遅延をシミュレート
-    
-    return {
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      json: async () => ({ 
-        success: true, 
-        data: [], 
-        timestamp: new Date().toISOString() 
-      })
-    };
   }
 
   /**

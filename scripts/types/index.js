@@ -4,6 +4,21 @@
  */
 
 /**
+ * @typedef {Object} Session
+ * @property {{email: string, name: string}} user - ユーザー基本情報
+ * @property {string} role - メインロール（後方互換用）
+ * @property {string[]} roles - 付与されている全ロール
+ * @property {string} token - アクセストークン（モック環境ではダミー文字列）
+ * @property {number} exp - 有効期限（タイムスタンプ）
+ */
+
+/**
+ * @typedef {Object} LoginResponse
+ * @property {Session} session - 保存対象のセッション情報
+ * @property {string} storageKey - 使用しているlocalStorageキー
+ */
+
+/**
  * @typedef {Object} KpiData
  * @property {string} period - YYYY-MM-DD形式
  * @property {number} applications - 応募数
@@ -88,6 +103,9 @@
  * @property {string} [industry] - 業界
  * @property {string} [profile] - 企業概要
  */
+
+/** @typedef {KpiData} KpiDto */
+/** @typedef {Employee} EmployeeDto */
 
 /**
  * バリデーション関数群

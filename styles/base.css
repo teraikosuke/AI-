@@ -236,3 +236,35 @@ body {
   color: #94a3b8;
   line-height: 1.3;
 }
+
+.user-badge-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  max-width: 240px;
+  padding: 0.2rem 0.75rem;
+  min-height: 28px;
+  border-radius: 9999px;
+  border: 1px solid #dbe3f2;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.user-badge-chip__text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-badge-chip[role="button"] {
+  cursor: pointer;
+}
+
+.user-badge-chip[role="button"]:focus {
+  outline: 2px solid rgba(99, 102, 241, 0.4);
+  outline-offset: 2px;
+}
