@@ -16,13 +16,54 @@ let employeePeriodRange = { startDate: '', endDate: '' };
 
 function safe(name, fn) {
   try {
-    console.time(`[yield] ${name}`);
-    const r = fn();
-    console.timeEnd(`[yield] ${name}`);
-    return r;
+    return fn();
   } catch (e) {
     console.error(`[yield] ${name} failed:`, e);
   }
+}
+
+function pickOrFallback(raw, validator, fallbackFactory) {
+  try {
+    if (!validator) {
+      return raw && !Array.isArray(raw) ? raw : fallbackFactory();
+    }
+    return validator(raw) ? raw : fallbackFactory();
+  } catch {
+    return fallbackFactory();
+  }
+}
+
+function num(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function ensureValueWrap(cardEl) {
+  const val = cardEl?.querySelector('.kpi-v2-value');
+  if (!val) return null;
+  let wrap = cardEl.querySelector('.kpi-v2-value-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'kpi-v2-value-wrap';
+    val.parentNode.insertBefore(wrap, val);
+    wrap.appendChild(val);
+  }
+  return wrap;
+}
+
+function writeRateDetailInline(cardEl, labelA, valA, labelB, valB, prevInflowB) {
+  if (!cardEl) return;
+  const wrap = ensureValueWrap(cardEl);
+  if (!wrap) return;
+  let el = cardEl.querySelector('.kpi-v2-rate-inline');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'kpi-v2-rate-inline';
+    const val = wrap.querySelector('.kpi-v2-value');
+    if (!val) return;
+    val.insertAdjacentElement('afterend', el);
+  }
+  el.innerHTML = `${labelA} ${num(valA)} /<br> ${labelB} ${num(valB)}(${num(prevInflowB)})`;
 }
 
 const DEFAULT_COMPANY_RATES = {
@@ -41,7 +82,6 @@ const DEFAULT_EMPLOYEE_SERIES = [
 ];
 
 export function mount() {
-  console.log('[yield] mount start');
   safe('initializeDatePickers', initializeDatePickers);
   safe('initTodayGoals', initTodayGoals);
   safe('initPeriodKPI', initPeriodKPI);
@@ -51,13 +91,9 @@ export function mount() {
   safe('initializeEmployeeControls', initializeEmployeeControls);
   safe('initializeFilters', initializeFilters);
   safe('loadYieldData', loadYieldData);
-  console.log('[yield] mount end');
 }
 
 export function unmount() {
-  console.log('Yield page unmounted');
-  
-  // ページがアンマウントされる前のクリーンアップ処理
   cleanupEventListeners();
   cleanupCharts();
 }
@@ -104,9 +140,7 @@ function initializeDatePickers() {
 function initializeKPICharts() {
   // 月次推移チャートの初期化
   drawTrendChart({ mode: 'rate', range: '6m' });
-  console.log('[yield] draw company trend call');
   drawCompanyTrend({ range: '6m' });
-  console.log('[yield] draw employee trend call');
   drawEmployeeComparisonTrend({ range: '6m', employees: DEFAULT_EMPLOYEE_SERIES });
 }
 
@@ -152,31 +186,43 @@ function initTodayGoals() {
   const inputs = document.querySelectorAll('.goal-input[data-ref^="todayGoal-"]');
   if (!inputs.length) return;
   const storedGoals = JSON.parse(localStorage.getItem(TODAY_GOAL_KEY) || '{}');
-  
+
   inputs.forEach(input => {
     const metric = input.dataset.ref?.replace('todayGoal-', '');
     if (!metric) return;
     if (storedGoals[metric] !== undefined) {
       input.value = storedGoals[metric];
     }
-    input.addEventListener('change', event => {
-      const goals = JSON.parse(localStorage.getItem(TODAY_GOAL_KEY) || '{}');
-      const rawValue = event.target.value;
-      if (rawValue === '') {
-        delete goals[metric];
-      } else {
-        const parsedValue = Number(rawValue);
-        if (Number.isFinite(parsedValue) && parsedValue >= 0) {
-          goals[metric] = parsedValue;
-        }
-      }
-      localStorage.setItem(TODAY_GOAL_KEY, JSON.stringify(goals));
-      updateTodayKPI();
+    attachGoalHandlers(input, {
+      metric,
+      storageKey: TODAY_GOAL_KEY,
+      onChange: updateTodayKPI
     });
   });
   
   todayGoalsInitialized = true;
   updateTodayKPI();
+}
+
+function attachGoalHandlers(input, { metric, storageKey, onChange }) {
+  const handleGoalInput = event => {
+    const rawValue = event.target.value;
+    const goals = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    if (rawValue === '') {
+      delete goals[metric];
+    } else {
+      const parsedValue = Number(rawValue);
+      if (Number.isFinite(parsedValue) && parsedValue >= 0) {
+        goals[metric] = parsedValue;
+      }
+    }
+    localStorage.setItem(storageKey, JSON.stringify(goals));
+    if (typeof onChange === 'function') {
+      onChange();
+    }
+  };
+  input.addEventListener('change', handleGoalInput);
+  input.addEventListener('input', handleGoalInput);
 }
 
 function updateTodayKPI(data) {
@@ -189,11 +235,10 @@ function updateTodayKPI(data) {
       interviewsScheduled: fallback.interviewsScheduled ?? 0,
       interviewsHeld: fallback.interviewsHeld ?? 0,
       offers: fallback.offers ?? 0,
-      accepts: fallback.accepts ?? 0
+      accepts: fallback.accepts ?? 0,
+      hires: fallback.hires ?? fallback.accepts ?? 0
     };
   }
-  
-  if (!todayKPIState) return;
   
   const metrics = [
     { key: 'proposals', elementId: 'todayProposals' },
@@ -201,20 +246,24 @@ function updateTodayKPI(data) {
     { key: 'interviewsScheduled', elementId: 'todayInterviewsScheduled' },
     { key: 'interviewsHeld', elementId: 'todayInterviewsHeld' },
     { key: 'offers', elementId: 'todayOffers' },
-    { key: 'accepts', elementId: 'todayAccepts' }
+    { key: 'accepts', elementId: 'todayAccepts' },
+    { key: 'hires', elementId: 'todayHires' }
   ];
   const goals = JSON.parse(localStorage.getItem(TODAY_GOAL_KEY) || '{}');
   
   metrics.forEach(({ key, elementId }) => {
-    const current = todayKPIState[key] ?? 0;
-    const target = goals[key];
+    const current = todayKPIState?.[key] ?? 0;
+    const rawTarget = goals[key];
+    const target = Number(rawTarget);
+    const hasValidTarget = Number.isFinite(target) && target > 0;
     const element = document.getElementById(elementId);
     if (element) {
       element.textContent = current.toLocaleString();
     }
     const achv = document.querySelector(`[data-ref="todayAchv-${key}"]`);
     if (achv) {
-      if (target && target > 0) {
+      achv.classList.add('kpi-v2-achv-badge');
+      if (hasValidTarget) {
         const percent = Math.round((current / target) * 100);
         achv.textContent = `${percent}%`;
       } else {
@@ -230,8 +279,6 @@ function updateMonthlyKPI(data) {
     monthlyKPIState = { ...monthlyData };
   }
   
-  if (!monthlyKPIState) return;
-  
   const goals = JSON.parse(localStorage.getItem(MONTHLY_GOAL_KEY) || '{}');
   
   if (!monthlyGoalsInitialized) {
@@ -242,19 +289,10 @@ function updateMonthlyKPI(data) {
       if (goals[metric] !== undefined) {
         input.value = goals[metric];
       }
-      input.addEventListener('change', event => {
-        const rawValue = event.target.value;
-        const nextGoals = JSON.parse(localStorage.getItem(MONTHLY_GOAL_KEY) || '{}');
-        if (rawValue === '') {
-          delete nextGoals[metric];
-        } else {
-          const parsedValue = Number(rawValue);
-          if (Number.isFinite(parsedValue) && parsedValue >= 0) {
-            nextGoals[metric] = parsedValue;
-          }
-        }
-        localStorage.setItem(MONTHLY_GOAL_KEY, JSON.stringify(nextGoals));
-        updateMonthlyKPI();
+      attachGoalHandlers(input, {
+        metric,
+        storageKey: MONTHLY_GOAL_KEY,
+        onChange: updateMonthlyKPI
       });
     });
     monthlyGoalsInitialized = true;
@@ -278,11 +316,14 @@ function updateMonthlyKPI(data) {
   ];
   
   monthMetrics.forEach(metric => {
-    const current = monthlyKPIState[metric] ?? 0;
-    const target = goals[metric];
+    const current = monthlyKPIState?.[metric] ?? 0;
+    const rawTarget = goals[metric];
+    const target = Number(rawTarget);
+    const hasValidTarget = Number.isFinite(target) && target > 0;
     const achv = document.querySelector(`[data-ref="monthlyAchv-${metric}"]`);
     if (!achv) return;
-    if (target && target > 0) {
+    achv.classList.add('kpi-v2-achv-badge');
+    if (hasValidTarget) {
       const percent = Math.round((current / target) * 100);
       achv.textContent = `${percent}%`;
     } else {
@@ -436,7 +477,11 @@ async function loadPersonalKPIData() {
     
     // APIからデータを取得
     const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
-    const data = normalizePersonalKPIData(raw);
+    const data = pickOrFallback(
+      raw,
+      value => !!value && !Array.isArray(value) && !!value.monthly && !!value.period,
+      getPersonalKPIFallbackData
+    );
     updatePersonalKPIDisplay(data);
     return data;
   } catch (error) {
@@ -444,18 +489,6 @@ async function loadPersonalKPIData() {
     // フォールバック：モックデータを使用
     return loadPersonalKPIDataFallback();
   }
-}
-
-function normalizePersonalKPIData(raw) {
-  if (!raw || Array.isArray(raw)) {
-    console.warn('[yield] personal KPI payload is not an object, using fallback data.');
-    return getPersonalKPIFallbackData();
-  }
-  if (!raw.monthly || !raw.period) {
-    console.warn('[yield] personal KPI payload missing sections, using fallback data.');
-    return getPersonalKPIFallbackData();
-  }
-  return raw;
 }
 
 function getPersonalKPIFallbackData() {
@@ -590,6 +623,141 @@ function updatePersonalKPIDisplay(data) {
   
   monthlyKPIState = { ...monthlyData };
   periodKPIState = { ...periodData };
+
+  const m = monthlyData;
+  const p = periodData;
+
+  const monthlyProposalCard = document.getElementById('personalProposalRate')?.closest('.kpi-v2-card');
+  const monthlyRecommendationCard = document.getElementById('personalRecommendationRate')?.closest('.kpi-v2-card');
+  const monthlyInterviewScheduleCard = document
+    .getElementById('personalInterviewScheduleRate')
+    ?.closest('.kpi-v2-card');
+  const monthlyInterviewHeldCard = document.getElementById('personalInterviewHeldRate')?.closest('.kpi-v2-card');
+  const monthlyOfferCard = document.getElementById('personalOfferRate')?.closest('.kpi-v2-card');
+  const monthlyAcceptCard = document.getElementById('personalAcceptRate')?.closest('.kpi-v2-card');
+  const monthlyHireCard = document.getElementById('personalHireRate')?.closest('.kpi-v2-card');
+
+  writeRateDetailInline(
+    monthlyProposalCard,
+    '提案数',
+    m.proposals,
+    '新規面談数',
+    m.newInterviews,
+    m.prevNewInterviews
+  );
+  writeRateDetailInline(
+    monthlyRecommendationCard,
+    '推薦数',
+    m.recommendations,
+    '提案数',
+    m.proposals,
+    m.prevProposals
+  );
+  writeRateDetailInline(
+    monthlyInterviewScheduleCard,
+    '面談設定数',
+    m.interviewsScheduled,
+    '推薦数',
+    m.recommendations,
+    m.prevRecommendations
+  );
+  writeRateDetailInline(
+    monthlyInterviewHeldCard,
+    '面談実施数',
+    m.interviewsHeld,
+    '面談設定数',
+    m.interviewsScheduled,
+    m.prevInterviewsScheduled
+  );
+  writeRateDetailInline(
+    monthlyOfferCard,
+    '内定数',
+    m.offers,
+    '面談実施数',
+    m.interviewsHeld,
+    m.prevInterviewsHeld
+  );
+  writeRateDetailInline(
+    monthlyAcceptCard,
+    '承諾数',
+    m.accepts,
+    '内定数',
+    m.offers,
+    m.prevOffers
+  );
+  writeRateDetailInline(
+    monthlyHireCard,
+    '承諾数',
+    m.accepts,
+    '新規面談数',
+    m.newInterviews,
+    m.prevNewInterviews
+  );
+
+  const periodProposalCard = document.getElementById('periodProposalRate')?.closest('.kpi-v2-card');
+  const periodRecommendationCard = document.getElementById('periodRecommendationRate')?.closest('.kpi-v2-card');
+  const periodInterviewScheduleCard = document.getElementById('periodInterviewScheduleRate')?.closest('.kpi-v2-card');
+  const periodInterviewHeldCard = document.getElementById('periodInterviewHeldRate')?.closest('.kpi-v2-card');
+  const periodOfferCard = document.getElementById('periodOfferRate')?.closest('.kpi-v2-card');
+  const periodAcceptCard = document.getElementById('periodAcceptRate')?.closest('.kpi-v2-card');
+  const periodHireCard = document.getElementById('periodHireRate')?.closest('.kpi-v2-card');
+
+  writeRateDetailInline(
+    periodProposalCard,
+    '提案数',
+    p.proposals,
+    '新規面談数',
+    p.newInterviews,
+    p.prevNewInterviews
+  );
+  writeRateDetailInline(
+    periodRecommendationCard,
+    '推薦数',
+    p.recommendations,
+    '提案数',
+    p.proposals,
+    p.prevProposals
+  );
+  writeRateDetailInline(
+    periodInterviewScheduleCard,
+    '面談設定数',
+    p.interviewsScheduled,
+    '推薦数',
+    p.recommendations,
+    p.prevRecommendations
+  );
+  writeRateDetailInline(
+    periodInterviewHeldCard,
+    '面談実施数',
+    p.interviewsHeld,
+    '面談設定数',
+    p.interviewsScheduled,
+    p.prevInterviewsScheduled
+  );
+  writeRateDetailInline(
+    periodOfferCard,
+    '内定数',
+    p.offers,
+    '面談実施数',
+    p.interviewsHeld,
+    p.prevInterviewsHeld
+  );
+  writeRateDetailInline(
+    periodAcceptCard,
+    '承諾数',
+    p.accepts,
+    '内定数',
+    p.offers,
+    p.prevOffers
+  );
+  writeRateDetailInline(
+    periodHireCard,
+    '承諾数',
+    p.accepts,
+    '新規面談数',
+    p.newInterviews,
+    p.prevNewInterviews
+  );
 }
 
 // 社内成績データの読み込み
@@ -602,8 +770,17 @@ async function loadCompanyKPIData() {
     
     // APIからデータを取得
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = normalizeCompanyKPIData(raw);
-    
+    const data = pickOrFallback(
+      raw,
+      value =>
+        !!value &&
+        !Array.isArray(value) &&
+        ['proposals', 'recommendations', 'offers', 'acceptRate'].every(key =>
+          Object.prototype.hasOwnProperty.call(value, key)
+        ),
+      getCompanyKPIFallbackData
+    );
+
     // データを表示
     updateCompanyKPIDisplay(data);
     companyKPIState = { ...data };
@@ -623,28 +800,28 @@ async function loadCompanyPeriodKPIData() {
       return loadCompanyPeriodKPIDataFallback();
     }
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = normalizeCompanyPeriodData(raw);
+    const data = pickOrFallback(
+      raw,
+      value =>
+        !!value &&
+        !Array.isArray(value) &&
+        [
+          'proposals',
+          'recommendations',
+          'interviewsScheduled',
+          'interviewsHeld',
+          'offers',
+          'accepts',
+          'hires'
+        ].every(key => Object.prototype.hasOwnProperty.call(value, key)),
+      getCompanyPeriodFallbackData
+    );
     updateCompanyPeriodDisplay(data);
     return data;
   } catch (error) {
     console.error('Failed to load company period KPI data:', error);
     return loadCompanyPeriodKPIDataFallback();
   }
-}
-
-// フォールバック用モックデータの読み込み
-function normalizeCompanyKPIData(raw) {
-  if (!raw || Array.isArray(raw)) {
-    console.warn('[yield] company KPI payload invalid, using fallback.');
-    return getCompanyKPIFallbackData();
-  }
-  const requiredKeys = ['proposals', 'recommendations', 'offers', 'acceptRate'];
-  const hasKeys = requiredKeys.every(key => Object.prototype.hasOwnProperty.call(raw, key));
-  if (!hasKeys) {
-    console.warn('[yield] company KPI payload missing keys, using fallback.');
-    return getCompanyKPIFallbackData();
-  }
-  return raw;
 }
 
 function getCompanyKPIFallbackData() {
@@ -672,26 +849,6 @@ function loadCompanyKPIDataFallback() {
   updateCompanyKPIDisplay(fallback);
   companyKPIState = { ...fallback };
   return fallback;
-}
-
-function normalizeCompanyPeriodData(raw) {
-  if (!raw || Array.isArray(raw)) {
-    return getCompanyPeriodFallbackData();
-  }
-  const requiredKeys = [
-    'proposals',
-    'recommendations',
-    'interviewsScheduled',
-    'interviewsHeld',
-    'offers',
-    'accepts',
-    'hires'
-  ];
-  const hasCounts = requiredKeys.every(key => Object.prototype.hasOwnProperty.call(raw, key));
-  if (!hasCounts) {
-    return getCompanyPeriodFallbackData();
-  }
-  return raw;
 }
 
 function getCompanyPeriodFallbackData() {
@@ -735,8 +892,13 @@ async function loadEmployeeData(rangeFilters = {}) {
       filters.endDate = rangeFilters.endDate;
     }
     const raw = await repositories.kpi.getEmployeePerformance(filters);
-    
-    const data = normalizeEmployeeData(raw);
+    const data = pickOrFallback(
+      raw,
+      value =>
+        (Array.isArray(value) && value.length) ||
+        (Array.isArray(value?.employees) && value.employees.length),
+      getEmployeeFallbackData
+    );
     
     // データを表示
     updateEmployeeDisplay(data);
@@ -745,29 +907,11 @@ async function loadEmployeeData(rangeFilters = {}) {
   } catch (error) {
     console.error('Failed to load employee data:', error);
     // フォールバック：モックデータを使用
-    return loadEmployeeDataFallback();
+    const employeeData = getEmployeeFallbackData();
+    updateEmployeeDisplay(employeeData);
+    employeeListState = [...employeeData];
+    return employeeData;
   }
-}
-
-// フォールバック用モックデータの読み込み
-function loadEmployeeDataFallback() {
-  // モック社員データ
-  const employeeData = getEmployeeFallbackData();
-  
-  updateEmployeeDisplay(employeeData);
-  employeeListState = [...employeeData];
-  return employeeData;
-}
-
-function normalizeEmployeeData(raw) {
-  if (Array.isArray(raw) && raw.length) {
-    return raw;
-  }
-  if (Array.isArray(raw?.employees) && raw.employees.length) {
-    return raw.employees;
-  }
-  console.warn('[yield] employee payload invalid, using fallback.');
-  return getEmployeeFallbackData();
 }
 
 function getEmployeeFallbackData() {
@@ -835,6 +979,79 @@ function updateCompanyKPIDisplay(data) {
       element.textContent = value;
     }
   });
+
+  const cScope = document.querySelectorAll('.kpi-v2-section')[1];
+  const c = data || {};
+  const companyProposalCard = document.getElementById('companyProposalRate')?.closest('.kpi-v2-card');
+  const companyRecommendationCard = document.getElementById('companyRecommendationRate')?.closest('.kpi-v2-card');
+  const companyInterviewScheduleCard = document
+    .getElementById('companyInterviewScheduleRate')
+    ?.closest('.kpi-v2-card');
+  const companyInterviewHeldCard = document.getElementById('companyInterviewHeldRate')?.closest('.kpi-v2-card');
+  const companyOfferCard = document.getElementById('companyOfferRate')?.closest('.kpi-v2-card');
+  const companyAcceptCard = document.getElementById('companyAcceptRate')?.closest('.kpi-v2-card');
+
+  writeRateDetailInline(
+    companyProposalCard,
+    '提案数',
+    c.proposals,
+    '新規面談数',
+    c.newInterviews,
+    c.prevNewInterviews
+  );
+  writeRateDetailInline(
+    companyRecommendationCard,
+    '推薦数',
+    c.recommendations,
+    '提案数',
+    c.proposals,
+    c.prevProposals
+  );
+  writeRateDetailInline(
+    companyInterviewScheduleCard,
+    '面談設定数',
+    c.interviewsScheduled,
+    '推薦数',
+    c.recommendations,
+    c.prevRecommendations
+  );
+  writeRateDetailInline(
+    companyInterviewHeldCard,
+    '面談実施数',
+    c.interviewsHeld,
+    '面談設定数',
+    c.interviewsScheduled,
+    c.prevInterviewsScheduled
+  );
+  writeRateDetailInline(
+    companyOfferCard,
+    '内定数',
+    c.offers,
+    '面談実施数',
+    c.interviewsHeld,
+    c.prevInterviewsHeld
+  );
+  writeRateDetailInline(
+    companyAcceptCard,
+    '承諾数',
+    c.accepts,
+    '内定数',
+    c.offers,
+    c.prevOffers
+  );
+
+  const companyRatesRow = cScope?.querySelector(
+    '.kpi-v2-subsection:nth-of-type(1) .kpi-v2-row[data-kpi-type="rates"]'
+  );
+  const companyHireCard = companyRatesRow?.querySelectorAll('.kpi-v2-card')[6];
+  writeRateDetailInline(
+    companyHireCard,
+    '承諾数',
+    c.accepts,
+    '新規面談数',
+    c.newInterviews,
+    c.prevNewInterviews
+  );
 }
 
 function updateCompanyPeriodDisplay(data) {
@@ -872,6 +1089,79 @@ function updateCompanyPeriodDisplay(data) {
       element.textContent = value;
     }
   });
+
+  const section = document.querySelectorAll('.kpi-v2-section')[1];
+  const d = data || {};
+  const periodProposalCard = document.getElementById('companyPeriodProposalRate')?.closest('.kpi-v2-card');
+  const periodRecommendationCard = document
+    .getElementById('companyPeriodRecommendationRate')
+    ?.closest('.kpi-v2-card');
+  const periodInterviewScheduleCard = document
+    .getElementById('companyPeriodInterviewScheduleRate')
+    ?.closest('.kpi-v2-card');
+  const periodInterviewHeldCard = document
+    .getElementById('companyPeriodInterviewHeldRate')
+    ?.closest('.kpi-v2-card');
+  const periodOfferCard = document.getElementById('companyPeriodOfferRate')?.closest('.kpi-v2-card');
+  const periodAcceptCard = document.getElementById('companyPeriodAcceptRate')?.closest('.kpi-v2-card');
+  const periodHireCard = document.getElementById('companyPeriodHireRate')?.closest('.kpi-v2-card');
+
+  writeRateDetailInline(
+    periodProposalCard,
+    '提案数',
+    d.proposals,
+    '新規面談数',
+    d.newInterviews,
+    d.prevNewInterviews
+  );
+  writeRateDetailInline(
+    periodRecommendationCard,
+    '推薦数',
+    d.recommendations,
+    '提案数',
+    d.proposals,
+    d.prevProposals
+  );
+  writeRateDetailInline(
+    periodInterviewScheduleCard,
+    '面談設定数',
+    d.interviewsScheduled,
+    '推薦数',
+    d.recommendations,
+    d.prevRecommendations
+  );
+  writeRateDetailInline(
+    periodInterviewHeldCard,
+    '面談実施数',
+    d.interviewsHeld,
+    '面談設定数',
+    d.interviewsScheduled,
+    d.prevInterviewsScheduled
+  );
+  writeRateDetailInline(
+    periodOfferCard,
+    '内定数',
+    d.offers,
+    '面談実施数',
+    d.interviewsHeld,
+    d.prevInterviewsHeld
+  );
+  writeRateDetailInline(
+    periodAcceptCard,
+    '承諾数',
+    d.accepts,
+    '内定数',
+    d.offers,
+    d.prevOffers
+  );
+  writeRateDetailInline(
+    periodHireCard,
+    '承諾数',
+    d.accepts,
+    '新規面談数',
+    d.newInterviews,
+    d.prevNewInterviews
+  );
 }
 
 // 社員表示の更新
@@ -1123,7 +1413,6 @@ function createEmployeeSeries(base, length, seed = 0) {
 
 // イベントハンドラー
 function handleDateRangeChange(event) {
-  console.log('Date range changed:', event.target.value);
   // 日付範囲変更時の処理
   loadYieldData();
 }
@@ -1140,18 +1429,15 @@ function handleEmployeeSearch(event) {
 
 function handleEmployeeSort(event) {
   const sortBy = event.target.value;
-  console.log('Sorting employees by:', sortBy);
   // ソート処理の実装
 }
 
 function handleFilterApply(event) {
-  console.log('Applying filters');
   // フィルター適用処理
   applyFilters();
 }
 
 function handleFilterReset(event) {
-  console.log('Resetting filters');
   // フィルターリセット処理
   resetFilters();
 }
@@ -1244,7 +1530,6 @@ function resetFilters() {
 
 function applySorting() {
   // ソート処理の実装
-  console.log('Applying sort');
 }
 
 function checkContactPermission() {
@@ -1255,10 +1540,8 @@ function checkContactPermission() {
 
 function cleanupEventListeners() {
   // イベントリスナーのクリーンアップ
-  console.log('Cleaning up yield page event listeners');
 }
 
 function cleanupCharts() {
   // チャートのクリーンアップ
-  console.log('Cleaning up yield page charts');
 }
