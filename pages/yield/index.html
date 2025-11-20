@@ -304,6 +304,23 @@
     <!-- 個人グラフ -->
     <div class="kpi-v2-chart-section">
       <h4 class="kpi-v2-chart-title">個人グラフ（提案率〜承諾率の月次推移）</h4>
+      <div class="kpi-v2-chart-controls">
+        <div class="kpi-v2-mode-toggle" id="personalTrendMode">
+          <button type="button" class="kpi-v2-mode-btn active" data-period-mode="day">日</button>
+          <button type="button" class="kpi-v2-mode-btn" data-period-mode="month">月</button>
+          <button type="button" class="kpi-v2-mode-btn" data-period-mode="year">年</button>
+        </div>
+        <div class="kpi-v2-select-group" id="personalTrendMonthControls">
+          <label for="personalTrendYearSelect" class="sr-only">対象年</label>
+          <select id="personalTrendYearSelect" class="kpi-v2-mode-select"></select>
+          <label for="personalTrendMonthSelect" class="sr-only">対象月</label>
+          <select id="personalTrendMonthSelect" class="kpi-v2-mode-select"></select>
+        </div>
+        <div class="kpi-v2-select-group" id="personalTrendYearControls">
+          <label for="personalTrendYearOnlySelect" class="sr-only">対象年</label>
+          <select id="personalTrendYearOnlySelect" class="kpi-v2-mode-select"></select>
+        </div>
+      </div>
       <div class="kpi-v2-chart-container chart-single-center">
         <svg id="personalTrendChart" class="kpi-v2-svg-chart" viewBox="0 0 800 300">
           <!-- チャートはJavaScriptで描画 -->
@@ -360,7 +377,7 @@
           </div>
           <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
             <div class="kpi-v2-label">承諾数</div>
-            <div class="kpi-v2-value" id="companyAccepts">41</div>
+            <div class="kpi-v2-value" id="companyHires">41</div>
           </div>
         </div>
       </div>
@@ -498,9 +515,18 @@
             <span class="toggle-text">カード表示</span>
           </button>
           <div class="kpi-v2-preset-group" id="employeePeriodPresets">
-            <button type="button" class="period-preset-btn employee" data-range="3m">直近3ヶ月</button>
-            <button type="button" class="period-preset-btn employee" data-range="6m">直近6ヶ月</button>
-            <button type="button" class="period-preset-btn employee" data-range="12m">直近1年</button>
+            <button type="button" class="period-preset-btn employee" data-range="1">今月</button>
+            <button type="button" class="period-preset-btn employee" data-range="3">直近3ヶ月</button>
+            <button type="button" class="period-preset-btn employee" data-range="6">直近6ヶ月</button>
+            <button type="button" class="period-preset-btn employee" data-range="12">直近1年</button>
+          </div>
+          <div class="kpi-v2-date-range employee-range-inputs">
+            <label for="employeeRangeStart" class="sr-only">期間開始</label>
+            <input type="date" id="employeeRangeStart" class="kpi-v2-date-input" />
+            <span class="kpi-v2-date-separator">〜</span>
+            <label for="employeeRangeEnd" class="sr-only">期間終了</label>
+            <input type="date" id="employeeRangeEnd" class="kpi-v2-date-input" />
+            <button type="button" id="employeeRangeApply" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap">期間を適用</button>
           </div>
         </div>
       </div>
@@ -546,6 +572,23 @@
     <!-- 社内グラフ -->
     <div class="kpi-v2-chart-section">
       <h4 class="kpi-v2-chart-title">社内トレンドグラフ</h4>
+      <div class="kpi-v2-chart-controls">
+        <div class="kpi-v2-mode-toggle" id="companyTrendMode">
+          <button type="button" class="kpi-v2-mode-btn active" data-company-period="day">日</button>
+          <button type="button" class="kpi-v2-mode-btn" data-company-period="month">月</button>
+          <button type="button" class="kpi-v2-mode-btn" data-company-period="year">年</button>
+        </div>
+        <div class="kpi-v2-select-group" id="companyTrendMonthControls">
+          <label for="companyTrendYearSelect" class="sr-only">対象年</label>
+          <select id="companyTrendYearSelect" class="kpi-v2-mode-select"></select>
+          <label for="companyTrendMonthSelect" class="sr-only">対象月</label>
+          <select id="companyTrendMonthSelect" class="kpi-v2-mode-select"></select>
+        </div>
+        <div class="kpi-v2-select-group" id="companyTrendYearControls">
+          <label for="companyTrendYearOnlySelect" class="sr-only">対象年</label>
+          <select id="companyTrendYearOnlySelect" class="kpi-v2-mode-select"></select>
+        </div>
+      </div>
       <div class="kpi-v2-chart-grid">
         <div class="kpi-v2-chart-container" id="companyTrendChart">
           <!-- 全体の数/率推移を表示予定 -->

@@ -2,7 +2,10 @@
  * Client-side router for dashboard application
  * Handles navigation between pages using ES modules
  */
-import { getSession, hasRole, logout } from './auth.js';
+import { getSession, hasRole, onAuthChange } from './auth.js';
+import { authRepo } from './api/repositories/auth.js';
+
+const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
 const routes = {
   'login':        () => import('../pages/login/login.js'),
@@ -13,7 +16,7 @@ const routes = {
   'referral':     () => import('../pages/referral/referral.js'),
 };
 
-const routeMeta = {
+export const routeMeta = {
   login:          { public: true },
   yield:          { roles: ['admin', 'member'] },
   candidates:     { roles: ['admin', 'member'] },
@@ -34,6 +37,13 @@ const pageCSS = {
 
 let current = null;
 let currentCSS = null;
+const BADGE_SELECTORS = [
+  '.page-header .header-actions',
+  '.page-header',
+  '#app'
+];
+const BADGE_SELECTOR = '[data-user-badge]';
+let unsubscribeBadge = null;
 
 function loadPageCSS(page) {
   // Remove previous page CSS
@@ -53,27 +63,66 @@ function loadPageCSS(page) {
   }
 }
 
-export async function navigate(to) {
-  const app = document.getElementById('app');
-  const page = to || (location.hash.replace('#/', '') || 'yield');
-  
-  // Auth guard
+/**
+ * ナビゲーション前のルーターガード
+ * - 未ログイン時の保護ルートアクセス → login へ
+ * - ロール不足のルートアクセス → yield へ
+ * @param {string} page
+ * @returns {string} 実際に遷移すべきページID
+ */
+export function beforeNavigate(page) {
   const session = getSession();
   const meta = routeMeta[page];
-  
+
+  // 未ログインかつ保護ルートの場合は login へ誘導
   if (!meta?.public && !session) {
-    // Redirect to login if not authenticated
     if (page !== 'login') {
-      location.hash = '#/login';
-      return;
+      try {
+        sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, page);
+      } catch {
+        // sessionStorage が使えない環境では単純にloginへ遷移
+      }
+      return 'login';
     }
   }
-  
+
+  // ロール不足の場合は yield へフォールバック
   if (meta?.roles && !hasRole(meta.roles)) {
-    // Redirect to yield if insufficient permissions
-    location.hash = '#/yield';
+    return 'yield';
+  }
+
+  return page;
+}
+
+/**
+ * ログイン前にアクセスしようとしていた保護ルートを取得して破棄する
+ * @returns {string|null}
+ */
+export function consumePostLoginRedirect() {
+  try {
+    const page = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    if (!page) return null;
+    sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    return page;
+  } catch {
+    return null;
+  }
+}
+
+export async function navigate(to) {
+  const app = document.getElementById('app');
+  const rawPage = to || (location.hash.replace('#/', '') || 'yield');
+
+  // ルーターガード（beforeNavigate）で実際に表示すべきページを決定
+  const guardedPage = beforeNavigate(rawPage);
+
+  if (guardedPage !== rawPage) {
+    // ハッシュを書き換えて早期リターン（実際の描画は次のnavigate呼び出しで行う）
+    location.hash = `#/${guardedPage}`;
     return;
   }
+
+  const page = guardedPage;
   
   // Unmount current page
   if (current?.unmount) {
@@ -107,6 +156,7 @@ export async function navigate(to) {
     
     // Update navigation state
     updateNavigation(page);
+    ensureUserBadge();
   } catch (error) {
     console.error('Navigation error:', error);
     // Fallback to login page
@@ -138,7 +188,11 @@ function updateNavigation(page) {
 
 export function boot() {
   // Initial navigation
-  addEventListener('DOMContentLoaded', () => navigate());
+  addEventListener('DOMContentLoaded', async () => {
+    // サーバー上のセッションからローカルセッションを復元
+    await authRepo.me();
+    await navigate();
+  });
   
   // Handle hash changes
   addEventListener('hashchange', () => navigate());
@@ -160,8 +214,75 @@ export function boot() {
     const logoutButton = event.target.closest('[data-action="logout"]');
     if (logoutButton) {
       event.preventDefault();
-      logout();
+      authRepo.logout();
       location.hash = '#/login';
     }
   });
+}
+function ensureUserBadge() {
+  renderUserBadge();
+  if (!unsubscribeBadge) {
+    unsubscribeBadge = onAuthChange(() => renderUserBadge());
+  }
+}
+
+function renderUserBadge() {
+  const container = BADGE_SELECTORS.map(selector => document.querySelector(selector))
+    .find(Boolean);
+  if (!container) return;
+
+  let badge = document.querySelector(BADGE_SELECTOR);
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.dataset.userBadge = 'true';
+    badge.className = 'user-badge-chip';
+    badge.innerHTML = '<span class="user-badge-chip__text"></span>';
+    badge.addEventListener('click', handleBadgeActivate);
+    badge.addEventListener('keydown', handleBadgeActivate);
+  }
+
+  if (badge.parentElement !== container) {
+    container.appendChild(badge);
+  }
+
+  updateUserBadgeText(badge);
+}
+
+function handleBadgeActivate(event) {
+  const isKey = event.type === 'keydown';
+  if (isKey && event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+  const badge = event.currentTarget;
+  if (!badge) return;
+  if (badge.dataset.badgeAction === 'login') {
+    event.preventDefault();
+    location.hash = '#/login';
+  }
+}
+
+function updateUserBadgeText(badge) {
+  const textEl = badge.querySelector('.user-badge-chip__text');
+  if (!textEl) return;
+  const session = getSession();
+
+  if (session) {
+    const name = session.user?.name || session.user?.email || '';
+    const roleLabel = session.role === 'admin'
+      ? '管理者'
+      : session.role === 'member'
+        ? '一般'
+        : (session.role || '');
+    textEl.textContent = roleLabel ? `${name} / ${roleLabel}` : name;
+    badge.dataset.badgeAction = '';
+    badge.removeAttribute('role');
+    badge.removeAttribute('tabindex');
+    badge.removeAttribute('aria-label');
+  } else {
+    textEl.textContent = '未ログイン';
+    badge.dataset.badgeAction = 'login';
+    badge.setAttribute('role', 'button');
+    badge.setAttribute('tabindex', '0');
+    badge.setAttribute('aria-label', 'ログインページへ移動');
+  }
 }

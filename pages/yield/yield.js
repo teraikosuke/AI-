@@ -1,5 +1,6 @@
 // Yield Page JavaScript Module
 import { RepositoryFactory } from '../../scripts/api/index.js';
+import { hasRole } from '../../scripts/auth.js';
 
 const repositories = RepositoryFactory.create();
 
@@ -13,6 +14,34 @@ let monthlyGoalsInitialized = false;
 let companyKPIState = null;
 let employeeListState = [];
 let employeePeriodRange = { startDate: '', endDate: '' };
+let isAdminUser = false;
+let personalTrendRows = [];
+let companyTrendRows = [];
+const now = new Date();
+const defaultTrendYear = now.getFullYear();
+const defaultTrendMonth = now.getMonth() + 1;
+const personalTrendMode = {
+  valueMode: 'rate',
+  periodMode: 'day',
+  monthSelection: { year: defaultTrendYear, month: defaultTrendMonth },
+  yearSelection: defaultTrendYear
+};
+const companyTrendMode = {
+  periodMode: 'day',
+  monthSelection: { year: defaultTrendYear, month: defaultTrendMonth },
+  yearSelection: defaultTrendYear
+};
+let personalTrendOptions = { years: [], monthsByYear: new Map(), latest: null };
+let companyTrendOptions = { years: [], monthsByYear: new Map(), latest: null };
+
+function getCurrentMonthRange() {
+  const end = new Date();
+  const start = new Date(end.getFullYear(), end.getMonth(), 1);
+  return {
+    startDate: start.toISOString().split('T')[0],
+    endDate: end.toISOString().split('T')[0]
+  };
+}
 
 function safe(name, fn) {
   try {
@@ -36,6 +65,35 @@ function pickOrFallback(raw, validator, fallbackFactory) {
 function num(value) {
   const n = Number(value || 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function syncAccessRole() {
+  isAdminUser = hasRole('admin');
+  toggleEmployeeSections(isAdminUser);
+}
+
+function toggleEmployeeSections(shouldShow) {
+  const employeeSection = document.getElementById('employeeTableBody')?.closest('.kpi-v2-subsection');
+  if (employeeSection) {
+    employeeSection.hidden = !shouldShow;
+  }
+  const employeeTrendContainer =
+    document.getElementById('employeeTrendChart')?.closest('.kpi-v2-chart-container') ||
+    document.getElementById('employeeTrendChart');
+  if (employeeTrendContainer) {
+    employeeTrendContainer.hidden = !shouldShow;
+  }
+  if (!shouldShow) {
+    updateEmployeeDisplay([]);
+    clearEmployeeTrendChart();
+  }
+}
+
+function clearEmployeeTrendChart() {
+  const host = document.getElementById('employeeTrendChart');
+  if (host) {
+    host.innerHTML = '';
+  }
 }
 
 function ensureValueWrap(cardEl) {
@@ -81,13 +139,26 @@ const DEFAULT_EMPLOYEE_SERIES = [
   { name: '鈴木健', proposals: 18 }
 ];
 
+const PERSONAL_TREND_LABELS = ['11月', '12月', '1月', '2月', '3月', '4月'];
+const PERSONAL_RATE_SERIES = {
+  提案率: [62, 65, 63, 68, 70, 72],
+  内定率: [40, 42, 38, 45, 47, 50],
+  承諾率: [28, 30, 32, 34, 35, 37]
+};
+const PERSONAL_COUNT_SERIES = {
+  提案数: [10, 12, 9, 14, 16, 13],
+  内定数: [3, 4, 3, 5, 6, 5]
+};
+
 export function mount() {
+  syncAccessRole();
   safe('initializeDatePickers', initializeDatePickers);
   safe('initTodayGoals', initTodayGoals);
   safe('initPeriodKPI', initPeriodKPI);
   safe('initCompanyPeriodKPI', initCompanyPeriodKPI);
   safe('initEmployeePeriodPreset', initEmployeePeriodPreset);
   safe('initializeKPICharts', initializeKPICharts);
+  safe('initializeTrendControls', initializeTrendControls);
   safe('initializeEmployeeControls', initializeEmployeeControls);
   safe('initializeFilters', initializeFilters);
   safe('loadYieldData', loadYieldData);
@@ -139,13 +210,268 @@ function initializeDatePickers() {
 // KPIチャートの初期化
 function initializeKPICharts() {
   // 月次推移チャートの初期化
-  drawTrendChart({ mode: 'rate', range: '6m' });
-  drawCompanyTrend({ range: '6m' });
-  drawEmployeeComparisonTrend({ range: '6m', employees: DEFAULT_EMPLOYEE_SERIES });
+  renderPersonalTrendChart();
+  renderCompanyTrendCharts({ rangeLabel: '6m', employeeData: DEFAULT_EMPLOYEE_SERIES });
+}
+
+function initializeTrendControls() {
+  initPersonalTrendControls();
+  initCompanyTrendControls();
+}
+
+function initPersonalTrendControls() {
+  const modeContainer = document.getElementById('personalTrendMode');
+  if (modeContainer) {
+    modeContainer.querySelectorAll('[data-period-mode]').forEach(button => {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.periodMode;
+        if (!mode || personalTrendMode.periodMode === mode) return;
+        personalTrendMode.periodMode = mode;
+        updatePersonalTrendModeButtons();
+        updatePersonalTrendControlVisibility();
+        renderPersonalTrendChart();
+      });
+    });
+    updatePersonalTrendModeButtons();
+  }
+  const yearSelect = document.getElementById('personalTrendYearSelect');
+  const monthSelect = document.getElementById('personalTrendMonthSelect');
+  const yearOnlySelect = document.getElementById('personalTrendYearOnlySelect');
+  yearSelect?.addEventListener('change', () => {
+    personalTrendMode.monthSelection.year = Number(yearSelect.value) || personalTrendMode.monthSelection.year;
+    refreshPersonalMonthOptions();
+    renderPersonalTrendChart();
+  });
+  monthSelect?.addEventListener('change', () => {
+    personalTrendMode.monthSelection.month = Number(monthSelect.value) || personalTrendMode.monthSelection.month;
+    renderPersonalTrendChart();
+  });
+  yearOnlySelect?.addEventListener('change', () => {
+    personalTrendMode.yearSelection = Number(yearOnlySelect.value) || personalTrendMode.yearSelection;
+    renderPersonalTrendChart();
+  });
+  refreshPersonalTrendSelectors();
+  updatePersonalTrendControlVisibility();
+}
+
+function initCompanyTrendControls() {
+  const modeContainer = document.getElementById('companyTrendMode');
+  if (modeContainer) {
+    modeContainer.querySelectorAll('[data-company-period]').forEach(button => {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.companyPeriod;
+        if (!mode || companyTrendMode.periodMode === mode) return;
+        companyTrendMode.periodMode = mode;
+        updateCompanyTrendModeButtons();
+        updateCompanyTrendControlVisibility();
+        renderCompanyTrendCharts();
+      });
+    });
+    updateCompanyTrendModeButtons();
+  }
+  const yearSelect = document.getElementById('companyTrendYearSelect');
+  const monthSelect = document.getElementById('companyTrendMonthSelect');
+  const yearOnlySelect = document.getElementById('companyTrendYearOnlySelect');
+  yearSelect?.addEventListener('change', () => {
+    companyTrendMode.monthSelection.year = Number(yearSelect.value) || companyTrendMode.monthSelection.year;
+    refreshCompanyMonthOptions();
+    renderCompanyTrendCharts();
+  });
+  monthSelect?.addEventListener('change', () => {
+    companyTrendMode.monthSelection.month = Number(monthSelect.value) || companyTrendMode.monthSelection.month;
+    renderCompanyTrendCharts();
+  });
+  yearOnlySelect?.addEventListener('change', () => {
+    companyTrendMode.yearSelection = Number(yearOnlySelect.value) || companyTrendMode.yearSelection;
+    renderCompanyTrendCharts();
+  });
+  refreshCompanyTrendSelectors();
+  updateCompanyTrendControlVisibility();
+}
+
+function updatePersonalTrendModeButtons() {
+  const buttons = document.querySelectorAll('#personalTrendMode [data-period-mode]');
+  buttons.forEach(button => {
+    const mode = button.dataset.periodMode;
+    button.classList.toggle('active', mode === personalTrendMode.periodMode);
+  });
+}
+
+function updatePersonalTrendControlVisibility() {
+  const monthControls = document.getElementById('personalTrendMonthControls');
+  const yearControls = document.getElementById('personalTrendYearControls');
+  if (monthControls) {
+    monthControls.classList.toggle('is-active', personalTrendMode.periodMode === 'month');
+  }
+  if (yearControls) {
+    yearControls.classList.toggle('is-active', personalTrendMode.periodMode === 'year');
+  }
+}
+
+function refreshPersonalTrendSelectors() {
+  personalTrendOptions = buildYearMonthSummary(personalTrendRows);
+  const years = personalTrendOptions.years;
+  const latestYear = personalTrendOptions.latest?.year ?? personalTrendMode.monthSelection.year;
+  const latestMonth = personalTrendOptions.latest?.month ?? personalTrendMode.monthSelection.month;
+  if (!years.includes(personalTrendMode.monthSelection.year) && years.length) {
+    personalTrendMode.monthSelection.year = latestYear;
+  }
+  if (!years.includes(personalTrendMode.yearSelection) && years.length) {
+    personalTrendMode.yearSelection = latestYear;
+  }
+  const resolvedYear = populateSelectOptions(
+    document.getElementById('personalTrendYearSelect'),
+    years,
+    personalTrendMode.monthSelection.year,
+    value => `${value}年`
+  );
+  if (resolvedYear !== null) {
+    personalTrendMode.monthSelection.year = Number(resolvedYear);
+  }
+  refreshPersonalMonthOptions(latestMonth);
+  const resolvedYearOnly = populateSelectOptions(
+    document.getElementById('personalTrendYearOnlySelect'),
+    years,
+    personalTrendMode.yearSelection,
+    value => `${value}年`
+  );
+  if (resolvedYearOnly !== null) {
+    personalTrendMode.yearSelection = Number(resolvedYearOnly);
+  }
+}
+
+function refreshPersonalMonthOptions(fallbackMonth) {
+  const monthSelect = document.getElementById('personalTrendMonthSelect');
+  const year = personalTrendMode.monthSelection.year;
+  const months = personalTrendOptions.monthsByYear.get(year) || [];
+  let activeMonth = personalTrendMode.monthSelection.month;
+  if (!months.includes(activeMonth) && months.length) {
+    activeMonth = fallbackMonth && months.includes(fallbackMonth) ? fallbackMonth : months[months.length - 1];
+    personalTrendMode.monthSelection.month = activeMonth;
+  }
+  const resolvedMonth = populateSelectOptions(
+    monthSelect,
+    months,
+    personalTrendMode.monthSelection.month,
+    value => `${String(value).padStart(2, '0')}月`
+  );
+  if (resolvedMonth !== null) {
+    personalTrendMode.monthSelection.month = Number(resolvedMonth);
+  }
+  if (monthSelect) {
+    monthSelect.disabled = months.length === 0;
+  }
+}
+
+function renderPersonalTrendChart() {
+  drawTrendChart({
+    mode: 'rate',
+    range: getPersonalTrendRangeLabel(),
+    periodMode: personalTrendMode.periodMode,
+    monthSelection: { ...personalTrendMode.monthSelection },
+    yearSelection: personalTrendMode.yearSelection
+  });
+}
+
+function updateCompanyTrendModeButtons() {
+  const buttons = document.querySelectorAll('#companyTrendMode [data-company-period]');
+  buttons.forEach(button => {
+    const mode = button.dataset.companyPeriod;
+    button.classList.toggle('active', mode === companyTrendMode.periodMode);
+  });
+}
+
+function updateCompanyTrendControlVisibility() {
+  const monthControls = document.getElementById('companyTrendMonthControls');
+  const yearControls = document.getElementById('companyTrendYearControls');
+  if (monthControls) {
+    monthControls.classList.toggle('is-active', companyTrendMode.periodMode === 'month');
+  }
+  if (yearControls) {
+    yearControls.classList.toggle('is-active', companyTrendMode.periodMode === 'year');
+  }
+}
+
+function refreshCompanyTrendSelectors() {
+  companyTrendOptions = buildYearMonthSummary(companyTrendRows);
+  const years = companyTrendOptions.years;
+  const latestYear = companyTrendOptions.latest?.year ?? companyTrendMode.monthSelection.year;
+  const latestMonth = companyTrendOptions.latest?.month ?? companyTrendMode.monthSelection.month;
+  if (!years.includes(companyTrendMode.monthSelection.year) && years.length) {
+    companyTrendMode.monthSelection.year = latestYear;
+  }
+  if (!years.includes(companyTrendMode.yearSelection) && years.length) {
+    companyTrendMode.yearSelection = latestYear;
+  }
+  const resolvedYear = populateSelectOptions(
+    document.getElementById('companyTrendYearSelect'),
+    years,
+    companyTrendMode.monthSelection.year,
+    value => `${value}年`
+  );
+  if (resolvedYear !== null) {
+    companyTrendMode.monthSelection.year = Number(resolvedYear);
+  }
+  refreshCompanyMonthOptions(latestMonth);
+  const resolvedYearOnly = populateSelectOptions(
+    document.getElementById('companyTrendYearOnlySelect'),
+    years,
+    companyTrendMode.yearSelection,
+    value => `${value}年`
+  );
+  if (resolvedYearOnly !== null) {
+    companyTrendMode.yearSelection = Number(resolvedYearOnly);
+  }
+}
+
+function refreshCompanyMonthOptions(fallbackMonth) {
+  const monthSelect = document.getElementById('companyTrendMonthSelect');
+  const year = companyTrendMode.monthSelection.year;
+  const months = companyTrendOptions.monthsByYear.get(year) || [];
+  let activeMonth = companyTrendMode.monthSelection.month;
+  if (!months.includes(activeMonth) && months.length) {
+    activeMonth = fallbackMonth && months.includes(fallbackMonth) ? fallbackMonth : months[months.length - 1];
+    companyTrendMode.monthSelection.month = activeMonth;
+  }
+  const resolvedMonth = populateSelectOptions(
+    monthSelect,
+    months,
+    companyTrendMode.monthSelection.month,
+    value => `${String(value).padStart(2, '0')}月`
+  );
+  if (resolvedMonth !== null) {
+    companyTrendMode.monthSelection.month = Number(resolvedMonth);
+  }
+  if (monthSelect) {
+    monthSelect.disabled = months.length === 0;
+  }
+}
+
+function renderCompanyTrendCharts({ companyData, employeeData, rangeLabel } = {}) {
+  const label = rangeLabel || getCompanyTrendRangeLabel();
+  drawCompanyTrend({
+    range: label,
+    data: companyData,
+    periodMode: companyTrendMode.periodMode,
+    monthSelection: { ...companyTrendMode.monthSelection },
+    yearSelection: companyTrendMode.yearSelection
+  });
+  if (isAdminUser) {
+    drawEmployeeComparisonTrend({
+      range: label,
+      employees: employeeData || employeeListState,
+      periodMode: companyTrendMode.periodMode,
+      monthSelection: { ...companyTrendMode.monthSelection },
+      yearSelection: companyTrendMode.yearSelection
+    });
+  } else {
+    clearEmployeeTrendChart();
+  }
 }
 
 // 社員コントロールの初期化
 function initializeEmployeeControls() {
+  if (!isAdminUser) return;
   const searchInput = document.getElementById('employeeSearchInput');
   const sortSelect = document.getElementById('employeeSortSelect');
   
@@ -230,37 +556,42 @@ function updateTodayKPI(data) {
     const todaySource = data.today || data.daily || null;
     const fallback = todaySource || data.monthly || data;
     todayKPIState = {
+      newInterviews:
+        fallback.newInterviews ??
+        fallback.new_interviews ??
+        fallback.proposals ??
+        0,
       proposals: fallback.proposals ?? 0,
       recommendations: fallback.recommendations ?? 0,
-      interviewsScheduled: fallback.interviewsScheduled ?? 0,
-      interviewsHeld: fallback.interviewsHeld ?? 0,
+      interviewsScheduled: fallback.interviewsScheduled ?? fallback.interviews_scheduled ?? 0,
+      interviewsHeld: fallback.interviewsHeld ?? fallback.interviews_held ?? 0,
       offers: fallback.offers ?? 0,
-      accepts: fallback.accepts ?? 0,
+      accepts: fallback.accepts ?? fallback.hires ?? 0,
       hires: fallback.hires ?? fallback.accepts ?? 0
     };
   }
   
   const metrics = [
-    { key: 'proposals', elementId: 'todayProposals' },
-    { key: 'recommendations', elementId: 'todayRecommendations' },
-    { key: 'interviewsScheduled', elementId: 'todayInterviewsScheduled' },
-    { key: 'interviewsHeld', elementId: 'todayInterviewsHeld' },
-    { key: 'offers', elementId: 'todayOffers' },
-    { key: 'accepts', elementId: 'todayAccepts' },
-    { key: 'hires', elementId: 'todayHires' }
+    { key: 'newInterviews', elementId: 'todayProposals', goalKey: 'proposals' },
+    { key: 'proposals', elementId: 'todayRecommendations', goalKey: 'recommendations' },
+    { key: 'recommendations', elementId: 'todayInterviewsScheduled', goalKey: 'interviewsScheduled' },
+    { key: 'interviewsScheduled', elementId: 'todayInterviewsHeld', goalKey: 'interviewsHeld' },
+    { key: 'interviewsHeld', elementId: 'todayOffers', goalKey: 'offers' },
+    { key: 'offers', elementId: 'todayAccepts', goalKey: 'accepts' },
+    { key: 'accepts', elementId: 'todayHires', goalKey: 'hires' }
   ];
   const goals = JSON.parse(localStorage.getItem(TODAY_GOAL_KEY) || '{}');
   
-  metrics.forEach(({ key, elementId }) => {
+  metrics.forEach(({ key, elementId, goalKey }) => {
     const current = todayKPIState?.[key] ?? 0;
-    const rawTarget = goals[key];
+    const rawTarget = goals[goalKey ?? key];
     const target = Number(rawTarget);
     const hasValidTarget = Number.isFinite(target) && target > 0;
     const element = document.getElementById(elementId);
     if (element) {
       element.textContent = current.toLocaleString();
     }
-    const achv = document.querySelector(`[data-ref="todayAchv-${key}"]`);
+    const achv = document.querySelector(`[data-ref="todayAchv-${goalKey ?? key}"]`);
     if (achv) {
       achv.classList.add('kpi-v2-achv-badge');
       if (hasValidTarget) {
@@ -298,29 +629,32 @@ function updateMonthlyKPI(data) {
     monthlyGoalsInitialized = true;
   }
   
-  const monthMetrics = [
-    'proposals',
-    'recommendations',
-    'interviewsScheduled',
-    'interviewsHeld',
-    'offers',
-    'accepts',
-    'hires',
-    'proposalRate',
-    'recommendationRate',
-    'interviewScheduleRate',
-    'interviewHeldRate',
-    'offerRate',
-    'acceptRate',
-    'hireRate'
+  const countMetricMap = [
+    { domKey: 'proposals', valueKey: 'newInterviews' },
+    { domKey: 'recommendations', valueKey: 'proposals' },
+    { domKey: 'interviewsScheduled', valueKey: 'recommendations' },
+    { domKey: 'interviewsHeld', valueKey: 'interviewsScheduled' },
+    { domKey: 'offers', valueKey: 'interviewsHeld' },
+    { domKey: 'accepts', valueKey: 'offers' },
+    { domKey: 'hires', valueKey: 'accepts' }
   ];
+  const rateMetricMap = [
+    { domKey: 'proposalRate', valueKey: 'proposalRate' },
+    { domKey: 'recommendationRate', valueKey: 'recommendationRate' },
+    { domKey: 'interviewScheduleRate', valueKey: 'interviewScheduleRate' },
+    { domKey: 'interviewHeldRate', valueKey: 'interviewHeldRate' },
+    { domKey: 'offerRate', valueKey: 'offerRate' },
+    { domKey: 'acceptRate', valueKey: 'acceptRate' },
+    { domKey: 'hireRate', valueKey: 'hireRate' }
+  ];
+  const monthMetrics = [...countMetricMap, ...rateMetricMap];
   
-  monthMetrics.forEach(metric => {
-    const current = monthlyKPIState?.[metric] ?? 0;
-    const rawTarget = goals[metric];
+  monthMetrics.forEach(({ domKey, valueKey }) => {
+    const current = monthlyKPIState?.[valueKey] ?? 0;
+    const rawTarget = goals[domKey];
     const target = Number(rawTarget);
     const hasValidTarget = Number.isFinite(target) && target > 0;
-    const achv = document.querySelector(`[data-ref="monthlyAchv-${metric}"]`);
+    const achv = document.querySelector(`[data-ref="monthlyAchv-${domKey}"]`);
     if (!achv) return;
     achv.classList.add('kpi-v2-achv-badge');
     if (hasValidTarget) {
@@ -394,17 +728,36 @@ function initCompanyPeriodKPI() {
 }
 
 function initEmployeePeriodPreset() {
+  if (!isAdminUser) return;
   const presetContainer = document.getElementById('employeePeriodPresets');
   if (!presetContainer) return;
   const buttons = presetContainer.querySelectorAll('.period-preset-btn.employee');
+  const startInput = document.getElementById('employeeRangeStart');
+  const endInput = document.getElementById('employeeRangeEnd');
+  const applyButton = document.getElementById('employeeRangeApply');
+
   const setRange = months => {
-    const end = new Date();
-    const start = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const baseEnd = new Date();
+    const start = new Date(baseEnd.getFullYear(), baseEnd.getMonth(), baseEnd.getDate());
     start.setMonth(start.getMonth() - months);
     employeePeriodRange = {
       startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
+      endDate: baseEnd.toISOString().split('T')[0]
     };
+    if (startInput) startInput.value = employeePeriodRange.startDate;
+    if (endInput) endInput.value = employeePeriodRange.endDate;
+  };
+  const setCustomRange = (startValue, endValue) => {
+    if (!startValue || !endValue) return false;
+    if (new Date(startValue) > new Date(endValue)) return false;
+    employeePeriodRange = {
+      startDate: startValue,
+      endDate: endValue
+    };
+    if (startInput) startInput.value = startValue;
+    if (endInput) endInput.value = endValue;
+    buttons.forEach(btn => btn.classList.remove('active'));
+    return true;
   };
   
   buttons.forEach(button => {
@@ -416,11 +769,31 @@ function initEmployeePeriodPreset() {
       loadEmployeeData(employeePeriodRange);
     });
   });
-  
+
+  applyButton?.addEventListener('click', () => {
+    const startVal = startInput?.value;
+    const endVal = endInput?.value;
+    if (setCustomRange(startVal, endVal)) {
+      loadEmployeeData(employeePeriodRange);
+    }
+  });
+
+  [startInput, endInput].forEach(input => {
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applyButton?.click();
+      }
+    });
+  });
+
   if (buttons.length) {
     buttons[0].classList.add('active');
-    const months = parseInt(buttons[0].dataset.range, 10) || 3;
+    const months = parseInt(buttons[0].dataset.range, 10) || 1;
     setRange(months);
+  } else {
+    const currentRange = getCurrentMonthRange();
+    setCustomRange(currentRange.startDate, currentRange.endDate);
   }
 }
 // 連絡先マスク機能
@@ -436,32 +809,43 @@ async function loadYieldData() {
   try {
     const start = document.getElementById('personalRangeStart')?.value || '';
     const end = document.getElementById('personalRangeEnd')?.value || '';
-    const rangeLabel = start && end ? `${start}〜${end}` : 'custom';
-    
     // 個人成績データの読み込み
     const personalData = await loadPersonalKPIData();
+    const monthlyData = await loadMonthToDatePersonalKPIData();
+    updatePersonalTrendRows(personalData, monthlyData);
     if (personalData) {
       updateTodayKPI(personalData);
-      updateMonthlyKPI(personalData);
-      drawTrendChart({ mode: 'rate', range: rangeLabel });
+      updatePersonalKPIDisplay(personalData, monthlyData);
     }
+    if (monthlyData) {
+      updateMonthlyKPI(monthlyData);
+    }
+    renderPersonalTrendChart();
     
     // 社内成績データの読み込み
     const companyData = await loadCompanyKPIData();
+    updateCompanyTrendRows(companyData);
     await loadCompanyPeriodKPIData();
     
-    // 社員成績データの読み込み
-    const employeeData = await loadEmployeeData(
-      employeePeriodRange.startDate
-        ? { startDate: employeePeriodRange.startDate, endDate: employeePeriodRange.endDate }
-        : {}
-    );
+    let employeeData = [];
+    if (isAdminUser) {
+      employeeData = await loadEmployeeData(
+        employeePeriodRange.startDate
+          ? { startDate: employeePeriodRange.startDate, endDate: employeePeriodRange.endDate }
+          : {}
+      );
+    } else {
+      employeeListState = [];
+      updateEmployeeDisplay([]);
+    }
     
     // 候補者データの読み込み
     await loadCandidateData();
     
-    drawCompanyTrend({ range: rangeLabel, data: companyData });
-    drawEmployeeComparisonTrend({ range: rangeLabel, employees: employeeData });
+    renderCompanyTrendCharts({
+      companyData,
+      employeeData
+    });
     
   } catch (error) {
     console.error('Failed to load yield data:', error);
@@ -471,91 +855,92 @@ async function loadYieldData() {
 // 個人KPIデータの読み込み
 async function loadPersonalKPIData() {
   try {
-    // 日付範囲を取得
-    const startDate = document.getElementById('personalRangeStart')?.value || '2024-09-01';
-    const endDate = document.getElementById('personalRangeEnd')?.value || '2024-11-30';
-    
-    // APIからデータを取得
+    const startDate = document.getElementById('personalRangeStart')?.value || '2025-01-01';
+    const endDate = document.getElementById('personalRangeEnd')?.value || new Date().toISOString().split('T')[0];
     const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
-    const data = pickOrFallback(
+    return pickOrFallback(
       raw,
       value => !!value && !Array.isArray(value) && !!value.monthly && !!value.period,
       getPersonalKPIFallbackData
     );
-    updatePersonalKPIDisplay(data);
-    return data;
   } catch (error) {
     console.error('Failed to load personal KPI data:', error);
-    // フォールバック：モックデータを使用
-    return loadPersonalKPIDataFallback();
+    return getPersonalKPIFallbackData();
   }
 }
 
 function getPersonalKPIFallbackData() {
+  const zero = {
+    newInterviews: 0,
+    proposals: 0,
+    recommendations: 0,
+    interviewsScheduled: 0,
+    interviewsHeld: 0,
+    offers: 0,
+    accepts: 0,
+    hires: 0,
+    prevNewInterviews: 0,
+    prevProposals: 0,
+    prevRecommendations: 0,
+    prevInterviewsScheduled: 0,
+    prevInterviewsHeld: 0,
+    prevOffers: 0,
+    proposalRate: 0,
+    recommendationRate: 0,
+    interviewScheduleRate: 0,
+    interviewHeldRate: 0,
+    offerRate: 0,
+    acceptRate: 0,
+    hireRate: 0
+  };
   return {
-    achievementRate: 33,
-    currentAmount: 957000,
-    targetAmount: 3000000,
+    achievementRate: 0,
+    currentAmount: 0,
+    targetAmount: 0,
+    rows: [],
     today: {
-      proposals: 2,
-      recommendations: 1,
-      interviewsScheduled: 1,
-      interviewsHeld: 1,
+      newInterviews: 0,
+      proposals: 0,
+      recommendations: 0,
+      interviewsScheduled: 0,
+      interviewsHeld: 0,
       offers: 0,
-      accepts: 0
+      accepts: 0,
+      hires: 0
     },
-    monthly: {
-      proposals: 80,
-      recommendations: 60,
-      interviewsScheduled: 50,
-      interviewsHeld: 45,
-      offers: 20,
-      accepts: 12,
-      hires: 8,
-      proposalRate: 33,
-      recommendationRate: 75,
-      interviewScheduleRate: 120,
-      interviewHeldRate: 90,
-      offerRate: 44,
-      acceptRate: 60,
-      hireRate: 30
-    },
-    period: {
-      proposals: 120,
-      recommendations: 90,
-      interviewsScheduled: 80,
-      interviewsHeld: 70,
-      offers: 40,
-      accepts: 25,
-      hires: 18,
-      proposalRate: 50,
-      recommendationRate: 75,
-      interviewScheduleRate: 133,
-      interviewHeldRate: 88,
-      offerRate: 57,
-      acceptRate: 62,
-      hireRate: 35
-    }
+    monthly: { ...zero },
+    period: { ...zero }
   };
 }
 
-// フォールバック用モックデータの読み込み
-function loadPersonalKPIDataFallback() {
-  const data = getPersonalKPIFallbackData();
-  updatePersonalKPIDisplay(data);
-  return data;
+async function loadMonthToDatePersonalKPIData() {
+  try {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startDate = startOfMonth.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
+    const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
+    return pickOrFallback(
+      raw,
+      value => !!value && !Array.isArray(value) && !!value.monthly && !!value.period,
+      getPersonalKPIFallbackData
+    );
+  } catch (error) {
+    console.error('Failed to load month-to-date personal KPI data:', error);
+    return getPersonalKPIFallbackData();
+  }
 }
 
 // 個人KPIデータを表示に反映
-function updatePersonalKPIDisplay(data) {
-  if (!data) return;
-  
-  const monthlyData = data.monthly || data;
-  const periodData = data.period || data;
+function updatePersonalKPIDisplay(rangeData, monthOverride) {
+  if (!rangeData && !monthOverride) return;
+  const fallback = getPersonalKPIFallbackData();
+  const monthlyData = monthOverride?.monthly || monthOverride || rangeData?.monthly || rangeData || fallback;
+  const periodData = rangeData?.period || rangeData || fallback;
   const summarySource = {
-    achievementRate: data.achievementRate ?? monthlyData.achievementRate ?? 0,
-    currentAmount: data.currentAmount ?? monthlyData.currentAmount ?? 0,
-    targetAmount: data.targetAmount ?? monthlyData.targetAmount ?? 0
+    achievementRate: monthOverride?.achievementRate ?? rangeData?.achievementRate ?? 0,
+    currentAmount: monthOverride?.currentAmount ?? rangeData?.currentAmount ?? 0,
+    targetAmount: monthOverride?.targetAmount ?? rangeData?.targetAmount ?? 0
   };
   
   const achievementEl = document.getElementById('personalAchievementRate');
@@ -573,14 +958,23 @@ function updatePersonalKPIDisplay(data) {
     targetEl.textContent = `¥${(summarySource.targetAmount || 0).toLocaleString()}`;
   }
   
-  const monthlyElements = {
-    personalProposals: monthlyData.proposals ?? 0,
-    personalRecommendations: monthlyData.recommendations ?? 0,
-    personalInterviewsScheduled: monthlyData.interviewsScheduled ?? 0,
-    personalInterviewsHeld: monthlyData.interviewsHeld ?? 0,
-    personalOffers: monthlyData.offers ?? 0,
-    personalAccepts: monthlyData.accepts ?? 0,
-    personalHires: monthlyData.hires ?? 0,
+  const monthlyCountMap = [
+    { id: 'personalProposals', valueKey: 'newInterviews' },
+    { id: 'personalRecommendations', valueKey: 'proposals' },
+    { id: 'personalInterviewsScheduled', valueKey: 'recommendations' },
+    { id: 'personalInterviewsHeld', valueKey: 'interviewsScheduled' },
+    { id: 'personalOffers', valueKey: 'interviewsHeld' },
+    { id: 'personalAccepts', valueKey: 'offers' },
+    { id: 'personalHires', valueKey: 'accepts' }
+  ];
+  monthlyCountMap.forEach(({ id, valueKey }) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const value = num(monthlyData?.[valueKey]);
+      element.textContent = value.toLocaleString();
+    }
+  });
+  const monthlyRateElements = {
     personalProposalRate: `${monthlyData.proposalRate || 0}%`,
     personalRecommendationRate: `${monthlyData.recommendationRate || 0}%`,
     personalInterviewScheduleRate: `${monthlyData.interviewScheduleRate || 0}%`,
@@ -589,22 +983,30 @@ function updatePersonalKPIDisplay(data) {
     personalAcceptRate: `${monthlyData.acceptRate || 0}%`,
     personalHireRate: `${monthlyData.hireRate || 0}%`
   };
-  
-  Object.entries(monthlyElements).forEach(([id, value]) => {
+  Object.entries(monthlyRateElements).forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) {
-      element.textContent = typeof value === 'number' ? value.toLocaleString() : value;
+      element.textContent = value;
     }
   });
   
-  const periodElements = {
-    periodProposals: periodData.proposals ?? 0,
-    periodRecommendations: periodData.recommendations ?? 0,
-    periodInterviewsScheduled: periodData.interviewsScheduled ?? 0,
-    periodInterviewsHeld: periodData.interviewsHeld ?? 0,
-    periodOffers: periodData.offers ?? 0,
-    periodAccepts: periodData.accepts ?? 0,
-    periodHires: periodData.hires ?? 0,
+  const periodCountMap = [
+    { id: 'periodProposals', valueKey: 'newInterviews' },
+    { id: 'periodRecommendations', valueKey: 'proposals' },
+    { id: 'periodInterviewsScheduled', valueKey: 'recommendations' },
+    { id: 'periodInterviewsHeld', valueKey: 'interviewsScheduled' },
+    { id: 'periodOffers', valueKey: 'interviewsHeld' },
+    { id: 'periodAccepts', valueKey: 'offers' },
+    { id: 'periodHires', valueKey: 'accepts' }
+  ];
+  periodCountMap.forEach(({ id, valueKey }) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const value = num(periodData?.[valueKey]);
+      element.textContent = value.toLocaleString();
+    }
+  });
+  const periodRateElements = {
     periodProposalRate: `${periodData.proposalRate || 0}%`,
     periodRecommendationRate: `${periodData.recommendationRate || 0}%`,
     periodInterviewScheduleRate: `${periodData.interviewScheduleRate || 0}%`,
@@ -613,11 +1015,10 @@ function updatePersonalKPIDisplay(data) {
     periodAcceptRate: `${periodData.acceptRate || 0}%`,
     periodHireRate: `${periodData.hireRate || 0}%`
   };
-  
-  Object.entries(periodElements).forEach(([id, value]) => {
+  Object.entries(periodRateElements).forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) {
-      element.textContent = typeof value === 'number' ? value.toLocaleString() : value;
+      element.textContent = value;
     }
   });
   
@@ -770,16 +1171,7 @@ async function loadCompanyKPIData() {
     
     // APIからデータを取得
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = pickOrFallback(
-      raw,
-      value =>
-        !!value &&
-        !Array.isArray(value) &&
-        ['proposals', 'recommendations', 'offers', 'acceptRate'].every(key =>
-          Object.prototype.hasOwnProperty.call(value, key)
-        ),
-      getCompanyKPIFallbackData
-    );
+    const data = raw && !Array.isArray(raw) ? raw : getCompanyKPIFallbackData();
 
     // データを表示
     updateCompanyKPIDisplay(data);
@@ -800,22 +1192,7 @@ async function loadCompanyPeriodKPIData() {
       return loadCompanyPeriodKPIDataFallback();
     }
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = pickOrFallback(
-      raw,
-      value =>
-        !!value &&
-        !Array.isArray(value) &&
-        [
-          'proposals',
-          'recommendations',
-          'interviewsScheduled',
-          'interviewsHeld',
-          'offers',
-          'accepts',
-          'hires'
-        ].every(key => Object.prototype.hasOwnProperty.call(value, key)),
-      getCompanyPeriodFallbackData
-    );
+    const data = raw && !Array.isArray(raw) ? raw : getCompanyPeriodFallbackData();
     updateCompanyPeriodDisplay(data);
     return data;
   } catch (error) {
@@ -826,20 +1203,28 @@ async function loadCompanyPeriodKPIData() {
 
 function getCompanyKPIFallbackData() {
   const companyKPIData = {
-    proposals: 127,
-    recommendations: 89,
-    interviewsScheduled: 156,
-    interviewsHeld: 132,
-    offers: 68,
-    accepts: 41,
+    newInterviews: 127,
+    proposals: 89,
+    recommendations: 156,
+    interviewsScheduled: 132,
+    interviewsHeld: 68,
+    offers: 41,
+    accepts: 28,
     hires: 28,
+    prevNewInterviews: 0,
+    prevProposals: 0,
+    prevRecommendations: 0,
+    prevInterviewsScheduled: 0,
+    prevInterviewsHeld: 0,
+    prevOffers: 0,
     proposalRate: 69,
     recommendationRate: 70,
     interviewScheduleRate: 175,
     interviewHeldRate: 85,
     offerRate: 52,
     acceptRate: 60,
-    hireRate: 45
+    hireRate: 45,
+    rows: []
   };
   return companyKPIData;
 }
@@ -853,20 +1238,28 @@ function loadCompanyKPIDataFallback() {
 
 function getCompanyPeriodFallbackData() {
   return {
-    proposals: 240,
-    recommendations: 180,
-    interviewsScheduled: 210,
-    interviewsHeld: 190,
+    newInterviews: 240,
+    proposals: 180,
+    recommendations: 210,
+    interviewsScheduled: 190,
+    interviewsHeld: 150,
     offers: 90,
     accepts: 62,
-    hires: 48,
+    hires: 62,
+    prevNewInterviews: 0,
+    prevProposals: 0,
+    prevRecommendations: 0,
+    prevInterviewsScheduled: 0,
+    prevInterviewsHeld: 0,
+    prevOffers: 0,
     proposalRate: 72,
     recommendationRate: 68,
     interviewScheduleRate: 120,
     interviewHeldRate: 90,
     offerRate: 55,
     acceptRate: 62,
-    hireRate: 40
+    hireRate: 40,
+    rows: []
   };
 }
 
@@ -878,6 +1271,9 @@ function loadCompanyPeriodKPIDataFallback() {
 
 // 社員データの読み込み
 async function loadEmployeeData(rangeFilters = {}) {
+  if (!isAdminUser) {
+    return [];
+  }
   try {
     // APIから社員データを取得
     const filters = {
@@ -885,20 +1281,24 @@ async function loadEmployeeData(rangeFilters = {}) {
       sortBy: 'rate',
       sortOrder: 'desc'
     };
-    if (rangeFilters.startDate) {
-      filters.startDate = rangeFilters.startDate;
-    }
-    if (rangeFilters.endDate) {
-      filters.endDate = rangeFilters.endDate;
-    }
+    const range = rangeFilters.startDate
+      ? rangeFilters
+      : employeePeriodRange.startDate
+        ? employeePeriodRange
+        : getCurrentMonthRange();
+    employeePeriodRange = { ...range };
+    const startInput = document.getElementById('employeeRangeStart');
+    const endInput = document.getElementById('employeeRangeEnd');
+    if (startInput && range.startDate) startInput.value = range.startDate;
+    if (endInput && range.endDate) endInput.value = range.endDate;
+    if (range.startDate) filters.from = range.startDate;
+    if (range.endDate) filters.to = range.endDate;
     const raw = await repositories.kpi.getEmployeePerformance(filters);
-    const data = pickOrFallback(
-      raw,
-      value =>
-        (Array.isArray(value) && value.length) ||
-        (Array.isArray(value?.employees) && value.employees.length),
-      getEmployeeFallbackData
-    );
+    const data = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.employees)
+        ? raw.employees
+        : [];
     
     // データを表示
     updateEmployeeDisplay(data);
@@ -955,25 +1355,55 @@ async function loadCandidateData() {
   console.log('Candidate data loaded from HTML table');
 }
 
+function extractTrendRows(candidate) {
+  if (!candidate) return [];
+  const rows = Array.isArray(candidate.rows) ? candidate.rows : [];
+  return rows.filter(Boolean);
+}
+
+function updatePersonalTrendRows(...candidates) {
+  const next = candidates
+    .map(extractTrendRows)
+    .find(rows => rows.length > 1);
+  personalTrendRows = next || [];
+  refreshPersonalTrendSelectors();
+}
+
+function updateCompanyTrendRows(candidate) {
+  const rows = extractTrendRows(candidate);
+  companyTrendRows = rows.length > 1 ? rows : [];
+  refreshCompanyTrendSelectors();
+}
+
 // 個人KPI表示の更新
 // 社内KPI表示の更新
 function updateCompanyKPIDisplay(data) {
-  const elements = {
-    companyProposals: data.proposals,
-    companyRecommendations: data.recommendations,
-    companyInterviewsScheduled: data.interviewsScheduled,
-    companyInterviewsHeld: data.interviewsHeld,
-    companyOffers: data.offers,
-    companyAccepts: data.accepts,
-    companyProposalRate: data.proposalRate + '%',
-    companyRecommendationRate: data.recommendationRate + '%',
-    companyInterviewScheduleRate: data.interviewScheduleRate + '%',
-    companyInterviewHeldRate: data.interviewHeldRate + '%',
-    companyOfferRate: data.offerRate + '%',
-    companyAcceptRate: data.acceptRate + '%'
+  const countMap = [
+    { id: 'companyProposals', valueKey: 'newInterviews' },
+    { id: 'companyRecommendations', valueKey: 'proposals' },
+    { id: 'companyInterviewsScheduled', valueKey: 'recommendations' },
+    { id: 'companyInterviewsHeld', valueKey: 'interviewsScheduled' },
+    { id: 'companyOffers', valueKey: 'interviewsHeld' },
+    { id: 'companyAccepts', valueKey: 'offers' },
+    { id: 'companyHires', valueKey: 'accepts' }
+  ];
+  countMap.forEach(({ id, valueKey }) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = num(data?.[valueKey]).toLocaleString();
+    }
+  });
+
+  const rateElements = {
+    companyProposalRate: `${data.proposalRate ?? 0}%`,
+    companyRecommendationRate: `${data.recommendationRate ?? 0}%`,
+    companyInterviewScheduleRate: `${data.interviewScheduleRate ?? 0}%`,
+    companyInterviewHeldRate: `${data.interviewHeldRate ?? 0}%`,
+    companyOfferRate: `${data.offerRate ?? 0}%`,
+    companyAcceptRate: `${data.acceptRate ?? 0}%`,
+    companyHireRate: `${data.hireRate ?? 0}%`
   };
-  
-  Object.entries(elements).forEach(([id, value]) => {
+  Object.entries(rateElements).forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) {
       element.textContent = value;
@@ -1056,20 +1486,19 @@ function updateCompanyKPIDisplay(data) {
 
 function updateCompanyPeriodDisplay(data) {
   if (!data) return;
-  const countElements = {
-    companyPeriodProposals: data.proposals ?? 0,
-    companyPeriodRecommendations: data.recommendations ?? 0,
-    companyPeriodInterviewsScheduled: data.interviewsScheduled ?? 0,
-    companyPeriodInterviewsHeld: data.interviewsHeld ?? 0,
-    companyPeriodOffers: data.offers ?? 0,
-    companyPeriodAccepts: data.accepts ?? 0,
-    companyPeriodHires: data.hires ?? 0
-  };
-  
-  Object.entries(countElements).forEach(([id, value]) => {
+  const countMap = [
+    { id: 'companyPeriodProposals', valueKey: 'newInterviews' },
+    { id: 'companyPeriodRecommendations', valueKey: 'proposals' },
+    { id: 'companyPeriodInterviewsScheduled', valueKey: 'recommendations' },
+    { id: 'companyPeriodInterviewsHeld', valueKey: 'interviewsScheduled' },
+    { id: 'companyPeriodOffers', valueKey: 'interviewsHeld' },
+    { id: 'companyPeriodAccepts', valueKey: 'offers' },
+    { id: 'companyPeriodHires', valueKey: 'accepts' }
+  ];
+  countMap.forEach(({ id, valueKey }) => {
     const element = document.getElementById(id);
     if (element) {
-      element.textContent = Number(value || 0).toLocaleString();
+      element.textContent = num(data?.[valueKey]).toLocaleString();
     }
   });
   
@@ -1191,24 +1620,16 @@ function updateEmployeeDisplay(data) {
 
 // 月次推移チャートの描画
 function drawTrendChart(options = {}) {
-  const { mode = 'rate', range = '6m' } = options;
+  const { mode = 'rate', range = '6m', periodMode = 'day', monthSelection, yearSelection } = options;
   const svg = document.getElementById('personalTrendChart');
   if (!svg) return;
   const legend = document.getElementById('personalChartLegend');
-  
-  const labels = ['11月', '12月', '1月', '2月', '3月', '4月'];
-  const rateSeries = {
-    提案率: [62, 65, 63, 68, 70, 72],
-    内定率: [40, 42, 38, 45, 47, 50],
-    承諾率: [28, 30, 32, 34, 35, 37]
-  };
-  const countSeries = {
-    提案数: [10, 12, 9, 14, 16, 13],
-    内定数: [3, 4, 3, 5, 6, 5]
-  };
-  
-  const series = mode === 'rate' ? rateSeries : countSeries;
+  const actualSeries = resolvePersonalTrendSeries({ mode, periodMode, monthSelection, yearSelection });
+  const fallback = getPersonalTrendFallback(mode);
+  const labels = actualSeries?.labels ?? fallback.labels;
+  const series = actualSeries?.series ?? fallback.series;
   const entries = Object.entries(series);
+  if (!labels.length || !entries.length) return;
   const palette = ['#6366f1', '#f97316', '#0ea5e9'];
   const width = 800;
   const height = 300;
@@ -1245,11 +1666,12 @@ function drawTrendChart(options = {}) {
       <line x1="${paddingX}" y1="${bottomY}" x2="${width - paddingX}" y2="${bottomY}" stroke="#e2e8f0" stroke-width="1" />
       ${polylines}
       ${xLabels}
-      <text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#94a3b8">※モックデータを表示しています</text>
+      ${actualSeries ? '' : `<text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#94a3b8">※モックデータを表示しています</text>`}
     </g>
   `;
   
   if (legend) {
+    const periodLabelMap = { day: '日次', month: '月次', year: '年次' };
     const legendHtml = entries.map(([name], idx) => {
       const color = palette[idx % palette.length];
       return `
@@ -1261,16 +1683,34 @@ function drawTrendChart(options = {}) {
     }).join('');
     
     legend.innerHTML = `
-      <div class="text-xs text-slate-500 mb-1">表示モード: ${mode === 'rate' ? '提案率〜承諾率' : '提案数〜内定数'}</div>
+      <div class="text-xs text-slate-500 mb-1">表示モード: ${
+        mode === 'rate' ? '提案率〜承諾率' : '提案数〜内定数'
+      } / ${periodLabelMap[periodMode] || '日次'}</div>
       <div class="text-xs text-slate-500 flex flex-wrap gap-3">${legendHtml}</div>
       <div class="text-xs text-slate-400">期間: ${range}</div>
+      <div class="text-xs text-slate-400">${actualSeries ? 'APIデータから描画しています' : 'モックデータから描画しています'}</div>
     `;
   }
 }
 
-function drawCompanyTrend({ range = '6m', data } = {}) {
+function drawCompanyTrend({ range = '6m', data, periodMode = 'day', monthSelection, yearSelection } = {}) {
   const host = document.getElementById('companyTrendChart');
   if (!host) return;
+  if (!companyTrendRows.length && Array.isArray(data?.rows) && data.rows.length > 1) {
+    companyTrendRows = [...data.rows];
+    refreshCompanyTrendSelectors();
+  }
+
+  const actualSeries = resolveCompanyTrendSeries({ periodMode, monthSelection, yearSelection });
+  if (actualSeries) {
+    host.innerHTML = createLineChartMarkup({
+      title: `全体の歩留まり率 (${range})`,
+      subtitle: `APIデータ / ${periodMode === 'day' ? '日次' : periodMode === 'month' ? '月次' : '年次'}`,
+      labels: actualSeries.labels,
+      seriesMap: actualSeries.series
+    });
+    return;
+  }
 
   const labels = ['11月', '12月', '1月', '2月', '3月', '4月'];
   const snapshot = data || companyKPIState || DEFAULT_COMPANY_RATES;
@@ -1296,29 +1736,45 @@ function drawCompanyTrend({ range = '6m', data } = {}) {
   });
 }
 
-function drawEmployeeComparisonTrend({ range = '6m', employees } = {}) {
+function drawEmployeeComparisonTrend({ range = '6m', employees, periodMode = 'day', monthSelection, yearSelection } = {}) {
+  if (!isAdminUser) return;
   const host = document.getElementById('employeeTrendChart');
   if (!host) return;
-  const labels = ['11月', '12月', '1月', '2月', '3月', '4月'];
   const sourceCandidates = Array.isArray(employees) && employees.length ? employees : employeeListState;
-  const fallback = DEFAULT_EMPLOYEE_SERIES;
-  const source = sourceCandidates.length ? sourceCandidates : fallback;
-  if (!source || !source.length) {
+  const actualSeries = buildEmployeeTrendSeries(sourceCandidates, {
+    periodMode,
+    monthSelection,
+    yearSelection
+  });
+  if (actualSeries) {
+    host.innerHTML = createLineChartMarkup({
+      title: `社員別比較推移 (${range})`,
+      subtitle: `${periodMode === 'day' ? '日次' : periodMode === 'month' ? '月次' : '年次'}の比較`,
+      labels: actualSeries.labels,
+      seriesMap: actualSeries.series
+    });
+    return;
+  }
+
+  const fallbackLabels = ['11月', '12月', '1月', '2月', '3月', '4月'];
+  const fallbackSource = sourceCandidates.length ? sourceCandidates : DEFAULT_EMPLOYEE_SERIES;
+  const safeSource = fallbackSource.length ? fallbackSource : DEFAULT_EMPLOYEE_SERIES;
+  const topEmployees = safeSource.slice(0, 4);
+  if (!topEmployees.length) {
     host.innerHTML = `<div class="text-sm text-slate-500">社員データが不足しています。</div>`;
     return;
   }
-  
-  const topEmployees = source.slice(0, 4);
+
   const seriesMap = {};
   topEmployees.forEach((employee, idx) => {
     const baseValue = employee.proposals || employee.recommendations || employee.offers || 6;
-    seriesMap[employee.name] = createEmployeeSeries(baseValue, labels.length, idx);
+    seriesMap[employee.name] = createEmployeeSeries(baseValue, fallbackLabels.length, idx);
   });
-  
+
   host.innerHTML = createLineChartMarkup({
     title: `社員別比較推移 (${range})`,
-    subtitle: '提案数ベースの簡易トレンド',
-    labels,
+    subtitle: '提案数ベースの簡易モックトレンド',
+    labels: fallbackLabels,
     seriesMap
   });
 }
@@ -1411,6 +1867,529 @@ function createEmployeeSeries(base, length, seed = 0) {
   return result;
 }
 
+function getPersonalTrendFallback(mode) {
+  const baseSeries = mode === 'rate' ? PERSONAL_RATE_SERIES : PERSONAL_COUNT_SERIES;
+  const labels = [...PERSONAL_TREND_LABELS];
+  const series = Object.fromEntries(
+    Object.entries(baseSeries).map(([label, values]) => [label, [...values]])
+  );
+  return { labels, series };
+}
+
+function buildPersonalTrendSeriesFromRows(mode, sourceRows = personalTrendRows) {
+  const rows = Array.isArray(sourceRows) ? sourceRows : [];
+  if (rows.length < 2) return null;
+  const entries = createSortedTrendEntries(rows);
+  if (entries.length < 2) return null;
+  const labels = entries.map(entry => entry.label);
+  const configs =
+    mode === 'rate'
+      ? [
+          { key: 'proposal_rate', label: '提案率' },
+          { key: 'offer_rate', label: '内定率' },
+          { key: 'accept_rate', label: '承諾率' }
+        ]
+      : [
+          { key: 'proposals', label: '提案数' },
+          { key: 'offers', label: '内定数' }
+        ];
+  const series = {};
+  configs.forEach(config => {
+    const values = entries.map(entry => readRowMetric(entry.row, config.key));
+    if (values.some(value => Number.isFinite(value))) {
+      series[config.label] = values.map(value => num(value));
+    }
+  });
+  return Object.keys(series).length ? { labels, series } : null;
+}
+
+function buildCompanyTrendSeriesFromRows(rows) {
+  if (!Array.isArray(rows) || rows.length < 2) return null;
+  const entries = createSortedTrendEntries(rows);
+  if (!entries.length) return null;
+  const labels = entries.map(entry => entry.label);
+  const configs = [
+    { key: 'proposal_rate', label: '提案率' },
+    { key: 'recommendation_rate', label: '推薦率' },
+    { key: 'interview_schedule_rate', label: '面談設定率' },
+    { key: 'interview_held_rate', label: '面談実施率' },
+    { key: 'offer_rate', label: '内定率' },
+    { key: 'accept_rate', label: '承諾率' }
+  ];
+  const series = {};
+  configs.forEach(config => {
+    const values = entries.map(entry => readRowMetric(entry.row, config.key));
+    if (values.some(value => Number.isFinite(value))) {
+      series[config.label] = values.map(value => num(value));
+    }
+  });
+  return Object.keys(series).length ? { labels, series } : null;
+}
+
+function buildEmployeeTrendSeries(employees = [], options = {}) {
+  const datasets = (Array.isArray(employees) ? employees : [])
+    .slice(0, 4)
+    .map(employee => ({
+      name: employee?.name || '社員',
+      points: extractEmployeeTrendPoints(employee, options)
+    }))
+    .filter(item => Array.isArray(item.points) && item.points.length > 1);
+  if (!datasets.length) return null;
+
+  const labelMeta = new Map();
+  datasets.forEach(dataset => {
+    dataset.points.forEach(point => {
+      if (!labelMeta.has(point.label) || point.sortValue < labelMeta.get(point.label).sortValue) {
+        labelMeta.set(point.label, { label: point.label, sortValue: point.sortValue });
+      }
+    });
+  });
+
+  const labels = Array.from(labelMeta.values())
+    .sort((a, b) => (a.sortValue === b.sortValue ? a.label.localeCompare(b.label) : a.sortValue - b.sortValue))
+    .map(entry => entry.label);
+
+  if (labels.length < 2) return null;
+
+  const series = {};
+  datasets.forEach(dataset => {
+    const valueMap = new Map(dataset.points.map(point => [point.label, point.value]));
+    series[dataset.name] = labels.map(label => num(valueMap.get(label)));
+  });
+  return Object.keys(series).length ? { labels, series } : null;
+}
+
+function extractEmployeeTrendPoints(employee, options = {}) {
+  if (!employee) return null;
+  const trendSource =
+    (Array.isArray(employee.trend) && employee.trend.length && employee.trend) ||
+    (Array.isArray(employee.history) && employee.history.length && employee.history) ||
+    (Array.isArray(employee.metricsHistory) && employee.metricsHistory.length && employee.metricsHistory) ||
+    (Array.isArray(employee.metrics_history) && employee.metrics_history.length && employee.metrics_history) ||
+    null;
+  if (!trendSource) return null;
+  const points = trendSource
+    .map((point, index) => {
+      const labelHint = point?.period ?? point?.month ?? point?.date ?? point?.label ?? point?.timestamp;
+      const { label, sortValue } = parseTrendLabelValue(labelHint, index);
+      const valueSource =
+        point?.value ??
+        point?.proposals ??
+        point?.recommendations ??
+        point?.offers ??
+        point?.accepts ??
+        point?.count ??
+        point?.metrics;
+      return { label, sortValue, value: num(valueSource), rawValue: labelHint };
+    })
+    .filter(point => Number.isFinite(point.value));
+  if (points.length < 2) return null;
+  points.sort((a, b) => (a.sortValue === b.sortValue ? a.label.localeCompare(b.label) : a.sortValue - b.sortValue));
+  if (options.periodMode === 'month') {
+    const aggregated = aggregateEmployeePointsByMonth(points);
+    const limited = filterMonthlyEntriesBySelection(aggregated, options.monthSelection);
+    return limited.length >= 2 ? limited : aggregated;
+  }
+  if (options.periodMode === 'year') {
+    const aggregated = aggregateEmployeePointsByMonth(points);
+    const targetYear =
+      Number(options.yearSelection) || companyTrendMode.yearSelection || aggregated[aggregated.length - 1]?.year;
+    const filtered = aggregated.filter(point => point.year === targetYear);
+    return filtered.length >= 2 ? filtered : aggregated;
+  }
+  return points;
+}
+
+function createSortedTrendEntries(rows, labelSelector = defaultRowLabelSelector) {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row, index) => {
+      const rawLabel = labelSelector(row);
+      const { label, sortValue } = parseTrendLabelValue(rawLabel, index);
+      return { row, label, sortValue, index };
+    })
+    .sort((a, b) => {
+      if (a.sortValue === b.sortValue) {
+        return a.index - b.index;
+      }
+      return a.sortValue - b.sortValue;
+    });
+}
+
+function defaultRowLabelSelector(row) {
+  return row?.period ?? row?.month ?? row?.date ?? row?.label ?? row?.timestamp;
+}
+
+function parseTrendLabelValue(rawValue, fallbackIndex = 0) {
+  if (rawValue instanceof Date) {
+    const time = rawValue.getTime();
+    if (!Number.isNaN(time)) {
+      return { label: formatMonthYearLabel(rawValue), sortValue: time };
+  }
+  }
+  if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+    if (rawValue > 10000) {
+      const fromTimestamp = new Date(rawValue);
+      if (!Number.isNaN(fromTimestamp.getTime())) {
+        return { label: formatMonthYearLabel(fromTimestamp), sortValue: fromTimestamp.getTime() };
+      }
+    }
+    return { label: String(rawValue), sortValue: rawValue };
+  }
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+    if (trimmed) {
+      const normalized = trimmed.replace(/\./g, '-').replace(/\//g, '-');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+        const date = new Date(`${normalized}T00:00:00Z`);
+        if (!Number.isNaN(date.getTime())) {
+          return { label: formatMonthYearLabel(date), sortValue: date.getTime() };
+        }
+      }
+      if (/^\d{4}-\d{2}$/.test(normalized)) {
+        const date = new Date(`${normalized}-01T00:00:00Z`);
+        if (!Number.isNaN(date.getTime())) {
+          return { label: formatMonthYearLabel(date), sortValue: date.getTime() };
+        }
+      }
+      if (/^\d{6}$/.test(normalized)) {
+        const year = Number(normalized.slice(0, 4));
+        const month = Number(normalized.slice(4));
+        const date = new Date(Date.UTC(year, month - 1, 1));
+        if (!Number.isNaN(date.getTime())) {
+          return { label: formatMonthYearLabel(date), sortValue: date.getTime() };
+        }
+      }
+      const jpMatch = trimmed.match(/^(\d{4})年(\d{1,2})月$/);
+      if (jpMatch) {
+        const year = Number(jpMatch[1]);
+        const month = Number(jpMatch[2]);
+        const date = new Date(Date.UTC(year, month - 1, 1));
+        if (!Number.isNaN(date.getTime())) {
+          return { label: formatMonthYearLabel(date), sortValue: date.getTime() };
+        }
+      }
+      return { label: trimmed, sortValue: fallbackIndex };
+    }
+  }
+  return { label: `#${fallbackIndex + 1}`, sortValue: fallbackIndex };
+}
+
+function formatMonthYearLabel(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}/${month}`;
+}
+
+function readRowMetric(row, key) {
+  if (!row) return 0;
+  const candidates = [key];
+  if (key.includes('_')) {
+    candidates.push(snakeToCamel(key));
+  } else if (/[A-Z]/.test(key)) {
+    candidates.push(camelToSnake(key));
+  }
+  for (const candidate of candidates) {
+    if (row[candidate] !== undefined && row[candidate] !== null) {
+      return num(row[candidate]);
+    }
+  }
+  return 0;
+}
+
+function snakeToCamel(value) {
+  return value.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+function camelToSnake(value) {
+  return value.replace(/([A-Z])/g, '_$1').toLowerCase();
+}
+
+function buildYearMonthSummary(rows = []) {
+  const monthsByYear = new Map();
+  let latest = null;
+  let latestSort = -Infinity;
+  rows.forEach(row => {
+    const date = extractRowDate(row);
+    if (!date) return;
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const sortValue = year * 100 + month;
+    if (!monthsByYear.has(year)) {
+      monthsByYear.set(year, new Set());
+    }
+    monthsByYear.get(year).add(month);
+    if (sortValue > latestSort) {
+      latestSort = sortValue;
+      latest = { year, month };
+    }
+  });
+  const years = Array.from(monthsByYear.keys()).sort((a, b) => b - a);
+  const normalizedMonths = new Map();
+  monthsByYear.forEach((set, year) => {
+    normalizedMonths.set(year, Array.from(set).sort((a, b) => a - b));
+  });
+  return { years, monthsByYear: normalizedMonths, latest };
+}
+
+function populateSelectOptions(select, options, preferredValue, labelFormatter = value => value) {
+  if (!select) return null;
+  if (!Array.isArray(options) || options.length === 0) {
+    select.innerHTML = '<option value="">--</option>';
+    select.value = '';
+    select.disabled = true;
+    return null;
+  }
+  select.disabled = false;
+  const template = options
+    .map(value => `<option value="${value}">${labelFormatter(value)}</option>`)
+    .join('');
+  select.innerHTML = template;
+  const normalizedValue = options.includes(preferredValue) ? preferredValue : options[0];
+  select.value = normalizedValue;
+  return normalizedValue;
+}
+
+function getPersonalTrendRangeLabel() {
+  if (personalTrendMode.periodMode === 'day') {
+    const start = document.getElementById('personalRangeStart')?.value;
+    const end = document.getElementById('personalRangeEnd')?.value;
+    return start && end ? `${start}〜${end}` : '日次カスタム';
+  }
+  if (personalTrendMode.periodMode === 'month') {
+    const year = personalTrendMode.monthSelection.year ?? defaultTrendYear;
+    const month = personalTrendMode.monthSelection.month ?? defaultTrendMonth;
+    return `月次 ${year}/${String(month).padStart(2, '0')}`;
+  }
+  const year = personalTrendMode.yearSelection ?? defaultTrendYear;
+  return `${year}年の月次`;
+}
+
+function getCompanyTrendRangeLabel() {
+  if (companyTrendMode.periodMode === 'day') {
+    const start = document.getElementById('companyRangeStart')?.value;
+    const end = document.getElementById('companyRangeEnd')?.value;
+    return start && end ? `${start}〜${end}` : '日次カスタム';
+  }
+  if (companyTrendMode.periodMode === 'month') {
+    const year = companyTrendMode.monthSelection.year ?? defaultTrendYear;
+    const month = companyTrendMode.monthSelection.month ?? defaultTrendMonth;
+    return `月次 ${year}/${String(month).padStart(2, '0')}`;
+  }
+  const year = companyTrendMode.yearSelection ?? defaultTrendYear;
+  return `${year}年の月次`;
+}
+
+function extractRowDate(row) {
+  if (!row) return null;
+  const candidates = [row.date, row.period, row.timestamp];
+  for (const candidate of candidates) {
+    const parsed = parseDateCandidate(candidate);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function parseDateCandidate(candidate) {
+  if (!candidate) return null;
+  if (candidate instanceof Date && !Number.isNaN(candidate.getTime())) {
+    return candidate;
+  }
+  if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+    const date = new Date(candidate);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof candidate === 'string') {
+    const normalized = candidate.replace(/\./g, '-').replace(/\//g, '-');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      const date = new Date(`${normalized}T00:00:00Z`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (/^\d{4}-\d{2}$/.test(normalized)) {
+      const date = new Date(`${normalized}-01T00:00:00Z`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (/^\d{4}$/.test(normalized)) {
+      const date = new Date(`${normalized}-01-01T00:00:00Z`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+  return null;
+}
+
+const MONTH_MODE_WINDOW = 12;
+
+function aggregateRowsByMonth(rows = []) {
+  const buckets = new Map();
+  rows.forEach(row => {
+    const date = extractRowDate(row);
+    if (!date) return;
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        year,
+        month,
+        sortValue: year * 100 + month,
+        newInterviews: 0,
+        proposals: 0,
+        recommendations: 0,
+        interviewsScheduled: 0,
+        interviewsHeld: 0,
+        offers: 0,
+        accepts: 0
+      });
+    }
+    const bucket = buckets.get(key);
+    bucket.newInterviews += num(row.newInterviews ?? row.new_interviews);
+    bucket.proposals += num(row.proposals);
+    bucket.recommendations += num(row.recommendations);
+    bucket.interviewsScheduled += num(row.interviewsScheduled ?? row.interviews_scheduled);
+    bucket.interviewsHeld += num(row.interviewsHeld ?? row.interviews_held);
+    bucket.offers += num(row.offers);
+    bucket.accepts += num(row.accepts ?? row.hires);
+  });
+  return Array.from(buckets.values())
+    .map(bucket => createAggregatedTrendRow(bucket))
+    .sort((a, b) => a.sortValue - b.sortValue);
+}
+
+function createAggregatedTrendRow(bucket) {
+  const toRate = (num, den) => (den === 0 ? 0 : Math.round((1000 * num) / den) / 10);
+  const period = `${bucket.year}-${String(bucket.month).padStart(2, '0')}-01`;
+  const base = {
+    ...bucket,
+    period,
+    date: period,
+    label: period,
+    hires: bucket.accepts,
+    new_interviews: bucket.newInterviews,
+    interviews_scheduled: bucket.interviewsScheduled,
+    interviews_held: bucket.interviewsHeld
+  };
+  const withRates = {
+    ...base,
+    proposalRate: toRate(bucket.proposals, bucket.newInterviews),
+    proposal_rate: toRate(bucket.proposals, bucket.newInterviews),
+    recommendationRate: toRate(bucket.recommendations, bucket.proposals),
+    recommendation_rate: toRate(bucket.recommendations, bucket.proposals),
+    interviewScheduleRate: toRate(bucket.interviewsScheduled, bucket.recommendations),
+    interview_schedule_rate: toRate(bucket.interviewsScheduled, bucket.recommendations),
+    interviewHeldRate: toRate(bucket.interviewsHeld, bucket.interviewsScheduled),
+    interview_held_rate: toRate(bucket.interviewsHeld, bucket.interviewsScheduled),
+    offerRate: toRate(bucket.offers, bucket.interviewsHeld),
+    offer_rate: toRate(bucket.offers, bucket.interviewsHeld),
+    acceptRate: toRate(bucket.accepts, bucket.offers),
+    accept_rate: toRate(bucket.accepts, bucket.offers),
+    hireRate: toRate(bucket.accepts, bucket.newInterviews),
+    hire_rate: toRate(bucket.accepts, bucket.newInterviews)
+  };
+  return withRates;
+}
+
+function filterMonthlyEntriesBySelection(entries = [], selection) {
+  if (!entries.length) return [];
+  const sortValue =
+    selection && Number.isFinite(Number(selection.year)) && Number.isFinite(Number(selection.month))
+      ? Number(selection.year) * 100 + Number(selection.month)
+      : null;
+  const filtered =
+    sortValue !== null
+      ? entries.filter(entry => entry.sortValue <= sortValue)
+      : [...entries];
+  const usable = filtered.length >= 2 ? filtered : entries;
+  if (usable.length <= MONTH_MODE_WINDOW) {
+    return usable;
+  }
+  return usable.slice(usable.length - MONTH_MODE_WINDOW);
+}
+
+function resolvePersonalTrendSeries({ mode, periodMode, monthSelection, yearSelection }) {
+  if (periodMode === 'day') {
+    return buildPersonalTrendSeriesFromRows(mode);
+  }
+  const monthlyRows = aggregateRowsByMonth(personalTrendRows);
+  if (!monthlyRows.length) {
+    return null;
+  }
+  if (periodMode === 'month') {
+    const limited = filterMonthlyEntriesBySelection(monthlyRows, monthSelection);
+    return limited.length >= 2 ? buildPersonalTrendSeriesFromRows(mode, limited) : null;
+  }
+  if (periodMode === 'year') {
+    const targetYear =
+      Number(yearSelection) || personalTrendMode.yearSelection || monthlyRows[monthlyRows.length - 1]?.year;
+    const filtered = monthlyRows.filter(entry => entry.year === targetYear);
+    if (filtered.length >= 2) {
+      return buildPersonalTrendSeriesFromRows(mode, filtered);
+    }
+    const fallback = monthlyRows.slice(-Math.min(monthlyRows.length, MONTH_MODE_WINDOW));
+    return fallback.length >= 2 ? buildPersonalTrendSeriesFromRows(mode, fallback) : null;
+  }
+  return null;
+}
+
+function resolveCompanyTrendSeries({ periodMode, monthSelection, yearSelection }) {
+  const sourceRows =
+    (Array.isArray(companyTrendRows) && companyTrendRows.length > 1 && companyTrendRows) ||
+    (Array.isArray(companyKPIState?.rows) && companyKPIState.rows.length > 1 && companyKPIState.rows) ||
+    [];
+  if (!sourceRows.length) return null;
+  if (periodMode === 'day') {
+    return buildCompanyTrendSeriesFromRows(sourceRows);
+  }
+  const monthlyRows = aggregateRowsByMonth(sourceRows);
+  if (!monthlyRows.length) return null;
+  if (periodMode === 'month') {
+    const limited = filterMonthlyEntriesBySelection(monthlyRows, monthSelection);
+    return limited.length >= 2 ? buildCompanyTrendSeriesFromRows(limited) : null;
+  }
+  if (periodMode === 'year') {
+    const year = Number(yearSelection) || companyTrendMode.yearSelection || monthlyRows[monthlyRows.length - 1]?.year;
+    const filtered = monthlyRows.filter(entry => entry.year === year);
+    if (filtered.length >= 2) {
+      return buildCompanyTrendSeriesFromRows(filtered);
+    }
+    const fallback = monthlyRows.slice(-Math.min(monthlyRows.length, MONTH_MODE_WINDOW));
+    return fallback.length >= 2 ? buildCompanyTrendSeriesFromRows(fallback) : null;
+  }
+  return null;
+}
+
+function aggregateEmployeePointsByMonth(points = []) {
+  const buckets = new Map();
+  points.forEach(point => {
+    const date = resolvePointDate(point);
+    if (!date) return;
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const key = `${year}-${month}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, { year, month, sortValue: year * 100 + month, value: 0 });
+    }
+    const bucket = buckets.get(key);
+    bucket.value += num(point.value);
+  });
+  return Array.from(buckets.values())
+    .map(bucket => ({
+      label: `${bucket.year}/${String(bucket.month).padStart(2, '0')}`,
+      sortValue: bucket.sortValue,
+      value: bucket.value,
+      year: bucket.year,
+      month: bucket.month
+    }))
+    .sort((a, b) => a.sortValue - b.sortValue);
+}
+
+function resolvePointDate(point) {
+  const raw = point?.rawValue ?? point?.label;
+  return (
+    parseDateCandidate(raw) ||
+    (typeof point?.sortValue === 'number' && point.sortValue > 1_000_000_000 ? new Date(point.sortValue) : null)
+  );
+}
+
 // イベントハンドラー
 function handleDateRangeChange(event) {
   // 日付範囲変更時の処理
@@ -1419,17 +2398,23 @@ function handleDateRangeChange(event) {
 
 function handleEmployeeSearch(event) {
   const searchTerm = event.target.value.toLowerCase();
-  const rows = document.querySelectorAll('#employeeTableBody tr');
-  
-  rows.forEach(row => {
-    const name = row.querySelector('td:first-child').textContent.toLowerCase();
-    row.style.display = name.includes(searchTerm) ? '' : 'none';
+  employeeListState.forEach(employee => {
+    employee.hiddenBySearch = !employee.name?.toLowerCase().includes(searchTerm);
   });
+  updateEmployeeDisplay(employeeListState);
 }
 
 function handleEmployeeSort(event) {
   const sortBy = event.target.value;
-  // ソート処理の実装
+  const sorted = [...employeeListState];
+  sorted.sort((a, b) => {
+    const aVal = a[sortBy];
+    const bVal = b[sortBy];
+    if (typeof aVal === 'string') return aVal.localeCompare(bVal);
+    return (Number(aVal) || 0) - (Number(bVal) || 0);
+  });
+  employeeListState = sorted;
+  updateEmployeeDisplay(employeeListState);
 }
 
 function handleFilterApply(event) {
