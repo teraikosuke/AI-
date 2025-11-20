@@ -96,6 +96,12 @@ function clearEmployeeTrendChart() {
   }
 }
 
+function toggleSelectGroupVisibility(element, shouldShow) {
+  if (!element) return;
+  element.classList.toggle('is-active', shouldShow);
+  element.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+}
+
 function ensureValueWrap(cardEl) {
   const val = cardEl?.querySelector('.kpi-v2-value');
   if (!val) return null;
@@ -149,6 +155,16 @@ const PERSONAL_COUNT_SERIES = {
   提案数: [10, 12, 9, 14, 16, 13],
   内定数: [3, 4, 3, 5, 6, 5]
 };
+const COMPANY_RATE_KEYS = ['提案率', '推薦率', '面談設定率', '面談実施率', '内定率', '承諾率'];
+
+/**
+ * Charting note:
+ * Chart.js などのライブラリを導入すると軸や凡例の制御は簡単になりますが、
+ * この画面ではデータ集計ロジックがすべてカスタムであり、
+ * グラフ描画よりも集計やモード切り替えの調整コストが大きい。
+ * 依存を追加するとバンドルサイズや読み込みも増えるため、
+ * しばらくは既存の SVG 描画を使い続け、描画ロジックとデータ整形を分離して保守性を上げる方針にしています。
+ */
 
 export function mount() {
   syncAccessRole();
@@ -210,7 +226,7 @@ function initializeDatePickers() {
 // KPIチャートの初期化
 function initializeKPICharts() {
   // 月次推移チャートの初期化
-  renderPersonalTrendChart();
+  refreshPersonalTrendChart();
   renderCompanyTrendCharts({ rangeLabel: '6m', employeeData: DEFAULT_EMPLOYEE_SERIES });
 }
 
@@ -229,26 +245,26 @@ function initPersonalTrendControls() {
         personalTrendMode.periodMode = mode;
         updatePersonalTrendModeButtons();
         updatePersonalTrendControlVisibility();
-        renderPersonalTrendChart();
+        refreshPersonalTrendChart();
       });
     });
     updatePersonalTrendModeButtons();
   }
-  const yearSelect = document.getElementById('personalTrendYearSelect');
-  const monthSelect = document.getElementById('personalTrendMonthSelect');
-  const yearOnlySelect = document.getElementById('personalTrendYearOnlySelect');
-  yearSelect?.addEventListener('change', () => {
-    personalTrendMode.monthSelection.year = Number(yearSelect.value) || personalTrendMode.monthSelection.year;
+  const dayModeYearSelect = document.getElementById('personalTrendYearSelect');
+  const dayModeMonthSelect = document.getElementById('personalTrendMonthSelect');
+  const monthModeYearSelect = document.getElementById('personalTrendMonthYearSelect');
+  dayModeYearSelect?.addEventListener('change', () => {
+    personalTrendMode.monthSelection.year = Number(dayModeYearSelect.value) || personalTrendMode.monthSelection.year;
     refreshPersonalMonthOptions();
-    renderPersonalTrendChart();
+    refreshPersonalTrendChart();
   });
-  monthSelect?.addEventListener('change', () => {
-    personalTrendMode.monthSelection.month = Number(monthSelect.value) || personalTrendMode.monthSelection.month;
-    renderPersonalTrendChart();
+  dayModeMonthSelect?.addEventListener('change', () => {
+    personalTrendMode.monthSelection.month = Number(dayModeMonthSelect.value) || personalTrendMode.monthSelection.month;
+    refreshPersonalTrendChart();
   });
-  yearOnlySelect?.addEventListener('change', () => {
-    personalTrendMode.yearSelection = Number(yearOnlySelect.value) || personalTrendMode.yearSelection;
-    renderPersonalTrendChart();
+  monthModeYearSelect?.addEventListener('change', () => {
+    personalTrendMode.yearSelection = Number(monthModeYearSelect.value) || personalTrendMode.yearSelection;
+    refreshPersonalTrendChart();
   });
   refreshPersonalTrendSelectors();
   updatePersonalTrendControlVisibility();
@@ -269,20 +285,20 @@ function initCompanyTrendControls() {
     });
     updateCompanyTrendModeButtons();
   }
-  const yearSelect = document.getElementById('companyTrendYearSelect');
-  const monthSelect = document.getElementById('companyTrendMonthSelect');
-  const yearOnlySelect = document.getElementById('companyTrendYearOnlySelect');
-  yearSelect?.addEventListener('change', () => {
-    companyTrendMode.monthSelection.year = Number(yearSelect.value) || companyTrendMode.monthSelection.year;
+  const dayModeYearSelect = document.getElementById('companyTrendYearSelect');
+  const dayModeMonthSelect = document.getElementById('companyTrendMonthSelect');
+  const monthModeYearSelect = document.getElementById('companyTrendMonthYearSelect');
+  dayModeYearSelect?.addEventListener('change', () => {
+    companyTrendMode.monthSelection.year = Number(dayModeYearSelect.value) || companyTrendMode.monthSelection.year;
     refreshCompanyMonthOptions();
     renderCompanyTrendCharts();
   });
-  monthSelect?.addEventListener('change', () => {
-    companyTrendMode.monthSelection.month = Number(monthSelect.value) || companyTrendMode.monthSelection.month;
+  dayModeMonthSelect?.addEventListener('change', () => {
+    companyTrendMode.monthSelection.month = Number(dayModeMonthSelect.value) || companyTrendMode.monthSelection.month;
     renderCompanyTrendCharts();
   });
-  yearOnlySelect?.addEventListener('change', () => {
-    companyTrendMode.yearSelection = Number(yearOnlySelect.value) || companyTrendMode.yearSelection;
+  monthModeYearSelect?.addEventListener('change', () => {
+    companyTrendMode.yearSelection = Number(monthModeYearSelect.value) || companyTrendMode.yearSelection;
     renderCompanyTrendCharts();
   });
   refreshCompanyTrendSelectors();
@@ -300,16 +316,15 @@ function updatePersonalTrendModeButtons() {
 function updatePersonalTrendControlVisibility() {
   const monthControls = document.getElementById('personalTrendMonthControls');
   const yearControls = document.getElementById('personalTrendYearControls');
-  if (monthControls) {
-    monthControls.classList.toggle('is-active', personalTrendMode.periodMode === 'month');
-  }
-  if (yearControls) {
-    yearControls.classList.toggle('is-active', personalTrendMode.periodMode === 'year');
-  }
+  toggleSelectGroupVisibility(monthControls, personalTrendMode.periodMode === 'day');
+  toggleSelectGroupVisibility(yearControls, personalTrendMode.periodMode === 'month');
 }
 
 function refreshPersonalTrendSelectors() {
-  personalTrendOptions = buildYearMonthSummary(personalTrendRows);
+  personalTrendOptions = buildYearMonthSummary(personalTrendRows, {
+    year: personalTrendMode.monthSelection.year,
+    month: personalTrendMode.monthSelection.month
+  });
   const years = personalTrendOptions.years;
   const latestYear = personalTrendOptions.latest?.year ?? personalTrendMode.monthSelection.year;
   const latestMonth = personalTrendOptions.latest?.month ?? personalTrendMode.monthSelection.month;
@@ -319,24 +334,24 @@ function refreshPersonalTrendSelectors() {
   if (!years.includes(personalTrendMode.yearSelection) && years.length) {
     personalTrendMode.yearSelection = latestYear;
   }
-  const resolvedYear = populateSelectOptions(
+  const dayYearResolved = populateSelectOptions(
     document.getElementById('personalTrendYearSelect'),
     years,
     personalTrendMode.monthSelection.year,
     value => `${value}年`
   );
-  if (resolvedYear !== null) {
-    personalTrendMode.monthSelection.year = Number(resolvedYear);
+  if (dayYearResolved !== null) {
+    personalTrendMode.monthSelection.year = Number(dayYearResolved);
   }
   refreshPersonalMonthOptions(latestMonth);
-  const resolvedYearOnly = populateSelectOptions(
-    document.getElementById('personalTrendYearOnlySelect'),
+  const monthYearResolved = populateSelectOptions(
+    document.getElementById('personalTrendMonthYearSelect'),
     years,
     personalTrendMode.yearSelection,
     value => `${value}年`
   );
-  if (resolvedYearOnly !== null) {
-    personalTrendMode.yearSelection = Number(resolvedYearOnly);
+  if (monthYearResolved !== null) {
+    personalTrendMode.yearSelection = Number(monthYearResolved);
   }
 }
 
@@ -363,7 +378,18 @@ function refreshPersonalMonthOptions(fallbackMonth) {
   }
 }
 
-function renderPersonalTrendChart() {
+function applyLatestPersonalSelection() {
+  const rows = personalTrendRows;
+  if (!Array.isArray(rows) || !rows.length) return;
+  const lastRow = rows[rows.length - 1];
+  const meta = extractRowYearMonth(lastRow);
+  if (!meta) return;
+  personalTrendMode.monthSelection.year = meta.year;
+  personalTrendMode.monthSelection.month = meta.month;
+  personalTrendMode.yearSelection = meta.year;
+}
+
+function refreshPersonalTrendChart() {
   drawTrendChart({
     mode: 'rate',
     range: getPersonalTrendRangeLabel(),
@@ -384,16 +410,15 @@ function updateCompanyTrendModeButtons() {
 function updateCompanyTrendControlVisibility() {
   const monthControls = document.getElementById('companyTrendMonthControls');
   const yearControls = document.getElementById('companyTrendYearControls');
-  if (monthControls) {
-    monthControls.classList.toggle('is-active', companyTrendMode.periodMode === 'month');
-  }
-  if (yearControls) {
-    yearControls.classList.toggle('is-active', companyTrendMode.periodMode === 'year');
-  }
+  toggleSelectGroupVisibility(monthControls, companyTrendMode.periodMode === 'day');
+  toggleSelectGroupVisibility(yearControls, companyTrendMode.periodMode === 'month');
 }
 
 function refreshCompanyTrendSelectors() {
-  companyTrendOptions = buildYearMonthSummary(companyTrendRows);
+  companyTrendOptions = buildYearMonthSummary(companyTrendRows, {
+    year: companyTrendMode.monthSelection.year,
+    month: companyTrendMode.monthSelection.month
+  });
   const years = companyTrendOptions.years;
   const latestYear = companyTrendOptions.latest?.year ?? companyTrendMode.monthSelection.year;
   const latestMonth = companyTrendOptions.latest?.month ?? companyTrendMode.monthSelection.month;
@@ -413,15 +438,26 @@ function refreshCompanyTrendSelectors() {
     companyTrendMode.monthSelection.year = Number(resolvedYear);
   }
   refreshCompanyMonthOptions(latestMonth);
-  const resolvedYearOnly = populateSelectOptions(
-    document.getElementById('companyTrendYearOnlySelect'),
+  const resolvedMonthYear = populateSelectOptions(
+    document.getElementById('companyTrendMonthYearSelect'),
     years,
     companyTrendMode.yearSelection,
     value => `${value}年`
   );
-  if (resolvedYearOnly !== null) {
-    companyTrendMode.yearSelection = Number(resolvedYearOnly);
+  if (resolvedMonthYear !== null) {
+    companyTrendMode.yearSelection = Number(resolvedMonthYear);
   }
+}
+
+function applyLatestCompanySelection() {
+  const rows = companyTrendRows;
+  if (!Array.isArray(rows) || !rows.length) return;
+  const lastRow = rows[rows.length - 1];
+  const meta = extractRowYearMonth(lastRow);
+  if (!meta) return;
+  companyTrendMode.monthSelection.year = meta.year;
+  companyTrendMode.monthSelection.month = meta.month;
+  companyTrendMode.yearSelection = meta.year;
 }
 
 function refreshCompanyMonthOptions(fallbackMonth) {
@@ -820,7 +856,7 @@ async function loadYieldData() {
     if (monthlyData) {
       updateMonthlyKPI(monthlyData);
     }
-    renderPersonalTrendChart();
+    refreshPersonalTrendChart();
     
     // 社内成績データの読み込み
     const companyData = await loadCompanyKPIData();
@@ -1364,14 +1400,16 @@ function extractTrendRows(candidate) {
 function updatePersonalTrendRows(...candidates) {
   const next = candidates
     .map(extractTrendRows)
-    .find(rows => rows.length > 1);
+    .find(rows => rows.length);
   personalTrendRows = next || [];
+  applyLatestPersonalSelection();
   refreshPersonalTrendSelectors();
 }
 
 function updateCompanyTrendRows(candidate) {
   const rows = extractTrendRows(candidate);
-  companyTrendRows = rows.length > 1 ? rows : [];
+  companyTrendRows = rows.length ? rows : [];
+  applyLatestCompanySelection();
   refreshCompanyTrendSelectors();
 }
 
@@ -1618,18 +1656,28 @@ function updateEmployeeDisplay(data) {
   `).join('');
 }
 
-// 月次推移チャートの描画
-function drawTrendChart(options = {}) {
-  const { mode = 'rate', range = '6m', periodMode = 'day', monthSelection, yearSelection } = options;
-  const svg = document.getElementById('personalTrendChart');
-  if (!svg) return;
-  const legend = document.getElementById('personalChartLegend');
+function buildPersonalTrendChartData({ mode, periodMode, monthSelection, yearSelection }) {
   const actualSeries = resolvePersonalTrendSeries({ mode, periodMode, monthSelection, yearSelection });
+  if (actualSeries) {
+    return { labels: actualSeries.labels, seriesMap: actualSeries.series, isMock: false };
+  }
+  if (periodMode === 'day') {
+    const labels = createDayLabels(monthSelection);
+    const keys = mode === 'rate' ? Object.keys(PERSONAL_RATE_SERIES) : Object.keys(PERSONAL_COUNT_SERIES);
+    return { labels, seriesMap: buildZeroSeries(keys, labels.length), isMock: true };
+  }
+  if (periodMode === 'month') {
+    const labels = createMonthLabels();
+    const keys = mode === 'rate' ? Object.keys(PERSONAL_RATE_SERIES) : Object.keys(PERSONAL_COUNT_SERIES);
+    return { labels, seriesMap: buildZeroSeries(keys, labels.length), isMock: true };
+  }
   const fallback = getPersonalTrendFallback(mode);
-  const labels = actualSeries?.labels ?? fallback.labels;
-  const series = actualSeries?.series ?? fallback.series;
-  const entries = Object.entries(series);
-  if (!labels.length || !entries.length) return;
+  return { labels: fallback.labels, seriesMap: fallback.series, isMock: true };
+}
+
+function renderPersonalTrendChartSvg(svg, legend, { labels, seriesMap, mode, periodMode, range, isMock }) {
+  const entries = Object.entries(seriesMap || {});
+  if (!svg || !labels.length || !entries.length) return;
   const palette = ['#6366f1', '#f97316', '#0ea5e9'];
   const width = 800;
   const height = 300;
@@ -1642,78 +1690,115 @@ function drawTrendChart(options = {}) {
   const minValue = mode === 'rate' ? 0 : Math.min(...allValues, 0);
   const maxValue = Math.max(...allValues, mode === 'rate' ? 100 : Math.max(...allValues, 10));
   const rangeValue = maxValue - minValue || 1;
-  
-  const polylines = entries.map(([name, data], idx) => {
-    const color = palette[idx % palette.length];
-    const points = data.map((value, index) => {
-      const x = paddingX + xStep * index;
-      const normalized = (value - minValue) / rangeValue;
-      const y = bottomY - normalized * chartHeight;
-      return `${x},${y}`;
-    }).join(' ');
-    return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${points}" />`;
-  }).join('');
-  
-  const xLabels = labels.map((label, idx) => {
-    const x = paddingX + xStep * idx;
-    return `<text x="${x}" y="${bottomY + 16}" text-anchor="middle" font-size="12" fill="#94a3b8">${label}</text>`;
-  }).join('');
-  
+
+  const polylines = entries
+    .map(([name, data], idx) => {
+      const color = palette[idx % palette.length];
+      const points = data
+        .map((value, index) => {
+          const x = paddingX + xStep * index;
+          const normalized = (value - minValue) / rangeValue;
+          const y = bottomY - normalized * chartHeight;
+          return `${x},${y}`;
+        })
+        .join(' ');
+      return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${points}" />`;
+    })
+    .join('');
+
+  const xLabels = labels
+    .map((label, idx) => {
+      const x = paddingX + xStep * idx;
+      return `<text x="${x}" y="${bottomY + 16}" text-anchor="middle" font-size="12" fill="#94a3b8">${label}</text>`;
+    })
+    .join('');
+
   svg.innerHTML = `
     <g>
-      <text x="${width / 2}" y="24" text-anchor="middle" font-size="14" fill="#0f172a">個人${mode === 'rate' ? '歩留まり率' : '実績推移'} (${range})</text>
+      <text x="${width / 2}" y="24" text-anchor="middle" font-size="14" fill="#0f172a">個人${
+        mode === 'rate' ? '歩留まり率' : '実績推移'
+      } (${range})</text>
       <line x1="${paddingX}" y1="${paddingY}" x2="${paddingX}" y2="${bottomY}" stroke="#e2e8f0" stroke-width="1" />
       <line x1="${paddingX}" y1="${bottomY}" x2="${width - paddingX}" y2="${bottomY}" stroke="#e2e8f0" stroke-width="1" />
       ${polylines}
       ${xLabels}
-      ${actualSeries ? '' : `<text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#94a3b8">※モックデータを表示しています</text>`}
+      ${isMock ? `<text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#94a3b8">※モックデータを表示しています</text>` : ''}
     </g>
   `;
-  
+
   if (legend) {
-    const periodLabelMap = { day: '日次', month: '月次', year: '年次' };
-    const legendHtml = entries.map(([name], idx) => {
-      const color = palette[idx % palette.length];
-      return `
+    const periodLabelMap = { day: '日次', month: '月次' };
+    const legendHtml = entries
+      .map(([name], idx) => {
+        const color = palette[idx % palette.length];
+        return `
         <span class="inline-flex items-center gap-1">
           <span style="width:12px;height:12px;border-radius:9999px;background:${color};display:inline-block;"></span>
           <span>${name}</span>
         </span>
       `;
-    }).join('');
-    
+      })
+      .join('');
     legend.innerHTML = `
       <div class="text-xs text-slate-500 mb-1">表示モード: ${
         mode === 'rate' ? '提案率〜承諾率' : '提案数〜内定数'
       } / ${periodLabelMap[periodMode] || '日次'}</div>
       <div class="text-xs text-slate-500 flex flex-wrap gap-3">${legendHtml}</div>
       <div class="text-xs text-slate-400">期間: ${range}</div>
-      <div class="text-xs text-slate-400">${actualSeries ? 'APIデータから描画しています' : 'モックデータから描画しています'}</div>
+      <div class="text-xs text-slate-400">${isMock ? 'モックデータから描画しています' : 'APIデータから描画しています'}</div>
     `;
   }
 }
 
-function drawCompanyTrend({ range = '6m', data, periodMode = 'day', monthSelection, yearSelection } = {}) {
-  const host = document.getElementById('companyTrendChart');
-  if (!host) return;
-  if (!companyTrendRows.length && Array.isArray(data?.rows) && data.rows.length > 1) {
-    companyTrendRows = [...data.rows];
-    refreshCompanyTrendSelectors();
-  }
+function drawTrendChart(options = {}) {
+  const { mode = 'rate', range = '6m', periodMode = 'day', monthSelection, yearSelection } = options;
+  const svg = document.getElementById('personalTrendChart');
+  const legend = document.getElementById('personalChartLegend');
+  if (!svg || !legend) return;
+  const chartData = buildPersonalTrendChartData({ mode, periodMode, monthSelection, yearSelection });
+  renderPersonalTrendChartSvg(svg, legend, {
+    ...chartData,
+    mode,
+    periodMode,
+    range
+  });
+}
 
+function buildCompanyTrendChartData({ periodMode, monthSelection, yearSelection, snapshot }) {
   const actualSeries = resolveCompanyTrendSeries({ periodMode, monthSelection, yearSelection });
   if (actualSeries) {
-    host.innerHTML = createLineChartMarkup({
-      title: `全体の歩留まり率 (${range})`,
-      subtitle: `APIデータ / ${periodMode === 'day' ? '日次' : periodMode === 'month' ? '月次' : '年次'}`,
+    return {
       labels: actualSeries.labels,
-      seriesMap: actualSeries.series
-    });
-    return;
+      seriesMap: actualSeries.series,
+      isMock: false,
+      subtitle: `APIデータ / ${periodMode === 'day' ? '日次' : '月次'}`
+    };
+  }
+
+  if (periodMode === 'day') {
+    const labels = createDayLabels(monthSelection);
+    const seriesMap = buildZeroSeries(COMPANY_RATE_KEYS, labels.length);
+    return {
+      labels,
+      seriesMap,
+      isMock: true,
+      subtitle: '日次（モックデータ）'
+    };
+  }
+
+  if (periodMode === 'month') {
+    const labels = createMonthLabels();
+    const seriesMap = buildZeroSeries(COMPANY_RATE_KEYS, labels.length);
+    return {
+      labels,
+      seriesMap,
+      isMock: true,
+      subtitle: '月次（モックデータ）'
+    };
   }
 
   const labels = ['11月', '12月', '1月', '2月', '3月', '4月'];
-  const snapshot = data || companyKPIState || DEFAULT_COMPANY_RATES;
+  const dataSnapshot = snapshot || companyKPIState || DEFAULT_COMPANY_RATES;
   const rateConfigs = [
     { key: 'proposalRate', label: '提案率' },
     { key: 'recommendationRate', label: '推薦率' },
@@ -1724,22 +1809,41 @@ function drawCompanyTrend({ range = '6m', data, periodMode = 'day', monthSelecti
   ];
   const seriesMap = {};
   rateConfigs.forEach((config, idx) => {
-    const latest = snapshot[config.key] ?? (55 + idx * 5);
+    const latest = dataSnapshot?.[config.key] ?? 55 + idx * 5;
     seriesMap[config.label] = createAnchoredSeries(latest, labels.length, 2 + idx, idx);
   });
-  
+  return {
+    labels,
+    seriesMap,
+    isMock: true,
+    subtitle: '提案率〜承諾率（モックデータ）'
+  };
+}
+
+function drawCompanyTrend({ range = '6m', data, periodMode = 'day', monthSelection, yearSelection } = {}) {
+  const host = document.getElementById('companyTrendChart');
+  if (!host) return;
+  if (!companyTrendRows.length && Array.isArray(data?.rows) && data.rows.length) {
+    companyTrendRows = [...data.rows];
+    refreshCompanyTrendSelectors();
+  }
+
+  const chartData = buildCompanyTrendChartData({
+    periodMode,
+    monthSelection,
+    yearSelection,
+    snapshot: data || companyKPIState
+  });
+
   host.innerHTML = createLineChartMarkup({
     title: `全体の歩留まり率 (${range})`,
-    subtitle: '提案率〜承諾率（モックデータ）',
-    labels,
-    seriesMap
+    subtitle: chartData.subtitle,
+    labels: chartData.labels,
+    seriesMap: chartData.seriesMap
   });
 }
 
-function drawEmployeeComparisonTrend({ range = '6m', employees, periodMode = 'day', monthSelection, yearSelection } = {}) {
-  if (!isAdminUser) return;
-  const host = document.getElementById('employeeTrendChart');
-  if (!host) return;
+function buildEmployeeTrendChartData({ employees, periodMode, monthSelection, yearSelection }) {
   const sourceCandidates = Array.isArray(employees) && employees.length ? employees : employeeListState;
   const actualSeries = buildEmployeeTrendSeries(sourceCandidates, {
     periodMode,
@@ -1747,35 +1851,46 @@ function drawEmployeeComparisonTrend({ range = '6m', employees, periodMode = 'da
     yearSelection
   });
   if (actualSeries) {
-    host.innerHTML = createLineChartMarkup({
-      title: `社員別比較推移 (${range})`,
-      subtitle: `${periodMode === 'day' ? '日次' : periodMode === 'month' ? '月次' : '年次'}の比較`,
+    return {
       labels: actualSeries.labels,
-      seriesMap: actualSeries.series
-    });
-    return;
+      seriesMap: actualSeries.series,
+      isMock: false,
+      subtitle: `${periodMode === 'day' ? '日次' : '月次'}の比較`
+    };
   }
 
-  const fallbackLabels = ['11月', '12月', '1月', '2月', '3月', '4月'];
   const fallbackSource = sourceCandidates.length ? sourceCandidates : DEFAULT_EMPLOYEE_SERIES;
   const safeSource = fallbackSource.length ? fallbackSource : DEFAULT_EMPLOYEE_SERIES;
   const topEmployees = safeSource.slice(0, 4);
-  if (!topEmployees.length) {
-    host.innerHTML = `<div class="text-sm text-slate-500">社員データが不足しています。</div>`;
-    return;
-  }
-
+  const labels = periodMode === 'day' ? createDayLabels(monthSelection) : createMonthLabels();
   const seriesMap = {};
   topEmployees.forEach((employee, idx) => {
     const baseValue = employee.proposals || employee.recommendations || employee.offers || 6;
-    seriesMap[employee.name] = createEmployeeSeries(baseValue, fallbackLabels.length, idx);
+    seriesMap[employee.name || `社員${idx + 1}`] = createEmployeeSeries(baseValue, labels.length, idx);
   });
 
+  return {
+    labels,
+    seriesMap,
+    isMock: true,
+    subtitle: `${periodMode === 'day' ? '日次' : '月次'}（モックデータ）`
+  };
+}
+
+function drawEmployeeComparisonTrend({ range = '6m', employees, periodMode = 'day', monthSelection, yearSelection } = {}) {
+  if (!isAdminUser) return;
+  const host = document.getElementById('employeeTrendChart');
+  if (!host) return;
+  const chartData = buildEmployeeTrendChartData({ employees, periodMode, monthSelection, yearSelection });
+  if (!chartData.labels.length || !Object.keys(chartData.seriesMap).length) {
+    host.innerHTML = `<div class="text-sm text-slate-500">社員データが不足しています。</div>`;
+    return;
+  }
   host.innerHTML = createLineChartMarkup({
     title: `社員別比較推移 (${range})`,
-    subtitle: '提案数ベースの簡易モックトレンド',
-    labels: fallbackLabels,
-    seriesMap
+    subtitle: chartData.subtitle,
+    labels: chartData.labels,
+    seriesMap: chartData.seriesMap
   });
 }
 
@@ -1876,12 +1991,17 @@ function getPersonalTrendFallback(mode) {
   return { labels, series };
 }
 
-function buildPersonalTrendSeriesFromRows(mode, sourceRows = personalTrendRows) {
+function buildPersonalTrendSeriesFromRows(mode, sourceRows = personalTrendRows, labelFormatter) {
   const rows = Array.isArray(sourceRows) ? sourceRows : [];
-  if (rows.length < 2) return null;
+  if (!rows.length) return null;
   const entries = createSortedTrendEntries(rows);
-  if (entries.length < 2) return null;
-  const labels = entries.map(entry => entry.label);
+  if (!entries.length) return null;
+  const labels = entries.map(entry => {
+    if (typeof labelFormatter === 'function') {
+      return labelFormatter(entry.row, entry);
+    }
+    return entry.label;
+  });
   const configs =
     mode === 'rate'
       ? [
@@ -1903,11 +2023,16 @@ function buildPersonalTrendSeriesFromRows(mode, sourceRows = personalTrendRows) 
   return Object.keys(series).length ? { labels, series } : null;
 }
 
-function buildCompanyTrendSeriesFromRows(rows) {
-  if (!Array.isArray(rows) || rows.length < 2) return null;
+function buildCompanyTrendSeriesFromRows(rows, labelFormatter) {
+  if (!Array.isArray(rows) || !rows.length) return null;
   const entries = createSortedTrendEntries(rows);
   if (!entries.length) return null;
-  const labels = entries.map(entry => entry.label);
+  const labels = entries.map(entry => {
+    if (typeof labelFormatter === 'function') {
+      return labelFormatter(entry.row, entry);
+    }
+    return entry.label;
+  });
   const configs = [
     { key: 'proposal_rate', label: '提案率' },
     { key: 'recommendation_rate', label: '推薦率' },
@@ -1933,7 +2058,7 @@ function buildEmployeeTrendSeries(employees = [], options = {}) {
       name: employee?.name || '社員',
       points: extractEmployeeTrendPoints(employee, options)
     }))
-    .filter(item => Array.isArray(item.points) && item.points.length > 1);
+    .filter(item => Array.isArray(item.points) && item.points.length);
   if (!datasets.length) return null;
 
   const labelMeta = new Map();
@@ -1949,7 +2074,7 @@ function buildEmployeeTrendSeries(employees = [], options = {}) {
     .sort((a, b) => (a.sortValue === b.sortValue ? a.label.localeCompare(b.label) : a.sortValue - b.sortValue))
     .map(entry => entry.label);
 
-  if (labels.length < 2) return null;
+  if (!labels.length) return null;
 
   const series = {};
   datasets.forEach(dataset => {
@@ -1983,19 +2108,17 @@ function extractEmployeeTrendPoints(employee, options = {}) {
       return { label, sortValue, value: num(valueSource), rawValue: labelHint };
     })
     .filter(point => Number.isFinite(point.value));
-  if (points.length < 2) return null;
+  if (!points.length) return null;
   points.sort((a, b) => (a.sortValue === b.sortValue ? a.label.localeCompare(b.label) : a.sortValue - b.sortValue));
+  if (options.periodMode === 'day') {
+    const filtered = filterPointsByMonth(points, options.monthSelection);
+    return filtered.length ? filtered : points;
+  }
   if (options.periodMode === 'month') {
     const aggregated = aggregateEmployeePointsByMonth(points);
-    const limited = filterMonthlyEntriesBySelection(aggregated, options.monthSelection);
-    return limited.length >= 2 ? limited : aggregated;
-  }
-  if (options.periodMode === 'year') {
-    const aggregated = aggregateEmployeePointsByMonth(points);
-    const targetYear =
-      Number(options.yearSelection) || companyTrendMode.yearSelection || aggregated[aggregated.length - 1]?.year;
-    const filtered = aggregated.filter(point => point.year === targetYear);
-    return filtered.length >= 2 ? filtered : aggregated;
+    const { entries: yearEntries, year } = filterMonthlyEntriesByYear(aggregated, options.yearSelection);
+    if (!yearEntries.length) return aggregated;
+    return padEmployeeMonthlyEntries(yearEntries, year);
   }
   return points;
 }
@@ -2040,8 +2163,9 @@ function parseTrendLabelValue(rawValue, fallbackIndex = 0) {
     const trimmed = rawValue.trim();
     if (trimmed) {
       const normalized = trimmed.replace(/\./g, '-').replace(/\//g, '-');
-      if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-        const date = new Date(`${normalized}T00:00:00Z`);
+      if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
+        const base = normalized.slice(0, 10);
+        const date = new Date(`${base}T00:00:00Z`);
         if (!Number.isNaN(date.getTime())) {
           return { label: formatMonthYearLabel(date), sortValue: date.getTime() };
         }
@@ -2081,6 +2205,37 @@ function formatMonthYearLabel(date) {
   return `${year}/${month}`;
 }
 
+function formatMonthLabel(month) {
+  return `${month}月`;
+}
+
+function formatDayLabel(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}/${day}`;
+}
+
+function createDayLabels(selection = {}, fallbackYear = defaultTrendYear, fallbackMonth = defaultTrendMonth) {
+  const year = Number(selection?.year) || fallbackYear;
+  const month = Number(selection?.month) || fallbackMonth;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, idx) =>
+    formatDayLabel(new Date(year, month - 1, idx + 1))
+  );
+}
+
+function createMonthLabels() {
+  return Array.from({ length: 12 }, (_, idx) => formatMonthLabel(idx + 1));
+}
+
+function buildZeroSeries(keys = [], length = 0) {
+  const series = {};
+  keys.forEach(key => {
+    series[key] = Array.from({ length }, () => 0);
+  });
+  return series;
+}
+
 function readRowMetric(row, key) {
   if (!row) return 0;
   const candidates = [key];
@@ -2105,10 +2260,12 @@ function camelToSnake(value) {
   return value.replace(/([A-Z])/g, '_$1').toLowerCase();
 }
 
-function buildYearMonthSummary(rows = []) {
+function buildYearMonthSummary(rows = [], fallbackConfig = {}) {
   const monthsByYear = new Map();
   let latest = null;
   let latestSort = -Infinity;
+  const fallbackYear = Number.isFinite(fallbackConfig.year) ? fallbackConfig.year : defaultTrendYear;
+  const fallbackMonth = Number.isFinite(fallbackConfig.month) ? fallbackConfig.month : defaultTrendMonth;
   rows.forEach(row => {
     const date = extractRowDate(row);
     if (!date) return;
@@ -2129,6 +2286,15 @@ function buildYearMonthSummary(rows = []) {
   monthsByYear.forEach((set, year) => {
     normalizedMonths.set(year, Array.from(set).sort((a, b) => a - b));
   });
+  if (!years.length) {
+    const fallbackMonths = Array.from({ length: 12 }, (_, idx) => idx + 1);
+    normalizedMonths.set(fallbackYear, fallbackMonths);
+    return {
+      years: [fallbackYear],
+      monthsByYear: normalizedMonths,
+      latest: { year: fallbackYear, month: fallbackMonth }
+    };
+  }
   return { years, monthsByYear: normalizedMonths, latest };
 }
 
@@ -2152,14 +2318,9 @@ function populateSelectOptions(select, options, preferredValue, labelFormatter =
 
 function getPersonalTrendRangeLabel() {
   if (personalTrendMode.periodMode === 'day') {
-    const start = document.getElementById('personalRangeStart')?.value;
-    const end = document.getElementById('personalRangeEnd')?.value;
-    return start && end ? `${start}〜${end}` : '日次カスタム';
-  }
-  if (personalTrendMode.periodMode === 'month') {
     const year = personalTrendMode.monthSelection.year ?? defaultTrendYear;
     const month = personalTrendMode.monthSelection.month ?? defaultTrendMonth;
-    return `月次 ${year}/${String(month).padStart(2, '0')}`;
+    return `日次 ${year}/${String(month).padStart(2, '0')}`;
   }
   const year = personalTrendMode.yearSelection ?? defaultTrendYear;
   return `${year}年の月次`;
@@ -2167,14 +2328,9 @@ function getPersonalTrendRangeLabel() {
 
 function getCompanyTrendRangeLabel() {
   if (companyTrendMode.periodMode === 'day') {
-    const start = document.getElementById('companyRangeStart')?.value;
-    const end = document.getElementById('companyRangeEnd')?.value;
-    return start && end ? `${start}〜${end}` : '日次カスタム';
-  }
-  if (companyTrendMode.periodMode === 'month') {
     const year = companyTrendMode.monthSelection.year ?? defaultTrendYear;
     const month = companyTrendMode.monthSelection.month ?? defaultTrendMonth;
-    return `月次 ${year}/${String(month).padStart(2, '0')}`;
+    return `日次 ${year}/${String(month).padStart(2, '0')}`;
   }
   const year = companyTrendMode.yearSelection ?? defaultTrendYear;
   return `${year}年の月次`;
@@ -2186,6 +2342,27 @@ function extractRowDate(row) {
   for (const candidate of candidates) {
     const parsed = parseDateCandidate(candidate);
     if (parsed) return parsed;
+  }
+  return null;
+}
+
+function extractRowYearMonth(row) {
+  const candidates = [row.date, row.period, row.month, row.label, row.timestamp];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const normalized = String(candidate).trim();
+    const match = normalized.match(/(\d{4})[\/\-]?(\d{2})/);
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        return { year, month };
+      }
+    }
+    const date = parseDateCandidate(candidate);
+    if (date) {
+      return { year: date.getFullYear(), month: date.getMonth() + 1 };
+    }
   }
   return null;
 }
@@ -2218,6 +2395,36 @@ function parseDateCandidate(candidate) {
 }
 
 const MONTH_MODE_WINDOW = 12;
+
+function filterRowsByMonth(rows = [], selection) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  const year = Number(selection?.year);
+  const month = Number(selection?.month);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return [...rows];
+  }
+  const filtered = rows.filter(row => {
+    const meta = extractRowYearMonth(row);
+    if (!meta) return false;
+    return meta.year === year && meta.month === month;
+  });
+  return filtered.length ? filtered : [];
+}
+
+function filterPointsByMonth(points = [], selection) {
+  if (!Array.isArray(points) || !points.length) return [];
+  const year = Number(selection?.year);
+  const month = Number(selection?.month);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return [...points];
+  }
+  const filtered = points.filter(point => {
+    const date = resolvePointDate(point);
+    if (!date) return false;
+    return date.getFullYear() === year && date.getMonth() + 1 === month;
+  });
+  return filtered.length ? filtered : [];
+}
 
 function aggregateRowsByMonth(rows = []) {
   const buckets = new Map();
@@ -2255,6 +2462,32 @@ function aggregateRowsByMonth(rows = []) {
     .sort((a, b) => a.sortValue - b.sortValue);
 }
 
+function padMonthlyAggregates(entries = [], year) {
+  if (!Number.isFinite(year)) return entries;
+  const byMonth = new Map(entries.map(entry => [entry.month ?? extractRowYearMonth(entry)?.month, entry]));
+  const result = [];
+  for (let month = 1; month <= 12; month += 1) {
+    if (byMonth.has(month)) {
+      result.push(byMonth.get(month));
+    } else {
+      result.push(
+        createAggregatedTrendRow({
+          year,
+          month,
+          newInterviews: 0,
+          proposals: 0,
+          recommendations: 0,
+          interviewsScheduled: 0,
+          interviewsHeld: 0,
+          offers: 0,
+          accepts: 0
+        })
+      );
+    }
+  }
+  return result.sort((a, b) => a.month - b.month);
+}
+
 function createAggregatedTrendRow(bucket) {
   const toRate = (num, den) => (den === 0 ? 0 : Math.round((1000 * num) / den) / 10);
   const period = `${bucket.year}-${String(bucket.month).padStart(2, '0')}-01`;
@@ -2262,7 +2495,7 @@ function createAggregatedTrendRow(bucket) {
     ...bucket,
     period,
     date: period,
-    label: period,
+    label: formatMonthLabel(bucket.month),
     hires: bucket.accepts,
     new_interviews: bucket.newInterviews,
     interviews_scheduled: bucket.interviewsScheduled,
@@ -2288,71 +2521,62 @@ function createAggregatedTrendRow(bucket) {
   return withRates;
 }
 
-function filterMonthlyEntriesBySelection(entries = [], selection) {
-  if (!entries.length) return [];
-  const sortValue =
-    selection && Number.isFinite(Number(selection.year)) && Number.isFinite(Number(selection.month))
-      ? Number(selection.year) * 100 + Number(selection.month)
-      : null;
-  const filtered =
-    sortValue !== null
-      ? entries.filter(entry => entry.sortValue <= sortValue)
-      : [...entries];
-  const usable = filtered.length >= 2 ? filtered : entries;
-  if (usable.length <= MONTH_MODE_WINDOW) {
-    return usable;
-  }
-  return usable.slice(usable.length - MONTH_MODE_WINDOW);
+function filterMonthlyEntriesByYear(entries = [], yearSelection) {
+  if (!entries.length) return { entries: [], year: null };
+  const years = Array.from(new Set(entries.map(entry => entry.year))).sort((a, b) => a - b);
+  const fallbackYear = years.length ? years[years.length - 1] : defaultTrendYear;
+  const targetYear =
+    Number(yearSelection) && years.includes(Number(yearSelection)) ? Number(yearSelection) : fallbackYear;
+  const filtered = entries.filter(entry => entry.year === targetYear);
+  return {
+    entries: filtered.length ? filtered : entries,
+    year: targetYear
+  };
 }
 
 function resolvePersonalTrendSeries({ mode, periodMode, monthSelection, yearSelection }) {
   if (periodMode === 'day') {
-    return buildPersonalTrendSeriesFromRows(mode);
+    const filtered = filterRowsByMonth(personalTrendRows, monthSelection);
+    if (!filtered.length) return null;
+    return buildPersonalTrendSeriesFromRows(mode, filtered, row => {
+      const date = extractRowDate(row);
+      return date ? formatDayLabel(date) : row?.period ?? '';
+    });
   }
   const monthlyRows = aggregateRowsByMonth(personalTrendRows);
   if (!monthlyRows.length) {
     return null;
   }
   if (periodMode === 'month') {
-    const limited = filterMonthlyEntriesBySelection(monthlyRows, monthSelection);
-    return limited.length >= 2 ? buildPersonalTrendSeriesFromRows(mode, limited) : null;
-  }
-  if (periodMode === 'year') {
-    const targetYear =
-      Number(yearSelection) || personalTrendMode.yearSelection || monthlyRows[monthlyRows.length - 1]?.year;
-    const filtered = monthlyRows.filter(entry => entry.year === targetYear);
-    if (filtered.length >= 2) {
-      return buildPersonalTrendSeriesFromRows(mode, filtered);
-    }
-    const fallback = monthlyRows.slice(-Math.min(monthlyRows.length, MONTH_MODE_WINDOW));
-    return fallback.length >= 2 ? buildPersonalTrendSeriesFromRows(mode, fallback) : null;
+    const { entries: yearEntries, year } = filterMonthlyEntriesByYear(monthlyRows, yearSelection);
+    if (!yearEntries.length) return null;
+    const padded = padMonthlyAggregates(yearEntries, year);
+    return buildPersonalTrendSeriesFromRows(mode, padded, entry => formatMonthLabel(entry.month));
   }
   return null;
 }
 
 function resolveCompanyTrendSeries({ periodMode, monthSelection, yearSelection }) {
   const sourceRows =
-    (Array.isArray(companyTrendRows) && companyTrendRows.length > 1 && companyTrendRows) ||
-    (Array.isArray(companyKPIState?.rows) && companyKPIState.rows.length > 1 && companyKPIState.rows) ||
+    (Array.isArray(companyTrendRows) && companyTrendRows.length && companyTrendRows) ||
+    (Array.isArray(companyKPIState?.rows) && companyKPIState.rows.length && companyKPIState.rows) ||
     [];
   if (!sourceRows.length) return null;
   if (periodMode === 'day') {
-    return buildCompanyTrendSeriesFromRows(sourceRows);
+    const filtered = filterRowsByMonth(sourceRows, monthSelection);
+    if (!filtered.length) return null;
+    return buildCompanyTrendSeriesFromRows(filtered, row => {
+      const date = extractRowDate(row);
+      return date ? formatDayLabel(date) : row?.period ?? '';
+    });
   }
   const monthlyRows = aggregateRowsByMonth(sourceRows);
   if (!monthlyRows.length) return null;
   if (periodMode === 'month') {
-    const limited = filterMonthlyEntriesBySelection(monthlyRows, monthSelection);
-    return limited.length >= 2 ? buildCompanyTrendSeriesFromRows(limited) : null;
-  }
-  if (periodMode === 'year') {
-    const year = Number(yearSelection) || companyTrendMode.yearSelection || monthlyRows[monthlyRows.length - 1]?.year;
-    const filtered = monthlyRows.filter(entry => entry.year === year);
-    if (filtered.length >= 2) {
-      return buildCompanyTrendSeriesFromRows(filtered);
-    }
-    const fallback = monthlyRows.slice(-Math.min(monthlyRows.length, MONTH_MODE_WINDOW));
-    return fallback.length >= 2 ? buildCompanyTrendSeriesFromRows(fallback) : null;
+    const { entries: yearEntries, year } = filterMonthlyEntriesByYear(monthlyRows, yearSelection);
+    if (!yearEntries.length) return null;
+    const padded = padMonthlyAggregates(yearEntries, year);
+    return buildCompanyTrendSeriesFromRows(padded, entry => formatMonthLabel(entry.month));
   }
   return null;
 }
@@ -2373,13 +2597,33 @@ function aggregateEmployeePointsByMonth(points = []) {
   });
   return Array.from(buckets.values())
     .map(bucket => ({
-      label: `${bucket.year}/${String(bucket.month).padStart(2, '0')}`,
+      label: formatMonthLabel(bucket.month),
       sortValue: bucket.sortValue,
       value: bucket.value,
       year: bucket.year,
       month: bucket.month
     }))
     .sort((a, b) => a.sortValue - b.sortValue);
+}
+
+function padEmployeeMonthlyEntries(entries = [], year) {
+  if (!Number.isFinite(year)) return entries;
+  const byMonth = new Map(entries.map(entry => [entry.month, entry]));
+  const result = [];
+  for (let month = 1; month <= 12; month += 1) {
+    if (byMonth.has(month)) {
+      result.push(byMonth.get(month));
+    } else {
+      result.push({
+        label: formatMonthLabel(month),
+        sortValue: year * 100 + month,
+        value: 0,
+        year,
+        month
+      });
+    }
+  }
+  return result;
 }
 
 function resolvePointDate(point) {
