@@ -22,7 +22,7 @@ const readMetricValue = (row, keys, fallback = 0) => {
   return fallback;
 };
 
-const ensureDateLabel = row => row?.period ?? row?.month ?? row?.date ?? row?.label ?? row?.timestamp ?? null;
+const ensureDateLabel = row => row?.date ?? row?.period ?? row?.month ?? row?.label ?? row?.timestamp ?? null;
 
 const normalizePersonalRow = (row = {}) => {
   const normalized = { ...row };

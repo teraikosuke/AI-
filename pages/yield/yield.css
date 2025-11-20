@@ -414,13 +414,13 @@
 }
 
 [data-kpi="v2"] .kpi-v2-select-group {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-[data-kpi="v2"] .kpi-v2-select-group.is-active {
-  display: inline-flex;
+[data-kpi="v2"] .kpi-v2-select-group:not(.is-active) {
+  display: none;
 }
 
 [data-kpi="v2"] .kpi-v2-mode-select {
@@ -430,6 +430,7 @@
   font-size: 0.85rem;
   color: #0f172a;
   background: #ffffff;
+  min-width: 100px;
 }
 
 [data-kpi="v2"] .chart-single-center {
