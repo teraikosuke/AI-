@@ -58,6 +58,80 @@ open http://localhost:8000/dashboard.html
 - ビルドプロセス不要
 - 外部CDN不要
 
+## 🛠️ ローカル環境構築ステップ（チーム共有用）
+
+> ※ 最新のサーバーコードでは Postgres がなくてもモックデータで動作します。DB を使いたいメンバーは以下の手順に沿って準備してください。
+
+1. **Node.js をインストール**  
+   - バージョン 18 以上推奨（リポジトリでは 20.x で検証済み）。公式サイトのインストーラを使用すれば OK です。
+
+2. **依存関係のインストール**
+   ```bash
+   git clone <repository-url>
+   cd AI-
+   npm install        # フロント/共通の依存
+   cd server
+   npm install        # API 用の依存
+   ```
+
+3. **Postgres の用意**  
+   - **Docker を使わない場合**  
+     1. 各自の PC に Postgres をインストールし、`ai_dashboard` などの DB を作成。  
+     2. `server/.env` に `DATABASE_URL=postgres://user:pass@localhost:5432/ai_dashboard` を設定。  
+   - **Docker を使う場合**  
+     1. Docker Desktop をインストール。  
+     2. `cd server && docker compose up -d` で Postgres14 が `localhost:54321` に起動。  
+     3. `.env` に `DATABASE_URL=postgres://postgres:postgres@localhost:54321/postgres` などを設定。  
+     4. `http://localhost:5050` で pgAdmin（ID: `admin@local` / PW: `admin`）が使えます。pgAdmin から接続する際はホストを `postgres`, ポートを `5432` に設定してください（docker-compose のサービス名が内部ホスト名になります）。
+
+4. **初回のみマイグレーション＆シード（DB を使うメンバーだけ）**
+   ```bash
+   cd server
+   npm run migrate
+   npm run seed
+   ```
+   > モックデータのみで動かしたい場合はこのステップは不要です。
+
+5. **API 起動**
+   ```bash
+   cd server
+   npm run dev
+   ```
+   - `DATABASE_URL` が未設定/DB 停止中でも自動的にモックデータへフェイルオーバーします。  
+   - フロントを別ポートで動かしたい場合は `.env` に `APP_ORIGINS=http://localhost:3000` などを追加するか、`ALLOW_ALL_ORIGINS=true` を設定してください。
+
+6. **フロントエンド起動**
+   ```bash
+   cd AI-
+   npm run dev
+   ```
+
+### よく使う環境変数
+| 変数名 | 役割 | 例 |
+| --- | --- | --- |
+| `DATABASE_URL` | Postgres の接続文字列 | `postgres://postgres:postgres@localhost:54321/postgres` |
+| `APP_ORIGINS` | フロントをホストする許可オリジン（カンマ区切り） | `http://localhost:3000,http://127.0.0.1:4173` |
+| `ALLOW_ALL_ORIGINS` | true なら CORS を完全開放（開発用） | `true` |
+| `USE_MOCK_AUTH` / `USE_MOCK_METRICS` | モックログイン / モックKPIを強制 | `true` |
+| `MOCK_FAILOVER` | DB エラー時に自動でモックへ切り替えるか | `true`（既定） |
+
+### 開発用アカウント一覧
+| 権限 | メールアドレス | パスワード | 備考 |
+| --- | --- | --- | --- |
+| 管理者 | `admin@example.com` | `admin123` | モック / DB 共通 |
+| 一般 | `user@example.com` | `user123` | モック / DB 共通 |
+| 一般（DBシードのみ） | `analyst@example.com` | `analyst123` | DB を有効にしたときのみ使用可能 |
+| 一般（DBシードのみ） | `sales@example.com` | `sales123` | 同上 |
+| 一般（DBシードのみ） | `designer@example.com` | `designer123` | 同上 |
+| 一般（DBシードのみ） | `hr@example.com` | `hr123` | 同上 |
+
+### DB に保存される主なデータと注意点
+- `users` … メール・ハッシュ化パスワード・ロール（`admin` か `member`）。ロールによって社員比較機能などのアクセス可否が決まります。  
+- KPI 系テーブル … `new_interviews → proposals → recommendations → interviews_scheduled → interviews_held → offers → accepts` の順で歩留まり率を算出。データ投入時はこのチェーンの整合性を崩さないことが重要です。  
+- 社員別 KPI … 管理者向けの社員比較グラフ／テーブルのデータソースです。
+
+> まとめ: Postgres を触りたくないメンバーは手順 1・2・5・6 だけで動作確認できます。後から DB を使う場合は手順 3・4 を追加で実施してください。
+
 ## 🏗️ アーキテクチャ
 
 ### 設計原則

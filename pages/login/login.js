@@ -1,7 +1,8 @@
 /**
  * Login page JavaScript module
  */
-import { login } from '../../scripts/auth.js';
+import { authRepo } from '../../scripts/api/repositories/auth.js';
+import { consumePostLoginRedirect } from '../../scripts/router.js';
 
 export async function mount(root) {
   console.log('Mounting login page...');
@@ -18,8 +19,13 @@ export async function mount(root) {
       
       try {
         errorMessage.classList.add('hidden');
-        await login(email, password);
-        location.hash = '#/yield';
+        const session = await authRepo.login(email, password);
+
+        // 直前にアクセスしようとしていた保護ルートがあればそちらへ、
+        // なければデフォルトのyieldページへ遷移
+        const redirectTo = consumePostLoginRedirect() || 'yield';
+        console.log('Login success, session:', session, 'redirectTo:', redirectTo);
+        location.hash = `#/${redirectTo}`;
       } catch (error) {
         errorMessage.textContent = error.message;
         errorMessage.classList.remove('hidden');

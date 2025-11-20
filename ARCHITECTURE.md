@@ -145,6 +145,50 @@ if (TypeValidators.isKpiData(data)) {
 const kpiArray = TypeCasters.toKpiDataArray(rawData);
 ```
 
+### API Response Contracts (Draft)
+
+将来の OpenAPI 連携を見据え、主要エンドポイントの返却JSON契約を簡易的に定義する。
+
+- `GET /api/kpi/personal`, `GET /api/kpi/company`
+  - 目的: 個人 / 全社のKPI一覧取得
+  - 返却スキーマ:
+    - `success` (boolean, 必須)
+    - `data` (KpiDto[], 必須)
+    - `data[].period` (string, 必須, 例: `"2024-11"`)
+    - `data[].applications` (number, 必須)
+    - `data[].introductions` (number, 必須)
+    - `data[].hires` (number, 必須)
+    - `data[].cost` (number, 必須)
+    - `data[].currency` (string, 必須, 例: `"JPY"`)
+
+- `GET /api/employees/performance`
+  - 目的: 従業員ごとの成績一覧取得
+  - 返却スキーマ:
+    - `success` (boolean, 必須)
+    - `data` (EmployeeDto[], 必須)
+    - `data[].id` (string, 必須)
+    - `data[].name` (string, 必須)
+    - `data[].department` (string, 必須)
+    - `data[].applications` (number, 必須)
+    - `data[].introductions` (number, 必須)
+    - `data[].hires` (number, 必須)
+    - `data[].rate` (number, 必須, 単位: パーセント)
+    - `data[].rank` (string, 必須, 例: `"A" | "B" | "C"`)
+
+- `POST /api/auth/login`
+  - 目的: 認証とセッション生成
+  - リクエストボディ:
+    - `email` (string, 必須)
+    - `password` (string, 必須)
+  - 返却スキーマ:
+    - `session` (Session, 必須)
+    - `session.user.email` (string, 必須)
+    - `session.user.name` (string, 必須)
+    - `session.role` (string, 必須, 例: `"admin" | "member"`)
+    - `session.roles` (string[], 必須)
+    - `session.token` (string, 必須)
+    - `session.exp` (number, 必須, Unixタイムスタンプ)
+
 ## CSS Architecture
 
 ### CSS Custom Properties (tokens.css)
