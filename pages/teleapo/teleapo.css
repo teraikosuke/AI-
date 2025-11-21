@@ -1,898 +1,183 @@
-/* Yield page specific styles - Inherits base KPI v2 styles from base.css */
+/* =========================================================
+ * Teleapo (ATS 新規アポ管理画面) 専用スタイル
+ *  - data-page="teleapo" をキーにしているので、
+ *    HTML 側は <section data-page="teleapo" ...> でOK
+ * =======================================================*/
 
-/* Yield specific chart and employee styles */
-[data-kpi="v2"] .chart-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .chart-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  height: 300px;
+/* ラッパー全体 */
+[data-page="teleapo"] .kpi-v2-wrapper {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-[data-kpi="v2"] .employee-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .employee-controls {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .employee-search {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .employee-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .employee-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .employee-card:hover {
-  border-color: #c7d2fe;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
-  transform: translateY(-1px);
-}
-
-[data-kpi="v2"] .employee-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .employee-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  font-size: 0.875rem;
-}
-
-[data-kpi="v2"] .employee-stat {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 0.375rem;
-}
-
-[data-kpi="v2"] .employee-stat-label {
-  color: #64748b;
-  font-weight: 500;
-}
-
-[data-kpi="v2"] .employee-stat-value {
-  color: #1e293b;
-  font-weight: 600;
-}
-
-/* ===== KPI v2: 個人成績・全体セクション ===== */
-[data-kpi="v2"] .kpi-v2-section {
+/* 共通セクションカード */
+[data-page="teleapo"] .kpi-v2-section {
   background-color: #ffffff;
   border-radius: 1rem;
   border: 1px solid #e2e8f0;
   padding: 1.5rem;
-  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.06);
 }
 
-[data-kpi="v2"] .kpi-v2-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #475569;
-  min-width: 140px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input:focus {
-  outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-[data-kpi="v2"] .kpi-v2-date-separator {
-  color: #64748b;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-row {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-/* 統合カード（上段） */
-[data-kpi="v2"] .kpi-v2-summary-unified {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-section {
-  flex: 1;
-  text-align: center;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-target-section {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card,
-[data-kpi="v2"] .kpi-v2-target-card {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1.25rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card {
-  text-align: center;
-}
-
-[data-kpi="v2"] .kpi-v2-value-large {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #4338ca;
-  line-height: 1.2;
-}
-
-[data-kpi="v2"] .kpi-v2-current {
-  color: #059669;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-separator {
-  color: #64748b;
-  margin: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-target {
-  color: #64748b;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-  margin: 0 -0.5rem;
-  padding: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar {
-  height: 6px;
-  margin-top: 8px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 3px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
-}
-
-[data-kpi="v2"] .kpi-v2-row {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  scroll-snap-type: x mandatory;
-  min-width: max-content;
-}
-
-[data-kpi="v2"] .kpi-v2-row:last-child {
-  margin-bottom: 0;
-}
-
-[data-kpi="v2"] .kpi-v2-card {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  flex: 0 0 auto;
-  width: 160px;
-  scroll-snap-align: start;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  border-color: #c7d2fe;
-}
-
-[data-kpi="v2"] .kpi-v2-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-[data-kpi="v2"] .kpi-v2-value {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
-}
-
-/* Responsive adjustments */
-@media (min-width: 1920px) {
-  [data-kpi="v2"] .kpi-v2-card {
-    width: calc((100% - 9rem) / 7);
-  }
-}
-
-@media (max-width: 640px) {
-  [data-kpi="v2"] .kpi-v2-row {
-    gap: 0.5rem;
-  }
-
-  [data-kpi="v2"] .kpi-v2-card {
-    width: 140px;
-    padding: 0.875rem 1rem;
-  }
-}
-
-/* Chart section styles */
-[data-kpi="v2"] .chart-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .chart-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
+/* 上部KPIセクション（青ベース） */
+[data-page="teleapo"] .kpi-v2-summary-section {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 40%, #ffffff 100%);
+  border-radius: 1rem;
+  border: 1px solid #bfdbfe;
   padding: 1.5rem;
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
+  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.06);
+  margin-bottom: 0.5rem;
 }
 
-/* Employee performance styles */
-[data-kpi="v2"] .employee-section {
-  margin-top: 2rem;
-}
-
-[data-kpi="v2"] .employee-controls {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .employee-search {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .employee-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .employee-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .employee-card:hover {
-  border-color: #c7d2fe;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
-  transform: translateY(-1px);
-}
-
-[data-kpi="v2"] .employee-name {
+/* タイトル・期間ラベル */
+[data-page="teleapo"] .kpi-v2-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .employee-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  font-size: 0.875rem;
-}
-
-[data-kpi="v2"] .employee-stat {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 0.375rem;
-}
-
-[data-kpi="v2"] .employee-stat-label {
-  color: #64748b;
-  font-weight: 500;
-}
-
-[data-kpi="v2"] .employee-stat-value {
-  color: #1e293b;
-  font-weight: 600;
-}
-
-/* ===== KPI v2: 個人成績・全体セクション ===== */
-[data-kpi="v2"] .kpi-v2-section {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  border: 1px solid #e2e8f0;
-  padding: 1.5rem;
-  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.08);
-}
-
-[data-kpi="v2"] .kpi-v2-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #475569;
-  min-width: 140px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input:focus {
-  outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-[data-kpi="v2"] .kpi-v2-date-separator {
-  color: #64748b;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-row {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-/* 統合カード（上段） */
-[data-kpi="v2"] .kpi-v2-summary-unified {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1rem 1.5rem;
-  /* 縮小されたパディング */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-section {
-  flex: 1;
-  text-align: center;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-target-section {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card,
-[data-kpi="v2"] .kpi-v2-target-card {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1.25rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-card {
-  text-align: center;
-}
-
-[data-kpi="v2"] .kpi-v2-value-large {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #4338ca;
-  line-height: 1.2;
-}
-
-[data-kpi="v2"] .kpi-v2-current {
-  color: #059669;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-separator {
-  color: #64748b;
-  margin: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-target {
-  color: #64748b;
-  font-weight: 600;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-  margin: 0 -0.5rem;
-  padding: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar {
-  height: 6px;
-  margin-top: 8px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 3px;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
-}
-
-[data-kpi="v2"] .kpi-v2-row {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  scroll-snap-type: x mandatory;
-  min-width: max-content;
-}
-
-[data-kpi="v2"] .kpi-v2-row:last-child {
-  margin-bottom: 0;
-}
-
-[data-kpi="v2"] .kpi-v2-card {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  flex: 0 0 auto;
-  width: 160px;
-  scroll-snap-align: start;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  border-color: #c7d2fe;
-}
-
-[data-kpi="v2"] .kpi-v2-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-[data-kpi="v2"] .kpi-v2-value {
-  font-size: 1.75rem;
-  font-weight: 700;
   color: #0f172a;
-  line-height: 1.2;
-  margin-bottom: 0.5rem;
 }
 
-[data-kpi="v2"] .kpi-v2-meta {
+[data-page="teleapo"] #teleapoKpiPeriodLabel,
+[data-page="teleapo"] .kpi-v2-period-label {
   font-size: 0.75rem;
   color: #64748b;
-  line-height: 1.4;
 }
 
-/* ワイドスクリーン対応 */
-@media (min-width: 1280px) {
-  [data-kpi="v2"] .kpi-v2-row {
-    gap: 1.5rem;
-  }
-
-  [data-kpi="v2"] .kpi-v2-card {
-    width: calc((100% - 9rem) / 7);
-    /* 7等分 - ガター調整 */
-    min-width: 140px;
-  }
-
-  [data-kpi="v2"] .kpi-v2-summary-row {
-    gap: 2rem;
-  }
-}
-
-/* モバイル調整 */
-@media (max-width: 768px) {
-  [data-kpi="v2"] .kpi-v2-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-
-  [data-kpi="v2"] .kpi-v2-range-picker {
-    justify-content: center;
-  }
-
-  [data-kpi="v2"] .kpi-v2-summary-row {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  [data-kpi="v2"] .kpi-v2-row {
-    gap: 1rem;
-  }
-
-  [data-kpi="v2"] .kpi-v2-card {
-    width: 140px;
-  }
-
-  [data-kpi="v2"] .kpi-v2-section {
-    padding: 1.25rem;
-  }
-}
-
-/* アクセシビリティ: フォーカスリング */
-[data-kpi="v2"] .kpi-v2-card:focus-within {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-}
-
-/* 率の行の特別なスタイリング */
-[data-kpi="v2"] .kpi-v2-row[data-kpi-type="rates"] .kpi-v2-card {
-  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
-  border-color: #fbbf24;
-}
-
-[data-kpi="v2"] .kpi-v2-row[data-kpi-type="rates"] .kpi-v2-value {
-  color: #b45309;
-}
-
-/* サブセクション */
-[data-kpi="v2"] .kpi-v2-subsection {
-  margin-bottom: 2rem;
-}
-
-[data-kpi="v2"] .kpi-v2-subsection:last-child {
-  margin-bottom: 0;
-}
-
-[data-kpi="v2"] .kpi-v2-subtitle {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 1rem;
-}
-
-/* チャートセクション */
-[data-kpi="v2"] .kpi-v2-chart-section {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-container {
-  position: relative;
-}
-
-[data-kpi="v2"] .kpi-v2-svg-chart {
-  width: 100%;
-  height: auto;
-  max-height: 300px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-legend {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-legend-item {
+/* セクションヘッダー（社員成績・期間指定など） */
+[data-page="teleapo"] .kpi-v2-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-[data-kpi="v2"] .kpi-v2-legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-}
-
-[data-kpi="v2"] .kpi-v2-chart-tooltip {
-  position: absolute;
-  background-color: #1f2937;
-  color: #ffffff;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  pointer-events: none;
-  z-index: 10;
-  display: none;
-}
-
-/* 社員成績 */
-[data-kpi="v2"] .kpi-v2-employee-header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 1rem;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-controls {
+/* 日付レンジ＋プリセットボタン周り */
+[data-page="teleapo"] .kpi-v2-range-picker {
   display: flex;
-  gap: 0.75rem;
   align-items: center;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-[data-kpi="v2"] .kpi-v2-search-input,
-[data-kpi="v2"] .kpi-v2-sort-select {
-  padding: 0.5rem 0.75rem;
+[data-page="teleapo"] .kpi-v2-date-input {
+  background-color: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  background-color: #ffffff;
-}
-
-[data-kpi="v2"] .kpi-v2-search-input {
-  width: 180px;
-}
-
-[data-kpi="v2"] .kpi-v2-view-toggle {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #6366f1;
-  border-radius: 0.375rem;
-  background-color: #ffffff;
-  color: #6366f1;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-view-toggle:hover {
-  background-color: #6366f1;
-  color: #ffffff;
-}
-
-[data-kpi="v2"] .kpi-v2-employee-table-wrapper {
-  border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-[data-kpi="v2"] .kpi-v2-employee-table {
-  width: 100%;
-  border-collapse: collapse;
+  padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
+  color: #475569;
+  min-width: 140px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-table th,
-[data-kpi="v2"] .kpi-v2-employee-table td {
-  padding: 0.75rem 0.5rem;
-  text-align: center;
-  border-bottom: 1px solid #f1f5f9;
+[data-page="teleapo"] .kpi-v2-date-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+[data-page="teleapo"] .kpi-v2-date-separator {
+  color: #64748b;
+  font-size: 0.875rem;
   white-space: nowrap;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-table th {
-  background-color: #f8fafc;
-  font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e2e8f0;
+[data-page="teleapo"] .kpi-v2-range-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-table td:first-child {
-  text-align: left;
-  font-weight: 500;
+/* プリセットボタン（今日／今週／今月） */
+.kpi-v2-range-btn {
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  /* slate-200 */
+  background-color: #f9fafb;
+  /* slate-50 */
+  color: #4b5563;
+  /* slate-600 */
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.05s ease;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-table tbody tr:hover {
-  background-color: #f8fafc;
+.kpi-v2-range-btn:hover {
+  background-color: #e5e7eb;
+  /* slate-200 */
 }
 
-/* 社員カード表示 */
-[data-kpi="v2"] .kpi-v2-employee-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+.kpi-v2-range-btn-active {
+  background-color: #4f46e5;
+  /* indigo-600 */
+  color: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.25);
+  transform: translateY(-0.5px);
 }
 
-[data-kpi="v2"] .kpi-v2-employee-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
+/* サブセクション（社員成績／ヒートマップなど） */
+[data-page="teleapo"] .kpi-v2-subsection {
+  margin-bottom: 1.5rem;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-name {
+[data-page="teleapo"] .kpi-v2-subsection:last-child {
+  margin-bottom: 0;
+}
+
+[data-page="teleapo"] .kpi-v2-subtitle {
   font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #374151;
   margin-bottom: 0.75rem;
 }
 
-[data-kpi="v2"] .kpi-v2-employee-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
-  font-size: 0.75rem;
+/* ===========================
+ * 上部KPIカード（率＆件数）
+ * =========================*/
+
+/* 上部KPI内のカード（率・件数共通） */
+[data-page="teleapo"] .kpi-v2-summary-section .bg-white {
+  border-radius: 0.9rem;
+  border-color: #e5e7eb;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
-[data-kpi="v2"] .kpi-v2-metric-item {
-  display: flex;
-  justify-content: space-between;
+/* 率の数字を少しだけ強調（Tailwindのtext-2xl / text-3xl前提） */
+[data-page="teleapo"] .kpi-v2-summary-section .text-2xl,
+[data-page="teleapo"] .kpi-v2-summary-section .text-3xl {
+  letter-spacing: -0.03em;
 }
 
-[data-kpi="v2"] .kpi-v2-metric-label {
-  color: #64748b;
+/* ===========================
+ * 社員成績テーブル
+ * =========================*/
+
+.teleapo-employee-row-active {
+  background-color: #eef2ff !important;
+  /* indigo-50 */
 }
 
-[data-kpi="v2"] .kpi-v2-metric-value {
-  font-weight: 600;
-  color: #1e293b;
-}
+/* ===========================
+ * ヒートマップ
+ * =========================*/
 
-[data-page="teleapo"] .kpi-v2-heatmap-cell {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #334155;
-  padding: 0.75rem 0.5rem;
-  text-align: center;
+/* ヒートマップフィルタ */
+[data-page="teleapo"] .kpi-v2-subsection .kpi-v2-filters {
   border: 1px solid #e2e8f0;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="0"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="1"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="2"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="3"],
-[data-page="teleapo"] .kpi-v2-heatmap-cell[data-count="4"] {
-  opacity: 0.5;
-  font-style: italic;
-}
-
-[data-page="teleapo"] .kpi-v2-filters {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 1rem;
-  background-color: #f8fafc;
-  margin-bottom: 1rem;
+  background: #f8fafc;
+  margin-bottom: 0.75rem;
 }
 
 [data-page="teleapo"] .kpi-v2-filter-group {
@@ -908,235 +193,342 @@
   white-space: nowrap;
 }
 
-[data-page="teleapo"] .kpi-v2-filter-select,
-[data-page="teleapo"] .kpi-v2-search-input {
-  background-color: white;
+[data-page="teleapo"] .kpi-v2-filter-select {
+  background-color: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.45rem 0.75rem;
   font-size: 0.875rem;
 }
+
+/* ヒートマップ本体を中央寄せのカードっぽく */
+[data-page="teleapo"] .teleapo-heatmap-wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+[data-page="teleapo"] #teleapoHeatmapTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+[data-page="teleapo"] #teleapoHeatmapTable th,
+[data-page="teleapo"] #teleapoHeatmapTable td {
+  padding: 0.6rem 0.6rem;
+}
+
+/* テーブルヘッダ */
+[data-page="teleapo"] #teleapoHeatmapTable th {
+  background-color: #eff6ff;
+  /* indigo-50 */
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f2937;
+  /* slate-800 */
+}
+
+/* セル本体（通電率%） */
+[data-page="teleapo"] .kpi-v2-heatmap-cell {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #111827;
+  min-width: 52px;
+  min-height: 2.4rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.05s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-page="teleapo"] .kpi-v2-heatmap-cell:hover {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+  transform: translateY(-0.5px);
+}
+
+/* セル選択中 */
+[data-page="teleapo"] .kpi-v2-heatmap-cell-active {
+  outline: 2px solid #4f46e5;
+  outline-offset: 1px;
+  font-weight: 700;
+}
+
+/* ===========================
+ * ログテーブルまわり
+ * =========================*/
 
 [data-page="teleapo"] .kpi-v2-pagination {
   padding-top: 1rem;
   border-top: 1px solid #e2e8f0;
 }
 
-[data-page="teleapo"] .kpi-v2-page-btn {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
+/* ===========================
+ * その他（共通の細かい調整）
+ * =========================*/
+
+@media (max-width: 768px) {
+  [data-page="teleapo"] .kpi-v2-section {
+    padding: 1.25rem;
+  }
+
+  [data-page="teleapo"] .kpi-v2-header {
+    align-items: flex-start;
+  }
+
+  [data-page="teleapo"] .teleapo-heatmap-wrapper {
+    max-width: 100%;
+  }
 }
 
-[data-page="teleapo"] .kpi-v2-page-btn:hover:not(:disabled) {
-  background-color: #f1f5f9;
+/* ===========================
+ * ナビゲーションバー（ヘッダー風）
+ * =========================*/
+
+/* 画面上部に常に表示されるバー */
+.teleapo-tab-nav {
+  position: fixed;
+  /* スクロールしても常に固定 */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: rgba(255, 255, 255, 0.9);
+  /* bg-white/80 風 */
+  backdrop-filter: blur(8px);
+  /* backdrop-blur-md 風 */
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  /* shadow-sm 風 */
+  border-bottom: 1px solid #e5e7eb;
 }
 
-[data-page="teleapo"] .kpi-v2-page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-[data-page="teleapo"] .kpi-v2-page-info {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #475569;
-}
-
-[data-page="teleapo"] .kpi-v2-page-size {
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-}
-
-/* テレアポ：集計期間ラベル */
-[data-kpi="v2"] .kpi-v2-period-label {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: -0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-/* テレアポ：期間プリセットボタン */
-[data-kpi="v2"] .kpi-v2-range-picker {
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-presets {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-presets {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-btn {
-  padding: 0.4rem 1rem;
-  border-radius: 9999px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-width: 72px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-range-btn:hover {
-  background-color: #e5edff;
-  border-color: #6366f1;
-  color: #1e293b;
-}
-
-[data-kpi="v2"] .kpi-v2-range-btn-active {
-  background-color: #4f46e5;
-  border-color: #4338ca;
-  color: #ffffff;
-  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.4);
-}
-
-
-/* ヒートマップ選択中セル */
-[data-page="teleapo"] .kpi-v2-heatmap-cell-active {
-  outline: 2px solid #4f46e5;
-  outline-offset: 1px;
-  font-weight: 700;
-}
-
-/* テレアポ：全体KPIサマリー */
-[data-kpi="v2"] .kpi-v2-summary-section {
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-section .kpi-v2-summary-unified {
-  margin-bottom: 0;
-}
-
-/* 社員成績：選択中の社員行 */
-.teleapo-employee-row-active {
-  background-color: #eef2ff !important;
-}
-
-/* 上部KPIサマリー下の「数値4つ」 */
-/* 上部KPIサマリー下の「数値4つ」少し大きく */
-[data-kpi="v2"] .kpi-v2-summary-counts {
-  margin-top: 0.9rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.9rem 1.8rem;
-  font-size: 0.95rem;
-  color: #475569;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-count-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-count-label {
-  font-weight: 500;
-  color: #64748b;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-count-value {
-  font-weight: 700;
-  font-size: 1.15rem;
-  color: #0f172a;
-}
-
-/* 社員行選択時のハイライト */
-.teleapo-employee-row-active {
-  background-color: #eef2ff !important;
-}
-
-/* ヒートマップ中央＆少し大きく */
-[data-page="teleapo"] .teleapo-heatmap-wrapper {
-  max-width: 960px;
+/* 中身を中央寄せ＋左右に分割 */
+[data-page="teleapo"] .teleapo-tab-nav-inner {
+  max-width: 1200px;
   margin: 0 auto;
-}
-
-[data-page="teleapo"] #teleapoHeatmapTable {
-  width: 100%;
-}
-
-[data-page="teleapo"] #teleapoHeatmapTable th,
-[data-page="teleapo"] #teleapoHeatmapTable td {
-  padding: 0.6rem 0.6rem;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell {
-  font-size: 0.9rem;
-  font-weight: 500;
-  min-width: 52px;
-  min-height: 2.6rem;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell-active {
-  outline: 2px solid #4f46e5;
-  outline-offset: 1px;
-  font-weight: 700;
-}
-
-.teleapo-heatmap-legend {
+  padding: 0.4rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1.25rem;
 }
 
-.teleapo-heatmap-legend-label {
-  font-size: 0.75rem;
-  color: #64748b;
+/* 左側のタイトル */
+[data-page="teleapo"] .teleapo-tab-nav-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111827;
   white-space: nowrap;
 }
 
-.teleapo-heatmap-legend-bar {
-  flex: 1;
-  height: 0.6rem;
+/* 右側のタブ群（メニュー） */
+[data-page="teleapo"] .teleapo-tab-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+
+/* スクロールバーを目立たなく */
+[data-page="teleapo"] .teleapo-tab-nav-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+[data-page="teleapo"] .teleapo-tab-nav-tabs::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.7);
   border-radius: 9999px;
-  background-color: #e5e7eb;
-  overflow: hidden;
 }
 
-.teleapo-heatmap-legend-gradient {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg,
-      rgba(191, 219, 254, 0.2),
-      rgba(59, 130, 246, 0.9));
-}
-
-
-/* ヒートマップを中央＆少し大きめに */
-[data-page="teleapo"] .teleapo-heatmap-wrapper {
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-[data-page="teleapo"] #teleapoHeatmapTable {
-  width: 100%;
-}
-
-[data-page="teleapo"] #teleapoHeatmapTable th,
-[data-page="teleapo"] #teleapoHeatmapTable td {
-  padding: 0.6rem 0.6rem;
-}
-
-[data-page="teleapo"] .kpi-v2-heatmap-cell {
-  font-size: 0.9rem;
+/* タブ（ボタンだが見た目は nav メニュー） */
+.teleapo-tab-btn {
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.3rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  min-width: 52px;
-  min-height: 2.6rem;
+  color: #64748b;
+  /* text-gray-600 相当 */
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+/* 下線用の擬似要素（アクティブタブのインジケータ） */
+.teleapo-tab-btn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.15rem;
+  height: 2px;
+  border-radius: 9999px;
+  background-color: transparent;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* ホバー時：文字色だけ濃く */
+.teleapo-tab-btn:hover {
+  color: #0f172a;
+}
+
+/* アクティブタブ：青＋下線 */
+.teleapo-tab-btn-active {
+  color: #1d4ed8;
+  /* blue-700 */
+}
+
+.teleapo-tab-btn-active::after {
+  background-color: #1d4ed8;
+  transform: scaleX(1);
+}
+
+/* モバイル時：タイトルとタブを縦積みに */
+@media (max-width: 768px) {
+  [data-page="teleapo"] .teleapo-tab-nav-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.5rem 0.75rem;
+  }
+
+  [data-page="teleapo"] .teleapo-tab-nav-tabs {
+    width: 100%;
+  }
+}
+
+/* ===========================
+ * セクション区切りの見せ方
+ * =========================*/
+
+/* タブからジャンプしたとき、タイトルがナビの下に見えるように */
+[data-page="teleapo"] #teleapoSectionKpi,
+[data-page="teleapo"] #teleapoSectionEmployees,
+[data-page="teleapo"] #teleapoSectionHeatmap,
+[data-page="teleapo"] #teleapoSectionLogForm,
+[data-page="teleapo"] #teleapoSectionLogs {
+  scroll-margin-top: 72px;
+  /* ナビバーの高さ＋少し余白 */
+}
+
+/* KPIの下に続くセクションは、上に余白を追加 */
+[data-page="teleapo"] #teleapoSectionEmployees,
+[data-page="teleapo"] #teleapoSectionHeatmap,
+[data-page="teleapo"] #teleapoSectionLogForm,
+[data-page="teleapo"] #teleapoSectionLogs {
+  margin-top: 1.75rem;
+}
+
+/* セクションタイトル共通デザイン */
+[data-page="teleapo"] #teleapoSectionKpi>h3,
+[data-page="teleapo"] #teleapoSectionEmployees>.flex>h4,
+[data-page="teleapo"] #teleapoSectionHeatmap>h4,
+[data-page="teleapo"] #teleapoSectionLogForm>h4,
+[data-page="teleapo"] #teleapoSectionLogs>h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* 左側に細いライン */
+[data-page="teleapo"] #teleapoSectionKpi>h3::before,
+[data-page="teleapo"] #teleapoSectionEmployees>.flex>h4::before,
+[data-page="teleapo"] #teleapoSectionHeatmap>h4::before,
+[data-page="teleapo"] #teleapoSectionLogForm>h4::before,
+[data-page="teleapo"] #teleapoSectionLogs>h4::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 0.9rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #6366f1, #0ea5e9);
+}
+
+/* セクションごとのステップ表示 (STEP 1〜5 のバッジ) */
+[data-page="teleapo"] .teleapo-section-step {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  /* blue-700 */
+  background-color: #e0f2fe;
+  /* sky-100 */
+  margin-bottom: 0.25rem;
+}
+
+/* 社員別グラフを少しコンパクトに＆中央寄せ */
+[data-page="teleapo"] #teleapoEmployeeChartWrapper {
+  margin-top: 0.75rem;
+}
+
+[data-page="teleapo"] .kpi-v2-chart-container {
+  max-width: 720px;
+  /* 画面いっぱいではなく中央の箱に */
+  margin: 0.5rem auto 0;
+  /* 上に少し余白＋中央寄せ */
+  padding: 0.75rem 1rem;
+  /* パディングは少し控えめに */
+}
+
+/* SVG自体の高さを抑える */
+[data-page="teleapo"] #teleapoEmployeeTrendChart {
+  max-height: 220px;
+}
+
+/* 社員別グラフを少し大きめに、ただし画面いっぱいにはしない */
+[data-page="teleapo"] #teleapoEmployeeChartWrapper {
+  margin-top: 0.75rem;
+}
+
+[data-page="teleapo"] .kpi-v2-chart-container {
+  max-width: 880px;
+  /* 横幅をやや大きめに */
+  margin: 0.75rem auto 0;
+  /* 上に余白＋中央寄せ */
+  padding: 1rem 1.5rem;
+  /* 余白も少し増やす */
+}
+
+/* SVGの高さも少し余裕をもたせる */
+[data-page="teleapo"] #teleapoEmployeeTrendChart {
+  max-height: 260px;
+}
+
+/* タブと対応した5つのセクションを、それぞれ薄い色のボックスとして見せる */
+[data-page="teleapo"] #teleapoSectionKpi,
+[data-page="teleapo"] #teleapoSectionEmployees,
+[data-page="teleapo"] #teleapoSectionHeatmap,
+[data-page="teleapo"] #teleapoSectionLogForm,
+[data-page="teleapo"] #teleapoSectionLogs {
+  background-color: #f9fafb;
+  /* ごく薄いグレー（セクションのベース色） */
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.85rem 0.85rem;
+}
+
+/* KPIセクションは内部にすでに青グラデのカードがあるので、外枠だけ控えめに */
+[data-page="teleapo"] #teleapoSectionKpi {
+  background-color: #eff6ff;
+  /* 薄い青ベース（いまの雰囲気のまま） */
+}
+
+/* ログフィルタ＋テーブル部分は、ボックスの内側にさらにカードが入るイメージなので余白だけ少し広めに */
+[data-page="teleapo"] #teleapoSectionLogs {
+  padding: 1rem 1rem 0.75rem;
 }
