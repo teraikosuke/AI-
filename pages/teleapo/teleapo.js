@@ -1829,3 +1829,4 @@ export function unmount() {
   console.log('Teleapo page unmounted');
   // 必要ならイベントリスナーのクリーンアップを追加
 }
+
