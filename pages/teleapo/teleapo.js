@@ -1,5 +1,10 @@
 // teleapo.js
 console.log("🔥 teleapo.js 読み込み成功！");
+
+// 架電ログのソース・オブ・トゥルース
+// { datetime: "YYYY/MM/DD HH:MM", employee, target, tel, email, result, memo } の配列
+let teleapoLogData = [];
+
 // === AI分析機能の有効／無効フラグ ===
 const TELEAPO_AI_ANALYSIS_ENABLED = false;
 
@@ -21,81 +26,238 @@ let teleapoGlobalStartDate = null; // 'yyyy-mm-dd'
 let teleapoGlobalEndDate = null;   // 'yyyy-mm-dd'
 
 
+// 選択中期間を "YYYY/MM/DD〜YYYY/MM/DD" 形式で返す（1日の場合は1日だけ）
+function getTeleapoSelectedRangeLabel() {
+  if (!teleapoGlobalStartDate || !teleapoGlobalEndDate) return '';
+  const s = teleapoGlobalStartDate.replace(/-/g, '/');
+  const e = teleapoGlobalEndDate.replace(/-/g, '/');
+  if (s === e) return s;
+  return `${s}〜${e}`;
+}
+
+// 社員別集計結果（teleapoEmployeeData）から全体KPIを再計算して、上部カードを更新する
+function recalcTeleapoCompanyKPIFromEmployees() {
+  if (!Array.isArray(teleapoEmployeeData) || teleapoEmployeeData.length === 0) {
+    return;
+  }
+
+  let dialsSum = 0;
+  let connectsSum = 0;
+  let setsSum = 0;
+  let showsSum = 0;
+
+  teleapoEmployeeData.forEach(emp => {
+    dialsSum += emp.dials || 0;
+    connectsSum += emp.connects || 0;
+    setsSum += emp.sets || 0;
+    showsSum += emp.shows || 0;
+  });
+
+  const connectRate = dialsSum > 0 ? (connectsSum / dialsSum) * 100 : 0;
+  const setRate = connectsSum > 0 ? (setsSum / connectsSum) * 100 : 0;
+  const showRate = setsSum > 0 ? (showsSum / setsSum) * 100 : 0;
+
+  // グローバルの会社KPIデータも更新しておく
+  teleapoCompanyKPIData = {
+    dials: dialsSum,
+    connects: connectsSum,
+    sets: setsSum,
+    shows: showsSum,
+    connectRate,
+    setRate,
+    showRate
+  };
+
+  // スコープが「全体」の場合だけ上部カードを更新
+  if (teleapoSummaryScope.type === 'company') {
+    updateTeleapoSummaryRateCards(teleapoCompanyKPIData, null);
+  }
+}
+
+// 既存の #teleapoLogTableBody から teleapoLogData を構築する
+function initializeTeleapoLogDataFromTable() {
+  const tbody = document.getElementById('teleapoLogTableBody');
+  if (!tbody) return;
+
+  teleapoLogData = [];
+
+  const rows = tbody.querySelectorAll('tr');
+  rows.forEach(row => {
+    const cells = row.children;
+    if (!cells || cells.length < 7) return;
+
+    const datetime = cells[0].textContent.trim();
+    const employee = cells[1].textContent.trim();
+    const target = cells[2].textContent.trim();
+    const tel = cells[3].textContent.trim();
+    const email = cells[4].textContent.trim();
+    const result = cells[5].textContent.trim(); // バッジ内テキスト
+    const memo = cells[6].textContent.trim();
+
+    teleapoLogData.push({
+      datetime,
+      employee,
+      target,
+      tel,
+      email,
+      result,
+      memo
+    });
+  });
+
+  console.log('initializeTeleapoLogDataFromTable: rows =', teleapoLogData.length);
+}
+
+
+// アポ結果テキストを「通電/設定/着座」フラグに分類
+function classifyTeleapoResult(resultText) {
+  const text = (resultText || '').trim();
+  const isConnect = ['通電', '設定', '着座', 'コールバック'].some(w => text.includes(w));
+  const isSet = ['設定', '着座'].some(w => text.includes(w));
+  const isShow = ['着座'].some(w => text.includes(w));
+  return { isConnect, isSet, isShow };
+}
+
+// 時刻（hour）からヒートマップ用の時間帯スロットを決める
+function resolveTeleapoSlot(hour) {
+  if (hour >= 9 && hour < 11) return '09-11';
+  if (hour >= 11 && hour < 13) return '11-13';
+  if (hour >= 13 && hour < 15) return '13-15';
+  if (hour >= 15 && hour < 17) return '15-17';
+  if (hour >= 17 && hour < 19) return '17-19';
+  return null; // ヒートマップ対象外
+}
+
 // ======== ヒートマップ（指標ごとに別データ） ========
 
 // 軸定義
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
 
-// 社員別ヒートマップデータ（架電数・通電数・設定数・着座数）
-const TELEAPO_HEATMAP_DATA = {
-  all: {
-    // 架電数
-    dials: {
-      '月': { '09-11': 10, '11-13': 16, '13-15': 14, '15-17': 9, '17-19': 5 },
-      '火': { '09-11': 8, '11-13': 14, '13-15': 13, '15-17': 11, '17-19': 4 },
-      '水': { '09-11': 7, '11-13': 12, '13-15': 15, '15-17': 12, '17-19': 6 },
-      '木': { '09-11': 12, '11-13': 18, '13-15': 17, '15-17': 13, '17-19': 6 },
-      '金': { '09-11': 6, '11-13': 9, '13-15': 11, '15-17': 12, '17-19': 3 }
-    },
-    // 通電数（架電数の 50〜70% 程度）
-    connects: {
-      '月': { '09-11': 6, '11-13': 11, '13-15': 9, '15-17': 6, '17-19': 3 },
-      '火': { '09-11': 4, '11-13': 9, '13-15': 8, '15-17': 7, '17-19': 2 },
-      '水': { '09-11': 4, '11-13': 8, '13-15': 10, '15-17': 8, '17-19': 4 },
-      '木': { '09-11': 7, '11-13': 12, '13-15': 11, '15-17': 9, '17-19': 4 },
-      '金': { '09-11': 3, '11-13': 6, '13-15': 7, '15-17': 8, '17-19': 2 }
-    },
-    // 設定数（通電数の 30〜50% 程度）
-    sets: {
-      '月': { '09-11': 3, '11-13': 5, '13-15': 4, '15-17': 3, '17-19': 1 },
-      '火': { '09-11': 2, '11-13': 4, '13-15': 3, '15-17': 3, '17-19': 1 },
-      '水': { '09-11': 2, '11-13': 3, '13-15': 4, '15-17': 3, '17-19': 2 },
-      '木': { '09-11': 3, '11-13': 6, '13-15': 5, '15-17': 4, '17-19': 2 },
-      '金': { '09-11': 1, '11-13': 3, '13-15': 3, '15-17': 3, '17-19': 1 }
-    },
-    // 着座数（設定数の 70〜90% 程度）
-    shows: {
-      '月': { '09-11': 2, '11-13': 4, '13-15': 3, '15-17': 2, '17-19': 1 },
-      '火': { '09-11': 1, '11-13': 3, '13-15': 2, '15-17': 2, '17-19': 1 },
-      '水': { '09-11': 1, '11-13': 2, '13-15': 3, '15-17': 2, '17-19': 1 },
-      '木': { '09-11': 2, '11-13': 4, '13-15': 4, '15-17': 3, '17-19': 1 },
-      '金': { '09-11': 1, '11-13': 2, '13-15': 2, '15-17': 2, '17-19': 0 }
+// ヒートマップ用データ（ログから再計算して上書き）
+let TELEAPO_HEATMAP_DATA = {};
+
+// teleapoLogData から日次データ & ヒートマップ用データを再構築する
+function rebuildTeleapoAggregatesFromLogs() {
+  const companyMap = new Map();  // key: 'yyyy-mm-dd' -> { date, dials, connects, sets, shows }
+  const employeeMap = {};        // name -> Map(dateStr -> { ... })
+
+  // ヒートマップ用（過去30日分のみ）
+  const now = new Date();
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(now.getDate() - 30);
+
+  const heatmapBase = {};        // empKey('all' or name) -> { dials:{day:{slot}}, connects:{...}, sets:{...}, shows:{...} }
+
+  function ensureHeatmapEmp(empKey) {
+    if (!heatmapBase[empKey]) {
+      heatmapBase[empKey] = {
+        dials: {},
+        connects: {},
+        sets: {},
+        shows: {}
+      };
     }
-  },
-  // 佐藤さん：全体より少し少ない傾向
-  '佐藤': {
-    dials: {
-      '月': { '09-11': 4, '11-13': 7, '13-15': 6, '15-17': 4, '17-19': 2 },
-      '火': { '09-11': 3, '11-13': 6, '13-15': 5, '15-17': 4, '17-19': 2 },
-      '水': { '09-11': 3, '11-13': 5, '13-15': 6, '15-17': 5, '17-19': 3 },
-      '木': { '09-11': 5, '11-13': 8, '13-15': 7, '15-17': 6, '17-19': 3 },
-      '金': { '09-11': 2, '11-13': 4, '13-15': 4, '15-17': 5, '17-19': 1 }
-    },
-    connects: {
-      '月': { '09-11': 2, '11-13': 4, '13-15': 3, '15-17': 2, '17-19': 1 },
-      '火': { '09-11': 2, '11-13': 3, '13-15': 3, '15-17': 3, '17-19': 1 },
-      '水': { '09-11': 1, '11-13': 3, '13-15': 4, '15-17': 3, '17-19': 2 },
-      '木': { '09-11': 3, '11-13': 5, '13-15': 4, '15-17': 3, '17-19': 2 },
-      '金': { '09-11': 1, '11-13': 2, '13-15': 3, '15-17': 3, '17-19': 1 }
-    },
-    sets: {
-      '月': { '09-11': 1, '11-13': 2, '13-15': 2, '15-17': 1, '17-19': 0 },
-      '火': { '09-11': 1, '11-13': 2, '13-15': 1, '15-17': 1, '17-19': 0 },
-      '水': { '09-11': 0, '11-13': 1, '13-15': 2, '15-17': 1, '17-19': 1 },
-      '木': { '09-11': 1, '11-13': 2, '13-15': 2, '15-17': 2, '17-19': 1 },
-      '金': { '09-11': 0, '11-13': 1, '13-15': 1, '15-17': 1, '17-19': 0 }
-    },
-    shows: {
-      '月': { '09-11': 0, '11-13': 1, '13-15': 1, '15-17': 1, '17-19': 0 },
-      '火': { '09-11': 0, '11-13': 1, '13-15': 1, '15-17': 1, '17-19': 0 },
-      '水': { '09-11': 0, '11-13': 1, '13-15': 1, '15-17': 0, '17-19': 0 },
-      '木': { '09-11': 1, '11-13': 1, '13-15': 2, '15-17': 1, '17-19': 0 },
-      '金': { '09-11': 0, '11-13': 0, '13-15': 1, '15-17': 1, '17-19': 0 }
-    }
+    return heatmapBase[empKey];
   }
-  // 田中・山本・鈴木 は必要になったら追記
-};
+
+  function ensureHeatmapCell(metricObj, day, slot) {
+    if (!metricObj[day]) metricObj[day] = {};
+    if (!metricObj[day][slot]) metricObj[day][slot] = 0;
+  }
+
+  teleapoLogData.forEach(log => {
+    const dtStr = log.datetime || '';
+    if (!dtStr) return;
+
+    // "YYYY/MM/DD HH:MM" を分解
+    const [datePart, timePart] = dtStr.split(' ');
+    if (!datePart) return;
+    const [y, m, d] = datePart.split('/');
+    if (!y || !m || !d) return;
+
+    const isoDateStr = `${y}-${m}-${d}`;
+    const dateObj = new Date(`${isoDateStr}T00:00:00`);
+
+    // --- 日次（会社全体） ---
+    let compRow = companyMap.get(isoDateStr);
+    if (!compRow) {
+      compRow = { date: isoDateStr, dials: 0, connects: 0, sets: 0, shows: 0 };
+    }
+    compRow.dials += 1;
+
+    const { isConnect, isSet, isShow } = classifyTeleapoResult(log.result);
+    if (isConnect) compRow.connects += 1;
+    if (isSet) compRow.sets += 1;
+    if (isShow) compRow.shows += 1;
+    companyMap.set(isoDateStr, compRow);
+
+    // --- 日次（社員別） ---
+    const empName = log.employee || '';
+    if (!employeeMap[empName]) {
+      employeeMap[empName] = new Map();
+    }
+    const empMap = employeeMap[empName];
+    let empRow = empMap.get(isoDateStr);
+    if (!empRow) {
+      empRow = { date: isoDateStr, dials: 0, connects: 0, sets: 0, shows: 0 };
+    }
+    empRow.dials += 1;
+    if (isConnect) empRow.connects += 1;
+    if (isSet) empRow.sets += 1;
+    if (isShow) empRow.shows += 1;
+    empMap.set(isoDateStr, empRow);
+
+    // --- ヒートマップ（過去30日分のみ） ---
+    if (dateObj < oneMonthAgo) return;
+
+    const dayIdx = dateObj.getDay(); // 0:日〜6:土
+    const dayLabel = ['日', '月', '火', '水', '木', '金', '土'][dayIdx];
+    if (!['月', '火', '水', '木', '金'].includes(dayLabel)) return;
+
+    let hour = 0;
+    if (timePart) {
+      const [hh] = timePart.split(':');
+      hour = parseInt(hh, 10);
+    }
+    const slot = resolveTeleapoSlot(hour);
+    if (!slot) return;
+
+    const empKeys = ['all', empName];
+    empKeys.forEach(key => {
+      const buckets = ensureHeatmapEmp(key);
+      ensureHeatmapCell(buckets.dials, dayLabel, slot);
+      buckets.dials[dayLabel][slot] += 1;
+
+      if (isConnect) {
+        ensureHeatmapCell(buckets.connects, dayLabel, slot);
+        buckets.connects[dayLabel][slot] += 1;
+      }
+      if (isSet) {
+        ensureHeatmapCell(buckets.sets, dayLabel, slot);
+        buckets.sets[dayLabel][slot] += 1;
+      }
+      if (isShow) {
+        ensureHeatmapCell(buckets.shows, dayLabel, slot);
+        buckets.shows[dayLabel][slot] += 1;
+      }
+    });
+  });
+
+  // Map → 配列に変換してグローバルに反映
+  teleapoCompanyDailyData = Array.from(companyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  teleapoEmployeeDailyData = {};
+  Object.keys(employeeMap).forEach(name => {
+    teleapoEmployeeDailyData[name] = Array.from(employeeMap[name].values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+  });
+
+  // ヒートマップデータも更新
+  TELEAPO_HEATMAP_DATA = heatmapBase;
+
+  console.log('rebuildTeleapoAggregatesFromLogs: companyDaily =', teleapoCompanyDailyData.length);
+}
 
 let teleapoHeatmapSelection = null;
 
@@ -126,19 +288,100 @@ function renderTeleapoHeatmap() {
   const tbody = document.getElementById('teleapoHeatmapTableBody');
   if (!tbody) return;
 
-  const employeeKey = empSelect?.value || 'all';             // all / 佐藤 / ...
-  const metricKey = metricSelect?.value || 'connectRate';  // connectRate / setRate
+  const employeeKey = empSelect?.value || 'all';
+  const metricKey = metricSelect?.value || 'connectRate';
 
-  // 架電数 / 通電数 / 設定数 の元データ（TELEAPO_HEATMAP_DATA は件数）
-  const empCounts = TELEAPO_HEATMAP_DATA[employeeKey] || TELEAPO_HEATMAP_DATA.all;
+  // ログがまだない場合でも落ちないように保険を入れる
+  const empCounts = TELEAPO_HEATMAP_DATA[employeeKey]
+    || TELEAPO_HEATMAP_DATA.all
+    || { dials: {}, connects: {}, sets: {}, shows: {} };
+
   const dialsData = empCounts.dials || {};
   const connectsData = empCounts.connects || {};
   const setsData = empCounts.sets || {};
+
 
   const rateMap = {}; // day -> slot -> rate (0〜100 or null)
   const hasData = {}; // day -> slot -> boolean（記録があるか）
   let sumRate = 0;
   let cellCount = 0;
+
+  // ログが追加・変更されたときに、KPI・社員成績・ヒートマップ・テーブルを再描画
+  function handleTeleapoLogDataChanged() {
+    // 1. ログから集計を再構築
+    rebuildTeleapoAggregatesFromLogs();
+
+    // 2. KPI / 社員成績（選択期間に応じて）
+    loadTeleapoCompanyKPIData();
+    loadTeleapoEmployeeData();
+
+    // 3. ヒートマップ再描画
+    renderTeleapoHeatmap();
+
+    // 4. ログテーブル再描画（フィルタと件数も更新）
+    renderTeleapoLogTable();
+  }
+
+
+  function initializeTeleapoLogInputForm() {
+    const addBtn = document.getElementById('teleapoLogInputAddBtn');
+    if (!addBtn) return;
+
+    addBtn.addEventListener('click', () => {
+      const dtInput = document.getElementById('teleapoLogInputDatetime');
+      const empInput = document.getElementById('teleapoLogInputEmployee');
+      const resInput = document.getElementById('teleapoLogInputResult');
+      const targetInput = document.getElementById('teleapoLogInputTarget');
+      const telInput = document.getElementById('teleapoLogInputTel');
+      const emailInput = document.getElementById('teleapoLogInputEmail');
+      const memoInput = document.getElementById('teleapoLogInputMemo');
+
+      const dtValue = dtInput?.value || '';
+      const employee = empInput?.value || '';
+      const result = resInput?.value || '';
+      const target = targetInput?.value || '';
+      const tel = telInput?.value || '';
+      const email = emailInput?.value || '';
+      const memo = memoInput?.value || '';
+
+      if (!dtValue || !employee || !result) {
+        alert('日時・担当者・アポ結果は必須です。');
+        return;
+      }
+
+      const dt = new Date(dtValue);
+      if (Number.isNaN(dt.getTime())) {
+        alert('日時の形式が不正です。');
+        return;
+      }
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+
+      const datetimeStr = `${y}/${m}/${d} ${hh}:${mm}`;
+
+      teleapoLogData.push({
+        datetime: datetimeStr,
+        employee,
+        target,
+        tel,
+        email,
+        result,
+        memo
+      });
+
+      // ログ追加後の再計算
+      handleTeleapoLogDataChanged();
+
+      // 入力欄の一部をクリア（日時・担当者は残してもよければ残す）
+      targetInput.value = '';
+      telInput.value = '';
+      emailInput.value = '';
+      memoInput.value = '';
+    });
+  }
 
   // 1. 各セルの率を計算（記録なしセルは平均計算から除外）
   TELEAPO_HEATMAP_DAYS.forEach(day => {
@@ -271,56 +514,6 @@ function updateTeleapoHeatmapSelectionLabel() {
   }
 }
 
-// ★ 過去60日分くらいの日別モックデータを作る
-function initializeTeleapoMockDailyData() {
-  if (teleapoCompanyDailyData.length) return; // 二重実行防止
-
-  const today = new Date();
-  const daysBack = 60; // 過去60日分
-
-  teleapoCompanyDailyData = [];
-  teleapoEmployeeDailyData = {};
-  teleapoEmployees.forEach(name => {
-    teleapoEmployeeDailyData[name] = [];
-  });
-
-  for (let i = daysBack; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-
-    // 会社全体の日別モック（曜日などで少し変動させる）
-    const dayOfWeek = d.getDay(); // 0:日〜6:土
-    const baseDials = 40 + (dayOfWeek === 1 || dayOfWeek === 2 ? 10 : 0); // 月火はちょい多め
-    const noise = (Math.sin(i * 1.3) + 1) * 5; // 0〜10くらいの揺れ
-    const dials = Math.round(baseDials + noise);
-
-    const connects = Math.round(dials * (0.45 + 0.1 * Math.sin(i * 0.7)));
-    const sets = Math.round(connects * (0.30 + 0.05 * Math.cos(i * 0.9)));
-    const shows = Math.round(sets * (0.80 + 0.05 * Math.sin(i * 0.5)));
-
-    teleapoCompanyDailyData.push({ date: dateStr, dials, connects, sets, shows });
-
-    // 社員ごとに適当な分配（4人で分けるイメージ）
-    teleapoEmployees.forEach((name, idx) => {
-      // 比率を少し変える
-      const ratio = 0.2 + idx * 0.15; // 0.2, 0.35, 0.5, 0.65
-      const eDials = Math.max(1, Math.round((dials * ratio) / teleapoEmployees.length));
-      const eConnects = Math.round(eDials * (0.45 + 0.08 * Math.sin((i + idx) * 0.6)));
-      const eSets = Math.round(eConnects * (0.30 + 0.04 * Math.cos((i + idx) * 0.7)));
-      const eShows = Math.round(eSets * (0.80 + 0.05 * Math.sin((i + idx) * 0.4)));
-
-      teleapoEmployeeDailyData[name].push({
-        date: dateStr,
-        dials: eDials,
-        connects: eConnects,
-        sets: eSets,
-        shows: eShows
-      });
-    });
-  }
-}
-
 let teleapoEmployeeSortInitialized = false;
 
 function initializeTeleapoEmployeeSortControls() {
@@ -336,22 +529,98 @@ function initializeTeleapoEmployeeSortControls() {
   };
 }
 
+// 新規架電ログ入力フォームの初期化
+function initializeTeleapoLogInputForm() {
+  const addBtn = document.getElementById('teleapoLogInputAddBtn');
+  if (!addBtn) {
+    console.warn('teleapoLogInputAddBtn が見つかりません（入力フォームのHTMLが未追加かもしれません）');
+    return;
+  }
 
-// ======== ライフサイクル ========
+  addBtn.addEventListener('click', () => {
+    const dtInput = document.getElementById('teleapoLogInputDatetime');
+    const empInput = document.getElementById('teleapoLogInputEmployee');
+    const resInput = document.getElementById('teleapoLogInputResult');
+    const targetInput = document.getElementById('teleapoLogInputTarget');
+    const telInput = document.getElementById('teleapoLogInputTel');
+    const emailInput = document.getElementById('teleapoLogInputEmail');
+    const memoInput = document.getElementById('teleapoLogInputMemo');
+
+    const dtValue = dtInput?.value || '';
+    const employee = empInput?.value || '';
+    const result = resInput?.value || '';
+    const target = targetInput?.value || '';
+    const tel = telInput?.value || '';
+    const email = emailInput?.value || '';
+    const memo = memoInput?.value || '';
+
+    // 必須項目チェック
+    if (!dtValue || !employee || !result) {
+      alert('日時・担当者・アポ結果は必須です。');
+      return;
+    }
+
+    // datetime-local → "YYYY/MM/DD HH:MM" に変換
+    const dt = new Date(dtValue);
+    if (Number.isNaN(dt.getTime())) {
+      alert('日時の形式が不正です。');
+      return;
+    }
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    const datetimeStr = `${y}/${m}/${d} ${hh}:${mm}`;
+
+    // ここで teleapoLogData に追加（まだ導入していなければ、とりあえず配列がある前提）
+    if (!Array.isArray(teleapoLogData)) {
+      window.teleapoLogData = window.teleapoLogData || [];
+    }
+    teleapoLogData.push({
+      datetime: datetimeStr,
+      employee,
+      target,
+      tel,
+      email,
+      result,
+      memo
+    });
+
+    // 追加後の再計算（handleTeleapoLogDataChanged を導入済みの場合）
+    if (typeof handleTeleapoLogDataChanged === 'function') {
+      handleTeleapoLogDataChanged();
+    }
+
+    // 入力欄の一部をクリア（必要に応じて調整）
+    if (targetInput) targetInput.value = '';
+    if (telInput) telInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (memoInput) memoInput.value = '';
+  });
+}
+
 export function mount() {
   console.log('Teleapo page mounted');
 
-  initializeTeleapoMockDailyData();
   initializeTeleapoDatePickers();
 
-  initializeTeleapoHeatmapControls();
-  renderTeleapoHeatmap();   // ★ これで初期表示
-
+  initializeTeleapoLogInputForm();
   initializeTeleapoLogFilters();
+
+  initializeTeleapoLogDataFromTable();
+
+  rebuildTeleapoAggregatesFromLogs();
   loadTeleapoCompanyKPIData();
   loadTeleapoEmployeeData();
   initializeTeleapoEmployeeSortControls();
+
+  initializeTeleapoHeatmapControls();
+  renderTeleapoHeatmap();
+
+  renderTeleapoLogTable();
 }
+
 
 
 
@@ -500,21 +769,16 @@ function updateTeleapoPeriodLabels() {
   updateTeleapoHeatmapPeriodLabel();
 }
 
-
 // ヒートマップ対象期間ラベル更新
+// ★ ヒートマップは常に「過去1ヶ月固定」として扱う
 function updateTeleapoHeatmapPeriodLabel() {
   const label = document.getElementById('teleapoHeatmapPeriodLabel');
   if (!label) return;
 
-  if (!teleapoGlobalStartDate || !teleapoGlobalEndDate) {
-    label.textContent = '';
-    return;
-  }
-
-  const s = teleapoGlobalStartDate.replace(/-/g, '/');
-  const e = teleapoGlobalEndDate.replace(/-/g, '/');
-  label.textContent = `ヒートマップ対象期間：${s} 〜 ${e}`;
+  // 好きな文言に変更可能
+  label.textContent = '過去1ヶ月間の曜日・時間帯分析表';
 }
+
 
 
 function getTeleapoRangeDays() {
@@ -702,6 +966,30 @@ async function loadTeleapoEmployeeData() {
       if (chartWrapper) chartWrapper.classList.remove('hidden');
     }
   }
+  teleapoEmployeeData = employeeData;
+
+  // ▼ ここで全体KPIも社員データから再計算しておく（スコープが company の場合のみ画面反映）
+  recalcTeleapoCompanyKPIFromEmployees();
+
+  // ★ 初期表示は「着座率（高い順）」で並び替え＆表示
+  sortTeleapoEmployees('showRate-desc');
+
+  // ★ テーブルができた後で、ソートセレクトにイベントをつける
+  initializeTeleapoEmployeeSortControls();
+
+  // ★ 社員スコープだった場合の処理（既存のものをそのまま下に残す）
+  if (teleapoSummaryScope.type === 'employee') {
+    const currentName = teleapoSummaryScope.name;
+    const emp = teleapoEmployeeData.find(e => e.name === currentName);
+    if (emp) {
+      updateTeleapoSummaryRateCards(emp, currentName);
+      filterTeleapoEmployeeTable(currentName);
+      renderTeleapoEmployeeTrendChart(emp, currentName);
+      const chartWrapper = document.getElementById('teleapoEmployeeChartWrapper');
+      if (chartWrapper) chartWrapper.classList.remove('hidden');
+    }
+  }
+
 }
 
 
@@ -765,44 +1053,84 @@ function attachTeleapoEmployeeRowHandlers() {
     if (!name) return;
 
     row.onclick = () => {
+      const isSameSelected =
+        teleapoSummaryScope.type === 'employee' &&
+        teleapoSummaryScope.name === name;
+
+      // すでに同じ社員が選択されている場合 → 全体表示に戻す
+      if (isSameSelected) {
+        teleapoSummaryScope = { type: 'company', name: '全体' };
+
+        // アクティブ行のハイライト解除
+        document.querySelectorAll('.teleapo-employee-row-active').forEach(r =>
+          r.classList.remove('teleapo-employee-row-active')
+        );
+
+        // 社員テーブルを全員表示に戻す
+        filterTeleapoEmployeeTable(null);
+
+        // 全体KPIを再表示
+        if (teleapoCompanyKPIData) {
+          updateTeleapoSummaryRateCards(teleapoCompanyKPIData, null);
+        } else {
+          // 念のため（初回など）集計がなければ再計算
+          loadTeleapoCompanyKPIData();
+        }
+
+        // 個人グラフを非表示
+        if (chartWrapper) chartWrapper.classList.add('hidden');
+
+        return;
+      }
+
+      // 新しく社員を選択する場合
       const emp = teleapoEmployeeData.find(e => e.name === name);
       if (!emp) return;
 
-      // ★ 既存の社員選択ロジック（クラス付け・KPI更新・グラフ表示）はそのまま
-      // ...（teleapoSummaryScope の更新、updateTeleapoSummaryRateCards、filterTeleapoEmployeeTable 等）
+      // アクティブ行の付け替え
+      document.querySelectorAll('.teleapo-employee-row-active').forEach(r =>
+        r.classList.remove('teleapo-employee-row-active')
+      );
+      row.classList.add('teleapo-employee-row-active');
+
+      // スコープを社員に切り替え
       teleapoSummaryScope = { type: 'employee', name };
       updateTeleapoSummaryRateCards(emp, name);
       filterTeleapoEmployeeTable(name);
       renderTeleapoEmployeeTrendChart(emp, name);
       if (chartWrapper) chartWrapper.classList.remove('hidden');
 
-      // ★ グラフはここまでで完結
-
-      // ★ AI分析はオプション：有効なときだけ非同期で呼ぶ
+      // AI分析（オプション）
       if (TELEAPO_AI_ANALYSIS_ENABLED && typeof requestTeleapoEmployeeAnalysis === 'function') {
-        // ここは「投げっぱなし」でOK（awaitしない）
         requestTeleapoEmployeeAnalysis(emp, name);
       }
     };
   });
 
-  // 「全体に戻す」ボタンの処理は既存のまま
+  // 「全体に戻す」ボタン
   const resetBtn = document.getElementById('teleapoSummaryResetBtn');
   if (resetBtn) {
     resetBtn.onclick = () => {
       teleapoSummaryScope = { type: 'company', name: '全体' };
+
       document.querySelectorAll('.teleapo-employee-row-active').forEach(r =>
         r.classList.remove('teleapo-employee-row-active')
       );
+
       filterTeleapoEmployeeTable(null);
+
       if (teleapoCompanyKPIData) {
         updateTeleapoSummaryRateCards(teleapoCompanyKPIData, null);
+      } else {
+        loadTeleapoCompanyKPIData();
       }
+
       const chartWrapper = document.getElementById('teleapoEmployeeChartWrapper');
       if (chartWrapper) chartWrapper.classList.add('hidden');
     };
   }
 }
+
 async function requestTeleapoEmployeeAnalysis(emp, name) {
   const statusEl = document.getElementById('teleapoEmployeeAnalysisStatus');
   const textEl = document.getElementById('teleapoEmployeeAnalysisText');
@@ -883,17 +1211,27 @@ function updateTeleapoSummaryRateCards(data, employeeName = null) {
   if (!connectEl || !setEl || !showEl) return;
 
   const isCompany = !employeeName;
+  const rangeLabel = getTeleapoSelectedRangeLabel();
 
+  // タイトル（期間入り）
   if (titleEl) {
-    titleEl.textContent = isCompany
-      ? '選択期間の全体KPI（率）'
-      : `選択期間の${employeeName}さんのKPI（率）`;
+    if (rangeLabel) {
+      titleEl.textContent = isCompany
+        ? `${rangeLabel} の全体KPI（率）`
+        : `${rangeLabel} の${employeeName}さんのKPI（率）`;
+    } else {
+      titleEl.textContent = isCompany
+        ? '全体KPI（率）'
+        : `${employeeName}さんのKPI（率）`;
+    }
   }
 
+  // スコープラベル（全体 or 社員名）
   if (scopeLabelEl) {
     scopeLabelEl.textContent = isCompany ? '全体' : employeeName;
   }
 
+  // 率
   const connectText = data.connectRate.toFixed(1) + '%';
   const setText = data.setRate.toFixed(1) + '%';
   const showText = data.showRate.toFixed(1) + '%';
@@ -902,11 +1240,13 @@ function updateTeleapoSummaryRateCards(data, employeeName = null) {
   setEl.textContent = setText;
   showEl.textContent = showText;
 
+  // メタ
   const metaText = isCompany ? '選択期間・全社員' : '選択期間・個人';
   if (connectMetaEl) connectMetaEl.textContent = metaText;
   if (setMetaEl) setMetaEl.textContent = metaText;
   if (showMetaEl) showMetaEl.textContent = metaText;
 
+  // 件数
   const fmt = v => (typeof v === 'number' ? v.toLocaleString() : v ?? '-');
 
   if (dialsEl) dialsEl.textContent = fmt(data.dials);
@@ -914,20 +1254,20 @@ function updateTeleapoSummaryRateCards(data, employeeName = null) {
   if (setsEl) setsEl.textContent = fmt(data.sets);
   if (showsEl) showsEl.textContent = fmt(data.shows);
 }
-
 // 社員別 時系列グラフ（期間に応じて X 軸粒度を切り替え）
-// ・1日          → 時間帯（〜時）
-// ・〜7日         → 曜日（〜曜）
-// ・〜31日        → 週（1〜5週目）
-// ・それ以上      → 月（YYYY/MM）
 function renderTeleapoEmployeeTrendChart(emp, name) {
   const svg = document.getElementById('teleapoEmployeeTrendChart');
   const titleEl = document.getElementById('teleapoEmployeeChartTitle');
   if (!svg) return;
 
-  // タイトル
+  // タイトル（期間入り）
+  const rangeLabel = getTeleapoSelectedRangeLabel();
   if (titleEl) {
-    titleEl.textContent = `選択期間の ${name} さんのKPI（通電率・設定率・着座率）`;
+    if (rangeLabel) {
+      titleEl.textContent = `${rangeLabel} の ${name} さんのKPI（通電率・設定率・着座率）`;
+    } else {
+      titleEl.textContent = `${name} さんのKPI（通電率・設定率・着座率）`;
+    }
   }
 
   // 1. 日別データを取得して期間内に絞る
@@ -983,7 +1323,6 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
   // 3. 粒度ごとに points を生成
   if (inclusiveDays <= 1) {
     // === 1日 → 時間帯（〜時）
-    // 日全体のレートを時間帯に均等コピー（形状よりラベリング重視）
     const bucket = { dials: 0, connects: 0, sets: 0, shows: 0 };
     daily.forEach(row => {
       bucket.dials += row.dials;
@@ -1006,7 +1345,6 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
     // === 〜7日 → 曜日（〜曜）
     const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
-    // 日付順にソートして、各日のレートを計算
     const sorted = [...daily].sort(
       (a, b) => new Date(a.date) - new Date(b.date)
     );
@@ -1058,8 +1396,7 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
     });
   } else {
     // === 31日超 → 月単位（YYYY/MM）
-    // 月ごとに集計
-    const monthBuckets = {}; // key: 'YYYY-MM' → 集計値
+    const monthBuckets = {};
 
     daily.forEach(row => {
       const d = new Date(row.date + 'T00:00:00');
@@ -1075,7 +1412,7 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
       monthBuckets[key].shows += row.shows;
     });
 
-    const sortedKeys = Object.keys(monthBuckets).sort(); // 'YYYY-MM' 昇順
+    const sortedKeys = Object.keys(monthBuckets).sort();
 
     points = sortedKeys.map(key => {
       const w = monthBuckets[key];
@@ -1083,7 +1420,6 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
       const setRate = w.connects > 0 ? (w.sets / w.connects) * 100 : 0;
       const showRate = w.sets > 0 ? (w.shows / w.sets) * 100 : 0;
 
-      // ラベルは YYYY/MM 形式に
       const [y, m] = key.split('-');
       const label = `${y}/${m}`;
 
@@ -1096,11 +1432,10 @@ function renderTeleapoEmployeeTrendChart(emp, name) {
     });
   }
 
-  // 4. 共通描画関数で3本線を描画
   drawTeleapoEmployeeRateLines(svg, points);
 }
 
-// 週次の通電率・設定率・着座率の3本線を描画
+
 // 週次の通電率・設定率・着座率の3本線を描画（points: {label, connectRate, setRate, showRate}[])
 function drawTeleapoEmployeeRateLines(svg, points) {
   if (!svg) return;
@@ -1340,6 +1675,58 @@ function filterTeleapoLogRows() {
 
   updateTeleapoLogCount(visible);
 }
+
+// teleapoLogData からログテーブルを再描画する
+function renderTeleapoLogTable() {
+  const tbody = document.getElementById('teleapoLogTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = teleapoLogData.map(row => `
+    <tr>
+      <td class="whitespace-nowrap">${row.datetime}</td>
+      <td>${row.employee}</td>
+      <td>${row.target}</td>
+      <td>${row.tel}</td>
+      <td>${row.email}</td>
+      <td>
+        <span class="px-2 py-1 rounded text-xs font-semibold ${row.result.includes('設定') ? 'bg-emerald-100 text-emerald-700'
+      : row.result.includes('着座') ? 'bg-green-100 text-green-700'
+        : row.result.includes('通電') ? 'bg-blue-100 text-blue-700'
+          : row.result.includes('不在') ? 'bg-slate-100 text-slate-600'
+            : row.result.includes('コールバック') ? 'bg-amber-100 text-amber-700'
+              : 'bg-slate-100 text-slate-600'
+    }">
+          ${row.result}
+        </span>
+      </td>
+      <td>${row.memo || ''}</td>
+    </tr>
+  `).join('');
+
+  // 既存のフィルタ・件数表示を再適用
+  filterTeleapoLogRows();
+}
+
+
+// アポ結果文字列から、通電/設定/着座フラグを判定
+function classifyTeleapoResult(resultText) {
+  const text = (resultText || '').trim();
+  const isConnect = ['通電', '設定', '着座', 'コールバック'].some(word => text.includes(word));
+  const isSet = ['設定', '着座'].some(word => text.includes(word));
+  const isShow = ['着座'].some(word => text.includes(word));
+  return { isConnect, isSet, isShow };
+}
+
+// 時間帯（時）→ スロット
+function resolveTeleapoSlot(hour) {
+  if (hour >= 9 && hour < 11) return '09-11';
+  if (hour >= 11 && hour < 13) return '11-13';
+  if (hour >= 13 && hour < 15) return '13-15';
+  if (hour >= 15 && hour < 17) return '15-17';
+  if (hour >= 17 && hour < 19) return '17-19';
+  return null;
+}
+
 
 // ======== クリーンアップ ========
 function cleanupTeleapoEventListeners() {

@@ -304,6 +304,65 @@
       </div>
     </div>
 
+    <!-- 新規架電ログ入力フォーム -->
+    <div class="border border-slate-200 rounded-lg p-4 bg-white space-y-3">
+      <h4 class="text-sm font-semibold text-slate-700">新規架電ログの登録</h4>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">日時</label>
+          <input type="datetime-local" id="teleapoLogInputDatetime"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">担当者</label>
+          <select id="teleapoLogInputEmployee" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">選択してください</option>
+            <option value="佐藤">佐藤</option>
+            <option value="田中">田中</option>
+            <option value="山本">山本</option>
+            <option value="鈴木">鈴木</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">アポ結果</label>
+          <select id="teleapoLogInputResult" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">選択してください</option>
+            <option value="通電">通電</option>
+            <option value="不在">不在</option>
+            <option value="設定">設定</option>
+            <option value="着座">着座</option>
+            <option value="コールバック">コールバック</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">相手</label>
+          <input type="text" id="teleapoLogInputTarget"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="企業名・担当者名など" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">電話番号</label>
+          <input type="text" id="teleapoLogInputTel"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">メールアドレス</label>
+          <input type="email" id="teleapoLogInputEmail"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        </div>
+        <div class="md:col-span-3 flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">メモ</label>
+          <textarea id="teleapoLogInputMemo" rows="2"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button type="button" id="teleapoLogInputAddBtn"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
+          この内容で追加
+        </button>
+      </div>
+    </div>
+
     <!-- フィルタと検索 -->
     <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
       <h4 class="text-sm font-semibold text-slate-700">絞り込み条件</h4>
