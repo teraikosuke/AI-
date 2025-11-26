@@ -4,6 +4,7 @@
  */
 
 import { defaultApiClient } from '../client.js';
+import { mockPersonalRows, mockCompanyRows, mockEmployeeRows, filterMockRows } from '../../mock/metrics.js';
 
 const toNumber = value => {
   const numValue = Number(value);
@@ -289,32 +290,8 @@ export class KpiRepository {
    * @returns {KpiData[]}
    */
   getPersonalKpiMock(startDate, endDate) {
-    return [
-      {
-        period: '2024-11',
-        applications: 156,
-        introductions: 78,
-        hires: 12,
-        cost: 450000,
-        currency: 'JPY'
-      },
-      {
-        period: '2024-10',
-        applications: 142,
-        introductions: 65,
-        hires: 9,
-        cost: 380000,
-        currency: 'JPY'
-      },
-      {
-        period: '2024-09',
-        applications: 198,
-        introductions: 89,
-        hires: 15,
-        cost: 520000,
-        currency: 'JPY'
-      }
-    ];
+    const rows = filterMockRows(mockPersonalRows, startDate, endDate);
+    return this.transformPersonalMetrics(rows);
   }
 
   /**
@@ -545,7 +522,8 @@ export class KpiRepository {
    * @returns {KpiData[]}
    */
   getCompanyKpiMock(startDate, endDate) {
-    return this.createEmptyCompanyMetrics();
+    const rows = filterMockRows(mockCompanyRows, startDate, endDate);
+    return this.transformCompanyMetrics(rows);
   }
 
   transformEmployeeMetrics(rows) {
@@ -585,83 +563,31 @@ export class KpiRepository {
    * @returns {Employee[]}
    */
   getEmployeePerformanceMock(filters = {}) {
-    let employees = [
-      {
-        id: 'EMP001',
-        name: '田中太郎',
-        department: '営業部',
-        applications: 45,
-        introductions: 28,
-        hires: 5,
-        rate: 62.2,
-        rank: 'A'
-      },
-      {
-        id: 'EMP002',
-        name: '佐藤花子',
-        department: '営業部',
-        applications: 38,
-        introductions: 19,
-        hires: 3,
-        rate: 50.0,
-        rank: 'B'
-      },
-      {
-        id: 'EMP003',
-        name: '鈴木一郎',
-        department: 'マーケティング部',
-        applications: 52,
-        introductions: 35,
-        hires: 8,
-        rate: 67.3,
-        rank: 'A'
-      },
-      {
-        id: 'EMP004',
-        name: '高橋美咲',
-        department: 'マーケティング部',
-        applications: 29,
-        introductions: 15,
-        hires: 2,
-        rate: 51.7,
-        rank: 'B'
-      },
-      {
-        id: 'EMP005',
-        name: '渡辺健太',
-        department: '営業部',
-        applications: 41,
-        introductions: 22,
-        hires: 4,
-        rate: 53.7,
-        rank: 'B'
-      }
-    ];
+    let employees = [...mockEmployeeRows];
 
-    // 検索フィルター適用
     if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      employees = employees.filter(emp => 
-        emp.name.toLowerCase().includes(searchTerm) ||
-        emp.department.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // ソート適用
-    if (filters.sortBy) {
-      employees.sort((a, b) => {
-        const aVal = a[filters.sortBy];
-        const bVal = b[filters.sortBy];
-        const order = filters.sortOrder === 'desc' ? -1 : 1;
-        
-        if (typeof aVal === 'string') {
-          return aVal.localeCompare(bVal) * order;
-        }
-        return (aVal - bVal) * order;
+      const term = String(filters.search).toLowerCase();
+      employees = employees.filter(emp => {
+        const name = String(emp.user_name || emp.name || '').toLowerCase();
+        const email = String(emp.user_email || '').toLowerCase();
+        return name.includes(term) || email.includes(term);
       });
     }
 
-    return employees;
+    if (filters.sortBy) {
+      const key = filters.sortBy;
+      const order = filters.sortOrder === 'desc' ? -1 : 1;
+      employees.sort((a, b) => {
+        const aVal = a[key];
+        const bVal = b[key];
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return aVal.localeCompare(bVal) * order;
+        }
+        return ((Number(aVal) || 0) - (Number(bVal) || 0)) * order;
+      });
+    }
+
+    return this.transformEmployeeMetrics(employees);
   }
 }
 
