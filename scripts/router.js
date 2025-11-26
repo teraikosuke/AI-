@@ -38,9 +38,7 @@ const pageCSS = {
 let current = null;
 let currentCSS = null;
 const BADGE_SELECTORS = [
-  '.page-header .header-actions',
-  '.page-header',
-  '#app'
+  '#sidebarUserBadgeSlot'
 ];
 const BADGE_SELECTOR = '[data-user-badge]';
 let unsubscribeBadge = null;
@@ -186,12 +184,35 @@ function updateNavigation(page) {
   });
 }
 
+function setupSidebarToggle() {
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = sidebar?.querySelector('#sidebarToggle');
+  if (!sidebar || !toggleBtn) return;
+
+  const updateToggleLabel = () => {
+    const collapsed = sidebar.classList.contains('sidebar-collapsed');
+    toggleBtn.textContent = collapsed ? '▶' : '◀';
+    toggleBtn.setAttribute(
+      'aria-label',
+      collapsed ? 'サイドバーを展開' : 'サイドバーを折りたたみ'
+    );
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('sidebar-collapsed');
+    updateToggleLabel();
+  });
+
+  updateToggleLabel();
+}
+
 export function boot() {
   // Initial navigation
   addEventListener('DOMContentLoaded', async () => {
     // サーバー上のセッションからローカルセッションを復元
     await authRepo.me();
     await navigate();
+    setupSidebarToggle();
   });
   
   // Handle hash changes
@@ -235,8 +256,18 @@ function renderUserBadge() {
   if (!badge) {
     badge = document.createElement('div');
     badge.dataset.userBadge = 'true';
-    badge.className = 'user-badge-chip';
-    badge.innerHTML = '<span class="user-badge-chip__text"></span>';
+    badge.className = 'sidebar-user-chip';
+    badge.innerHTML = `
+      <div class="sidebar-user-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+          <circle cx="12" cy="8" r="3.2" />
+          <path d="M5.5 18.5a6.5 6.5 0 0 1 13 0v.5h-13v-.5z" />
+        </svg>
+      </div>
+      <div class="sidebar-user-text">
+        <span class="sidebar-user-name user-badge-chip__text"></span>
+      </div>
+    `;
     badge.addEventListener('click', handleBadgeActivate);
     badge.addEventListener('keydown', handleBadgeActivate);
   }

@@ -426,6 +426,40 @@ function setCardAchievementProgress(achvElement, percentValue) {
   card.style.setProperty('--achv-progress', `${normalized}%`);
 }
 
+function initializeKpiTabs() {
+  const groups = document.querySelectorAll('.kpi-tab-group[data-kpi-tab-group]');
+  groups.forEach(group => {
+    const section = group.closest('.kpi-v2-section');
+    if (!section) return;
+    const tabs = Array.from(group.querySelectorAll('.kpi-tab[data-kpi-tab]'));
+    const panels = Array.from(section.querySelectorAll('.kpi-tab-panel[data-kpi-tab-panel]'));
+
+    const activate = tabId => {
+      tabs.forEach(btn => {
+        const isActive = btn.dataset.kpiTab === tabId;
+        btn.classList.toggle('is-active', isActive);
+      });
+      panels.forEach(panel => {
+        const match = panel.dataset.kpiTabPanel === tabId;
+        panel.classList.toggle('is-hidden', !match);
+      });
+    };
+
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.kpiTab;
+        if (!id) return;
+        activate(id);
+      });
+    });
+
+    const initial = tabs.find(btn => btn.classList.contains('is-active')) || tabs[0];
+    if (initial) {
+      activate(initial.dataset.kpiTab);
+    }
+  });
+}
+
 export function mount() {
   syncAccessRole();
   safe('initializeDatePickers', initializeDatePickers);
@@ -436,6 +470,7 @@ export function mount() {
   safe('initializeEmployeeControls', initializeEmployeeControls);
   safe('loadYieldData', loadYieldData);
   safe('initializeDashboardSection', initializeDashboardSection);
+  safe('initializeKpiTabs', initializeKpiTabs);
 }
 
 export function unmount() {}
@@ -1307,26 +1342,62 @@ function updateCompanyPeriodDisplay(data) {
 }
 
 // 社員表示の更新
-function updateEmployeeDisplay(data) {
+function computeEmployeeColumnTopValues(rows = []) {
+  const metrics = [
+    'proposals',
+    'recommendations',
+    'interviewsScheduled',
+    'interviewsHeld',
+    'offers',
+    'accepts',
+    'proposalRate',
+    'recommendationRate',
+    'interviewScheduleRate',
+    'interviewHeldRate',
+    'offerRate',
+    'acceptRate'
+  ];
+  const topValues = {};
+  metrics.forEach(metric => {
+    const values = rows.map(row => {
+      const numeric = Number(row?.[metric]);
+      return Number.isFinite(numeric) ? numeric : 0;
+    });
+    const unique = Array.from(new Set(values)).sort((a, b) => b - a).slice(0, 3);
+    topValues[metric] = unique;
+  });
+  return topValues;
+}
+
+function updateEmployeeDisplay(data, topValues = {}) {
   const tableBody = document.getElementById('employeeTableBody');
   if (!tableBody) return;
   
   const rows = Array.isArray(data) ? data : [];
+  const getRankClass = (metric, value) => {
+    const metricTop = topValues?.[metric];
+    if (!metricTop) return '';
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '';
+    const index = metricTop.findIndex(val => val === numeric);
+    return index >= 0 ? `kpi-v2-rank-${index + 1}` : '';
+  };
+
   tableBody.innerHTML = rows.map(employee => `
     <tr>
       <td>${employee.name}</td>
-      <td>${employee.proposals}</td>
-      <td>${employee.recommendations}</td>
-      <td>${employee.interviewsScheduled}</td>
-      <td>${employee.interviewsHeld}</td>
-      <td>${employee.offers}</td>
-      <td>${employee.accepts}</td>
-      <td>${employee.proposalRate}%</td>
-      <td>${employee.recommendationRate}%</td>
-      <td>${employee.interviewScheduleRate}%</td>
-      <td>${employee.interviewHeldRate}%</td>
-      <td>${employee.offerRate}%</td>
-      <td>${employee.acceptRate}%</td>
+      <td class="${getRankClass('proposals', employee.proposals)}">${employee.proposals}</td>
+      <td class="${getRankClass('recommendations', employee.recommendations)}">${employee.recommendations}</td>
+      <td class="${getRankClass('interviewsScheduled', employee.interviewsScheduled)}">${employee.interviewsScheduled}</td>
+      <td class="${getRankClass('interviewsHeld', employee.interviewsHeld)}">${employee.interviewsHeld}</td>
+      <td class="${getRankClass('offers', employee.offers)}">${employee.offers}</td>
+      <td class="${getRankClass('accepts', employee.accepts)}">${employee.accepts}</td>
+      <td class="${getRankClass('proposalRate', employee.proposalRate)}">${employee.proposalRate}%</td>
+      <td class="${getRankClass('recommendationRate', employee.recommendationRate)}">${employee.recommendationRate}%</td>
+      <td class="${getRankClass('interviewScheduleRate', employee.interviewScheduleRate)}">${employee.interviewScheduleRate}%</td>
+      <td class="${getRankClass('interviewHeldRate', employee.interviewHeldRate)}">${employee.interviewHeldRate}%</td>
+      <td class="${getRankClass('offerRate', employee.offerRate)}">${employee.offerRate}%</td>
+      <td class="${getRankClass('acceptRate', employee.acceptRate)}">${employee.acceptRate}%</td>
     </tr>
   `).join('');
 }
@@ -1348,7 +1419,8 @@ function renderEmployeeRows(source = employeeListState) {
     const bNum = Number(bVal) || 0;
     return (aNum - bNum) * direction;
   });
-  updateEmployeeDisplay(rows);
+  const topValues = computeEmployeeColumnTopValues(rows);
+  updateEmployeeDisplay(rows, topValues);
 }
 
 function handleDateRangeChange() {

@@ -5,6 +5,11 @@
     <div class="kpi-v2-header">
       <h3 class="kpi-v2-title">個人成績</h3>
     </div>
+    <div class="kpi-tab-group" data-kpi-tab-group="personal">
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="personal-metrics">歩留まり</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="personal-graphs">グラフ</button>
+    </div>
+    <div class="kpi-tab-panel" data-kpi-tab-panel="personal-metrics">
 
     <!-- 今日の実績 -->
     <div class="kpi-v2-subsection">
@@ -528,7 +533,7 @@
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">期間ごとの歩留まり</h4>
       <div class="kpi-v2-header">
-        <div class="kpi-v2-range-label">期間で絞り込み</div>
+        <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
         <div class="kpi-v2-range-picker">
           <input type="date" id="personalRangeStart" class="kpi-v2-date-input" />
           <span class="kpi-v2-date-separator">〜</span>
@@ -603,7 +608,8 @@
       </div>
       <p class="kpi-v2-note">※括弧内は前月流入です。</p>
     </div>
-
+    </div>
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="personal-graphs">
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">個人ダッシュボード</h4>
       <!-- <p class="dashboard-card-subtext">主要指標をグラフで可視化したモックデータです。実データ接続前のレイアウトとしてご確認ください。</p> -->
@@ -677,6 +683,7 @@
         </div>
       </div>
     </div>
+    </div>
 
   </div>
 
@@ -685,6 +692,12 @@
     <div class="kpi-v2-header">
       <h3 class="kpi-v2-title">社内成績</h3>
     </div>
+    <div class="kpi-tab-group" data-kpi-tab-group="company">
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="company-metrics">歩留まり</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-graphs">グラフ</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-employees">社員成績</button>
+    </div>
+    <div class="kpi-tab-panel" data-kpi-tab-panel="company-metrics">
 
     <!-- 今月の実績 -->
     <div class="kpi-v2-subsection">
@@ -760,7 +773,7 @@
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">期間ごとの歩留まり（社内）</h4>
       <div class="kpi-v2-header">
-        <div class="kpi-v2-range-label">期間で絞り込み</div>
+        <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
         <div class="kpi-v2-range-picker">
           <input type="date" id="companyPeriodStart" class="kpi-v2-date-input" />
           <span class="kpi-v2-date-separator">〜</span>
@@ -834,7 +847,8 @@
           </div>
       </div>
     </div>
-
+    </div>
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-graphs">
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">社内ダッシュボード</h4>
       <!-- <p class="dashboard-card-subtext">主要指標をグラフで可視化したモックデータです。実データ接続前のレイアウトとしてご確認ください。</p> -->
@@ -921,7 +935,10 @@
       </div>
     </div>
 
+    </div>
+
     <!-- 社員成績 -->
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-employees">
     <div class="kpi-v2-subsection">
       <h4 class="kpi-v2-subtitle">社員成績</h4>
       <header class="kpi-v2-employee-header">
@@ -980,6 +997,7 @@
         </div>
       </div>
 
+    </div>
     </div>
 
   </div>

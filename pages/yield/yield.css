@@ -21,10 +21,10 @@
 
 /* ===== KPI v2: 個人成績・全体セクション ===== */
 [data-kpi="v2"] .kpi-v2-section {
-  background-color: transparent !important;
-  border-radius: 0 !important;
+  background-color: #fff !important;
+  border-radius: 1rem !important;
   border: none !important;
-  padding: 0 !important;
+  padding: 1.5rem !important;
   box-shadow: none !important;
 }
 
@@ -281,7 +281,7 @@
   left: 0;
   right: 0;
   bottom: -2px;
-  height: 2px;
+  height: 3px;
   border-radius: 999px;
   background: var(--kpi-accent-color);
 }
@@ -398,64 +398,66 @@
   text-align: center;
 }
 
-[data-kpi="v2"] .kpi-v2-card[data-kpi="recommendations"],
+
+
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(1) {
+  --kpi-accent-color: #c7d2fe !important;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(2) {
+  --kpi-accent-color: #fef3c7 !important;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(3) {
+  --kpi-accent-color: #bbf7d0;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(4) {
+  --kpi-accent-color: #bfdbfe;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(5) {
+  --kpi-accent-color: #ddd6fe;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(6) {
+  --kpi-accent-color: #fecaca;
+}
+[data-kpi="v2"] .kpi-v2-grid:first-of-type .kpi-v2-card:nth-of-type(7) {
+  --kpi-accent-color: #fde68a;
+}
+
+[data-kpi="v2"] .kpi-v2-card[data-kpi="interviewsScheduled"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="recommendationRate"] {
   --kpi-accent-color: #bbf7d0;
 }
 
-[data-kpi="v2"] .kpi-v2-card[data-kpi="interviewsScheduled"],
+[data-kpi="v2"] .kpi-v2-card[data-kpi="interviewsHeld"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="interviewScheduleRate"] {
   --kpi-accent-color: #bfdbfe;
 }
 
-[data-kpi="v2"] .kpi-v2-card[data-kpi="interviewsHeld"],
+[data-kpi="v2"] .kpi-v2-card[data-kpi="offers"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="interviewHeldRate"] {
   --kpi-accent-color: #ddd6fe;
 }
 
-[data-kpi="v2"] .kpi-v2-card[data-kpi="offers"],
+[data-kpi="v2"] .kpi-v2-card[data-kpi="accepts"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="offerRate"] {
   --kpi-accent-color: #fed7aa;
 }
 
-[data-kpi="v2"] .kpi-v2-card[data-kpi="accepts"],
-[data-kpi="v2"] .kpi-v2-card[data-kpi="acceptRate"] {
-  --kpi-accent-color: #a7f3d0;
+[data-kpi="v2"] .kpi-v2-card[data-kpi="recommendations"],
+[data-kpi="v2"] .kpi-v2-card[data-kpi="proposalRate"] {
+  --kpi-accent-color: #fef3c7;
 }
-
+[data-kpi="v2"] .kpi-v2-card[data-kpi="acceptRate"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="hires"],
 [data-kpi="v2"] .kpi-v2-card[data-kpi="hireRate"] {
   --kpi-accent-color: #fecaca;
 }
 
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(1) {
-  --kpi-accent-color: #c7d2fe !important;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(2) {
-  --kpi-accent-color: #fef3c7 !important;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(3) {
-  --kpi-accent-color: #bbf7d0;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(4) {
-  --kpi-accent-color: #bfdbfe;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(5) {
-  --kpi-accent-color: #ddd6fe;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(6) {
-  --kpi-accent-color: #fecaca;
-}
-[data-kpi="v2"] .kpi-v2-subsection:first-of-type .kpi-v2-card:nth-of-type(7) {
-  --kpi-accent-color: #fde68a;
-}
-
 [data-kpi="v2"] .kpi-v2-subsection {
-  background: transparent !important;
+  background: rgb(248 250 252) !important;
   border: none !important;
-  border-radius: 0 !important;
+  border-radius: 1rem !important;
   box-shadow: none !important;
-  padding: 1rem 0 !important;
+  padding: 1rem 1.5rem 1rem 1.5rem!important;
   margin-bottom: 1.5rem !important;
 }
 
@@ -811,7 +813,59 @@
   background-color: #eef2ff;
 }
 
+[data-kpi="v2"] .kpi-v2-employee-table td.kpi-v2-rank-1 {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table td.kpi-v2-rank-2 {
+  color: #f97316;
+  font-weight: 600;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table td.kpi-v2-rank-3 {
+  color: #fb923c;
+  font-weight: 600;
+}
+
 [data-kpi="v2"] .summary-neutral .kpi-v2-achievement-section .kpi-v2-value{
   margin-bottom: 0.5rem !important;
   text-align: left;
+}
+[data-kpi="v2"] .kpi-tab-group {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+[data-kpi="v2"] .kpi-tab {
+  flex: 0 0 auto;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+[data-kpi="v2"] .kpi-tab:hover {
+  background-color: #f9fafb;
+}
+
+[data-kpi="v2"] .kpi-tab.is-active {
+  color: #1f2937;
+  border-bottom-color: #2563eb;
+}
+
+[data-kpi="v2"] .kpi-tab-panel {
+  display: block;
+}
+
+[data-kpi="v2"] .kpi-tab-panel.is-hidden {
+  display: none;
 }
