@@ -125,6 +125,8 @@ open http://localhost:8000/dashboard.html
 | 一般（DBシードのみ） | `designer@example.com` | `designer123` | 同上 |
 | 一般（DBシードのみ） | `hr@example.com` | `hr123` | 同上 |
 
+> 📴 APIサーバーが停止している場合でも、`admin@example.com / admin123` または `member@example.com / member123` でフロントエンド単体のモックログインが可能です。
+
 ### DB に保存される主なデータと注意点
 - `users` … メール・ハッシュ化パスワード・ロール（`admin` か `member`）。ロールによって社員比較機能などのアクセス可否が決まります。  
 - KPI 系テーブル … `new_interviews → proposals → recommendations → interviews_scheduled → interviews_held → offers → accepts` の順で歩留まり率を算出。データ投入時はこのチェーンの整合性を崩さないことが重要です。  

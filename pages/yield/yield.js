@@ -51,17 +51,6 @@ function safe(name, fn) {
   }
 }
 
-function pickOrFallback(raw, validator, fallbackFactory) {
-  try {
-    if (!validator) {
-      return raw && !Array.isArray(raw) ? raw : fallbackFactory();
-    }
-    return validator(raw) ? raw : fallbackFactory();
-  } catch {
-    return fallbackFactory();
-  }
-}
-
 function num(value) {
   const n = Number(value || 0);
   return Number.isFinite(n) ? n : 0;
@@ -192,15 +181,11 @@ function initializeDatePickers() {
   
   const personalRangeStart = document.getElementById('personalRangeStart');
   const personalRangeEnd = document.getElementById('personalRangeEnd');
-  const companyRangeStart = document.getElementById('companyRangeStart');
-  const companyRangeEnd = document.getElementById('companyRangeEnd');
   const companyPeriodStart = document.getElementById('companyPeriodStart');
   const companyPeriodEnd = document.getElementById('companyPeriodEnd');
   
   if (personalRangeStart) personalRangeStart.value = thirtyDaysAgo;
   if (personalRangeEnd) personalRangeEnd.value = today;
-  if (companyRangeStart) companyRangeStart.value = thirtyDaysAgo;
-  if (companyRangeEnd) companyRangeEnd.value = today;
   if (companyPeriodEnd) companyPeriodEnd.value = today;
   if (companyPeriodStart) {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -208,7 +193,7 @@ function initializeDatePickers() {
   }
   
   // 日付変更イベントリスナー
-  [personalRangeStart, personalRangeEnd, companyRangeStart, companyRangeEnd].forEach(input => {
+  [personalRangeStart, personalRangeEnd].forEach(input => {
     if (input) {
       input.addEventListener('change', handleDateRangeChange);
     }
@@ -894,59 +879,11 @@ async function loadPersonalKPIData() {
     const startDate = document.getElementById('personalRangeStart')?.value || '2025-01-01';
     const endDate = document.getElementById('personalRangeEnd')?.value || new Date().toISOString().split('T')[0];
     const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
-    return pickOrFallback(
-      raw,
-      value => !!value && !Array.isArray(value) && !!value.monthly && !!value.period,
-      getPersonalKPIFallbackData
-    );
+    return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load personal KPI data:', error);
-    return getPersonalKPIFallbackData();
+    return null;
   }
-}
-
-function getPersonalKPIFallbackData() {
-  const zero = {
-    newInterviews: 0,
-    proposals: 0,
-    recommendations: 0,
-    interviewsScheduled: 0,
-    interviewsHeld: 0,
-    offers: 0,
-    accepts: 0,
-    hires: 0,
-    prevNewInterviews: 0,
-    prevProposals: 0,
-    prevRecommendations: 0,
-    prevInterviewsScheduled: 0,
-    prevInterviewsHeld: 0,
-    prevOffers: 0,
-    proposalRate: 0,
-    recommendationRate: 0,
-    interviewScheduleRate: 0,
-    interviewHeldRate: 0,
-    offerRate: 0,
-    acceptRate: 0,
-    hireRate: 0
-  };
-  return {
-    achievementRate: 0,
-    currentAmount: 0,
-    targetAmount: 0,
-    rows: [],
-    today: {
-      newInterviews: 0,
-      proposals: 0,
-      recommendations: 0,
-      interviewsScheduled: 0,
-      interviewsHeld: 0,
-      offers: 0,
-      accepts: 0,
-      hires: 0
-    },
-    monthly: { ...zero },
-    period: { ...zero }
-  };
 }
 
 async function loadMonthToDatePersonalKPIData() {
@@ -956,23 +893,18 @@ async function loadMonthToDatePersonalKPIData() {
     const startDate = startOfMonth.toISOString().split('T')[0];
     const endDate = today.toISOString().split('T')[0];
     const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
-    return pickOrFallback(
-      raw,
-      value => !!value && !Array.isArray(value) && !!value.monthly && !!value.period,
-      getPersonalKPIFallbackData
-    );
+    return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load month-to-date personal KPI data:', error);
-    return getPersonalKPIFallbackData();
+    return null;
   }
 }
 
 // 個人KPIデータを表示に反映
 function updatePersonalKPIDisplay(rangeData, monthOverride) {
   if (!rangeData && !monthOverride) return;
-  const fallback = getPersonalKPIFallbackData();
-  const monthlyData = monthOverride?.monthly || monthOverride || rangeData?.monthly || rangeData || fallback;
-  const periodData = rangeData?.period || rangeData || fallback;
+  const monthlyData = monthOverride?.monthly || monthOverride || rangeData?.monthly || rangeData || {};
+  const periodData = rangeData?.period || rangeData || {};
   const summarySource = {
     achievementRate: monthOverride?.achievementRate ?? rangeData?.achievementRate ?? 0,
     currentAmount: monthOverride?.currentAmount ?? rangeData?.currentAmount ?? 0,
@@ -1201,13 +1133,17 @@ function updatePersonalKPIDisplay(rangeData, monthOverride) {
 // 会社KPIデータの読み込み
 async function loadCompanyKPIData() {
   try {
-    // 日付範囲を取得
-    const startDate = document.getElementById('companyRangeStart')?.value || '2024-09-01';
-    const endDate = document.getElementById('companyRangeEnd')?.value || '2024-11-30';
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startDate = startOfMonth.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
     
     // APIからデータを取得
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = raw && !Array.isArray(raw) ? raw : getCompanyKPIFallbackData();
+    const data = raw && !Array.isArray(raw) ? raw : null;
+    if (!data) {
+      return null;
+    }
 
     // データを表示
     updateCompanyKPIDisplay(data);
@@ -1215,8 +1151,7 @@ async function loadCompanyKPIData() {
     return data;
   } catch (error) {
     console.error('Failed to load company KPI data:', error);
-    // フォールバック：モックデータを使用
-    return loadCompanyKPIDataFallback();
+    return null;
   }
 }
 
@@ -1225,84 +1160,18 @@ async function loadCompanyPeriodKPIData() {
     const startDate = document.getElementById('companyPeriodStart')?.value || '';
     const endDate = document.getElementById('companyPeriodEnd')?.value || '';
     if (!startDate || !endDate) {
-      return loadCompanyPeriodKPIDataFallback();
+      return null;
     }
     const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
-    const data = raw && !Array.isArray(raw) ? raw : getCompanyPeriodFallbackData();
-    updateCompanyPeriodDisplay(data);
+    const data = raw && !Array.isArray(raw) ? raw : null;
+    if (data) {
+      updateCompanyPeriodDisplay(data);
+    }
     return data;
   } catch (error) {
     console.error('Failed to load company period KPI data:', error);
-    return loadCompanyPeriodKPIDataFallback();
+    return null;
   }
-}
-
-function getCompanyKPIFallbackData() {
-  const companyKPIData = {
-    newInterviews: 127,
-    proposals: 89,
-    recommendations: 156,
-    interviewsScheduled: 132,
-    interviewsHeld: 68,
-    offers: 41,
-    accepts: 28,
-    hires: 28,
-    prevNewInterviews: 0,
-    prevProposals: 0,
-    prevRecommendations: 0,
-    prevInterviewsScheduled: 0,
-    prevInterviewsHeld: 0,
-    prevOffers: 0,
-    proposalRate: 69,
-    recommendationRate: 70,
-    interviewScheduleRate: 175,
-    interviewHeldRate: 85,
-    offerRate: 52,
-    acceptRate: 60,
-    hireRate: 45,
-    rows: []
-  };
-  return companyKPIData;
-}
-
-function loadCompanyKPIDataFallback() {
-  const fallback = getCompanyKPIFallbackData();
-  updateCompanyKPIDisplay(fallback);
-  companyKPIState = { ...fallback };
-  return fallback;
-}
-
-function getCompanyPeriodFallbackData() {
-  return {
-    newInterviews: 240,
-    proposals: 180,
-    recommendations: 210,
-    interviewsScheduled: 190,
-    interviewsHeld: 150,
-    offers: 90,
-    accepts: 62,
-    hires: 62,
-    prevNewInterviews: 0,
-    prevProposals: 0,
-    prevRecommendations: 0,
-    prevInterviewsScheduled: 0,
-    prevInterviewsHeld: 0,
-    prevOffers: 0,
-    proposalRate: 72,
-    recommendationRate: 68,
-    interviewScheduleRate: 120,
-    interviewHeldRate: 90,
-    offerRate: 55,
-    acceptRate: 62,
-    hireRate: 40,
-    rows: []
-  };
-}
-
-function loadCompanyPeriodKPIDataFallback() {
-  const fallback = getCompanyPeriodFallbackData();
-  updateCompanyPeriodDisplay(fallback);
-  return fallback;
 }
 
 // 社員データの読み込み
@@ -1342,47 +1211,10 @@ async function loadEmployeeData(rangeFilters = {}) {
     return data;
   } catch (error) {
     console.error('Failed to load employee data:', error);
-    // フォールバック：モックデータを使用
-    const employeeData = getEmployeeFallbackData();
-    updateEmployeeDisplay(employeeData);
-    employeeListState = [...employeeData];
-    return employeeData;
+    updateEmployeeDisplay([]);
+    employeeListState = [];
+    return [];
   }
-}
-
-function getEmployeeFallbackData() {
-  return [
-    {
-      name: '佐藤太郎',
-      proposals: 25,
-      recommendations: 18,
-      interviewsScheduled: 22,
-      interviewsHeld: 20,
-      offers: 12,
-      accepts: 8,
-      proposalRate: 72,
-      recommendationRate: 72,
-      interviewScheduleRate: 122,
-      interviewHeldRate: 91,
-      offerRate: 60,
-      acceptRate: 67
-    },
-    {
-      name: '田中花子',
-      proposals: 32,
-      recommendations: 28,
-      interviewsScheduled: 35,
-      interviewsHeld: 31,
-      offers: 18,
-      accepts: 11,
-      proposalRate: 89,
-      recommendationRate: 88,
-      interviewScheduleRate: 125,
-      interviewHeldRate: 89,
-      offerRate: 58,
-      acceptRate: 61
-    }
-  ];
 }
 
 // 候補者データの読み込み
