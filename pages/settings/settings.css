@@ -1,0 +1,342 @@
+/* Settings page standalone styles */
+
+:root {
+  --settings-bg: #f8fafc;
+  --settings-text: #0f172a;
+  --settings-muted: #94a3b8;
+  --settings-border: #e2e8f0;
+  --settings-line: #cbd5e1;
+  --settings-primary: #0f3a7a;
+  --settings-primary-strong: #103a75;
+}
+
+.settings-page {
+  background: var(--settings-bg);
+  padding: 1rem;
+  color: var(--settings-text);
+  font-family: 'Inter', 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.settings-section {
+  margin-bottom: 1.75rem;
+}
+
+.settings-section-header {
+  margin-bottom: 0.5rem;
+}
+
+.settings-section-title {
+  font-size: 1.18rem;
+  font-weight: 600;
+  position: relative;
+  padding-left: 0.75rem;
+  /* border-bottom: 1px solid var(--settings-border); */
+  margin-bottom: 0.25rem;
+}
+
+.settings-section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.2rem;
+  bottom: -0.2rem;
+  width: 3px;
+  background: var(--settings-primary);
+  border-radius: 2px;
+}
+
+.settings-muted {
+  color: var(--settings-muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.settings-tab-group {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--settings-border);
+}
+
+.settings-tab {
+  background: var(--settings-primary);
+  color: #fff;
+  border: none;
+  border-radius: 2px 2px 0 0;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-tab.is-active {
+  background: #fff;
+  color: var(--settings-text);
+  border: 1px solid var(--settings-border);
+  border-bottom-color: #fff;
+}
+
+.settings-tab-panel {
+  background: #fff;
+  border: 1px solid var(--settings-border);
+  border-radius: 2px;
+  padding: 1rem;
+}
+
+.is-hidden {
+  display: none;
+}
+
+.settings-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.settings-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--settings-border);
+  margin-bottom: 0.5rem;
+}
+
+.settings-radio-group {
+  display: flex;
+  flex: 1;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.settings-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--settings-text);
+}
+
+.settings-radio input[type="radio"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--settings-line);
+  border-radius: 50%;
+  position: relative;
+  background: #fff;
+}
+
+.settings-radio input[type="radio"]:checked {
+  border-color: var(--settings-primary);
+}
+
+.settings-radio input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: var(--settings-primary);
+  border-radius: 50%;
+}
+
+.settings-option-row {
+  /* display: flex; */
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.settings-inline-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.settings-inline-select select,
+.settings-inline-select input[type="number"] {
+  border: 1px solid var(--settings-line);
+  border-radius: 0;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  font-size: 0.9rem;
+  box-shadow: none;
+  font-weight: 500;
+}
+
+.settings-inline-select.readonly {
+  padding: 0.35rem 0.45rem;
+  background: #f8fafc;
+  border: 1px solid var(--settings-border);
+  border-radius: 2px;
+}
+
+.settings-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.settings-primary-button {
+  background: var(--settings-primary);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.settings-primary-button:hover {
+  background: var(--settings-primary-strong);
+}
+
+.settings-ghost-button {
+  background: #fff;
+  color: var(--settings-text);
+  border: 1px solid var(--settings-line);
+  padding: 0.4rem 0.75rem;
+  border-radius: 2px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-ghost-button:hover {
+  background: #f1f5f9;
+}
+
+.settings-save-status {
+  font-size: 0.85rem;
+  color: #059669;
+  font-weight: 600;
+  min-width: 140px;
+  text-align: left;
+}
+
+.settings-target-table-wrapper {
+  overflow-x: auto;
+}
+
+.settings-target-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #f8fafc;
+}
+
+.settings-target-table th,
+.settings-target-table td {
+  padding: 0.65rem 0.7rem;
+  border-bottom: 1px solid var(--settings-border);
+  text-align: left;
+}
+
+.settings-target-table th {
+  font-weight: 700;
+  color: #1f2937;
+  background: transparent;
+}
+
+.settings-target-table tbody {
+  background: #f8fafc;
+}
+
+.settings-target-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  text-align: right;
+  border: 1px solid var(--settings-line);
+  border-radius: 2px;
+  font-weight: 600;
+  background: #fff;
+}
+
+.settings-table-wrapper {
+  border: 1px solid var(--settings-border);
+  border-radius: 2px;
+}
+
+.settings-scroll-area {
+  overflow-x: auto;
+}
+
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.settings-table th,
+.settings-table td {
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--settings-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.settings-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.settings-daily-table td input {
+  width: 100%;
+  text-align: right;
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0.3rem;
+}
+
+.settings-daily-table th:first-child,
+.settings-daily-table td:first-child {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.settings-kpi-label-cell {
+  background: #e5e7eb;
+  font-weight: 600;
+}
+
+.settings-page .page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.settings-page .page-description {
+  color: var(--settings-muted);
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .settings-card-headline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-inline-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

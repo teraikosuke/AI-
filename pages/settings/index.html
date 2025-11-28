@@ -1,0 +1,185 @@
+<div class="settings-page" id="settingsPage">
+  <div class="settings-section">
+    <div class="settings-tab-group" data-settings-tab-group="settings">
+      <button type="button" class="settings-tab is-active" data-settings-tab="company-settings">会社設定</button>
+      <button type="button" class="settings-tab" data-settings-tab="personal-settings">個人設定</button>
+    </div>
+
+    <div class="settings-tab-panel" data-settings-tab-panel="company-settings">
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">評価期間設定</h4>
+            <p class="settings-muted">この会社の評価サイクルを設定します。KPI の目標と実績の集計単位に使います。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <div class="settings-radio-group" id="evaluationRuleGroup">
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="monthly" />
+                <span>月次評価（毎月1日〜末日）</span>
+              </label>
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="half-month" />
+                <span>半月評価（1〜15日／16〜末日）</span>
+              </label>
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="weekly" />
+                <span>週で評価</span>
+              </label>
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="quarterly" />
+                <span>四半期</span>
+              </label>
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="custom-month" />
+                <span>月（カスタム：毎月○日〜毎月○日）</span>
+              </label>
+            </div>
+            <button type="button" id="saveEvaluationRuleButton" class="settings-primary-button">期間設定を保存</button>
+          </div>
+        </div>
+
+        <div class="settings-advanced-options">
+          <div class="settings-option-row" data-option="weekly" hidden>
+            <label class="settings-inline-select">
+              <span>週の開始曜日</span>
+              <select id="startWeekdaySelect">
+                <option value="monday">月曜日開始</option>
+                <option value="sunday">日曜日開始</option>
+              </select>
+            </label>
+          </div>
+          <div class="settings-option-row" data-option="quarterly" hidden>
+            <label class="settings-inline-select">
+              <span>会計年度の開始月</span>
+              <select id="fiscalStartMonthSelect">
+                <option value="1">1月始まり</option>
+                <option value="4">4月始まり</option>
+              </select>
+            </label>
+          </div>
+          <div class="settings-option-row" data-option="custom-month" hidden>
+            <label class="settings-inline-select">
+              <span>毎月の開始日（1〜31）</span>
+              <input type="number" id="customStartDayInput" min="1" max="31" value="1" />
+            </label>
+            <div class="settings-inline-select readonly">
+              <span>毎月の終了日</span>
+              <span id="customEndDayLabel">自動計算（開始日の前日）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveEvaluationRuleButton" class="settings-primary-button">期間設定を保存</button>
+          <span class="settings-save-status" id="evaluationSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">期間目標設定（会社共通）</h4>
+            <p class="settings-muted">各評価期間あたりの会社全体の目標値を設定します。期間ごとに異なる目標を設定できます。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="companyPeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-target-table-wrapper">
+          <table class="settings-target-table">
+            <thead>
+              <tr>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+              </tr>
+            </thead>
+            <tbody id="companyTargetTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveCompanyTargetButton" class="settings-primary-button">この期間の会社目標を保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel is-hidden" data-settings-tab-panel="personal-settings">
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">期間目標設定（自分）</h4>
+            <p class="settings-muted">ログイン中の自分の評価期間ごとの目標値を設定します。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="personalPeriodSelect"></select>
+            </label>
+            <button type="button" id="copyCompanyTargetButton" class="settings-ghost-button">会社目標をコピーして編集</button>
+          </div>
+        </div>
+
+        <div class="settings-target-table-wrapper">
+          <table class="settings-target-table">
+            <thead>
+              <tr>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+              </tr>
+            </thead>
+            <tbody id="personalTargetTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="savePersonalTargetButton" class="settings-primary-button">この期間の個人目標を保存</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">日別目標設定</h4>
+            <p class="settings-muted">選択中の評価期間内で、日ごとの目標値を設定します。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="personalDailyPeriodSelect"></select>
+            </label>
+            <button type="button" id="distributeDailyButton" class="settings-ghost-button">期間目標から均等割りで自動入力</button>
+          </div>
+        </div>
+
+        <div class="settings-table-wrapper">
+          <div class="settings-scroll-area">
+            <table class="settings-table settings-daily-table">
+              <thead>
+                <tr>
+                  <th scope="col">日付</th>
+                  <th scope="col">新規面談設定数（目標）</th>
+                  <th scope="col">求人提案数（目標）</th>
+                  <th scope="col">推薦送信数（目標）</th>
+                  <th scope="col">面接設定数（目標）</th>
+                  <th scope="col">面接実施数（目標）</th>
+                  <th scope="col">内定提示数（目標）</th>
+                  <th scope="col">内定承諾数（目標）</th>
+                </tr>
+              </thead>
+              <tbody id="personalDailyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveDailyTargetsButton" class="settings-primary-button">日別目標を保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

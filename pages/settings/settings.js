@@ -1,0 +1,489 @@
+import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+
+const KPI_FIELDS = [
+  { key: 'newInterviewsTarget', label: '新規面談設定数' },
+  { key: 'proposalsTarget', label: '求人提案数' },
+  { key: 'recommendationsTarget', label: '推薦送信数' },
+  { key: 'interviewsScheduledTarget', label: '面接設定数' },
+  { key: 'interviewsHeldTarget', label: '面接実施数' },
+  { key: 'offersTarget', label: '内定提示数' },
+  { key: 'acceptsTarget', label: '内定承諾数' },
+  { key: 'revenueTarget', label: '売上目標（金額）' },
+  { key: 'proposalRateTarget', label: '求人提案率' },
+  { key: 'recommendationRateTarget', label: '推薦送信率' },
+  { key: 'interviewScheduleRateTarget', label: '面接設定率' },
+  { key: 'interviewHeldRateTarget', label: '面接実施率' },
+  { key: 'offerRateTarget', label: '内定提示率' },
+  { key: 'acceptRateTarget', label: '内定承諾率' },
+  { key: 'hireRateTarget', label: '入社決定率' }
+];
+
+const DAILY_FIELD_KEYS = [
+  'newInterviewsTarget',
+  'proposalsTarget',
+  'recommendationsTarget',
+  'interviewsScheduledTarget',
+  'interviewsHeldTarget',
+  'offersTarget',
+  'acceptsTarget'
+];
+
+const DAILY_FIELDS = KPI_FIELDS.filter(field => DAILY_FIELD_KEYS.includes(field.key));
+
+const state = {
+  evaluationRule: { type: 'monthly', options: {} },
+  evaluationPeriods: [],
+  selectedCompanyPeriodId: '',
+  selectedPersonalPeriodId: '',
+  selectedPersonalDailyPeriodId: ''
+};
+
+export function mount() {
+  hydrateInitialState();
+  initializeTabs();
+  renderEvaluationRuleSection();
+  renderPeriodSelects();
+  renderCompanyTargets();
+  renderPersonalTargets();
+  renderDailyTargets();
+  bindEvents();
+}
+
+export function unmount() {}
+
+function hydrateInitialState() {
+  const rule = goalSettingsService.getEvaluationRule();
+  state.evaluationRule = normalizeRule(rule);
+  state.evaluationPeriods = goalSettingsService.getEvaluationPeriods();
+  const todayStr = isoDate(new Date());
+  const shouldRefreshDefaults =
+    state.evaluationRule.type !== 'custom-month' &&
+    (!Array.isArray(state.evaluationPeriods) ||
+      !state.evaluationPeriods.length ||
+      state.evaluationPeriods.length < 6 ||
+      !findPeriodIdByDate(todayStr, state.evaluationPeriods));
+
+  if (shouldRefreshDefaults) {
+    state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(state.evaluationRule);
+    goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
+  }
+  const firstPeriod = state.evaluationPeriods[0];
+  const todayId = findPeriodIdByDate(isoDate(new Date()), state.evaluationPeriods);
+  state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
+  state.selectedPersonalPeriodId = state.selectedCompanyPeriodId;
+  state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
+}
+
+function bindEvents() {
+  document.querySelectorAll('input[name="evaluationRule"]').forEach(input => {
+    input.addEventListener('change', () => handleRuleSelect(input.value));
+  });
+
+  document.getElementById('addCustomPeriodButton')?.addEventListener('click', () => {
+    addCustomPeriodRow();
+    renderCustomPeriodsTable();
+    renderPeriodSelects();
+  });
+
+  document.getElementById('saveEvaluationRuleButton')?.addEventListener('click', handleSaveEvaluationRule);
+  document.getElementById('companyPeriodSelect')?.addEventListener('change', handleCompanyPeriodChange);
+  document.getElementById('saveCompanyTargetButton')?.addEventListener('click', handleSaveCompanyTarget);
+  document.getElementById('personalPeriodSelect')?.addEventListener('change', handlePersonalPeriodChange);
+  document.getElementById('copyCompanyTargetButton')?.addEventListener('click', handleCopyCompanyTarget);
+  document.getElementById('savePersonalTargetButton')?.addEventListener('click', handleSavePersonalTarget);
+  document.getElementById('distributeDailyButton')?.addEventListener('click', handleDistributeDailyTargets);
+  document.getElementById('saveDailyTargetsButton')?.addEventListener('click', handleSaveDailyTargets);
+  document.getElementById('personalDailyPeriodSelect')?.addEventListener('change', handlePersonalDailyPeriodChange);
+  document.getElementById('customStartDayInput')?.addEventListener('input', event => {
+    updateCustomEndLabel(event.target.value);
+  });
+}
+
+function initializeTabs() {
+  const groups = document.querySelectorAll('.settings-tab-group[data-settings-tab-group]');
+  groups.forEach(group => {
+    const tabs = Array.from(group.querySelectorAll('.settings-tab[data-settings-tab]'));
+    const panels = Array.from(document.querySelectorAll('.settings-tab-panel[data-settings-tab-panel]'));
+    const activate = tabId => {
+      tabs.forEach(btn => btn.classList.toggle('is-active', btn.dataset.settingsTab === tabId));
+      panels.forEach(panel => panel.classList.toggle('is-hidden', panel.dataset.settingsTabPanel !== tabId));
+    };
+    tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.settingsTab)));
+    const initial = tabs.find(btn => btn.classList.contains('is-active')) || tabs[0];
+    if (initial) activate(initial.dataset.settingsTab);
+  });
+}
+
+function handleRuleSelect(nextRule) {
+  const options = readRuleOptions(nextRule);
+  state.evaluationRule = { type: nextRule, options };
+  state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(state.evaluationRule);
+  const firstPeriod = state.evaluationPeriods[0];
+  const todayId = findPeriodIdByDate(isoDate(new Date()), state.evaluationPeriods);
+  state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
+  state.selectedPersonalPeriodId = state.selectedCompanyPeriodId;
+  state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
+  renderEvaluationRuleSection();
+  renderPeriodSelects();
+  renderCompanyTargets();
+  renderPersonalTargets();
+  renderDailyTargets();
+}
+
+function handleSaveEvaluationRule() {
+  const type = getSelectedRule();
+  const options = readRuleOptions(type);
+  const rule = { type, options };
+  state.evaluationRule = rule;
+  state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(rule);
+  goalSettingsService.setEvaluationRule(rule);
+  goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
+  const firstPeriod = state.evaluationPeriods[0];
+  const todayId = findPeriodIdByDate(isoDate(new Date()), state.evaluationPeriods);
+  state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
+  state.selectedPersonalPeriodId = state.selectedCompanyPeriodId;
+  state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
+  renderEvaluationRuleSection();
+  renderPeriodSelects();
+  renderCompanyTargets();
+  renderPersonalTargets();
+  renderDailyTargets();
+  showSaveStatus('evaluationSaveStatus', '期間設定を保存しました');
+}
+
+function renderEvaluationRuleSection() {
+  const radios = document.querySelectorAll('input[name="evaluationRule"]');
+  radios.forEach(radio => {
+    radio.checked = radio.value === state.evaluationRule.type;
+  });
+  toggleRuleOptions();
+}
+
+function renderCustomPeriodsTable() {
+  // カスタム期間テーブルは廃止
+}
+
+function addCustomPeriodRow() {
+  const now = new Date();
+  const newPeriod = {
+    id: `custom-${Date.now()}`,
+    label: `評価期間 ${state.evaluationPeriods.length + 1}`,
+    startDate: isoDate(now),
+    endDate: isoDate(now)
+  };
+  state.evaluationPeriods = [...state.evaluationPeriods, newPeriod];
+}
+
+function handleCompanyPeriodChange(event) {
+  state.selectedCompanyPeriodId = event.target.value || '';
+  renderCompanyTargets();
+}
+
+function handlePersonalPeriodChange(event) {
+  state.selectedPersonalPeriodId = event.target.value || '';
+  renderPersonalTargets();
+}
+
+function handlePersonalDailyPeriodChange(event) {
+  state.selectedPersonalDailyPeriodId = event.target.value || '';
+  renderDailyTargets();
+}
+
+function renderPeriodSelects() {
+  const optionsHtml = state.evaluationPeriods
+    .map(period => `<option value="${period.id}">${goalSettingsService.formatPeriodLabel(period)}</option>`)
+    .join('');
+
+  const firstPeriod = state.evaluationPeriods[0];
+  const todayId = findPeriodIdByDate(isoDate(new Date()), state.evaluationPeriods);
+  const hasCompany = state.evaluationPeriods.some(period => period.id === state.selectedCompanyPeriodId);
+  const hasPersonal = state.evaluationPeriods.some(period => period.id === state.selectedPersonalPeriodId);
+  const hasDaily = state.evaluationPeriods.some(period => period.id === state.selectedPersonalDailyPeriodId);
+  if (!hasCompany && (todayId || firstPeriod)) state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
+  if (!hasPersonal && (todayId || firstPeriod)) state.selectedPersonalPeriodId = todayId || firstPeriod?.id || '';
+  if (!hasDaily && (todayId || firstPeriod)) state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
+
+  const companySelect = document.getElementById('companyPeriodSelect');
+  if (companySelect) {
+    companySelect.innerHTML = optionsHtml;
+    if (!state.selectedCompanyPeriodId && state.evaluationPeriods[0]) {
+      state.selectedCompanyPeriodId = state.evaluationPeriods[0].id;
+    }
+    if (state.selectedCompanyPeriodId) {
+      companySelect.value = state.selectedCompanyPeriodId;
+    }
+  }
+
+  const personalSelect = document.getElementById('personalPeriodSelect');
+  if (personalSelect) {
+    personalSelect.innerHTML = optionsHtml;
+    if (!state.selectedPersonalPeriodId && state.evaluationPeriods[0]) {
+      state.selectedPersonalPeriodId = state.evaluationPeriods[0].id;
+    }
+    if (state.selectedPersonalPeriodId) {
+      personalSelect.value = state.selectedPersonalPeriodId;
+    }
+  }
+
+  const personalDailySelect = document.getElementById('personalDailyPeriodSelect');
+  if (personalDailySelect) {
+    personalDailySelect.innerHTML = optionsHtml;
+    if (!state.selectedPersonalDailyPeriodId && state.evaluationPeriods[0]) {
+      state.selectedPersonalDailyPeriodId = state.evaluationPeriods[0].id;
+    }
+    if (state.selectedPersonalDailyPeriodId) {
+      personalDailySelect.value = state.selectedPersonalDailyPeriodId;
+    }
+  }
+}
+
+function renderCompanyTargets() {
+  const target = goalSettingsService.getCompanyPeriodTarget(state.selectedCompanyPeriodId) || {};
+  renderTargetTable('companyTargetTableBody', target);
+}
+
+function renderPersonalTargets() {
+  const target = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalPeriodId) || {};
+  renderTargetTable('personalTargetTableBody', target);
+}
+
+function renderTargetTable(tbodyId, target = {}) {
+  const body = document.getElementById(tbodyId);
+  if (!body) return;
+  const counts = KPI_FIELDS.slice(0, 8);
+  const rates = KPI_FIELDS.slice(8);
+  const buildBlock = fields => {
+    const labelRow = fields
+      .map(field => `<td class="settings-kpi-label-cell">${field.label}</td>`)
+      .join('');
+    const inputRow = fields
+      .map(
+        field => `
+        <td>
+          <input type="number" min="0" class="settings-target-input" data-key="${field.key}" value="${numberOrEmpty(
+            target[field.key]
+          )}" />
+        </td>`
+      )
+      .join('');
+    return `<tr>${labelRow}</tr><tr>${inputRow}</tr>`;
+  };
+  body.innerHTML = `${buildBlock(counts.slice(0, 4))}${buildBlock(counts.slice(4))}${buildBlock(rates.slice(0, 4))}${buildBlock(rates.slice(4))}`;
+}
+
+function readTargetTable(tbodyId) {
+  const body = document.getElementById(tbodyId);
+  const result = {};
+  if (!body) return result;
+  body.querySelectorAll('input[data-key]').forEach(input => {
+    const key = input.dataset.key;
+    const value = Number(input.value);
+    result[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+  });
+  return result;
+}
+
+function handleSaveCompanyTarget() {
+  if (!state.selectedCompanyPeriodId) return;
+  const values = readTargetTable('companyTargetTableBody');
+  goalSettingsService.saveCompanyPeriodTarget(state.selectedCompanyPeriodId, values);
+}
+
+function handleSavePersonalTarget() {
+  if (!state.selectedPersonalPeriodId) return;
+  const values = readTargetTable('personalTargetTableBody');
+  goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
+}
+
+function handleCopyCompanyTarget() {
+  if (!state.selectedPersonalPeriodId) return;
+  const source = goalSettingsService.getCompanyPeriodTarget(state.selectedPersonalPeriodId) || {};
+  renderTargetTable('personalTargetTableBody', source);
+}
+
+function renderDailyTargets() {
+  const body = document.getElementById('personalDailyTableBody');
+  if (!body) return;
+  const period = state.evaluationPeriods.find(item => item.id === state.selectedPersonalDailyPeriodId);
+  if (!period) {
+    body.innerHTML = '';
+    return;
+  }
+  const dates = enumerateDates(period.startDate, period.endDate);
+  const savedTargets = goalSettingsService.getPersonalDailyTargets(period.id) || {};
+
+  body.innerHTML = dates
+    .map(date => {
+      const saved = savedTargets[date] || {};
+      return `
+        <tr data-date="${date}">
+          <td>${date}</td>
+          ${DAILY_FIELDS.map(field => {
+            const value = numberOrEmpty(saved[field.key]);
+            return `<td><input type="number" min="0" class="settings-target-input" data-field="${field.key}" value="${value}" /></td>`;
+          }).join('')}
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function handleDistributeDailyTargets() {
+  const period = state.evaluationPeriods.find(item => item.id === state.selectedPersonalDailyPeriodId);
+  if (!period) return;
+  const dates = enumerateDates(period.startDate, period.endDate);
+  if (!dates.length) return;
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalDailyPeriodId) || {};
+  const distributed = {};
+  DAILY_FIELDS.forEach(field => {
+    const raw = Number(periodTarget[field.key]);
+    const perDay = Number.isFinite(raw) && raw > 0 ? Math.round(raw / dates.length) : 0;
+    distributed[field.key] = perDay;
+  });
+  const body = document.getElementById('personalDailyTableBody');
+  body?.querySelectorAll('tr').forEach(row => {
+    row.querySelectorAll('input[data-field]').forEach(input => {
+      const key = input.dataset.field;
+      input.value = distributed[key] ?? '';
+    });
+  });
+}
+
+function handleSaveDailyTargets() {
+  const periodId = state.selectedPersonalDailyPeriodId;
+  if (!periodId) return;
+  const body = document.getElementById('personalDailyTableBody');
+  if (!body) return;
+  const dailyTargets = {};
+  body.querySelectorAll('tr[data-date]').forEach(row => {
+    const date = row.dataset.date;
+    const target = {};
+    row.querySelectorAll('input[data-field]').forEach(input => {
+      const key = input.dataset.field;
+      const value = Number(input.value);
+      target[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+    });
+    dailyTargets[date] = target;
+  });
+  goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
+}
+
+function getSelectedRule() {
+  const checked = document.querySelector('input[name="evaluationRule"]:checked');
+  return checked?.value || state.evaluationRule.type;
+}
+
+function enumerateDates(start, end) {
+  if (!start || !end) return [];
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate) || Number.isNaN(endDate) || startDate > endDate) return [];
+  const dates = [];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    dates.push(isoDate(d));
+  }
+  return dates;
+}
+
+function isoDate(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function numberOrEmpty(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : '';
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function findPeriodIdByDate(dateStr, periods) {
+  if (!dateStr) return '';
+  const target = new Date(dateStr);
+  const match = (periods || []).find(period => {
+    if (!period.startDate || !period.endDate) return false;
+    const start = new Date(period.startDate);
+    const end = new Date(period.endDate);
+    return start <= target && target <= end;
+  });
+  return match?.id || '';
+}
+
+function normalizeRule(raw) {
+  if (raw && typeof raw === 'object' && raw.type) return { type: raw.type, options: raw.options || {} };
+  const legacy = typeof raw === 'string' ? raw : 'monthly';
+  const mapped =
+    legacy === 'half-monthly'
+      ? 'half-month'
+      : legacy === 'custom'
+        ? 'custom-month'
+        : legacy;
+  return { type: mapped || 'monthly', options: {} };
+}
+
+function readRuleOptions(type) {
+  switch (type) {
+    case 'weekly':
+      return { startWeekday: document.getElementById('startWeekdaySelect')?.value || 'monday' };
+    case 'quarterly':
+      return { fiscalStartMonth: Number(document.getElementById('fiscalStartMonthSelect')?.value) || 1 };
+    case 'custom-month': {
+      const start = clampDay(document.getElementById('customStartDayInput')?.value, 1);
+      const end = start - 1 <= 0 ? 31 : start - 1;
+      return { startDay: start, endDay: end };
+    }
+    default:
+      return {};
+  }
+}
+
+function clampDay(value, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(31, Math.max(1, Math.round(num)));
+}
+
+function toggleRuleOptions() {
+  const type = state.evaluationRule.type;
+  document.querySelectorAll('.settings-option-row').forEach(row => {
+    const target = row.dataset.option;
+    row.hidden = target !== type;
+  });
+  const rule = state.evaluationRule;
+  if (type === 'weekly') {
+    const select = document.getElementById('startWeekdaySelect');
+    if (select) select.value = rule.options?.startWeekday || 'monday';
+  }
+  if (type === 'quarterly') {
+    const select = document.getElementById('fiscalStartMonthSelect');
+    if (select) select.value = `${rule.options?.fiscalStartMonth || 1}`;
+  }
+  if (type === 'custom-month') {
+    const startInput = document.getElementById('customStartDayInput');
+    if (startInput) startInput.value = rule.options?.startDay || 1;
+    updateCustomEndLabel(rule.options?.startDay || 1);
+  }
+}
+
+function updateCustomEndLabel(startDayValue) {
+  const label = document.getElementById('customEndDayLabel');
+  if (!label) return;
+  const start = clampDay(startDayValue, 1);
+  const end = start - 1 <= 0 ? 31 : start - 1;
+  label.textContent = `毎月${start}日〜翌${end}日`;
+}
+
+function showSaveStatus(id, message) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message;
+  setTimeout(() => {
+    el.textContent = '';
+  }, 2000);
+}
