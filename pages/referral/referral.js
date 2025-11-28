@@ -403,7 +403,7 @@ function formatDateString(dateStr) {
   return `${y}/${m}/${day}`;
 }
 
-function buildAIInsight(company) {
+function _buildAIInsightDeprecated(company) {
   const dt = company.desiredTalent || {};
   const must = dt.mustQualifications?.length ? dt.mustQualifications.join(' / ') : '';
   const nice = dt.niceQualifications?.length ? dt.niceQualifications.join(' / ') : '';
@@ -942,4 +942,3 @@ function sortMatchResults() {
   const sortedResults = [...currentMatchResults].sort((a, b) => b.score - a.score);
   displayMatchResults(sortedResults);
 }
-
