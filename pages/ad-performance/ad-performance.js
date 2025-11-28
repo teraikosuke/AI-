@@ -90,47 +90,47 @@ function initializePagination() {
 async function loadAdPerformanceData() {
   const mockData = [
     // リクナビ
-    { id: 0, mediaName: 'リクナビ', applications: 130, validApplications: 100, initialInterviews: 64, offers: 28, hired: 20, retention30: 89.0, refund: 40000, period: '2023-12' },
-    { id: 1, mediaName: 'リクナビ', applications: 140, validApplications: 108, initialInterviews: 70, offers: 32, hired: 24, retention30: 90.0, refund: 42000, period: '2024-03' },
-    { id: 2, mediaName: 'リクナビ', applications: 156, validApplications: 120, initialInterviews: 78, offers: 36, hired: 29, retention30: 91.2, refund: 45000, period: '2024-05' },
-    { id: 3, mediaName: 'リクナビ', applications: 162, validApplications: 124, initialInterviews: 80, offers: 38, hired: 30, retention30: 92.0, refund: 47000, period: '2024-07' },
-    { id: 4, mediaName: 'リクナビ', applications: 168, validApplications: 130, initialInterviews: 84, offers: 40, hired: 31, retention30: 92.5, refund: 48000, period: '2024-10' },
+    { id: 0, mediaName: 'リクナビ', applications: 130, validApplications: 100, initialInterviews: 64, offers: 28, hired: 20, retention30: 89.0, refund: 40000, cost: 220000, period: '2023-12' },
+    { id: 1, mediaName: 'リクナビ', applications: 140, validApplications: 108, initialInterviews: 70, offers: 32, hired: 24, retention30: 90.0, refund: 42000, cost: 230000, period: '2024-03' },
+    { id: 2, mediaName: 'リクナビ', applications: 156, validApplications: 120, initialInterviews: 78, offers: 36, hired: 29, retention30: 91.2, refund: 45000, cost: 245000, period: '2024-05' },
+    { id: 3, mediaName: 'リクナビ', applications: 162, validApplications: 124, initialInterviews: 80, offers: 38, hired: 30, retention30: 92.0, refund: 47000, cost: 255000, period: '2024-07' },
+    { id: 4, mediaName: 'リクナビ', applications: 168, validApplications: 130, initialInterviews: 84, offers: 40, hired: 31, retention30: 92.5, refund: 48000, cost: 260000, period: '2024-10' },
     // 求人ボックス
-    { id: 5, mediaName: '求人ボックス', applications: 165, validApplications: 124, initialInterviews: 78, offers: 36, hired: 26, retention30: 92.0, refund: 70000, period: '2023-12' },
-    { id: 6, mediaName: '求人ボックス', applications: 175, validApplications: 130, initialInterviews: 82, offers: 38, hired: 28, retention30: 92.8, refund: 72000, period: '2024-04' },
-    { id: 7, mediaName: '求人ボックス', applications: 189, validApplications: 142, initialInterviews: 90, offers: 42, hired: 33, retention30: 93.5, refund: 78000, period: '2024-05' },
-    { id: 8, mediaName: '求人ボックス', applications: 202, validApplications: 150, initialInterviews: 96, offers: 46, hired: 35, retention30: 94.0, refund: 80000, period: '2024-08' },
-    { id: 9, mediaName: '求人ボックス', applications: 210, validApplications: 158, initialInterviews: 100, offers: 48, hired: 36, retention30: 94.2, refund: 81000, period: '2024-11' },
+    { id: 5, mediaName: '求人ボックス', applications: 165, validApplications: 124, initialInterviews: 78, offers: 36, hired: 26, retention30: 92.0, refund: 70000, cost: 210000, period: '2023-12' },
+    { id: 6, mediaName: '求人ボックス', applications: 175, validApplications: 130, initialInterviews: 82, offers: 38, hired: 28, retention30: 92.8, refund: 72000, cost: 215000, period: '2024-04' },
+    { id: 7, mediaName: '求人ボックス', applications: 189, validApplications: 142, initialInterviews: 90, offers: 42, hired: 33, retention30: 93.5, refund: 78000, cost: 225000, period: '2024-05' },
+    { id: 8, mediaName: '求人ボックス', applications: 202, validApplications: 150, initialInterviews: 96, offers: 46, hired: 35, retention30: 94.0, refund: 80000, cost: 235000, period: '2024-08' },
+    { id: 9, mediaName: '求人ボックス', applications: 210, validApplications: 158, initialInterviews: 100, offers: 48, hired: 36, retention30: 94.2, refund: 81000, cost: 240000, period: '2024-11' },
     // エン転職
-    { id: 10, mediaName: 'エン転職', applications: 82, validApplications: 60, initialInterviews: 32, offers: 14, hired: 10, retention30: 80.0, refund: 78000, period: '2023-12' },
-    { id: 11, mediaName: 'エン転職', applications: 88, validApplications: 65, initialInterviews: 36, offers: 16, hired: 11, retention30: 81.0, refund: 82000, period: '2024-04' },
-    { id: 12, mediaName: 'エン転職', applications: 98, validApplications: 74, initialInterviews: 41, offers: 18, hired: 13, retention30: 82.0, refund: 89000, period: '2024-06' },
-    { id: 13, mediaName: 'エン転職', applications: 110, validApplications: 80, initialInterviews: 45, offers: 19, hired: 14, retention30: 83.5, refund: 91000, period: '2024-08' },
-    { id: 14, mediaName: 'エン転職', applications: 118, validApplications: 86, initialInterviews: 48, offers: 20, hired: 15, retention30: 84.0, refund: 93000, period: '2024-11' },
+    { id: 10, mediaName: 'エン転職', applications: 82, validApplications: 60, initialInterviews: 32, offers: 14, hired: 10, retention30: 80.0, refund: 78000, cost: 160000, period: '2023-12' },
+    { id: 11, mediaName: 'エン転職', applications: 88, validApplications: 65, initialInterviews: 36, offers: 16, hired: 11, retention30: 81.0, refund: 82000, cost: 165000, period: '2024-04' },
+    { id: 12, mediaName: 'エン転職', applications: 98, validApplications: 74, initialInterviews: 41, offers: 18, hired: 13, retention30: 82.0, refund: 89000, cost: 170000, period: '2024-06' },
+    { id: 13, mediaName: 'エン転職', applications: 110, validApplications: 80, initialInterviews: 45, offers: 19, hired: 14, retention30: 83.5, refund: 91000, cost: 175000, period: '2024-08' },
+    { id: 14, mediaName: 'エン転職', applications: 118, validApplications: 86, initialInterviews: 48, offers: 20, hired: 15, retention30: 84.0, refund: 93000, cost: 180000, period: '2024-11' },
     // マイナビ
-    { id: 15, mediaName: 'マイナビ', applications: 112, validApplications: 86, initialInterviews: 54, offers: 22, hired: 16, retention30: 84.0, refund: 115000, period: '2023-12' },
-    { id: 16, mediaName: 'マイナビ', applications: 120, validApplications: 92, initialInterviews: 58, offers: 24, hired: 18, retention30: 85.0, refund: 118000, period: '2024-04' },
-    { id: 17, mediaName: 'マイナビ', applications: 134, validApplications: 101, initialInterviews: 68, offers: 30, hired: 22, retention30: 86.4, refund: 124000, period: '2024-06' },
-    { id: 18, mediaName: 'マイナビ', applications: 148, validApplications: 112, initialInterviews: 74, offers: 34, hired: 26, retention30: 87.8, refund: 126000, period: '2024-08' },
-    { id: 19, mediaName: 'マイナビ', applications: 154, validApplications: 118, initialInterviews: 78, offers: 36, hired: 27, retention30: 88.5, refund: 128000, period: '2024-11' },
+    { id: 15, mediaName: 'マイナビ', applications: 112, validApplications: 86, initialInterviews: 54, offers: 22, hired: 16, retention30: 84.0, refund: 115000, cost: 250000, period: '2023-12' },
+    { id: 16, mediaName: 'マイナビ', applications: 120, validApplications: 92, initialInterviews: 58, offers: 24, hired: 18, retention30: 85.0, refund: 118000, cost: 255000, period: '2024-04' },
+    { id: 17, mediaName: 'マイナビ', applications: 134, validApplications: 101, initialInterviews: 68, offers: 30, hired: 22, retention30: 86.4, refund: 124000, cost: 265000, period: '2024-06' },
+    { id: 18, mediaName: 'マイナビ', applications: 148, validApplications: 112, initialInterviews: 74, offers: 34, hired: 26, retention30: 87.8, refund: 126000, cost: 275000, period: '2024-08' },
+    { id: 19, mediaName: 'マイナビ', applications: 154, validApplications: 118, initialInterviews: 78, offers: 36, hired: 27, retention30: 88.5, refund: 128000, cost: 280000, period: '2024-11' },
     // Indeed
-    { id: 20, mediaName: 'Indeed', applications: 205, validApplications: 164, initialInterviews: 102, offers: 46, hired: 35, retention30: 87.0, refund: 140000, period: '2023-12' },
-    { id: 21, mediaName: 'Indeed', applications: 220, validApplications: 176, initialInterviews: 108, offers: 49, hired: 37, retention30: 87.5, refund: 148000, period: '2024-04' },
-    { id: 22, mediaName: 'Indeed', applications: 245, validApplications: 198, initialInterviews: 120, offers: 54, hired: 41, retention30: 88.7, refund: 156000, period: '2024-07' },
-    { id: 23, mediaName: 'Indeed', applications: 260, validApplications: 205, initialInterviews: 128, offers: 58, hired: 43, retention30: 89.5, refund: 160000, period: '2024-09' },
-    { id: 24, mediaName: 'Indeed', applications: 272, validApplications: 214, initialInterviews: 132, offers: 60, hired: 44, retention30: 90.0, refund: 162000, period: '2024-11' },
+    { id: 20, mediaName: 'Indeed', applications: 205, validApplications: 164, initialInterviews: 102, offers: 46, hired: 35, retention30: 87.0, refund: 140000, cost: 320000, period: '2023-12' },
+    { id: 21, mediaName: 'Indeed', applications: 220, validApplications: 176, initialInterviews: 108, offers: 49, hired: 37, retention30: 87.5, refund: 148000, cost: 330000, period: '2024-04' },
+    { id: 22, mediaName: 'Indeed', applications: 245, validApplications: 198, initialInterviews: 120, offers: 54, hired: 41, retention30: 88.7, refund: 156000, cost: 345000, period: '2024-07' },
+    { id: 23, mediaName: 'Indeed', applications: 260, validApplications: 205, initialInterviews: 128, offers: 58, hired: 43, retention30: 89.5, refund: 160000, cost: 355000, period: '2024-09' },
+    { id: 24, mediaName: 'Indeed', applications: 272, validApplications: 214, initialInterviews: 132, offers: 60, hired: 44, retention30: 90.0, refund: 162000, cost: 365000, period: '2024-11' },
     // doda
-    { id: 25, mediaName: 'doda', applications: 74, validApplications: 54, initialInterviews: 26, offers: 12, hired: 8, retention30: 74.0, refund: 50000, period: '2023-12' },
-    { id: 26, mediaName: 'doda', applications: 80, validApplications: 58, initialInterviews: 28, offers: 13, hired: 9, retention30: 75.0, refund: 52000, period: '2024-04' },
-    { id: 27, mediaName: 'doda', applications: 87, validApplications: 63, initialInterviews: 32, offers: 15, hired: 11, retention30: 76.5, refund: 56000, period: '2024-07' },
-    { id: 28, mediaName: 'doda', applications: 95, validApplications: 70, initialInterviews: 35, offers: 16, hired: 12, retention30: 78.0, refund: 58000, period: '2024-09' },
-    { id: 29, mediaName: 'doda', applications: 102, validApplications: 76, initialInterviews: 38, offers: 17, hired: 13, retention30: 79.0, refund: 60000, period: '2024-11' },
+    { id: 25, mediaName: 'doda', applications: 74, validApplications: 54, initialInterviews: 26, offers: 12, hired: 8, retention30: 74.0, refund: 50000, cost: 150000, period: '2023-12' },
+    { id: 26, mediaName: 'doda', applications: 80, validApplications: 58, initialInterviews: 28, offers: 13, hired: 9, retention30: 75.0, refund: 52000, cost: 155000, period: '2024-04' },
+    { id: 27, mediaName: 'doda', applications: 87, validApplications: 63, initialInterviews: 32, offers: 15, hired: 11, retention30: 76.5, refund: 56000, cost: 158000, period: '2024-07' },
+    { id: 28, mediaName: 'doda', applications: 95, validApplications: 70, initialInterviews: 35, offers: 16, hired: 12, retention30: 78.0, refund: 58000, cost: 162000, period: '2024-09' },
+    { id: 29, mediaName: 'doda', applications: 102, validApplications: 76, initialInterviews: 38, offers: 17, hired: 13, retention30: 79.0, refund: 60000, cost: 165000, period: '2024-11' },
     // Green
-    { id: 30, mediaName: 'Green', applications: 90, validApplications: 68, initialInterviews: 40, offers: 17, hired: 13, retention30: 82.0, refund: 29000, period: '2023-12' },
-    { id: 31, mediaName: 'Green', applications: 96, validApplications: 72, initialInterviews: 42, offers: 18, hired: 14, retention30: 83.0, refund: 30000, period: '2024-04' },
-    { id: 32, mediaName: 'Green', applications: 102, validApplications: 80, initialInterviews: 48, offers: 21, hired: 16, retention30: 84.3, refund: 32000, period: '2024-08' },
-    { id: 33, mediaName: 'Green', applications: 110, validApplications: 86, initialInterviews: 50, offers: 22, hired: 17, retention30: 85.0, refund: 33000, period: '2024-09' },
-    { id: 34, mediaName: 'Green', applications: 116, validApplications: 90, initialInterviews: 52, offers: 23, hired: 18, retention30: 85.5, refund: 34000, period: '2024-11' },
+    { id: 30, mediaName: 'Green', applications: 90, validApplications: 68, initialInterviews: 40, offers: 17, hired: 13, retention30: 82.0, refund: 29000, cost: 90000, period: '2023-12' },
+    { id: 31, mediaName: 'Green', applications: 96, validApplications: 72, initialInterviews: 42, offers: 18, hired: 14, retention30: 83.0, refund: 30000, cost: 95000, period: '2024-04' },
+    { id: 32, mediaName: 'Green', applications: 102, validApplications: 80, initialInterviews: 48, offers: 21, hired: 16, retention30: 84.3, refund: 32000, cost: 98000, period: '2024-08' },
+    { id: 33, mediaName: 'Green', applications: 110, validApplications: 86, initialInterviews: 50, offers: 22, hired: 17, retention30: 85.0, refund: 33000, cost: 100000, period: '2024-09' },
+    { id: 34, mediaName: 'Green', applications: 116, validApplications: 90, initialInterviews: 52, offers: 23, hired: 18, retention30: 85.5, refund: 34000, cost: 105000, period: '2024-11' },
     // ビズリーチ
     { id: 35, mediaName: 'ビズリーチ', applications: 150, validApplications: 124, initialInterviews: 84, offers: 38, hired: 30, retention30: 88.5, refund: 18000, period: '2023-12' },
     { id: 36, mediaName: 'ビズリーチ', applications: 160, validApplications: 132, initialInterviews: 90, offers: 42, hired: 32, retention30: 89.5, refund: 19000, period: '2024-04' },
@@ -222,6 +222,7 @@ function aggregateByMedia(items) {
         offers: 0,
         hired: 0,
         refund: 0,
+        cost: 0,
         retentionNumer: 0, // hired * retention%
         retentionDenom: 0, // hired
       });
@@ -233,6 +234,7 @@ function aggregateByMedia(items) {
     const offers = Number(item.offers) || 0;
     const hired = Number(item.hired) || 0;
     const refund = Number(item.refund) || 0;
+    const cost = Number(item.cost) || 0;
     const retention = Number(item.retention30) || 0;
 
     agg.applications += apps;
@@ -241,6 +243,7 @@ function aggregateByMedia(items) {
     agg.offers += offers;
     agg.hired += hired;
     agg.refund += refund;
+    agg.cost += cost;
     agg.retentionNumer += retention * hired;
     agg.retentionDenom += hired;
   });
@@ -256,7 +259,8 @@ function aggregateByMedia(items) {
       offers: agg.offers,
       hired: agg.hired,
       retention30: retention,
-      refund: agg.refund
+      refund: agg.refund,
+      cost: agg.cost
     }));
   });
   return result;
@@ -284,7 +288,7 @@ function renderAdTable(data) {
   const pageItems = data.slice(start, end);
 
   if (!pageItems.length) {
-    tableBody.innerHTML = `<tr><td colspan="12" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="14" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
     return;
   }
 
@@ -308,6 +312,8 @@ function renderAdTable(data) {
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
         <td class="text-right font-semibold">${formatCurrency(ad.refund)}</td>
+        <td class="text-right font-semibold">${formatCurrency(ad.cost)}</td>
+         <td class="text-right font-semibold">${formatCurrency((ad.cost || 0) + (ad.refund || 0))}</td>
       </tr>
   `).join('');
 }
@@ -548,7 +554,7 @@ function changePage(direction) {
   applySortAndRender();
 }
 
-function handleExportCSV() {
+function handleExportCSVOld() {
   const sortedData = getAggregatedSorted();
   const headers = ['媒体名', '応募者数', '有効応募者数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）'];
   const csvContent = [
@@ -576,10 +582,40 @@ function handleExportCSV() {
   link.click();
 }
 
+// 上書き版 CSV エクスポート（費用列を含む）
+function handleExportCSV() {
+  const sortedData = getAggregatedSorted();
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）', '契約費用'];
+  const csvContent = [
+    headers.join(','),
+    ...sortedData.map(ad => [
+      ad.mediaName,
+      ad.applications,
+      ad.validApplications,
+      ad.initialInterviews,
+      `${ad.initialInterviewRate.toFixed(1)}%`,
+      ad.offers,
+      `${ad.offerRate.toFixed(1)}%`,
+      ad.hired,
+      `${ad.hireRate.toFixed(1)}%`,
+      `${ad.decisionRate.toFixed(1)}%`,
+      `${ad.retention30.toFixed(1)}%`,
+      ad.refund,
+      ad.cost
+    ].join(','))
+  ].join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'ad_management.csv';
+  link.click();
+}
+
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="12" class="text-center text-red-500 py-6"><div class="flex items-center justifycenter gap-2"><span>⚠</span><span>${message}</span></div></td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="13" class="text-center text-red-500 py-6"><div class="flex items-center justifycenter gap-2"><span>⚠</span><span>${message}</span></div></td></tr>`;
   }
 }
 
