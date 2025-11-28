@@ -64,7 +64,8 @@
         <h4 class="text-base font-semibold text-slate-800" id="adMetricTitle">決定率（月別推移・媒体別）</h4>
         <div class="flex items-center gap-2 text-xs text-slate-500">
           <label for="adMetricSelect" class="whitespace-nowrap">指標:</label>
-          <select id="adMetricSelect" class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500">
+          <select id="adMetricSelect"
+            class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500">
             <option value="decisionRate">決定率</option>
             <option value="initialInterviewRate">初回面談設定率</option>
             <option value="retention30">定着率</option>
@@ -100,9 +101,11 @@
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="applications">応募者数 <span
               class="sort-indicator ml-1">▼</span></th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplications">有効応募者数
-            <span class="sort-indicator ml-1">▼</span></th>
+            <span class="sort-indicator ml-1">▼</span>
+          </th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
-            <span class="sort-indicator ml-1">▼</span></th>
+            <span class="sort-indicator ml-1">▼</span>
+          </th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviewRate">
             初回面談設定率 <span class="sort-indicator ml-1">▼</span></th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offers">内定数 <span
@@ -116,9 +119,16 @@
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率 <span
               class="sort-indicator ml-1">▼</span></th>
           <th class="sortable cursor-pointer hover-bg-slate-100 whitespace-nowrap" data-sort="retention30">定着率（30日）
-            <span class="sort-indicator ml-1">▼</span></th>
+            <span class="sort-indicator ml-1">▼</span>
+          </th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">返金額（税込） <span
               class="sort-indicator ml-1">▼</span></th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="cost">
+            契約費用 <span class="sort-indicator ml-1">▼</span>
+          </th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalCost">総費用（契約＋返金）
+            <span class="sort-indicator ml-1">▼</span></th>
+
         </tr>
       </thead>
       <tbody id="adManagementTableBody">
