@@ -252,23 +252,27 @@ function renderTargetTable(tbodyId, target = {}) {
   if (!body) return;
   const counts = KPI_FIELDS.slice(0, 8);
   const rates = KPI_FIELDS.slice(8);
-  const buildBlock = fields => {
-    const labelRow = fields
-      .map(field => `<td class="settings-kpi-label-cell">${field.label}</td>`)
-      .join('');
-    const inputRow = fields
-      .map(
-        field => `
+  const buildRows = fields => {
+    let rows = '';
+    for (let i = 0; i < fields.length; i += 2) {
+      const pair = fields.slice(i, i + 2);
+      const cells = pair
+        .map(
+          field => `
+        <td class="settings-kpi-label-cell">${field.label}</td>
         <td>
           <input type="number" min="0" class="settings-target-input" data-key="${field.key}" value="${numberOrEmpty(
             target[field.key]
           )}" />
         </td>`
-      )
-      .join('');
-    return `<tr>${labelRow}</tr><tr>${inputRow}</tr>`;
+        )
+        .join('');
+      const filler = pair.length === 1 ? '<td class="settings-kpi-label-cell"></td><td></td>' : '';
+      rows += `<tr>${cells}${filler}</tr>`;
+    }
+    return rows;
   };
-  body.innerHTML = `${buildBlock(counts.slice(0, 4))}${buildBlock(counts.slice(4))}${buildBlock(rates.slice(0, 4))}${buildBlock(rates.slice(4))}`;
+  body.innerHTML = `${buildRows(counts)}${buildRows(rates)}`;
 }
 
 function readTargetTable(tbodyId) {

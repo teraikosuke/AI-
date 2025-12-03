@@ -93,6 +93,7 @@
   padding: 0.35rem 0.6rem;
   background: #ffffff;
   font-size: 0.9rem;
+  appearance: none; -webkit-appearance: none;
 }
 
 [data-kpi="v2"] .kpi-v2-inline-select.readonly {
@@ -100,6 +101,13 @@
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
   background: #ffffff;
+}
+
+[data-kpi="v2"] .kpi-v2-inline-select-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 [data-kpi="v2"] .kpi-v2-date-input:focus {
@@ -682,6 +690,25 @@
   color: #64748b;
 }
 
+.kpi-v2-delta {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+  font-weight: 600;
+}
+
+.kpi-v2-delta.delta-positive {
+  color: #dc2626;
+}
+
+.kpi-v2-delta.delta-negative {
+  color: #2563eb;
+}
+
+.kpi-v2-delta.delta-neutral {
+  color: #94a3b8;
+}
+
 [data-kpi="v2"] .table-white .kpi-v2-employee-table {
   background: #ffffff;
   border-collapse: collapse;
@@ -816,6 +843,83 @@
   white-space: nowrap;
 }
 
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table {
+  table-layout: auto;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table th:first-child,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 2;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table th {
+  min-width: 56px;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table td {
+  min-width: 56px;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table td.daily-type {
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+  position: sticky;
+  left: 120px;
+  z-index: 1;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-daily-table th.kpi-v2-sticky-label {
+  width: 120px;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .kpi-v2-sticky-label {
+  text-align: left;
+  font-weight: 600;
+  background: inherit;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .daily-triplet-alt td,
+[data-kpi="v2"] .kpi-v2-daily-table .daily-triplet-alt th {
+  background: #f8fafc;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .daily-achv-high {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .daily-achv-normal {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .daily-muted {
+  color: #94a3b8;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .kpi-term-set,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-today-combined .kpi-term-set {
+  background: #e5e7eb;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .term-count,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-today-combined .term-count {
+  background: #f8fafc;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .term-rate {
+  background: #fefce8;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table .term-goal {
+  font-weight: 600;
+  color: #0f172a;
+}
+
 [data-kpi="v2"] .kpi-v2-employee-table th {
   background-color: #e5e7eb;
   font-weight: 600;
@@ -849,6 +953,43 @@
 [data-kpi="v2"] .kpi-v2-employee-table td.kpi-v2-rank-3 {
   color: #fb923c;
   font-weight: 600;
+}
+
+[data-kpi="v2"] .kpi-v2-value,
+[data-kpi="v2"] .kpi-v2-target-value,
+[data-kpi="v2"] .kpi-v2-goal-value,
+[data-kpi="v2"] .kpi-v2-achv-rate,
+[data-kpi="v2"] .kpi-v2-delta,
+[data-kpi="v2"] .kpi-v2-employee-table td,
+[data-kpi="v2"] .kpi-v2-employee-table th {
+  font-family: 'IBM Plex Sans', 'Inter', 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 0.005em;
+}
+
+[data-kpi="v2"] .kpi-v2-inline-select,
+[data-kpi="v2"] .kpi-v2-inline-select select,
+[data-kpi="v2"] .kpi-v2-date-input,
+[data-kpi="v2"] .kpi-v2-date-separator,
+[data-kpi="v2"] .kpi-v2-note {
+  font-family: 'IBM Plex Sans', 'Inter', 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 0.005em;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .term-count {
+  background: #f8fafc;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .term-rate {
+  background: #fefce8;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .term-goal {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-term-combined .kpi-term-set {
+  background: #e5e7eb;
 }
 
 [data-kpi="v2"] .summary-neutral .kpi-v2-achievement-section .kpi-v2-value{
@@ -910,4 +1051,12 @@
 
 [data-kpi="v2"] .kpi-tab-panel.is-hidden {
   display: none;
+}
+
+[data-kpi="v2"] .kpi-v2-inline-select option {
+border: 1px solid #cbd5e1;
+border-radius: 6px;
+padding: 0.35rem 0.6rem;
+background: #ffffff;
+font-size: 0.9rem;
 }

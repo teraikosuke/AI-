@@ -104,6 +104,14 @@
   margin-bottom: 0.5rem;
 }
 
+.settings-section-subrow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .settings-radio-group {
   display: flex;
   flex: 1;
