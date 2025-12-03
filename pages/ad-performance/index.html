@@ -29,21 +29,21 @@
     </div>
   </div>
 
-  <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-4 lg:grid-cols-3">
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div class="text-sm text-slate-500">応募者数（合計）</div>
-      <div id="adSummaryTotalApplications" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-      <div class="text-xs text-slate-500 mt-1">媒体ごとの応募数の合計</div>
-    </div>
-    <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div class="text-sm text-slate-500">有効応募者数（合計）</div>
-      <div id="adSummaryTotalValid" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-      <div class="text-xs text-slate-500 mt-1">スクリーニングを通過した件数</div>
+      <div class="text-sm text-slate-500">有効応募者数（有効応募率）</div>
+      <div id="adSummaryValidWithRate" class="text-2xl font-bold text-slate-800 mt-1">-</div>
+      <div class="text-xs text-slate-500 mt-1">有効応募者数と応募全体に対する割合</div>
     </div>
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
       <div class="text-sm text-slate-500">決定率</div>
       <div id="adSummaryDecisionRate" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-      <div class="text-xs text-slate-500 mt-1">応募者のうち入社した人の割合</div>
+      <div class="text-xs text-slate-500 mt-1">応募全体に対する入社割合</div>
+    </div>
+    <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div class="text-sm text-slate-500">費用/入社</div>
+      <div id="adSummaryCostPerHire" class="text-2xl font-bold text-slate-800 mt-1">-</div>
+      <div class="text-xs text-slate-500 mt-1">契約費用 ÷ 入社数</div>
     </div>
   </div>
 
@@ -69,6 +69,7 @@
             <option value="decisionRate">決定率</option>
             <option value="initialInterviewRate">初回面談設定率</option>
             <option value="retention30">定着率</option>
+            <option value="costPerHire">費用/入社</option>
           </select>
           <span>媒体をクリックでフィルタ</span>
         </div>
@@ -103,6 +104,9 @@
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplications">有効応募者数
             <span class="sort-indicator ml-1">▼</span>
           </th>
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplicationRate">有効応募率
+            <span class="sort-indicator ml-1">▼</span>
+          </th>
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
             <span class="sort-indicator ml-1">▼</span>
           </th>
@@ -126,14 +130,14 @@
           <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="cost">
             契約費用 <span class="sort-indicator ml-1">▼</span>
           </th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalCost">総費用（契約＋返金）
-            <span class="sort-indicator ml-1">▼</span></th>
-
+          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="costPerHire">
+            契約費用/入社 <span class="sort-indicator ml-1">▼</span>
+          </th>
         </tr>
       </thead>
       <tbody id="adManagementTableBody">
         <tr>
-          <td colspan="12" class="text-center text-slate-500 py-6">読み込み中...</td>
+          <td colspan="15" class="text-center text-slate-500 py-6">読み込み中...</td>
         </tr>
       </tbody>
     </table>
@@ -152,3 +156,9 @@
     </div>
   </div>
 </div>
+
+
+
+
+
+
