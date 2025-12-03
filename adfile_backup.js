@@ -1,4 +1,4 @@
-﻿// Ad Performance Page JavaScript Module
+﻿// Ad Performance Page JavaScript Module (rebuilt)
 const adState = {
   data: [],
   filtered: [],
@@ -9,8 +9,8 @@ const adState = {
 };
 
 const formatNumber = (num) => Number(num).toLocaleString();
-const formatPercent = (num) => `${(Number(num) || 0).toFixed(1)}%`;
-const formatCurrency = (num) => `¥${Number(num || 0).toLocaleString()}`;
+const formatPercent = (num) => `${num.toFixed(1)}%`;
+const formatCurrency = (num) => `ﾂ･${Number(num).toLocaleString()}`;
 
 let selectedMediaFilter = null;
 let decisionLineChart = null;
@@ -52,16 +52,17 @@ function initializeAdFilters() {
     lineMetric = e.target.value || 'decisionRate';
     if (metricTitle) {
       const metricLabels = {
-        decisionRate: '決定率',
-        initialInterviewRate: '初回面談設定率',
-        retention30: '定着率',
-        costPerHire: '費用/入社'
+        decisionRate: 'Decision Rate',
+        initialInterviewRate: 'Initial Interview Rate',
+        retention30: 'Retention (30d)',
+        costPerHire: 'Cost per Hire'
       };
-      const titleLabel = metricLabels[lineMetric] || '決定率';
-      metricTitle.textContent = `${titleLabel} 月別推移・媒体別`;
+      const titleLabel = metricLabels[lineMetric] || 'Decision Rate';
+      metricTitle.textContent = `${titleLabel} Trend by Month / Media`;
     }
     renderAdCharts(lastAggregated, adState.filtered);
   });
+
   ['adStartDate', 'adEndDate'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => applyFilters());
   });
@@ -91,30 +92,30 @@ function initializePagination() {
 
 async function loadAdPerformanceData() {
   const mockData = [
-    // リクナビ
-    { id: 0, mediaName: 'リクナビ', applications: 130, validApplications: 100, initialInterviews: 64, offers: 28, hired: 20, retention30: 89.0, refund: 40000, cost: 220000, period: '2023-12' },
-    { id: 1, mediaName: 'リクナビ', applications: 140, validApplications: 108, initialInterviews: 70, offers: 32, hired: 24, retention30: 90.0, refund: 42000, cost: 230000, period: '2024-03' },
-    { id: 2, mediaName: 'リクナビ', applications: 156, validApplications: 120, initialInterviews: 78, offers: 36, hired: 29, retention30: 91.2, refund: 45000, cost: 245000, period: '2024-05' },
-    { id: 3, mediaName: 'リクナビ', applications: 162, validApplications: 124, initialInterviews: 80, offers: 38, hired: 30, retention30: 92.0, refund: 47000, cost: 255000, period: '2024-07' },
-    { id: 4, mediaName: 'リクナビ', applications: 168, validApplications: 130, initialInterviews: 84, offers: 40, hired: 31, retention30: 92.5, refund: 48000, cost: 260000, period: '2024-10' },
-    // 求人ボックス
-    { id: 5, mediaName: '求人ボックス', applications: 165, validApplications: 124, initialInterviews: 78, offers: 36, hired: 26, retention30: 92.0, refund: 70000, cost: 210000, period: '2023-12' },
-    { id: 6, mediaName: '求人ボックス', applications: 175, validApplications: 130, initialInterviews: 82, offers: 38, hired: 28, retention30: 92.8, refund: 72000, cost: 215000, period: '2024-04' },
-    { id: 7, mediaName: '求人ボックス', applications: 189, validApplications: 142, initialInterviews: 90, offers: 42, hired: 33, retention30: 93.5, refund: 78000, cost: 225000, period: '2024-05' },
-    { id: 8, mediaName: '求人ボックス', applications: 202, validApplications: 150, initialInterviews: 96, offers: 46, hired: 35, retention30: 94.0, refund: 80000, cost: 235000, period: '2024-08' },
-    { id: 9, mediaName: '求人ボックス', applications: 210, validApplications: 158, initialInterviews: 100, offers: 48, hired: 36, retention30: 94.2, refund: 81000, cost: 240000, period: '2024-11' },
-    // エン転職
-    { id: 10, mediaName: 'エン転職', applications: 82, validApplications: 60, initialInterviews: 32, offers: 14, hired: 10, retention30: 80.0, refund: 78000, cost: 160000, period: '2023-12' },
-    { id: 11, mediaName: 'エン転職', applications: 88, validApplications: 65, initialInterviews: 36, offers: 16, hired: 11, retention30: 81.0, refund: 82000, cost: 165000, period: '2024-04' },
-    { id: 12, mediaName: 'エン転職', applications: 98, validApplications: 74, initialInterviews: 41, offers: 18, hired: 13, retention30: 82.0, refund: 89000, cost: 170000, period: '2024-06' },
-    { id: 13, mediaName: 'エン転職', applications: 110, validApplications: 80, initialInterviews: 45, offers: 19, hired: 14, retention30: 83.5, refund: 91000, cost: 175000, period: '2024-08' },
-    { id: 14, mediaName: 'エン転職', applications: 118, validApplications: 86, initialInterviews: 48, offers: 20, hired: 15, retention30: 84.0, refund: 93000, cost: 180000, period: '2024-11' },
-    // マイナビ
-    { id: 15, mediaName: 'マイナビ', applications: 112, validApplications: 86, initialInterviews: 54, offers: 22, hired: 16, retention30: 84.0, refund: 115000, cost: 250000, period: '2023-12' },
-    { id: 16, mediaName: 'マイナビ', applications: 120, validApplications: 92, initialInterviews: 58, offers: 24, hired: 18, retention30: 85.0, refund: 118000, cost: 255000, period: '2024-04' },
-    { id: 17, mediaName: 'マイナビ', applications: 134, validApplications: 101, initialInterviews: 68, offers: 30, hired: 22, retention30: 86.4, refund: 124000, cost: 265000, period: '2024-06' },
-    { id: 18, mediaName: 'マイナビ', applications: 148, validApplications: 112, initialInterviews: 74, offers: 34, hired: 26, retention30: 87.8, refund: 126000, cost: 275000, period: '2024-08' },
-    { id: 19, mediaName: 'マイナビ', applications: 154, validApplications: 118, initialInterviews: 78, offers: 36, hired: 27, retention30: 88.5, refund: 128000, cost: 280000, period: '2024-11' },
+    // 繝ｪ繧ｯ繝翫ン
+    { id: 0, mediaName: '繝ｪ繧ｯ繝翫ン', applications: 130, validApplications: 100, initialInterviews: 64, offers: 28, hired: 20, retention30: 89.0, refund: 40000, cost: 220000, period: '2023-12' },
+    { id: 1, mediaName: '繝ｪ繧ｯ繝翫ン', applications: 140, validApplications: 108, initialInterviews: 70, offers: 32, hired: 24, retention30: 90.0, refund: 42000, cost: 230000, period: '2024-03' },
+    { id: 2, mediaName: '繝ｪ繧ｯ繝翫ン', applications: 156, validApplications: 120, initialInterviews: 78, offers: 36, hired: 29, retention30: 91.2, refund: 45000, cost: 245000, period: '2024-05' },
+    { id: 3, mediaName: '繝ｪ繧ｯ繝翫ン', applications: 162, validApplications: 124, initialInterviews: 80, offers: 38, hired: 30, retention30: 92.0, refund: 47000, cost: 255000, period: '2024-07' },
+    { id: 4, mediaName: '繝ｪ繧ｯ繝翫ン', applications: 168, validApplications: 130, initialInterviews: 84, offers: 40, hired: 31, retention30: 92.5, refund: 48000, cost: 260000, period: '2024-10' },
+    // 豎ゆｺｺ繝懊ャ繧ｯ繧ｹ
+    { id: 5, mediaName: '豎ゆｺｺ繝懊ャ繧ｯ繧ｹ', applications: 165, validApplications: 124, initialInterviews: 78, offers: 36, hired: 26, retention30: 92.0, refund: 70000, cost: 210000, period: '2023-12' },
+    { id: 6, mediaName: '豎ゆｺｺ繝懊ャ繧ｯ繧ｹ', applications: 175, validApplications: 130, initialInterviews: 82, offers: 38, hired: 28, retention30: 92.8, refund: 72000, cost: 215000, period: '2024-04' },
+    { id: 7, mediaName: '豎ゆｺｺ繝懊ャ繧ｯ繧ｹ', applications: 189, validApplications: 142, initialInterviews: 90, offers: 42, hired: 33, retention30: 93.5, refund: 78000, cost: 225000, period: '2024-05' },
+    { id: 8, mediaName: '豎ゆｺｺ繝懊ャ繧ｯ繧ｹ', applications: 202, validApplications: 150, initialInterviews: 96, offers: 46, hired: 35, retention30: 94.0, refund: 80000, cost: 235000, period: '2024-08' },
+    { id: 9, mediaName: '豎ゆｺｺ繝懊ャ繧ｯ繧ｹ', applications: 210, validApplications: 158, initialInterviews: 100, offers: 48, hired: 36, retention30: 94.2, refund: 81000, cost: 240000, period: '2024-11' },
+    // 繧ｨ繝ｳ霆｢閨ｷ
+    { id: 10, mediaName: '繧ｨ繝ｳ霆｢閨ｷ', applications: 82, validApplications: 60, initialInterviews: 32, offers: 14, hired: 10, retention30: 80.0, refund: 78000, cost: 160000, period: '2023-12' },
+    { id: 11, mediaName: '繧ｨ繝ｳ霆｢閨ｷ', applications: 88, validApplications: 65, initialInterviews: 36, offers: 16, hired: 11, retention30: 81.0, refund: 82000, cost: 165000, period: '2024-04' },
+    { id: 12, mediaName: '繧ｨ繝ｳ霆｢閨ｷ', applications: 98, validApplications: 74, initialInterviews: 41, offers: 18, hired: 13, retention30: 82.0, refund: 89000, cost: 170000, period: '2024-06' },
+    { id: 13, mediaName: '繧ｨ繝ｳ霆｢閨ｷ', applications: 110, validApplications: 80, initialInterviews: 45, offers: 19, hired: 14, retention30: 83.5, refund: 91000, cost: 175000, period: '2024-08' },
+    { id: 14, mediaName: '繧ｨ繝ｳ霆｢閨ｷ', applications: 118, validApplications: 86, initialInterviews: 48, offers: 20, hired: 15, retention30: 84.0, refund: 93000, cost: 180000, period: '2024-11' },
+    // 繝槭う繝翫ン
+    { id: 15, mediaName: '繝槭う繝翫ン', applications: 112, validApplications: 86, initialInterviews: 54, offers: 22, hired: 16, retention30: 84.0, refund: 115000, cost: 250000, period: '2023-12' },
+    { id: 16, mediaName: '繝槭う繝翫ン', applications: 120, validApplications: 92, initialInterviews: 58, offers: 24, hired: 18, retention30: 85.0, refund: 118000, cost: 255000, period: '2024-04' },
+    { id: 17, mediaName: '繝槭う繝翫ン', applications: 134, validApplications: 101, initialInterviews: 68, offers: 30, hired: 22, retention30: 86.4, refund: 124000, cost: 265000, period: '2024-06' },
+    { id: 18, mediaName: '繝槭う繝翫ン', applications: 148, validApplications: 112, initialInterviews: 74, offers: 34, hired: 26, retention30: 87.8, refund: 126000, cost: 275000, period: '2024-08' },
+    { id: 19, mediaName: '繝槭う繝翫ン', applications: 154, validApplications: 118, initialInterviews: 78, offers: 36, hired: 27, retention30: 88.5, refund: 128000, cost: 280000, period: '2024-11' },
     // Indeed
     { id: 20, mediaName: 'Indeed', applications: 205, validApplications: 164, initialInterviews: 102, offers: 46, hired: 35, retention30: 87.0, refund: 140000, cost: 320000, period: '2023-12' },
     { id: 21, mediaName: 'Indeed', applications: 220, validApplications: 176, initialInterviews: 108, offers: 49, hired: 37, retention30: 87.5, refund: 148000, cost: 330000, period: '2024-04' },
@@ -133,12 +134,11 @@ async function loadAdPerformanceData() {
     { id: 32, mediaName: 'Green', applications: 102, validApplications: 80, initialInterviews: 48, offers: 21, hired: 16, retention30: 84.3, refund: 32000, cost: 98000, period: '2024-08' },
     { id: 33, mediaName: 'Green', applications: 110, validApplications: 86, initialInterviews: 50, offers: 22, hired: 17, retention30: 85.0, refund: 33000, cost: 100000, period: '2024-09' },
     { id: 34, mediaName: 'Green', applications: 116, validApplications: 90, initialInterviews: 52, offers: 23, hired: 18, retention30: 85.5, refund: 34000, cost: 105000, period: '2024-11' },
-    // ビズリーチ
-    { id: 35, mediaName: 'ビズリーチ', applications: 150, validApplications: 124, initialInterviews: 84, offers: 38, hired: 30, retention30: 88.5, refund: 18000, cost: 200000, period: '2023-12' },
-    { id: 36, mediaName: 'ビズリーチ', applications: 160, validApplications: 132, initialInterviews: 90, offers: 42, hired: 32, retention30: 89.5, refund: 19000, cost: 205000, period: '2024-04' },
-    { id: 37, mediaName: 'ビズリーチ', applications: 178, validApplications: 150, initialInterviews: 102, offers: 47, hired: 35, retention30: 90.8, refund: 21000, cost: 210000, period: '2024-08' },
-    { id: 38, mediaName: 'ビズリーチ', applications: 184, validApplications: 155, initialInterviews: 106, offers: 49, hired: 36, retention30: 91.5, refund: 22000, cost: 215000, period: '2024-09' },
-    { id: 39, mediaName: 'ビズリーチ', applications: 192, validApplications: 160, initialInterviews: 110, offers: 52, hired: 38, retention30: 92.0, refund: 23000, cost: 220000, period: '2024-11' }
+    // 繝薙ぜ繝ｪ繝ｼ繝・    { id: 35, mediaName: '繝薙ぜ繝ｪ繝ｼ繝・, applications: 150, validApplications: 124, initialInterviews: 84, offers: 38, hired: 30, retention30: 88.5, refund: 18000, period: '2023-12' },
+    { id: 36, mediaName: '繝薙ぜ繝ｪ繝ｼ繝・, applications: 160, validApplications: 132, initialInterviews: 90, offers: 42, hired: 32, retention30: 89.5, refund: 19000, period: '2024-04' },
+    { id: 37, mediaName: '繝薙ぜ繝ｪ繝ｼ繝・, applications: 178, validApplications: 150, initialInterviews: 102, offers: 47, hired: 35, retention30: 90.8, refund: 21000, period: '2024-08' },
+    { id: 38, mediaName: '繝薙ぜ繝ｪ繝ｼ繝・, applications: 184, validApplications: 155, initialInterviews: 106, offers: 49, hired: 36, retention30: 91.5, refund: 22000, period: '2024-09' },
+    { id: 39, mediaName: '繝薙ぜ繝ｪ繝ｼ繝・, applications: 192, validApplications: 160, initialInterviews: 110, offers: 52, hired: 38, retention30: 92.0, refund: 23000, period: '2024-11' }
   ].map(calcDerivedRates);
 
   adState.data = mockData;
@@ -199,9 +199,9 @@ function updateSortIndicators() {
     const indicator = h.querySelector('.sort-indicator');
     if (!indicator) return;
     if (h.dataset.sort === adState.sortField) {
-      indicator.textContent = adState.sortDirection === 'asc' ? '▲' : '▼';
+      indicator.textContent = adState.sortDirection === 'asc' ? '笆ｲ' : '笆ｼ';
     } else {
-      indicator.textContent = '▼';
+      indicator.textContent = '笆ｼ';
     }
   });
 }
@@ -231,7 +231,7 @@ function aggregateByMedia(items) {
         refund: 0,
         cost: 0,
         retentionNumer: 0, // hired * retention%
-        retentionDenom: 0  // hired
+        retentionDenom: 0, // hired
       });
     }
     const agg = map.get(key);
@@ -295,7 +295,7 @@ function renderAdTable(data) {
   const pageItems = data.slice(start, end);
 
   if (!pageItems.length) {
-    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-slate-500 py-6">繝・・繧ｿ縺後≠繧翫∪縺帙ｓ</td></tr>`;
     return;
   }
 
@@ -309,7 +309,7 @@ function renderAdTable(data) {
       <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id}">
         <td class="sticky left-0 bg-white font-medium text-slate-900 z-30">${ad.mediaName}</td>
         <td class="text-right font-semibold">${formatNumber(ad.applications)}</td>
-        <td class="text-right">${formatNumber(ad.validApplications)}</td>
+                <td class="text-right">${formatNumber(ad.validApplications)}</td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
         <td class="text-right">${formatNumber(ad.initialInterviews)}</td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.initialInterviewRate)}">${formatPercent(ad.initialInterviewRate)}</span></td>
@@ -319,7 +319,7 @@ function renderAdTable(data) {
         <td class="text-right">${formatPercent(ad.hireRate)}</td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
-        <td class="text-right font-semibold">${formatCurrency(ad.refund)}</td>
+                <td class="text-right font-semibold">${formatCurrency(ad.refund)}</td>
         <td class="text-right font-semibold">${formatCurrency(ad.cost)}</td>
         <td class="text-right font-semibold">${ad.hired ? formatCurrency(ad.costPerHire) : '-'}</td>
       </tr>
@@ -355,7 +355,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   }
 
   if (!aggregatedData.length) {
-    appsContainer.innerHTML = `<div class="text-sm text-slate-500">データがありません</div>`;
+    appsContainer.innerHTML = `<div class="text-sm text-slate-500">繝・・繧ｿ縺後≠繧翫∪縺帙ｓ</div>`;
     if (decisionLineChart) {
       decisionLineChart.destroy();
       decisionLineChart = null;
@@ -378,7 +378,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
           <div class="absolute top-0 left-0 h-3 bg-indigo-500" style="width:${validWidth}%"></div>
         </div>
         <div class="flex justify-between text-[11px] text-slate-500 mt-1">
-          <span>応募</span><span>有効応募</span>
+          <span>蠢懷供</span><span>譛牙柑蠢懷供</span>
         </div>
       </div>`;
   }).join('');
@@ -427,12 +427,12 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   lineCanvas.width = parentWidth;
   lineCanvas.height = 380;
   const metricLabels = {
-    decisionRate: '決定率',
-    initialInterviewRate: '初回面談設定率',
-    retention30: '定着率',
-    costPerHire: '費用/入社'
+    decisionRate: 'Decision Rate',
+    initialInterviewRate: 'Initial Interview Rate',
+    retention30: 'Retention (30d)',
+    costPerHire: 'Cost per Hire'
   };
-  const metricLabel = metricLabels[lineMetric] || '決定率';
+  const metricLabel = metricLabels[lineMetric] || 'Decision Rate';
 
   decisionLineChart = new Chart(lineCanvas.getContext('2d'), {
     type: 'line',
@@ -471,10 +471,10 @@ function renderMetricTable(labels, mediaMap) {
   const wrapper = document.getElementById('adMetricTable');
   if (!wrapper) return;
   if (!labels.length || !Object.keys(mediaMap).length) {
-    wrapper.innerHTML = `<div class="text-sm text-slate-500 p-3">データがありません</div>`;
+    wrapper.innerHTML = `<div class="text-sm text-slate-500 p-3">繝・・繧ｿ縺後≠繧翫∪縺帙ｓ</div>`;
     return;
   }
-  const header = ['<th class="sticky left-0 bg-white z-10 text-left px-3 py-2 text-sm font-semibold text-slate-700">媒体名</th>']
+  const header = ['<th class="sticky left-0 bg-white z-10 text-left px-3 py-2 text-sm font-semibold text-slate-700">蟐剃ｽ灘錐</th>']
     .concat(labels.map(l => `<th class="px-3 py-2 text-right text-sm font-semibold text-slate-700 whitespace-nowrap">${l}</th>`));
 
   const valueFormatter = lineMetric === 'costPerHire'
@@ -506,32 +506,33 @@ function renderMetricTable(labels, mediaMap) {
   `;
 }
 
+
 function updateContractInfo(data) {
   const box = document.getElementById('adContractInfo');
   if (!box) return;
   const filterText = (document.getElementById('adMediaFilter')?.value || '').trim().toLowerCase();
   const target = data.find(d => d.mediaName.toLowerCase() === filterText) || null;
   if (!target) {
-    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
+    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">蟐剃ｽ灘･醍ｴ・ュ蝣ｱ</div><div class="text-base text-slate-700">蟐剃ｽ薙ｒ驕ｸ謚槭☆繧九→螂醍ｴ・擅莉ｶ繧定｡ｨ遉ｺ縺励∪縺吶・/div>`;
     return;
   }
   const contractMock = {
-    period: '2024-01-01 〜 2024-12-31',
-    price: '¥2,500,000 / 年',
-    billing: '月額固定＋応募課金（応募 ¥3,000）',
-    autoRenew: '自動更新あり（30日前通知で解約可）'
+    period: '2024-01-01 縲・2024-12-31',
+    price: 'ﾂ･2,500,000 / 蟷ｴ',
+    billing: '譛磯｡榊崋螳夲ｼ句ｿ懷供隱ｲ驥托ｼ・蠢懷供 ﾂ･3,000・・,
+    autoRenew: '閾ｪ蜍墓峩譁ｰ縺ゅｊ・・0譌･蜑埼夂衍縺ｧ隗｣邏・庄・・
   };
   box.innerHTML = `
-    <div class="text-sm text-slate-500 mb-1">媒体契約情報</div>
+    <div class="text-sm text-slate-500 mb-1">蟐剃ｽ灘･醍ｴ・ュ蝣ｱ</div>
     <div class="text-base text-slate-800 font-semibold">${target.mediaName}</div>
-    <div class="text-sm text-slate-600 mt-1">決定率: ${formatPercent(target.decisionRate || 0)}</div>
-    <div class="text-sm text-slate-600">返金額: ${formatCurrency(target.refund || 0)}</div>
-    <div class="text-sm text-slate-600">応募: ${formatNumber(target.applications)} / 有効: ${formatNumber(target.validApplications)}</div>
-    <div class="text-sm text-slate-600">契約期間: ${contractMock.period}</div>
-    <div class="text-sm text-slate-600">契約金額: ${contractMock.price}</div>
-    <div class="text-sm text-slate-600">契約方式: ${contractMock.billing}</div>
-    <div class="text-sm text-slate-600">更新・解約: ${contractMock.autoRenew}</div>
-    <div class="text-xs text-slate-500 mt-1">契約条件のメモをここに追記できます</div>
+    <div class="text-sm text-slate-600 mt-1">豎ｺ螳夂紫: ${formatPercent(target.decisionRate || 0)}</div>
+    <div class="text-sm text-slate-600">霑秘≡鬘・ ${formatCurrency(target.refund || 0)}</div>
+    <div class="text-sm text-slate-600">蠢懷供: ${formatNumber(target.applications)} / 譛牙柑: ${formatNumber(target.validApplications)}</div>
+    <div class="text-sm text-slate-600">螂醍ｴ・悄髢・ ${contractMock.period}</div>
+    <div class="text-sm text-slate-600">螂醍ｴ・侭驥・ ${contractMock.price}</div>
+    <div class="text-sm text-slate-600">螂醍ｴ・・莉慕ｵ・∩: ${contractMock.billing}</div>
+    <div class="text-sm text-slate-600">譖ｴ譁ｰ繝ｻ隗｣邏・ ${contractMock.autoRenew}</div>
+    <div class="text-xs text-slate-500 mt-1">螂醍ｴ・擅莉ｶ縺ｮ繝｡繝｢繧偵％縺薙↓霑ｽ險倥〒縺阪∪縺呻ｼ医Δ繝・け・・/div>
   `;
 }
 
@@ -555,7 +556,7 @@ function updateAdPagination(totalItems) {
   const startItem = totalItems ? (adState.currentPage - 1) * pageSize + 1 : 0;
   const endItem = Math.min(adState.currentPage * pageSize, totalItems);
   const infoElement = document.getElementById('adManagementInfo');
-  if (infoElement) infoElement.textContent = `${totalItems}件 ${startItem}-${endItem}表示`;
+  if (infoElement) infoElement.textContent = `${totalItems}莉ｶ ${startItem}-${endItem}陦ｨ遉ｺ`;
   ['adManagementPageInfo', 'adManagementPageInfo2'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = `${adState.currentPage} / ${totalPages}`;
@@ -579,9 +580,37 @@ function changePage(direction) {
   applySortAndRender();
 }
 
-function handleExportCSV() {
+function handleExportCSVOld() {
   const sortedData = getAggregatedSorted();
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '冀数', '冀率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）', '契約費用'];
+  const headers = ['蟐剃ｽ灘錐', '蠢懷供閠・焚', '譛牙柑蠢懷供閠・焚', '蛻晏屓髱｢隲・ｨｭ螳壽焚', '蛻晏屓髱｢隲・ｨｭ螳夂紫', '蜀・ｮ壽焚', '蜀・ｮ夂紫', '蜈･遉ｾ謨ｰ', '蜈･遉ｾ邇・, '豎ｺ螳夂紫', '螳夂捩邇・ｼ・0譌･・・, '霑秘≡鬘搾ｼ育ｨ手ｾｼ・・];
+  const csvContent = [
+    headers.join(','),
+    ...sortedData.map(ad => [
+      ad.mediaName,
+      ad.applications,
+      ad.validApplications,
+      ad.initialInterviews,
+      `${ad.initialInterviewRate.toFixed(1)}%`,
+      ad.offers,
+      `${ad.offerRate.toFixed(1)}%`,
+      ad.hired,
+      `${ad.hireRate.toFixed(1)}%`,
+      `${ad.decisionRate.toFixed(1)}%`,
+      `${ad.retention30.toFixed(1)}%`,
+      ad.refund
+    ].join(','))
+  ].join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '蠎・相邂｡逅・csv';
+  link.click();
+}
+
+// 荳頑嶌縺咲沿 CSV 繧ｨ繧ｯ繧ｹ繝昴・繝茨ｼ郁ｲｻ逕ｨ蛻励ｒ蜷ｫ繧・・function handleExportCSV() {
+  const sortedData = getAggregatedSorted();
+  const headers = ['蟐剃ｽ灘錐', '蠢懷供莉ｶ謨ｰ', '譛牙柑蠢懷供莉ｶ謨ｰ', '蛻晏屓髱｢隲・ｨｭ螳壽焚', '蛻晏屓髱｢隲・ｨｭ螳夂紫', '蜀・ｮ壽焚', '蜀・ｮ夂紫', '蜈･遉ｾ謨ｰ', '蜈･遉ｾ邇・, '豎ｺ螳夂紫', '螳夂捩邇・ｼ・0譌･・・, '霑秘≡鬘搾ｼ育ｨ手ｾｼ・・, '螂醍ｴ・ｲｻ逕ｨ'];
   const csvContent = [
     headers.join(','),
     ...sortedData.map(ad => [
@@ -611,7 +640,7 @@ function handleExportCSV() {
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-red-500 py-6"><div class="flex items-center justifycenter gap-2"><span>⚠</span><span>${message}</span></div></td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-red-500 py-6"><div class="flex items-center justifycenter gap-2"><span>笞</span><span>${message}</span></div></td></tr>`;
   }
 }
 
@@ -624,3 +653,20 @@ function cleanupAdEventListeners() {
     el.parentNode.replaceChild(clone, el);
   });
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
