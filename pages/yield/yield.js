@@ -4,10 +4,13 @@ import { hasRole } from '../../scripts/auth.js';
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 
 const repositories = RepositoryFactory.create();
+const kpiRepository = repositories.kpi;
+const candidatesRepository = repositories.candidates;
+let candidateDataset = [];
 
 const TODAY_GOAL_KEY = 'todayGoals.v1';
 const MONTHLY_GOAL_KEY = 'monthlyGoals.v1';
-const RATE_KEYS = ['求人提案率', '推薦送信率', '面接設定率', '面接実施率', '内定提示率', '内定承諾率', '入社決定率'];
+const RATE_KEYS = ['提案率', '推薦率', '面接設定率', '面接実施率', '内定率', '承諾率', '入社決定率'];
 const DASHBOARD_YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2];
 const DASHBOARD_MONTHS = Array.from({ length: 12 }, (_, idx) => idx + 1);
 const DASHBOARD_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899'];
@@ -193,13 +196,13 @@ const DEFAULT_DAILY_TARGETS = {
 };
 
 const DAILY_LABELS = {
-  newInterviews: '新規面談設定数',
-  proposals: '求人提案数',
-  recommendations: '推薦送信数',
+  newInterviews: '新規面談数',
+  proposals: '提案数',
+  recommendations: '推薦数',
   interviewsScheduled: '面接設定数',
   interviewsHeld: '面接実施数',
-  offers: '内定提示数',
-  accepts: '内定承諾数'
+  offers: '内定数',
+  accepts: '承諾数'
 };
 
 const PREV_KEY_MAP = {
@@ -396,24 +399,24 @@ const GOAL_CONFIG = {
 };
 
 const RATE_DETAIL_PIPELINE = [
-  { labelA: '求人提案数', keyA: 'proposals', labelB: '新規面接設定数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' },
-  { labelA: '推薦送信数', keyA: 'recommendations', labelB: '求人提案数', keyB: 'proposals', prevKey: 'prevProposals' },
-  { labelA: '面接設定数', keyA: 'interviewsScheduled', labelB: '推薦送信数', keyB: 'recommendations', prevKey: 'prevRecommendations' },
+  { labelA: '提案数', keyA: 'proposals', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' },
+  { labelA: '推薦数', keyA: 'recommendations', labelB: '提案数', keyB: 'proposals', prevKey: 'prevProposals' },
+  { labelA: '面接設定数', keyA: 'interviewsScheduled', labelB: '推薦数', keyB: 'recommendations', prevKey: 'prevRecommendations' },
   { labelA: '面接実施数', keyA: 'interviewsHeld', labelB: '面接設定数', keyB: 'interviewsScheduled', prevKey: 'prevInterviewsScheduled' },
-  { labelA: '内定提示数', keyA: 'offers', labelB: '面接実施数', keyB: 'interviewsHeld', prevKey: 'prevInterviewsHeld' },
-  { labelA: '内定承諾数', keyA: 'accepts', labelB: '内定提示数', keyB: 'offers', prevKey: 'prevOffers' },
-  { labelA: '内定承諾数', keyA: 'accepts', labelB: '新規面接設定数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' }
+  { labelA: '内定数', keyA: 'offers', labelB: '面接実施数', keyB: 'interviewsHeld', prevKey: 'prevInterviewsHeld' },
+  { labelA: '承諾数', keyA: 'accepts', labelB: '内定数', keyB: 'offers', prevKey: 'prevOffers' },
+  { labelA: '承諾数', keyA: 'accepts', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' }
 ];
 
 const mockDashboardData = {
   personal: {
     baseRates: {
-      求人提案率: 62,
-      推薦送信率: 58,
+      提案率: 62,
+      推薦率: 58,
       面接設定率: 72,
       面接実施率: 65,
-      内定提示率: 48,
-      内定承諾率: 42,
+      内定率: 48,
+      承諾率: 42,
       入社決定率: 35
     },
     jobCategories: {
@@ -431,12 +434,12 @@ const mockDashboardData = {
   },
   company: {
     baseRates: {
-      求人提案率: 66,
-      推薦送信率: 60,
+      提案率: 66,
+      推薦率: 60,
       面接設定率: 80,
       面接実施率: 70,
-      内定提示率: 52,
-      内定承諾率: 46,
+      内定率: 52,
+      承諾率: 46,
       入社決定率: 40
     },
     jobCategories: {
@@ -1133,7 +1136,7 @@ async function loadPersonalKPIData() {
     const startDate = state.ranges.personal.startDate || '2025-01-01';
     const endDate = state.ranges.personal.endDate || isoDate(new Date());
     if (!startDate || !endDate) return null;
-    const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
+    const raw = await kpiRepository.getPersonalKpi(startDate, endDate);
     return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load personal KPI data:', error);
@@ -1147,7 +1150,7 @@ async function loadPersonalSummaryKPIData() {
     const startDate = period?.startDate;
     const endDate = period?.endDate;
     if (!startDate || !endDate) return null;
-    const raw = await repositories.kpi.getPersonalKpi(startDate, endDate);
+    const raw = await kpiRepository.getPersonalKpi(startDate, endDate);
     return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load personal summary KPI data:', error);
@@ -1158,7 +1161,7 @@ async function loadPersonalSummaryKPIData() {
 async function loadTodayPersonalKPIData() {
   try {
     const todayStr = isoDate(new Date());
-    const raw = await repositories.kpi.getPersonalKpi(todayStr, todayStr);
+    const raw = await kpiRepository.getPersonalKpi(todayStr, todayStr);
     return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load today personal KPI data:', error);
@@ -1170,7 +1173,7 @@ async function loadMonthToDatePersonalKPIData() {
   try {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const raw = await repositories.kpi.getPersonalKpi(isoDate(startOfMonth), isoDate(today));
+    const raw = await kpiRepository.getPersonalKpi(isoDate(startOfMonth), isoDate(today));
     return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load month-to-date personal KPI data:', error);
@@ -1182,7 +1185,7 @@ async function loadCompanyKPIData() {
   try {
     const range = getCompanySummaryRange();
     if (!range.startDate || !range.endDate) return null;
-    const raw = await repositories.kpi.getCompanyKpi(range.startDate, range.endDate);
+    const raw = await kpiRepository.getCompanyKpi(range.startDate, range.endDate);
     return raw && !Array.isArray(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to load company KPI data:', error);
@@ -1195,7 +1198,7 @@ async function loadCompanyPeriodKPIData() {
     const startDate = state.ranges.company.startDate;
     const endDate = state.ranges.company.endDate;
     if (!startDate || !endDate) return null;
-    const raw = await repositories.kpi.getCompanyKpi(startDate, endDate);
+    const raw = await kpiRepository.getCompanyKpi(startDate, endDate);
     const data = raw && !Array.isArray(raw) ? raw : null;
     if (data) renderCompanyPeriod(data);
     return data;
@@ -1467,7 +1470,7 @@ async function loadEmployeeData(rangeFilters = {}) {
     if (range.startDate) filters.from = range.startDate;
     if (range.endDate) filters.to = range.endDate;
 
-    const raw = await repositories.kpi.getEmployeePerformance(filters);
+    const raw = await kpiRepository.getEmployeePerformance(filters);
     const data = Array.isArray(raw) ? raw : Array.isArray(raw?.employees) ? raw.employees : [];
     state.employees.list = [...data];
     renderEmployeeRows();

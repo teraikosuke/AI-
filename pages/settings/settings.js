@@ -1,20 +1,20 @@
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 
 const KPI_FIELDS = [
-  { key: 'newInterviewsTarget', label: '新規面談設定数' },
-  { key: 'proposalsTarget', label: '求人提案数' },
-  { key: 'recommendationsTarget', label: '推薦送信数' },
+  { key: 'newInterviewsTarget', label: '新規面談数' },
+  { key: 'proposalsTarget', label: '提案数' },
+  { key: 'recommendationsTarget', label: '推薦数' },
   { key: 'interviewsScheduledTarget', label: '面接設定数' },
   { key: 'interviewsHeldTarget', label: '面接実施数' },
-  { key: 'offersTarget', label: '内定提示数' },
-  { key: 'acceptsTarget', label: '内定承諾数' },
+  { key: 'offersTarget', label: '内定数' },
+  { key: 'acceptsTarget', label: '承諾数' },
   { key: 'revenueTarget', label: '売上目標（金額）' },
-  { key: 'proposalRateTarget', label: '求人提案率' },
-  { key: 'recommendationRateTarget', label: '推薦送信率' },
+  { key: 'proposalRateTarget', label: '提案率' },
+  { key: 'recommendationRateTarget', label: '推薦率' },
   { key: 'interviewScheduleRateTarget', label: '面接設定率' },
   { key: 'interviewHeldRateTarget', label: '面接実施率' },
-  { key: 'offerRateTarget', label: '内定提示率' },
-  { key: 'acceptRateTarget', label: '内定承諾率' },
+  { key: 'offerRateTarget', label: '内定率' },
+  { key: 'acceptRateTarget', label: '承諾率' },
   { key: 'hireRateTarget', label: '入社決定率' }
 ];
 
