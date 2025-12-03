@@ -2,47 +2,53 @@
 
 :root {
   --settings-bg: #f8fafc;
-  --settings-text: #0f172a;
+  --settings-text: #475569;
   --settings-muted: #94a3b8;
   --settings-border: #e2e8f0;
   --settings-line: #cbd5e1;
   --settings-primary: #0f3a7a;
   --settings-primary-strong: #103a75;
+  --control-radius: 4px;
+  --control-padding-y: 0.45rem;
+  --control-padding-x: 0.75rem;
+  --control-font-size: 0.95rem;
+  --control-font-weight: 500;
 }
 
 .settings-page {
   background: var(--settings-bg);
-  padding: 1rem;
+  padding: 1.25rem;
   color: var(--settings-text);
   font-family: 'Inter', 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .settings-section {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .settings-section-header {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .settings-section-title {
   font-size: 1.18rem;
   font-weight: 600;
   position: relative;
-  padding-left: 0.75rem;
+  padding: 0.3rem;
+  padding-left: 1.3rem;
   /* border-bottom: 1px solid var(--settings-border); */
-  margin-bottom: 0.25rem;
+  margin-bottom: 0rem;
 }
 
 .settings-section-title::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.2rem;
-  bottom: -0.2rem;
-  width: 3px;
+  top: 0rem;
+  bottom: 0rem;
+  width: 7px;
   background: var(--settings-primary);
-  border-radius: 2px;
+  border-radius: 0px;
 }
 
 .settings-muted {
@@ -63,9 +69,10 @@
   background: var(--settings-primary);
   color: #fff;
   border: none;
-  border-radius: 2px 2px 0 0;
-  padding: 0.5rem 1rem;
-  font-weight: 600;
+  border-radius: var(--control-radius) var(--control-radius) 0 0;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  font-weight: var(--control-font-weight);
+  font-size: var(--control-font-size);
   cursor: pointer;
 }
 
@@ -79,8 +86,8 @@
 .settings-tab-panel {
   background: #fff;
   border: 1px solid var(--settings-border);
-  border-radius: 2px;
-  padding: 1rem;
+  border-radius: var(--control-radius);
+  padding: 1.1rem 1.2rem;
 }
 
 .is-hidden {
@@ -88,10 +95,12 @@
 }
 
 .settings-card {
-  background: transparent;
-  border: none;
-  padding: 0;
+  /* background: #fff; */
+  /* border: 1px solid var(--settings-border); */
+  /* border-radius: 4px; */
+  padding: 1rem;
   margin-bottom: 1rem;
+  /* box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); */
 }
 
 .settings-section-header-row {
@@ -101,10 +110,11 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   border-bottom: 1px solid var(--settings-border);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .settings-section-subrow {
+  margin-bottom: 0.6rem;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -124,13 +134,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
+  padding: var(--control-padding-y) var(--control-padding-x);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--control-radius);
   background: transparent;
   cursor: pointer;
-  font-weight: 600;
-  color: var(--settings-text);
+  font-weight: var(--control-font-weight);
+  color: #475569;
+  font-size: var(--control-font-size);
 }
 
 .settings-radio input[type="radio"] {
@@ -160,33 +171,34 @@
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
-  margin: 0.5rem 0 0.75rem;
+  margin: 0.35rem 0 0.6rem;
 }
 
 .settings-inline-select {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-weight: 600;
-  color: #334155;
+  font-weight: var(--control-font-weight);
+  color: #64748b;
+  font-size: var(--control-font-size);
 }
 
 .settings-inline-select select,
 .settings-inline-select input[type="number"] {
   border: 1px solid var(--settings-line);
-  border-radius: 0;
-  padding: 0.4rem 0.6rem;
+  border-radius: var(--control-radius);
+  padding: var(--control-padding-y) var(--control-padding-x);
   background: #fff;
-  font-size: 0.9rem;
+  font-size: var(--control-font-size);
   box-shadow: none;
-  font-weight: 500;
+  font-weight: var(--control-font-weight);
 }
 
 .settings-inline-select.readonly {
-  padding: 0.35rem 0.45rem;
+  padding: var(--control-padding-y) var(--control-padding-x);
   background: #f8fafc;
   border: 1px solid var(--settings-border);
-  border-radius: 2px;
+  border-radius: var(--control-radius);
 }
 
 .settings-inline-actions {
@@ -207,11 +219,11 @@
 .settings-primary-button {
   background: var(--settings-primary);
   color: #fff;
-  border: none;
-  padding: 0.5rem 0.9rem;
-  border-radius: 2px;
-  font-weight: 700;
-  font-size: 0.95rem;
+  border: 1px solid var(--settings-primary);
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border-radius: var(--control-radius);
+  font-weight: var(--control-font-weight);
+  font-size: var(--control-font-size);
   cursor: pointer;
 }
 
@@ -223,10 +235,11 @@
   background: #fff;
   color: var(--settings-text);
   border: 1px solid var(--settings-line);
-  padding: 0.4rem 0.75rem;
-  border-radius: 2px;
-  font-weight: 600;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  border-radius: var(--control-radius);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
+  font-size: var(--control-font-size);
 }
 
 .settings-ghost-button:hover {
@@ -248,24 +261,28 @@
 .settings-target-table {
   width: 100%;
   border-collapse: collapse;
-  background: #f8fafc;
+  background: transparent;
+}
+
+.settings-target-table thead {
+  display: none;
 }
 
 .settings-target-table th,
 .settings-target-table td {
-  padding: 0.65rem 0.7rem;
-  border-bottom: 1px solid var(--settings-border);
+  padding: 0.5rem 0.55rem;
   text-align: left;
+  font-weight: 500;
 }
 
 .settings-target-table th {
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: 600;
+  color: #475569;
   background: transparent;
 }
 
 .settings-target-table tbody {
-  background: #f8fafc;
+  background: transparent;
 }
 
 .settings-target-input {
@@ -294,16 +311,17 @@
 
 .settings-table th,
 .settings-table td {
-  padding: 0.35rem 0.4rem;
+  padding: 0.28rem 0.32rem;
   border: 1px solid var(--settings-border);
   text-align: left;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .settings-table th {
-  background: #f1f5f9;
-  font-weight: 700;
-  color: #1f2937;
+  background: transparent;
+  font-weight: 600;
+  color: #475569;
 }
 
 .settings-daily-table td input {
@@ -314,15 +332,36 @@
   padding: 0.2rem 0.3rem;
 }
 
+.settings-daily-table th {
+  background: #f8fafc;
+}
+
+.settings-daily-table td {
+  background: #fff;
+}
+
+.settings-daily-table tbody tr:nth-child(even) td {
+  background: #f9fbff;
+}
+
 .settings-daily-table th:first-child,
 .settings-daily-table td:first-child {
-  background: #f1f5f9;
+  background: #f8fafc;
   font-weight: 600;
 }
 
 .settings-kpi-label-cell {
-  background: #e5e7eb;
+  background: transparent;
   font-weight: 600;
+  position: relative;
+  padding-left: 1.1rem !important;
+}
+
+.settings-kpi-label-cell::before {
+  content: '•';
+  position: absolute;
+  left: 0.45rem;
+  color: #1f2937;
 }
 
 .settings-page .page-title {

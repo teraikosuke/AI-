@@ -1,13 +1,44 @@
 // Yield Page JavaScript Module (simplified)
 import { RepositoryFactory } from '../../scripts/api/index.js';
-import { hasRole } from '../../scripts/auth.js';
+import { hasRole, getSession } from '../../scripts/auth.js';
+import { mockUsers } from '../../scripts/mock/users.js';
+// 例: 実際のパスに合わせてください
+import { getMockCandidates } from '../../scripts/mock/candidates.js';
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+import {
+  buildPersonalKpiFromCandidates,
+  buildCompanyKpiFromCandidates,
+  buildDailyMetricsFromCandidates
+} from './yield-metrics-from-candidates.js';
 
 const repositories = RepositoryFactory.create();
 const kpiRepository = repositories.kpi;
-const candidatesRepository = repositories.candidates;
-let candidateDataset = [];
 
+let candidateDataset = [];
+let candidateLoadedAt = null;
+const PERSONAL_ADVISOR_NAME = getSession()?.user?.name || null;
+
+async function ensureCandidateDataset() {
+  if (candidateDataset.length) {
+    console.log('[yield] reuse cached candidate dataset', {
+      count: candidateDataset.length,
+      loadedAt: candidateLoadedAt?.toISOString?.() || candidateLoadedAt
+    });
+    return candidateDataset;
+  }
+
+  // ★ サーバや candidatesRepository を使わず、モックから直接読み込む
+  const raw = await getMockCandidates();
+
+  candidateDataset = Array.isArray(raw) ? raw : [];
+  candidateLoadedAt = new Date();
+  console.log('[yield] loaded candidate dataset (mock)', {
+    count: candidateDataset.length,
+    loadedAt: candidateLoadedAt.toISOString()
+  });
+
+  return candidateDataset;
+}
 const TODAY_GOAL_KEY = 'todayGoals.v1';
 const MONTHLY_GOAL_KEY = 'monthlyGoals.v1';
 const RATE_KEYS = ['提案率', '推薦率', '面接設定率', '面接実施率', '内定率', '承諾率', '入社決定率'];
@@ -634,6 +665,7 @@ export function mount() {
   safe('initCompanyPeriodPreset', initCompanyPeriodPreset);
   safe('initEmployeePeriodPreset', initEmployeePeriodPreset);
   safe('initializeEmployeeControls', initializeEmployeeControls);
+  safe('initializeCompanyDailyEmployeeSelect', initializeCompanyDailyEmployeeSelect);
   safe('initializeCompanyPeriodSections', initializeCompanyPeriodSections);
   safe('initializeDashboardSection', initializeDashboardSection);
   safe('initializeKpiTabs', initializeKpiTabs);
@@ -1026,7 +1058,7 @@ function renderPersonalKpis(todayData, summaryData, periodData) {
 
   renderCounts('today', today);
   renderGoalProgress('today', today);
-  renderDeltaBadges('today', today, computeTodayDiffsFromDaily());
+  renderDeltaBadges('today', today);
 
   renderCounts('personalMonthly', monthly);
   renderRates('personalMonthly', monthly);
@@ -1136,10 +1168,15 @@ async function loadPersonalKPIData() {
     const startDate = state.ranges.personal.startDate || '2025-01-01';
     const endDate = state.ranges.personal.endDate || isoDate(new Date());
     if (!startDate || !endDate) return null;
-    const raw = await kpiRepository.getPersonalKpi(startDate, endDate);
-    return raw && !Array.isArray(raw) ? raw : null;
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildPersonalKpiFromCandidates(candidates, {
+      startDate,
+      endDate,
+      advisorName: PERSONAL_ADVISOR_NAME
+    });
+    return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
-    console.error('Failed to load personal KPI data:', error);
+    console.error('Failed to load personal KPI data (from candidates mock):', error);
     return null;
   }
 }
@@ -1150,10 +1187,15 @@ async function loadPersonalSummaryKPIData() {
     const startDate = period?.startDate;
     const endDate = period?.endDate;
     if (!startDate || !endDate) return null;
-    const raw = await kpiRepository.getPersonalKpi(startDate, endDate);
-    return raw && !Array.isArray(raw) ? raw : null;
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildPersonalKpiFromCandidates(candidates, {
+      startDate,
+      endDate,
+      advisorName: PERSONAL_ADVISOR_NAME
+    });
+    return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
-    console.error('Failed to load personal summary KPI data:', error);
+    console.error('Failed to load personal summary KPI data (from candidates mock):', error);
     return null;
   }
 }
@@ -1161,10 +1203,15 @@ async function loadPersonalSummaryKPIData() {
 async function loadTodayPersonalKPIData() {
   try {
     const todayStr = isoDate(new Date());
-    const raw = await kpiRepository.getPersonalKpi(todayStr, todayStr);
-    return raw && !Array.isArray(raw) ? raw : null;
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildPersonalKpiFromCandidates(candidates, {
+      startDate: todayStr,
+      endDate: todayStr,
+      advisorName: PERSONAL_ADVISOR_NAME
+    });
+    return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
-    console.error('Failed to load today personal KPI data:', error);
+    console.error('Failed to load today personal KPI data (from candidates mock):', error);
     return null;
   }
 }
@@ -1173,22 +1220,32 @@ async function loadMonthToDatePersonalKPIData() {
   try {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const raw = await kpiRepository.getPersonalKpi(isoDate(startOfMonth), isoDate(today));
-    return raw && !Array.isArray(raw) ? raw : null;
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildPersonalKpiFromCandidates(candidates, {
+      startDate: isoDate(startOfMonth),
+      endDate: isoDate(today),
+      advisorName: PERSONAL_ADVISOR_NAME
+    });
+    return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
-    console.error('Failed to load month-to-date personal KPI data:', error);
+    console.error('Failed to load month-to-date personal KPI data (from candidates mock):', error);
     return null;
   }
 }
 
 async function loadCompanyKPIData() {
   try {
+    
     const range = getCompanySummaryRange();
     if (!range.startDate || !range.endDate) return null;
-    const raw = await kpiRepository.getCompanyKpi(range.startDate, range.endDate);
-    return raw && !Array.isArray(raw) ? raw : null;
+
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildCompanyKpiFromCandidates(candidates, range);
+    console.log('[yield] company KPI (summary range)', { range, candidateCount: candidates.length });
+
+    return kpi;
   } catch (error) {
-    console.error('Failed to load company KPI data:', error);
+    console.error('Failed to load company KPI data (from candidates):', error);
     return null;
   }
 }
@@ -1198,12 +1255,15 @@ async function loadCompanyPeriodKPIData() {
     const startDate = state.ranges.company.startDate;
     const endDate = state.ranges.company.endDate;
     if (!startDate || !endDate) return null;
-    const raw = await kpiRepository.getCompanyKpi(startDate, endDate);
-    const data = raw && !Array.isArray(raw) ? raw : null;
-    if (data) renderCompanyPeriod(data);
-    return data;
+
+    const candidates = await ensureCandidateDataset();
+    const kpi = buildCompanyKpiFromCandidates(candidates, { startDate, endDate });
+    console.log('[yield] company KPI (period range)', { startDate, endDate, candidateCount: candidates.length });
+
+    if (kpi) renderCompanyPeriod(kpi);
+    return kpi;
   } catch (error) {
-    console.error('Failed to load company period KPI data:', error);
+    console.error('Failed to load company period KPI data (from candidates):', error);
     return null;
   }
 }
@@ -1211,11 +1271,20 @@ async function loadCompanyPeriodKPIData() {
 async function loadAndRenderPersonalDaily() {
   const periodId = state.personalDailyPeriodId;
   if (!periodId) return;
-  if (!state.personalDailyData[periodId]) {
-    state.personalDailyData[periodId] = await loadPersonalDailyKpiData(periodId);
-  }
-  renderPersonalDailyTable(periodId, state.personalDailyData[periodId]);
-  renderDeltaBadges('today', state.kpi.today, computeTodayDiffsFromDaily());
+  const session = getSession();
+  const advisorName = session?.user?.name || null;
+
+  const period = state.evaluationPeriods.find(item => item.id === periodId);
+  if (!period) return;
+
+  const candidates = await ensureCandidateDataset();
+  const data = buildDailyMetricsFromCandidates(candidates, {
+    startDate: period.startDate,
+    endDate: period.endDate,
+    advisorName
+  });
+
+  renderPersonalDailyTable(periodId, data);
 }
 
 async function loadCompanySummaryKPI() {
@@ -1226,38 +1295,39 @@ async function loadCompanySummaryKPI() {
 async function loadPersonalDailyKpiData(periodId) {
   const period = state.evaluationPeriods.find(item => item.id === periodId);
   if (!period) return {};
-  const dates = enumeratePeriodDates(period);
-  return dates.reduce((acc, date, index) => {
-    acc[date] = {
-      newInterviews: (index % 5) + 1,
-      proposals: (index % 4) + 2,
-      recommendations: (index % 3) + 1,
-      interviewsScheduled: (index % 4) + 1,
-      interviewsHeld: (index % 3) + 1,
-      offers: index % 2,
-      accepts: index % 2 === 0 ? 1 : 0
-    };
-    return acc;
-  }, {});
+  const candidates = await ensureCandidateDataset();
+  const daily = buildDailyMetricsFromCandidates(candidates, {
+    startDate: period.startDate,
+    endDate: period.endDate,
+    advisorName: PERSONAL_ADVISOR_NAME
+  });
+
+  console.log('[yield] personal daily metrics', {
+    period,
+    candidateCount: candidates.length,
+    firstDate: period.startDate,
+    lastDate: period.endDate
+  });
+
+  return daily;
 }
 
 async function loadCompanyDailyKpiData(employeeId, periodId) {
   const period = state.evaluationPeriods.find(item => item.id === periodId);
   if (!period) return {};
-  const dates = enumeratePeriodDates(period);
-  return dates.reduce((acc, date, index) => {
-    const seed = (employeeId?.length || 1) + index;
-    acc[date] = {
-      newInterviews: (seed % 6) + 1,
-      proposals: (seed % 5) + 2,
-      recommendations: (seed % 4) + 1,
-      interviewsScheduled: (seed % 4) + 1,
-      interviewsHeld: (seed % 3) + 1,
-      offers: seed % 3,
-      accepts: seed % 2
-    };
-    return acc;
-  }, {});
+  const candidates = await ensureCandidateDataset();
+  const daily = buildDailyMetricsFromCandidates(candidates, {
+    startDate: period.startDate,
+    endDate: period.endDate,
+    advisorName: employeeId || null
+  });
+
+  console.log('[yield] company daily metrics', {
+    period,
+    candidateCount: candidates.length
+  });
+
+  return daily;
 }
 
 function buildDailyHeaderRow(headerRow, dates) {
@@ -1539,7 +1609,8 @@ function normalizeKpi(src = {}) {
 function normalizeTodayKpi(data) {
   const todaySource = data?.today || data?.daily || null;
   const fallback = todaySource || data?.monthly || data || {};
-  return normalizeCounts(fallback);
+  const prevSource = data?.period || data?.monthly || data || {};
+  return { ...normalizeCounts(fallback), ...normalizePrev(prevSource) };
 }
 
 function computeEmployeeColumnTopValues(rows = []) {
@@ -1881,18 +1952,26 @@ function renderEvaluationSelectors() {
     if (state.companyTermPeriodId) companyTermSelect.value = state.companyTermPeriodId;
   }
   renderCompanyDailyEmployeeOptions();
+  const companyDailyEmployeeSelect = document.getElementById('companyDailyEmployeeSelect');
+  if (companyDailyEmployeeSelect && state.companyDailyEmployeeId) {
+    companyDailyEmployeeSelect.value = state.companyDailyEmployeeId;
+  }
   updatePersonalPeriodLabels();
 }
 
 function renderCompanyDailyEmployeeOptions() {
   const select = document.getElementById('companyDailyEmployeeSelect');
   if (!select) return;
-  select.innerHTML = COMPANY_DAILY_EMPLOYEES.map(emp => `<option value="${emp.id}">${emp.name}</option>`).join('');
-  if (!state.companyDailyEmployeeId && COMPANY_DAILY_EMPLOYEES[0]) {
-    state.companyDailyEmployeeId = COMPANY_DAILY_EMPLOYEES[0].id;
-  }
-  if (state.companyDailyEmployeeId) {
-    select.value = state.companyDailyEmployeeId;
+  select.innerHTML = mockUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+  state.companyDailyEmployeeId = select.value || '';
+}
+
+function initializeCompanyDailyEmployeeSelect() {
+  renderCompanyDailyEmployeeOptions();
+  const select = document.getElementById('companyDailyEmployeeSelect');
+  if (select) {
+    select.removeEventListener('change', handleCompanyDailyEmployeeChange);
+    select.addEventListener('change', handleCompanyDailyEmployeeChange);
   }
 }
 

@@ -291,12 +291,14 @@ function handleSaveCompanyTarget() {
   if (!state.selectedCompanyPeriodId) return;
   const values = readTargetTable('companyTargetTableBody');
   goalSettingsService.saveCompanyPeriodTarget(state.selectedCompanyPeriodId, values);
+  showSaveStatus('companyTargetSaveStatus', '会社目標を保存しました');
 }
 
 function handleSavePersonalTarget() {
   if (!state.selectedPersonalPeriodId) return;
   const values = readTargetTable('personalTargetTableBody');
   goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
+  showSaveStatus('personalTargetSaveStatus', '個人目標を保存しました');
 }
 
 function handleCopyCompanyTarget() {
@@ -370,6 +372,7 @@ function handleSaveDailyTargets() {
     dailyTargets[date] = target;
   });
   goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
+  showSaveStatus('dailyTargetSaveStatus', '日別目標を保存しました');
 }
 
 function getSelectedRule() {

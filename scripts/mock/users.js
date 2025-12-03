@@ -5,7 +5,7 @@
 export const mockUsers = [
   {
     id: 'mock-admin',
-    name: '管理者',
+    name: '佐藤アドバイザー',
     email: 'admin@example.com',
     password: 'admin123',
     role: 'admin'

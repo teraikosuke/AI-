@@ -106,6 +106,7 @@
 
         <div class="settings-card-actions">
           <button type="button" id="saveCompanyTargetButton" class="settings-primary-button">この期間の会社目標を保存</button>
+          <span class="settings-save-status" id="companyTargetSaveStatus" aria-live="polite"></span>
         </div>
       </div>
     </div>
@@ -142,6 +143,7 @@
 
         <div class="settings-card-actions">
           <button type="button" id="savePersonalTargetButton" class="settings-primary-button">この期間の個人目標を保存</button>
+          <span class="settings-save-status" id="personalTargetSaveStatus" aria-live="polite"></span>
         </div>
       </div>
 
@@ -166,13 +168,13 @@
               <thead>
                 <tr>
                   <th scope="col">日付</th>
-                  <th scope="col">新規面談数（目標）</th>
-                  <th scope="col">提案数（目標）</th>
-                  <th scope="col">推薦数（目標）</th>
-                  <th scope="col">面接設定数（目標）</th>
-                  <th scope="col">面接実施数（目標）</th>
-                  <th scope="col">内定数（目標）</th>
-                  <th scope="col">承諾数（目標）</th>
+                  <th scope="col">新規面談数</th>
+                  <th scope="col">提案数</th>
+                  <th scope="col">推薦数</th>
+                  <th scope="col">面接設定数</th>
+                  <th scope="col">面接実施数</th>
+                  <th scope="col">内定数</th>
+                  <th scope="col">承諾数</th>
                 </tr>
               </thead>
               <tbody id="personalDailyTableBody"></tbody>
@@ -182,6 +184,7 @@
 
         <div class="settings-card-actions">
           <button type="button" id="saveDailyTargetsButton" class="settings-primary-button">日別目標を保存</button>
+          <span class="settings-save-status" id="dailyTargetSaveStatus" aria-live="polite"></span>
         </div>
       </div>
     </div>
