@@ -15,6 +15,7 @@ const routes = {
   'teleapo':      () => import('../pages/teleapo/teleapo.js'),
   'referral':     () => import('../pages/referral/referral.js'),
   'settings':     () => import('../pages/settings/settings.js'),
+  'members':      () => import('../pages/members/members.js'),
 };
 
 export const routeMeta = {
@@ -25,6 +26,7 @@ export const routeMeta = {
   teleapo:        { roles: ['admin', 'member'] },
   referral:       { roles: ['admin', 'member'] },
   settings:       { roles: ['admin', 'member'] },
+  members:        { roles: ['admin', 'member'] },
 };
 
 // CSS files for specific pages
@@ -36,6 +38,7 @@ const pageCSS = {
   'teleapo': 'pages/teleapo/teleapo.css',
   'referral': 'pages/referral/referral.css',
   'settings': 'pages/settings/settings.css',
+  'members': 'pages/members/members.css',
 };
 
 let current = null;

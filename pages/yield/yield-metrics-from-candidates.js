@@ -631,6 +631,353 @@ export function buildPersonalKpiFromCandidates(
 }
 
 /**
+ * 候補者マスタから「社員ごとの7KPI集計」を作る
+ * @param {Array<object>} candidates - 候補者マスタ配列（advisorName, phaseDates付き）
+ * @param {{ startDate: string, endDate: string }} range - YYYY-MM-DD
+ * @returns {Array<object>} rows - 社員ごとの集計行
+ */
+export function buildEmployeeKpiFromCandidates(candidates = [], { startDate, endDate } = {}) {
+  const range = { startDate, endDate };
+
+  const inRange = dateStr => {
+    if (!dateStr) return false;
+    if (range.startDate && dateStr < range.startDate) return false;
+    if (range.endDate && dateStr > range.endDate) return false;
+    return true;
+  };
+
+  const byAdvisor = new Map();
+
+  const ensureBucket = name => {
+    if (!byAdvisor.has(name)) {
+      byAdvisor.set(name, {
+        name,
+        newInterviews: 0,
+        proposals: 0,
+        recommendations: 0,
+        interviewsScheduled: 0,
+        interviewsHeld: 0,
+        offers: 0,
+        accepts: 0
+      });
+    }
+    return byAdvisor.get(name);
+  };
+
+  const PHASE_TO_METRIC = [
+    ['newInterview', 'newInterviews'],
+    ['proposal', 'proposals'],
+    ['recommendation', 'recommendations'],
+    ['interviewScheduled', 'interviewsScheduled'],
+    ['interviewHeld', 'interviewsHeld'],
+    ['offer', 'offers'],
+    ['accept', 'accepts']
+  ];
+
+  for (const c of candidates) {
+    const name = c.advisorName || '未設定';
+    const bucket = ensureBucket(name);
+    const p = c.phaseDates || {};
+
+    for (const [phaseKey, metricKey] of PHASE_TO_METRIC) {
+      const dateStr = p[phaseKey];
+      if (!inRange(dateStr)) continue;
+      bucket[metricKey] += 1;
+    }
+  }
+
+  const rows = [];
+  for (const bucket of byAdvisor.values()) {
+    const {
+      name,
+      newInterviews,
+      proposals,
+      recommendations,
+      interviewsScheduled,
+      interviewsHeld,
+      offers,
+      accepts
+    } = bucket;
+
+    rows.push({
+      name,
+      newInterviews,
+      proposals,
+      recommendations,
+      interviewsScheduled,
+      interviewsHeld,
+      offers,
+      accepts,
+      proposalRate: toRate(proposals, newInterviews),
+      recommendationRate: toRate(recommendations, proposals),
+      interviewScheduleRate: toRate(interviewsScheduled, recommendations),
+      interviewHeldRate: toRate(interviewsHeld, interviewsScheduled),
+      offerRate: toRate(offers, interviewsHeld),
+      acceptRate: toRate(accepts, offers),
+      hireRate: toRate(accepts, newInterviews)
+    });
+  }
+
+  return rows;
+}
+
+function calcAgeFromBirthday(birthdayStr) {
+  if (!birthdayStr) return null;
+  const d = new Date(birthdayStr);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+function resolveAgeBand(age) {
+  if (age === null || age === undefined || !Number.isFinite(Number(age))) {
+    return '不明';
+  }
+  const n = Number(age);
+  if (n < 20) return '20代未満';
+  if (n < 30) return '20代';
+  if (n < 40) return '30代';
+  if (n < 50) return '40代';
+  return '50代以上';
+}
+
+/**
+ * 候補者マスタから「性別内訳」と「年齢帯別人数」を集計する
+ * @param {Array<object>} candidates - 候補者マスタ配列（advisorName, gender, age, birthday などを含む）
+ * @param {{
+ *   startDate?: string,
+ *   endDate?: string,
+ *   advisorName?: string | null
+ * }} options
+ * @returns {{
+ *   gender: { labels: string[], data: number[] },
+ *   ageGroups: { labels: string[], data: number[] }
+ * }}
+ */
+export function buildGenderAndAgeBreakdownFromCandidates(
+  candidates = [],
+  { startDate, endDate, advisorName = null } = {}
+) {
+  const inRange = dateStr => {
+    if (!dateStr) return true;
+    if (startDate && dateStr < startDate) return false;
+    if (endDate && dateStr > endDate) return false;
+    return true;
+  };
+
+  const pickBaseDate = c => {
+    const phaseDate = c.phaseDates && (c.phaseDates.newInterview || c.phaseDates.applied);
+    return phaseDate || c.registeredDate || c.mediaRegisteredAt || null;
+  };
+
+  const genderCounts = new Map();
+  const ageCounts = new Map();
+  const jobCounts = new Map();
+  const mediaCounts = new Map();
+
+  const pushCount = (map, key) => {
+    map.set(key, (map.get(key) || 0) + 1);
+  };
+
+  const normalize = value => (value || '').toString().trim();
+
+  const resolveJobCategory = rawJob => {
+    const text = normalize(rawJob);
+    if (!text) return 'その他';
+
+    const lower = text.toLowerCase();
+
+    if (
+      text.includes('エンジニア') ||
+      text.includes('開発') ||
+      text.includes('SE') ||
+      text.includes('ＰＧ') ||
+      text.includes('PG') ||
+      text.includes('システム') ||
+      text.includes('インフラ') ||
+      text.includes('データ') ||
+      text.includes('AI') ||
+      text.includes('機械学習')
+    ) {
+      return 'エンジニア';
+    }
+
+    if (
+      text.includes('営業') ||
+      text.includes('セールス') ||
+      text.includes('法人営業') ||
+      text.includes('インサイドセールス') ||
+      text.includes('フィールドセールス') ||
+      lower.includes('bdr') ||
+      lower.includes('sdr')
+    ) {
+      return '営業';
+    }
+
+    if (
+      text.includes('人事') ||
+      text.includes('採用') ||
+      text.includes('総務') ||
+      text.includes('経理') ||
+      text.includes('財務') ||
+      text.includes('法務') ||
+      text.includes('労務') ||
+      text.includes('バックオフィス') ||
+      text.includes('管理部')
+    ) {
+      return 'コーポレート';
+    }
+
+    if (
+      text.includes('マーケ') ||
+      text.includes('マーケティング') ||
+      text.includes('広報') ||
+      text.includes('PR') ||
+      text.includes('広告') ||
+      text.includes('プロモーション') ||
+      text.includes('デジタルマーケ')
+    ) {
+      return 'マーケ';
+    }
+
+    if (
+      text.includes('CS') ||
+      text.includes('カスタマーサクセス') ||
+      text.includes('サポート') ||
+      text.includes('カスタマーサポート') ||
+      text.includes('ヘルプデスク')
+    ) {
+      return 'CS';
+    }
+
+    return 'その他';
+  };
+
+  const normalizeMediaSource = rawSource => {
+    const src = normalize(rawSource);
+    if (!src) return '不明';
+    if (src.includes('Indeed')) return 'Indeed';
+    if (src.includes('求人ボックス') || src.includes('求人BOX')) return '求人ボックス';
+    if (src.includes('リクナビ')) return 'リクナビ';
+    if (src.includes('マイナビ')) return 'マイナビ';
+    if (src.includes('doda') || src.toLowerCase().includes('doda')) return 'doda';
+    if (src.includes('自社') || src.includes('HP') || src.includes('ホームページ')) return '自社HP';
+    if (src.includes('紹介') || src.includes('リファラル')) return '紹介';
+    return src;
+  };
+
+  for (const c of candidates) {
+    if (advisorName && c.advisorName !== advisorName) continue;
+
+    const baseDate = pickBaseDate(c);
+    if (startDate || endDate) {
+      if (!baseDate || !inRange(baseDate)) continue;
+    }
+
+    let genderLabel = 'その他';
+    if (c.gender === '男性') genderLabel = '男性';
+    else if (c.gender === '女性') genderLabel = '女性';
+    else if (!c.gender || c.gender === '') genderLabel = '不明';
+
+    pushCount(genderCounts, genderLabel);
+
+    let age = null;
+    if (c.age !== undefined && c.age !== null) {
+      age = Number(c.age);
+    } else if (c.birthday) {
+      age = calcAgeFromBirthday(c.birthday);
+    }
+    const band = resolveAgeBand(age);
+    pushCount(ageCounts, band);
+
+    const jobSource = c.jobName || c.hearing?.desiredJob || '';
+    const jobCategory = resolveJobCategory(jobSource);
+    pushCount(jobCounts, jobCategory);
+
+    const mediaLabel = normalizeMediaSource(c.source);
+    pushCount(mediaCounts, mediaLabel);
+  }
+
+  const toDataset = map => ({
+    labels: Array.from(map.keys()),
+    data: Array.from(map.values())
+  });
+
+  return {
+    gender: toDataset(genderCounts),
+    ageGroups: toDataset(ageCounts),
+    jobCategories: toDataset(jobCounts),
+    mediaSources: toDataset(mediaCounts)
+  };
+}
+
+/**
+ * 過去1年分の「月別 選考転換率トレンド」を集計する
+ */
+export function buildTrendRatesFromCandidates(
+  candidates = [],
+  { startDate, endDate, advisorName = null } = {}
+) {
+  if (!startDate || !endDate) {
+    return { labels: [], rates: [] };
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start) || Number.isNaN(end) || start > end) {
+    return { labels: [], rates: [] };
+  }
+
+  const months = [];
+  {
+    const d = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (d <= last) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const monthKey = `${y}-${m}`;
+      const monthStart = `${monthKey}-01`;
+      const monthEnd = isoDate(new Date(y, d.getMonth() + 1, 0));
+      months.push({ month: monthKey, startDate: monthStart, endDate: monthEnd });
+      d.setMonth(d.getMonth() + 1);
+    }
+  }
+
+  const results = [];
+
+  for (const m of months) {
+    const range = { startDate: m.startDate, endDate: m.endDate };
+
+    const totals = advisorName
+      ? countPersonalTotals(candidates, range, advisorName)
+      : countCompanyTotals(candidates, range);
+
+    const { newInterviews, proposals, recommendations, interviewsScheduled, interviewsHeld, offers, accepts } = totals;
+
+    results.push({
+      month: m.month,
+      proposalRate: toRate(proposals, newInterviews),
+      recommendationRate: toRate(recommendations, proposals),
+      interviewScheduleRate: toRate(interviewsScheduled, recommendations),
+      interviewHeldRate: toRate(interviewsHeld, interviewsScheduled),
+      offerRate: toRate(offers, interviewsHeld),
+      acceptRate: toRate(accepts, offers),
+      hireRate: toRate(accepts, newInterviews)
+    });
+  }
+
+  return {
+    labels: results.map(r => r.month),
+    rates: results
+  };
+}
+
+/**
  * buildDailyMetricsFromCandidates
  * 候補者マスタ（phaseDates）から日別7KPIを集計
  */

@@ -1,4 +1,5 @@
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+import { getSession } from '../../scripts/auth.js';
 
 const KPI_FIELDS = [
   { key: 'newInterviewsTarget', label: '新規面談数' },
@@ -37,6 +38,8 @@ const state = {
   selectedPersonalPeriodId: '',
   selectedPersonalDailyPeriodId: ''
 };
+
+const getAdvisorName = () => getSession()?.user?.name || null;
 
 export function mount() {
   hydrateInitialState();
@@ -243,7 +246,7 @@ function renderCompanyTargets() {
 }
 
 function renderPersonalTargets() {
-  const target = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalPeriodId) || {};
+  const target = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalPeriodId, getAdvisorName()) || {};
   renderTargetTable('personalTargetTableBody', target);
 }
 
@@ -297,7 +300,7 @@ function handleSaveCompanyTarget() {
 function handleSavePersonalTarget() {
   if (!state.selectedPersonalPeriodId) return;
   const values = readTargetTable('personalTargetTableBody');
-  goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
+  goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values, getAdvisorName());
   showSaveStatus('personalTargetSaveStatus', '個人目標を保存しました');
 }
 
@@ -316,7 +319,7 @@ function renderDailyTargets() {
     return;
   }
   const dates = enumerateDates(period.startDate, period.endDate);
-  const savedTargets = goalSettingsService.getPersonalDailyTargets(period.id) || {};
+  const savedTargets = goalSettingsService.getPersonalDailyTargets(period.id, getAdvisorName()) || {};
 
   body.innerHTML = dates
     .map(date => {
@@ -339,7 +342,10 @@ function handleDistributeDailyTargets() {
   if (!period) return;
   const dates = enumerateDates(period.startDate, period.endDate);
   if (!dates.length) return;
-  const periodTarget = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalDailyPeriodId) || {};
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(
+    state.selectedPersonalDailyPeriodId,
+    getAdvisorName()
+  ) || {};
   const distributed = {};
   DAILY_FIELDS.forEach(field => {
     const raw = Number(periodTarget[field.key]);
@@ -371,7 +377,7 @@ function handleSaveDailyTargets() {
     });
     dailyTargets[date] = target;
   });
-  goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
+  goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets, getAdvisorName());
   showSaveStatus('dailyTargetSaveStatus', '日別目標を保存しました');
 }
 
