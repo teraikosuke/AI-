@@ -39,6 +39,8 @@ function writeState(data) {
   return data;
 }
 
+const advisorKey = name => (name && typeof name === 'string' ? name : 'default');
+
 function padMonth(value) {
   return String(value).padStart(2, '0');
 }
@@ -208,6 +210,7 @@ function ensureState() {
   data.personal = data.personal || {};
   data.personal.periodTargets = data.personal.periodTargets || {};
   data.personal.dailyTargets = data.personal.dailyTargets || {};
+  data.personalByAdvisor = data.personalByAdvisor || {};
   return writeState(data);
 }
 
@@ -278,33 +281,55 @@ export const goalSettingsService = {
     writeState(data);
     return data.company.periodTargets[periodId];
   },
-  getPersonalPeriodTarget(periodId) {
+  getPersonalPeriodTarget(periodId, advisorName) {
     const data = ensureState();
+    if (advisorName) {
+      const key = advisorKey(advisorName);
+      return (
+        data.personalByAdvisor?.[key]?.periodTargets?.[periodId] ||
+        data.personal?.periodTargets?.[periodId] ||
+        null
+      );
+    }
     return data.personal?.periodTargets?.[periodId] || null;
   },
-  savePersonalPeriodTarget(periodId, target = {}) {
+  savePersonalPeriodTarget(periodId, target = {}, advisorName) {
     if (!periodId) return null;
     const data = ensureState();
-    if (!data.personal) data.personal = {};
-    if (!data.personal.periodTargets) data.personal.periodTargets = {};
-    data.personal.periodTargets[periodId] = normalizeTarget(target);
+    const key = advisorKey(advisorName);
+    data.personalByAdvisor = data.personalByAdvisor || {};
+    data.personalByAdvisor[key] = data.personalByAdvisor[key] || {};
+    data.personalByAdvisor[key].periodTargets = data.personalByAdvisor[key].periodTargets || {};
+    data.personalByAdvisor[key].periodTargets[periodId] = normalizeTarget(target);
     writeState(data);
-    return data.personal.periodTargets[periodId];
+    return data.personalByAdvisor[key].periodTargets[periodId];
   },
-  getPersonalDailyTargets(periodId) {
+  getPersonalDailyTargets(periodId, advisorName) {
     const data = ensureState();
+    if (advisorName) {
+      const key = advisorKey(advisorName);
+      const byAdv = data.personalByAdvisor?.[key];
+      if (byAdv) {
+        return getDailyTargetsForPeriod({ personal: { dailyTargets: byAdv.dailyTargets } }, periodId);
+      }
+      return getDailyTargetsForPeriod(data, periodId);
+    }
     return getDailyTargetsForPeriod(data, periodId);
   },
-  savePersonalDailyTargets(periodId, dailyTargets = {}) {
+  savePersonalDailyTargets(periodId, dailyTargets = {}, advisorName) {
     if (!periodId) return {};
     const data = ensureState();
+    const key = advisorKey(advisorName);
+    data.personalByAdvisor = data.personalByAdvisor || {};
+    data.personalByAdvisor[key] = data.personalByAdvisor[key] || {};
+    data.personalByAdvisor[key].dailyTargets = data.personalByAdvisor[key].dailyTargets || {};
     const normalized = {};
     Object.entries(dailyTargets || {}).forEach(([date, target]) => {
       normalized[date] = normalizeTarget(target || {});
     });
-    setDailyTargetsForPeriod(data, periodId, normalized);
+    data.personalByAdvisor[key].dailyTargets[periodId] = normalized;
     writeState(data);
-    return normalized;
+    return data.personalByAdvisor[key].dailyTargets[periodId];
   },
   getPeriodByDate(dateStr, periods) {
     const data = ensureState();

@@ -8,7 +8,10 @@ import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 import {
   buildPersonalKpiFromCandidates,
   buildCompanyKpiFromCandidates,
-  buildDailyMetricsFromCandidates
+  buildDailyMetricsFromCandidates,
+  buildEmployeeKpiFromCandidates,
+  buildGenderAndAgeBreakdownFromCandidates,
+  buildTrendRatesFromCandidates
 } from './yield-metrics-from-candidates.js';
 
 const repositories = RepositoryFactory.create();
@@ -16,7 +19,7 @@ const kpiRepository = repositories.kpi;
 
 let candidateDataset = [];
 let candidateLoadedAt = null;
-const PERSONAL_ADVISOR_NAME = getSession()?.user?.name || null;
+const getAdvisorName = () => getSession()?.user?.name || null;
 
 async function ensureCandidateDataset() {
   if (candidateDataset.length) {
@@ -520,25 +523,31 @@ const state = {
     filters: { search: '', sortKey: 'name', sortOrder: 'asc' }
   },
   companyToday: {
+    rows: [],
     filters: { search: '', sortKey: 'name', sortOrder: 'asc' }
   },
   companyTerm: {
+    rows: [],
     filters: { search: '', sortKey: 'name', sortOrder: 'asc' }
   },
   dashboard: {
     personal: {
-      trendMode: 'month',
-      year: DASHBOARD_YEARS[0],
-      month: new Date().getMonth() + 1,
-      charts: {}
-    },
-    company: {
-      trendMode: 'month',
-      year: DASHBOARD_YEARS[0],
-      month: new Date().getMonth() + 1,
-      charts: {}
-    }
+    trendMode: 'month',
+    year: DASHBOARD_YEARS[0],
+    month: new Date().getMonth() + 1,
+    charts: {},
+    trendData: null,
+    breakdown: null
+  },
+  company: {
+    trendMode: 'month',
+    year: DASHBOARD_YEARS[0],
+    month: new Date().getMonth() + 1,
+    charts: {},
+    trendData: null,
+    breakdown: null
   }
+}
 };
 
 let chartJsPromise = null;
@@ -546,6 +555,15 @@ let chartJsPromise = null;
 function getCurrentMonthRange() {
   const end = new Date();
   const start = new Date(end.getFullYear(), end.getMonth(), 1);
+  return {
+    startDate: isoDate(start),
+    endDate: isoDate(end)
+  };
+}
+
+function getOneYearRange() {
+  const end = new Date();
+  const start = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
   return {
     startDate: isoDate(start),
     endDate: isoDate(end)
@@ -614,6 +632,18 @@ function mapTargetsToGoals(target = {}) {
   }, {});
 }
 
+function resolveAdvisorGoal(periodId, dateStr, advisorName, targetKey) {
+  if (!periodId || !targetKey) return null;
+  const dailyTargets = goalSettingsService.getPersonalDailyTargets(periodId, advisorName) || {};
+  const daily = dailyTargets[dateStr];
+  if (daily && daily[targetKey] !== undefined && daily[targetKey] !== null) {
+    return num(daily[targetKey]);
+  }
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
+  const value = periodTarget[targetKey];
+  return value === undefined || value === null ? null : num(value);
+}
+
 function updateGoalStorage(storageKey, updates = {}) {
   const current = readGoals(storageKey);
   const merged = { ...current, ...updates };
@@ -622,7 +652,7 @@ function updateGoalStorage(storageKey, updates = {}) {
 }
 
 function seedMonthlyGoalsFromSettings() {
-  const target = goalSettingsService.getPersonalPeriodTarget(state.personalEvaluationPeriodId) || {};
+  const target = goalSettingsService.getPersonalPeriodTarget(state.personalEvaluationPeriodId, getAdvisorName()) || {};
   const mapped = mapTargetsToGoals(target);
   updateGoalStorage(MONTHLY_GOAL_KEY, mapped);
 }
@@ -630,9 +660,13 @@ function seedMonthlyGoalsFromSettings() {
 function seedTodayGoalsFromSettings() {
   const todayStr = isoDate(new Date());
   const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(todayStr) || state.personalEvaluationPeriodId;
-  const dailyTargets = todayPeriodId ? goalSettingsService.getPersonalDailyTargets(todayPeriodId) : {};
+  const dailyTargets = todayPeriodId
+    ? goalSettingsService.getPersonalDailyTargets(todayPeriodId, getAdvisorName())
+    : {};
   const dayTarget = dailyTargets?.[todayStr];
-  const fallback = todayPeriodId ? goalSettingsService.getPersonalPeriodTarget(todayPeriodId) : {};
+  const fallback = todayPeriodId
+    ? goalSettingsService.getPersonalPeriodTarget(todayPeriodId, getAdvisorName())
+    : {};
   const mapped = mapTargetsToGoals(dayTarget || fallback || {});
   updateGoalStorage(TODAY_GOAL_KEY, mapped);
 }
@@ -845,7 +879,7 @@ function initializeCompanyPeriodSections() {
   termSortSelect?.addEventListener('change', handleCompanyTermSort);
 
   renderCompanyTodayTable();
-  renderCompanyTermTables();
+    renderCompanyTermTables();
 }
 
 function initGoalInputs(scope) {
@@ -1021,7 +1055,10 @@ function renderPersonalSummary(rangeData, monthOverride) {
     currentAmount: num(monthOverride?.currentAmount ?? rangeData?.currentAmount),
     targetAmount: num(monthOverride?.targetAmount ?? rangeData?.targetAmount)
   };
-  const periodTarget = goalSettingsService.getPersonalPeriodTarget(state.personalEvaluationPeriodId);
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(
+    state.personalEvaluationPeriodId,
+    getAdvisorName()
+  );
   if (periodTarget?.revenueTarget !== undefined) {
     summary.targetAmount = num(periodTarget.revenueTarget);
   }
@@ -1150,6 +1187,12 @@ async function loadYieldData() {
     const companyPeriod = await loadCompanyPeriodKPIData();
     if (companyPeriod) renderCompanyPeriod(companyPeriod);
 
+    const todayEmployeeRows = await loadCompanyTodayEmployeeKpi();
+    if (todayEmployeeRows?.length) renderCompanyTodayTable();
+
+    const companyTermRows = await loadCompanyTermEmployeeKpi();
+    if (companyTermRows?.length) renderCompanyTermTables();
+
     await loadAndRenderPersonalDaily();
     await loadAndRenderCompanyDaily();
 
@@ -1172,7 +1215,7 @@ async function loadPersonalKPIData() {
     const kpi = buildPersonalKpiFromCandidates(candidates, {
       startDate,
       endDate,
-      advisorName: PERSONAL_ADVISOR_NAME
+      advisorName: getAdvisorName()
     });
     return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
@@ -1191,7 +1234,7 @@ async function loadPersonalSummaryKPIData() {
     const kpi = buildPersonalKpiFromCandidates(candidates, {
       startDate,
       endDate,
-      advisorName: PERSONAL_ADVISOR_NAME
+      advisorName: getAdvisorName()
     });
     return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
@@ -1207,7 +1250,7 @@ async function loadTodayPersonalKPIData() {
     const kpi = buildPersonalKpiFromCandidates(candidates, {
       startDate: todayStr,
       endDate: todayStr,
-      advisorName: PERSONAL_ADVISOR_NAME
+      advisorName: getAdvisorName()
     });
     return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
@@ -1224,7 +1267,7 @@ async function loadMonthToDatePersonalKPIData() {
     const kpi = buildPersonalKpiFromCandidates(candidates, {
       startDate: isoDate(startOfMonth),
       endDate: isoDate(today),
-      advisorName: PERSONAL_ADVISOR_NAME
+      advisorName: getAdvisorName()
     });
     return kpi && !Array.isArray(kpi) ? kpi : null;
   } catch (error) {
@@ -1268,6 +1311,93 @@ async function loadCompanyPeriodKPIData() {
   }
 }
 
+async function loadCompanyTodayEmployeeKpi() {
+  const todayStr = isoDate(new Date());
+  const candidates = await ensureCandidateDataset();
+  const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(todayStr, state.evaluationPeriods);
+
+  const rows = buildEmployeeKpiFromCandidates(candidates, {
+    startDate: todayStr,
+    endDate: todayStr
+  });
+
+  state.companyToday.rows = rows.map(row => ({
+    name: row.name,
+    newInterviews: row.newInterviews,
+    newInterviewsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'newInterviewsTarget'),
+    proposals: row.proposals,
+    proposalsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'proposalsTarget'),
+    recommendations: row.recommendations,
+    recommendationsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'recommendationsTarget'),
+    interviewsScheduled: row.interviewsScheduled,
+    interviewsScheduledGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'interviewsScheduledTarget'),
+    interviewsHeld: row.interviewsHeld,
+    interviewsHeldGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'interviewsHeldTarget'),
+    offers: row.offers,
+    offersGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'offersTarget'),
+    accepts: row.accepts,
+    acceptsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'acceptsTarget')
+  }));
+
+  return state.companyToday.rows;
+}
+
+async function loadCompanyTermEmployeeKpi() {
+  const periodId = state.companyTermPeriodId;
+  const period = state.evaluationPeriods.find(item => item.id === periodId);
+  if (!period) {
+    state.companyTerm.rows = [];
+    return [];
+  }
+
+  const candidates = await ensureCandidateDataset();
+  const rows = buildEmployeeKpiFromCandidates(candidates, {
+    startDate: period.startDate,
+    endDate: period.endDate
+  });
+
+  state.companyTerm.rows = rows.map(row => {
+    const target = goalSettingsService.getPersonalPeriodTarget(periodId, row.name) || {};
+    const goalOrNull = key => {
+      const raw = target[key];
+      return raw === undefined || raw === null ? null : num(raw);
+    };
+    return {
+      name: row.name,
+      newInterviews: row.newInterviews,
+      newInterviewsGoal: goalOrNull('newInterviewsTarget'),
+      proposals: row.proposals,
+      proposalsGoal: goalOrNull('proposalsTarget'),
+      recommendations: row.recommendations,
+      recommendationsGoal: goalOrNull('recommendationsTarget'),
+      interviewsScheduled: row.interviewsScheduled,
+      interviewsScheduledGoal: goalOrNull('interviewsScheduledTarget'),
+      interviewsHeld: row.interviewsHeld,
+      interviewsHeldGoal: goalOrNull('interviewsHeldTarget'),
+      offers: row.offers,
+      offersGoal: goalOrNull('offersTarget'),
+      accepts: row.accepts,
+      acceptsGoal: goalOrNull('acceptsTarget'),
+      hireRate: row.hireRate,
+      hireRateGoal: goalOrNull('hireRateTarget'),
+      proposalRate: row.proposalRate,
+      proposalRateGoal: goalOrNull('proposalRateTarget'),
+      recommendationRate: row.recommendationRate,
+      recommendationRateGoal: goalOrNull('recommendationRateTarget'),
+      interviewScheduleRate: row.interviewScheduleRate,
+      interviewScheduleRateGoal: goalOrNull('interviewScheduleRateTarget'),
+      interviewHeldRate: row.interviewHeldRate,
+      interviewHeldRateGoal: goalOrNull('interviewHeldRateTarget'),
+      offerRate: row.offerRate,
+      offerRateGoal: goalOrNull('offerRateTarget'),
+      acceptRate: row.acceptRate,
+      acceptRateGoal: goalOrNull('acceptRateTarget')
+    };
+  });
+
+  return state.companyTerm.rows;
+}
+
 async function loadAndRenderPersonalDaily() {
   const periodId = state.personalDailyPeriodId;
   if (!periodId) return;
@@ -1299,7 +1429,7 @@ async function loadPersonalDailyKpiData(periodId) {
   const daily = buildDailyMetricsFromCandidates(candidates, {
     startDate: period.startDate,
     endDate: period.endDate,
-    advisorName: PERSONAL_ADVISOR_NAME
+    advisorName: getAdvisorName()
   });
 
   console.log('[yield] personal daily metrics', {
@@ -1338,7 +1468,7 @@ function buildDailyHeaderRow(headerRow, dates) {
       return `<th scope="col">${label}</th>`;
     })
     .join('');
-  headerRow.innerHTML = `<th scope="col" class="kpi-v2-sticky-label">指標</th><th scope="col">区分</th>${cells}`;
+  headerRow.innerHTML = `<th scope="col" class="kpi-v2-sticky-label">指標</th><th class="daily-type" scope="col">区分</th>${cells}`;
 }
 
 function buildDailyRow(label, cells, { rowClass = '', cellClass = '' } = {}) {
@@ -1410,7 +1540,7 @@ function formatAchievementCell(percent) {
   if (percent === null || Number.isNaN(percent)) {
     return { value: '--%', className: 'daily-muted' };
   }
-  const className = percent > 100 ? 'daily-achv-high' : 'daily-achv-normal';
+  const className = percent >= 100 ? 'daily-achv-high' : 'daily-achv-normal';
   return { value: `${percent}%`, className };
 }
 
@@ -1433,8 +1563,9 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
     return;
   }
   const dates = enumeratePeriodDates(period);
-  const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId) || {};
-  const savedTargets = goalSettingsService.getPersonalDailyTargets(periodId) || {};
+  const advisorName = getAdvisorName();
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
+  const savedTargets = goalSettingsService.getPersonalDailyTargets(periodId, advisorName) || {};
   const perDayFallback = DAILY_FIELDS.reduce((acc, field) => {
     const total = num(periodTarget[field.targetKey]) || DEFAULT_DAILY_TARGETS[field.targetKey] || 0;
     const span = dates.length ? Math.max(1, Math.round(total / dates.length)) : total;
@@ -1482,7 +1613,9 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
     return;
   }
   const dates = enumeratePeriodDates(period);
-  const periodTarget = goalSettingsService.getCompanyPeriodTarget(periodId) || {};
+  const advisorName = employeeId || null;
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
+  const savedTargets = goalSettingsService.getPersonalDailyTargets(periodId, advisorName) || {};
   const perDayFallback = DAILY_FIELDS.reduce((acc, field) => {
     const totalTarget = num(periodTarget[field.targetKey]) || DEFAULT_DAILY_TARGETS[field.targetKey] || 0;
     const span = dates.length ? Math.max(1, Math.round(totalTarget / dates.length)) : totalTarget;
@@ -1498,7 +1631,9 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
     dailyData,
     resolveValues: (field, date) => {
       const actual = dailyData[date] || {};
-      const expected = perDayFallback[field.targetKey] || 0;
+      const target = savedTargets[date] || {};
+      const expected =
+        target[field.targetKey] !== undefined ? num(target[field.targetKey]) : perDayFallback[field.targetKey] || 0;
       return { actual: actual[field.dataKey], target: expected };
     }
   });
@@ -1536,17 +1671,16 @@ async function loadEmployeeData(rangeFilters = {}) {
     if (startInput && range.startDate) startInput.value = range.startDate;
     if (endInput && range.endDate) endInput.value = range.endDate;
 
-    const filters = { search: state.employees.filters.search };
-    if (range.startDate) filters.from = range.startDate;
-    if (range.endDate) filters.to = range.endDate;
-
-    const raw = await kpiRepository.getEmployeePerformance(filters);
-    const data = Array.isArray(raw) ? raw : Array.isArray(raw?.employees) ? raw.employees : [];
-    state.employees.list = [...data];
+    const candidates = await ensureCandidateDataset();
+    const rows = buildEmployeeKpiFromCandidates(candidates, {
+      startDate: range.startDate,
+      endDate: range.endDate
+    });
+    state.employees.list = [...rows];
     renderEmployeeRows();
-    return data;
+    return rows;
   } catch (error) {
-    console.error('Failed to load employee data:', error);
+    console.error('Failed to load employee data (from candidates):', error);
     state.employees.list = [];
     renderEmployeeRows([]);
     return [];
@@ -1613,61 +1747,28 @@ function normalizeTodayKpi(data) {
   return { ...normalizeCounts(fallback), ...normalizePrev(prevSource) };
 }
 
-function computeEmployeeColumnTopValues(rows = []) {
-  const metrics = [
-    'proposals',
-    'recommendations',
-    'interviewsScheduled',
-    'interviewsHeld',
-    'offers',
-    'accepts',
-    'proposalRate',
-    'recommendationRate',
-    'interviewScheduleRate',
-    'interviewHeldRate',
-    'offerRate',
-    'acceptRate'
-  ];
-  return metrics.reduce((acc, metric) => {
-    const uniqueValues = Array.from(
-      new Set(rows.map(row => (Number.isFinite(Number(row?.[metric])) ? Number(row[metric]) : 0)))
-    )
-      .sort((a, b) => b - a)
-      .slice(0, 3);
-    acc[metric] = uniqueValues;
-    return acc;
-  }, {});
-}
-
-function updateEmployeeDisplay(rows, topValues = {}) {
+function updateEmployeeDisplay(rows) {
   const tableBody = document.getElementById('employeeTableBody');
   if (!tableBody) return;
-
-  const getRankClass = (metric, value) => {
-    const metricTop = topValues?.[metric];
-    if (!metricTop) return '';
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return '';
-    const index = metricTop.findIndex(val => val === numeric);
-    return index >= 0 ? `kpi-v2-rank-${index + 1}` : '';
-  };
 
   tableBody.innerHTML = rows
     .map(employee => `
     <tr>
       <td>${employee.name || ''}</td>
-      <td class="${getRankClass('proposals', employee.proposals)}">${employee.proposals ?? ''}</td>
-      <td class="${getRankClass('recommendations', employee.recommendations)}">${employee.recommendations ?? ''}</td>
-      <td class="${getRankClass('interviewsScheduled', employee.interviewsScheduled)}">${employee.interviewsScheduled ?? ''}</td>
-      <td class="${getRankClass('interviewsHeld', employee.interviewsHeld)}">${employee.interviewsHeld ?? ''}</td>
-      <td class="${getRankClass('offers', employee.offers)}">${employee.offers ?? ''}</td>
-      <td class="${getRankClass('accepts', employee.accepts)}">${employee.accepts ?? ''}</td>
-      <td class="${getRankClass('proposalRate', employee.proposalRate)}">${employee.proposalRate ?? ''}%</td>
-      <td class="${getRankClass('recommendationRate', employee.recommendationRate)}">${employee.recommendationRate ?? ''}%</td>
-      <td class="${getRankClass('interviewScheduleRate', employee.interviewScheduleRate)}">${employee.interviewScheduleRate ?? ''}%</td>
-      <td class="${getRankClass('interviewHeldRate', employee.interviewHeldRate)}">${employee.interviewHeldRate ?? ''}%</td>
-      <td class="${getRankClass('offerRate', employee.offerRate)}">${employee.offerRate ?? ''}%</td>
-      <td class="${getRankClass('acceptRate', employee.acceptRate)}">${employee.acceptRate ?? ''}%</td>
+      <td>${employee.newInterviews ?? ''}</td>
+      <td>${employee.proposals ?? ''}</td>
+      <td>${employee.recommendations ?? ''}</td>
+      <td>${employee.interviewsScheduled ?? ''}</td>
+      <td>${employee.interviewsHeld ?? ''}</td>
+      <td>${employee.offers ?? ''}</td>
+      <td>${employee.accepts ?? ''}</td>
+      <td>${employee.proposalRate ?? ''}%</td>
+      <td>${employee.recommendationRate ?? ''}%</td>
+      <td>${employee.interviewScheduleRate ?? ''}%</td>
+      <td>${employee.interviewHeldRate ?? ''}%</td>
+      <td>${employee.offerRate ?? ''}%</td>
+      <td>${employee.acceptRate ?? ''}%</td>
+      <td>${employee.hireRate ?? ''}%</td>
     </tr>
   `)
     .join('');
@@ -1693,8 +1794,7 @@ function filterAndSortEmployees(rows) {
 
 function renderEmployeeRows(source = state.employees.list) {
   const rows = filterAndSortEmployees(source);
-  const topValues = computeEmployeeColumnTopValues(rows);
-  updateEmployeeDisplay(rows, topValues);
+  updateEmployeeDisplay(rows);
 }
 
 function applyEmployeeSearch(rawValue) {
@@ -1731,16 +1831,22 @@ function filterAndSortGeneric(rows, filters = {}) {
 }
 
 function formatAchvPercent(current, goal) {
+  if (goal === null || goal === undefined) return { text: '--%', className: 'daily-muted' };
   if (!Number.isFinite(num(goal)) || num(goal) === 0) return { text: '--%', className: 'daily-muted' };
   const percent = Math.round((num(current) / num(goal)) * 100);
-  const className = percent > 100 ? 'daily-achv-high' : 'daily-achv-normal';
+  const className = percent >= 100 ? 'daily-achv-high' : 'daily-achv-normal';
   return { text: `${percent}%`, className };
+}
+
+function displayGoal(value) {
+  if (value === null || value === undefined) return '--';
+  return num(value).toLocaleString();
 }
 
 function renderCompanyTodayTable() {
   const body = document.getElementById('companyTodayTableBody');
   if (!body) return;
-  const rows = filterAndSortGeneric(COMPANY_TODAY_ROWS, state.companyToday.filters);
+  const rows = filterAndSortGeneric(state.companyToday.rows || [], state.companyToday.filters);
   body.innerHTML = rows
     .map(row => {
       const achv = key => {
@@ -1749,12 +1855,13 @@ function renderCompanyTodayTable() {
       };
       const renderCell = (key, labelGoal) => `
         <td class="term-count">${num(row[key]).toLocaleString()}</td>
-        <td class="term-count term-goal">${num(row[labelGoal]).toLocaleString()}</td>
+        <td class="term-count term-goal">${displayGoal(row[labelGoal])}</td>
         ${achv(key)}
       `;
       return `
         <tr>
           <td>${row.name}</td>
+          ${renderCell('newInterviews', 'newInterviewsGoal')}
           ${renderCell('proposals', 'proposalsGoal')}
           ${renderCell('recommendations', 'recommendationsGoal')}
           ${renderCell('interviewsScheduled', 'interviewsScheduledGoal')}
@@ -1770,7 +1877,7 @@ function renderCompanyTodayTable() {
 function renderCompanyTermTables() {
   const body = document.getElementById('companyTermCombinedBody');
   if (!body) return;
-  const rows = filterAndSortGeneric(COMPANY_TERM_ROWS, state.companyTerm.filters);
+  const rows = filterAndSortGeneric(state.companyTerm.rows || [], state.companyTerm.filters);
   body.innerHTML = rows
     .map(row => {
       const achv = key => {
@@ -1779,23 +1886,25 @@ function renderCompanyTermTables() {
       };
       const renderCountCell = (key, goalKey) => `
         <td class="term-count">${num(row[key]).toLocaleString()}</td>
-        <td class="term-count term-goal">${num(row[goalKey]).toLocaleString()}</td>
+        <td class="term-count term-goal">${displayGoal(row[goalKey])}</td>
         ${achv(key)}
       `;
       const renderRateCell = (key, goalKey) => `
         <td class="term-rate">${num(row[key])}%</td>
-        <td class="term-rate term-goal">${num(row[goalKey])}%</td>
+        <td class="term-rate term-goal">${displayGoal(row[goalKey])}%</td>
         ${achv(key)}
       `;
       return `
         <tr>
           <td>${row.name}</td>
+          ${renderCountCell('newInterviews', 'newInterviewsGoal')}
           ${renderCountCell('proposals', 'proposalsGoal')}
           ${renderCountCell('recommendations', 'recommendationsGoal')}
           ${renderCountCell('interviewsScheduled', 'interviewsScheduledGoal')}
           ${renderCountCell('interviewsHeld', 'interviewsHeldGoal')}
           ${renderCountCell('offers', 'offersGoal')}
           ${renderCountCell('accepts', 'acceptsGoal')}
+          ${renderRateCell('hireRate', 'hireRateGoal')}
           ${renderRateCell('proposalRate', 'proposalRateGoal')}
           ${renderRateCell('recommendationRate', 'recommendationRateGoal')}
           ${renderRateCell('interviewScheduleRate', 'interviewScheduleRateGoal')}
@@ -1986,8 +2095,9 @@ function handleCompanyPeriodChange(event) {
   loadCompanySummaryKPI();
 }
 
-function handleCompanyTermPeriodChange(event) {
+async function handleCompanyTermPeriodChange(event) {
   state.companyTermPeriodId = event.target.value || '';
+  await loadCompanyTermEmployeeKpi();
   renderCompanyTermTables();
 }
 
@@ -2057,10 +2167,43 @@ function ensureChartJs() {
   return chartJsPromise;
 }
 
-function initializeDashboardSection() {
+async function initializeDashboardSection() {
   const panels = Array.from(document.querySelectorAll('.dashboard-panel[data-dashboard-scope]'));
   const scopes = Array.from(new Set(panels.map(panel => panel.dataset.dashboardScope).filter(scope => scope && state.dashboard[scope])));
   if (!scopes.length) return;
+
+  try {
+    const candidates = await ensureCandidateDataset();
+    const range = getOneYearRange();
+    const advisorName = getAdvisorName();
+
+    state.dashboard.personal.breakdown = buildGenderAndAgeBreakdownFromCandidates(candidates, {
+      startDate: range.startDate,
+      endDate: range.endDate,
+      advisorName
+    });
+
+    state.dashboard.company.breakdown = buildGenderAndAgeBreakdownFromCandidates(candidates, {
+      startDate: range.startDate,
+      endDate: range.endDate,
+      advisorName: null
+    });
+
+    state.dashboard.personal.trendData = buildTrendRatesFromCandidates(candidates, {
+      startDate: range.startDate,
+      endDate: range.endDate,
+      advisorName
+    });
+
+    state.dashboard.company.trendData = buildTrendRatesFromCandidates(candidates, {
+      startDate: range.startDate,
+      endDate: range.endDate,
+      advisorName: null
+    });
+  } catch (error) {
+    console.error('[yield] failed to build dashboard breakdown:', error);
+  }
+
   ensureChartJs()
     .then(() => {
       scopes.forEach(scope => {
@@ -2151,8 +2294,20 @@ function renderTrendChart(scope) {
 
 function renderCategoryChart({ scope, chartId, datasetKey, type }) {
   const canvas = document.getElementById(chartId);
-  const dataset = mockDashboardData[scope]?.[datasetKey];
-  if (!canvas || !dataset || !window.Chart) return;
+  if (!canvas || !window.Chart) return;
+
+  const breakdown = state.dashboard[scope]?.breakdown;
+  let dataset = null;
+  if (breakdown && breakdown[datasetKey]) {
+    dataset = breakdown[datasetKey];
+  } else {
+    dataset = mockDashboardData[scope]?.[datasetKey];
+  }
+
+  if (!dataset || !Array.isArray(dataset.labels) || !Array.isArray(dataset.data)) {
+    return;
+  }
+
   destroyChart(scope, chartId);
   const colors = getChartColors(dataset.labels.length, type === 'doughnut' ? 0.9 : 0.25);
   const data = {
@@ -2183,17 +2338,58 @@ function renderCategoryChart({ scope, chartId, datasetKey, type }) {
 
 function buildTrendChartConfig(scope) {
   const current = state.dashboard[scope];
-  const labels = current.trendMode === 'month' ? createTrendDayLabels(current.year, current.month) : DASHBOARD_MONTHS.map(month => `${month}月`);
-  const datasets = RATE_KEYS.map((label, idx) => ({
-    label,
-    data: labels.map((_, index) => generateRateValue(scope, label, current.trendMode, index, idx)),
-    borderColor: DASHBOARD_COLORS[idx % DASHBOARD_COLORS.length],
-    backgroundColor: hexToRgba(DASHBOARD_COLORS[idx % DASHBOARD_COLORS.length], 0.15),
-    tension: 0.35,
-    fill: false,
-    pointRadius: 2,
-    pointHoverRadius: 4
-  }));
+  const trend = current.trendData;
+
+  let labels = [];
+  let series = null;
+
+  if (trend && Array.isArray(trend.labels) && Array.isArray(trend.rates) && trend.labels.length) {
+    labels = trend.labels;
+    series = trend.rates;
+  } else {
+    const fallbackLabels =
+      current.trendMode === 'month'
+        ? createTrendDayLabels(current.year, current.month)
+        : DASHBOARD_MONTHS.map(month => `${month}月`);
+    labels = fallbackLabels;
+  }
+
+  const keyMap = {
+    提案率: 'proposalRate',
+    推薦率: 'recommendationRate',
+    面接設定率: 'interviewScheduleRate',
+    面接実施率: 'interviewHeldRate',
+    内定率: 'offerRate',
+    承諾率: 'acceptRate',
+    入社決定率: 'hireRate'
+  };
+
+  const datasets = RATE_KEYS.map((label, idx) => {
+    let data = [];
+
+    if (series) {
+      const key = keyMap[label] || null;
+      if (key) {
+        data = series.map(row => Number(row[key] || 0));
+      } else {
+        data = series.map(() => 0);
+      }
+    } else {
+      data = labels.map((_, index) => generateRateValue(scope, label, current.trendMode, index, idx));
+    }
+
+    return {
+      label,
+      data,
+      borderColor: DASHBOARD_COLORS[idx % DASHBOARD_COLORS.length],
+      backgroundColor: hexToRgba(DASHBOARD_COLORS[idx % DASHBOARD_COLORS.length], 0.15),
+      tension: 0.35,
+      fill: false,
+      pointRadius: 2,
+      pointHoverRadius: 4
+    };
+  });
+
   return { labels, datasets };
 }
 

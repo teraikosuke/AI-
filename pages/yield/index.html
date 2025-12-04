@@ -1098,6 +1098,7 @@
             </div>
             <select id="companyTodaySortSelect" class="kpi-v2-sort-select">
               <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
               <option value="proposals-desc">提案数（降順）</option>
               <option value="offers-desc">内定数（降順）</option>
               <option value="accepts-desc">承諾数（降順）</option>
@@ -1110,6 +1111,7 @@
               <thead>
                 <tr>
                   <th scope="col" rowspan="2">社員名</th>
+                  <th scope="colgroup" colspan="3">新規面談数</th>
                   <th scope="colgroup" colspan="3">提案数</th>
                   <th scope="colgroup" colspan="3">推薦数</th>
                   <th scope="colgroup" colspan="3">面接設定数</th>
@@ -1118,6 +1120,9 @@
                   <th scope="colgroup" colspan="3">承諾数</th>
                 </tr>
                 <tr>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
@@ -1162,9 +1167,11 @@
             </div>
             <select id="companyTermSortSelect" class="kpi-v2-sort-select">
               <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
               <option value="proposals-desc">提案数（降順）</option>
               <option value="offers-desc">内定数（降順）</option>
               <option value="accepts-desc">承諾数（降順）</option>
+              <option value="hireRate-desc">入社決定率（降順）</option>
               <option value="proposalRate-desc">提案率（降順）</option>
               <option value="acceptRate-desc">承諾率（降順）</option>
             </select>
@@ -1176,12 +1183,14 @@
               <thead>
                 <tr>
                   <th scope="col" rowspan="2">社員名</th>
+                  <th scope="colgroup" colspan="3">新規面談数</th>
                   <th scope="colgroup" colspan="3">提案数</th>
                   <th scope="colgroup" colspan="3">推薦数</th>
                   <th scope="colgroup" colspan="3">面接設定数</th>
                   <th scope="colgroup" colspan="3">面接実施数</th>
                   <th scope="colgroup" colspan="3">内定数</th>
                   <th scope="colgroup" colspan="3">承諾数</th>
+                  <th scope="colgroup" colspan="3">入社決定率</th>
                   <th scope="colgroup" colspan="3">提案率</th>
                   <th scope="colgroup" colspan="3">推薦率</th>
                   <th scope="colgroup" colspan="3">面接設定率</th>
@@ -1190,40 +1199,60 @@
                   <th scope="colgroup" colspan="3">承諾率</th>
                 </tr>
                 <tr>
-                  <!-- 12指標 × (数・目標・達成率) -->
+                  <!-- 指標ごと (数・目標・達成率) -->
+                  <!-- 新規面談数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 提案数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 推薦数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接設定数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接実施数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 内定数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 承諾数 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 入社決定率 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 提案率 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 推薦率 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接設定率 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接実施率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 内定率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 承諾率 -->
                   <th scope="col" class="kpi-term-set">数</th>
                   <th scope="col" class="kpi-term-set">目標</th>
                   <th scope="col" class="kpi-term-set">達成率</th>
@@ -1245,9 +1274,11 @@
             </div>
             <select id="employeeSortSelect" class="kpi-v2-sort-select">
               <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
               <option value="proposals-desc">提案数（降順）</option>
               <option value="offers-desc">内定数（降順）</option>
               <option value="acceptRate-desc">承諾率（降順）</option>
+              <option value="hireRate-desc">入社決定率（降順）</option>
             </select>
             <div class="kpi-v2-preset-group" id="employeePeriodPresets">
               <button type="button" class="period-preset-btn employee" data-range="1">今月</button>
@@ -1267,10 +1298,11 @@
 
         <div id="employeeTableView" class="kpi-v2-employee-table-wrapper table-white">
           <div class="kpi-v2-scroll-area">
-            <table class="kpi-v2-employee-table">
+            <table class="kpi-v2-employee-table kpi-v2-employee-kpi">
               <thead>
                 <tr>
                   <th scope="col">社員名</th>
+                  <th scope="col">新規面談数</th>
                   <th scope="col">提案数</th>
                   <th scope="col">推薦数</th>
                   <th scope="col">面接設定数</th>
@@ -1283,6 +1315,7 @@
                   <th scope="col">面接実施率</th>
                   <th scope="col">内定率</th>
                   <th scope="col">承諾率</th>
+                  <th scope="col">入社決定率</th>
                 </tr>
               </thead>
               <tbody id="employeeTableBody">
