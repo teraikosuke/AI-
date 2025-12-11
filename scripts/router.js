@@ -16,6 +16,7 @@ const routes = {
   'referral':     () => import('../pages/referral/referral.js'),
   'settings':     () => import('../pages/settings/settings.js'),
   'members':      () => import('../pages/members/members.js'),
+  'kpi-summery-test': () => import('../pages/kpi-summery-test/kpi-summery-test.js'),
 };
 
 export const routeMeta = {
@@ -27,6 +28,7 @@ export const routeMeta = {
   referral:       { roles: ['admin', 'member'] },
   settings:       { roles: ['admin', 'member'] },
   members:        { roles: ['admin', 'member'] },
+  'kpi-summery-test': { roles: ['admin', 'member'] },
 };
 
 // CSS files for specific pages
@@ -39,6 +41,7 @@ const pageCSS = {
   'referral': 'pages/referral/referral.css',
   'settings': 'pages/settings/settings.css',
   'members': 'pages/members/members.css',
+  'kpi-summery-test': 'pages/kpi-summery-test/kpi-summery-test.css',
 };
 
 let current = null;
