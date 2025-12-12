@@ -64,14 +64,39 @@
 
 .candidates-table-card .table-grid {
   table-layout: fixed;
+  min-width: 2200px;
 }
 
-.candidates-table-card .table-grid th,
-.candidates-table-card .table-grid td {
+.candidates-table-card .table-grid th {
   padding: 0.5rem 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.candidates-table-card .table-grid td {
+  padding: 0.6rem 0.75rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: initial;
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.table-inline-input,
+.table-inline-textarea {
+  width: 100%;
+  border: 1px solid #cbd5f5;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  background-color: #ffffff;
+}
+
+.table-inline-textarea {
+  min-height: 60px;
+  resize: vertical;
 }
 
 .candidates-table-card .table-grid .cell-wrap {
@@ -85,7 +110,32 @@
   justify-content: space-between;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(90deg, rgba(129, 140, 248, 0.08), rgba(236, 233, 252, 0.6));
+  background: linear-gradient(
+    90deg,
+    rgba(129, 140, 248, 0.08),
+    rgba(236, 233, 252, 0.6)
+  );
+}
+
+.table-action-btn {
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 0.35rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4338ca;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.table-action-btn:hover {
+  background-color: #eef2ff;
+}
+
+.table-action-btn.is-active {
+  background-color: #4338ca;
+  color: #ffffff;
+  border-color: #4338ca;
 }
 
 .candidate-detail-modal {
@@ -268,6 +318,10 @@ body.has-modal-open {
 .candidate-detail-section-header {
   padding: 0.85rem 1.1rem;
   border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .candidate-detail-section-header h4 {
@@ -276,11 +330,113 @@ body.has-modal-open {
   color: #0f172a;
 }
 
+.detail-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.detail-edit-btn {
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 0.2rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background-color: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.detail-edit-btn.is-active {
+  color: #fff;
+  background-color: #4338ca;
+  border-color: #4338ca;
+}
+
+.detail-template-btn {
+  border: 1px dashed #a5b4fc;
+  border-radius: 999px;
+  padding: 0.2rem 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4338ca;
+  background-color: #eef2ff;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.detail-template-btn.is-active {
+  background-color: #4338ca;
+  color: #fff;
+  border-color: #4338ca;
+}
+
+.detail-template-close {
+  border: none;
+  background: transparent;
+  color: #4338ca;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .candidate-detail-section-body {
   padding: 1rem 1.1rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.hearing-template-panel {
+  border: 1px dashed #c7d2fe;
+  border-radius: 0.75rem;
+  background-color: #eef2ff;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.hearing-template-panel.is-readonly {
+  opacity: 0.8;
+}
+
+.hearing-template-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #475569;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hearing-template-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.template-pill {
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 0.2rem 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4338ca;
+  background-color: #fff;
+  transition: all 0.2s ease;
+}
+
+.template-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.template-pill:not(:disabled):hover {
+  background-color: #eef2ff;
 }
 
 .detail-grid {
@@ -306,7 +462,42 @@ body.has-modal-open {
   font-size: 0.9rem;
   color: #0f172a;
   font-weight: 500;
-  min-height: 1.5rem;
+  min-height: 2.2rem;
+}
+
+.detail-value {
+  display: block;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  background-color: #f8fafc;
+  color: #0f172a;
+  line-height: 1.4;
+  min-height: 2rem;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.detail-value a {
+  display: inline-block;
+  max-width: 100%;
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.detail-value-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  width: auto;
+}
+
+.detail-inline-textarea {
+  min-height: 90px;
 }
 
 .detail-textarea-grid {
@@ -352,6 +543,10 @@ body.has-modal-open {
   padding: 0.5rem;
   font-size: 0.75rem;
   background-color: #ffffff;
+}
+
+.detail-table-actions {
+  min-width: 80px;
 }
 
 .detail-table th {
@@ -433,6 +628,10 @@ body.has-modal-open {
   color: #475569;
 }
 
+.repeatable-row .detail-value {
+  flex: 1;
+}
+
 .repeatable-input {
   flex: 1;
   min-width: 180px;
@@ -440,6 +639,20 @@ body.has-modal-open {
   border-radius: 0.45rem;
   padding: 0.45rem 0.6rem;
   font-size: 0.85rem;
+}
+
+.repeatable-remove-btn {
+  border: 1px solid #fecdd3;
+  color: #b91c1c;
+  background-color: #fff5f5;
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.repeatable-remove-btn:hover {
+  background-color: #fee2e2;
 }
 
 .meeting-row {
@@ -472,8 +685,48 @@ body.has-modal-open {
   color: #475569;
 }
 
+.cs-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
+.cs-pill.is-active {
+  border-color: #a5b4fc;
+  background-color: #eef2ff;
+  color: #4338ca;
+}
+
 .detail-checkbox-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.detail-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.detail-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.detail-link-list a {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.detail-empty-row {
+  font-size: 0.8rem;
+  color: #94a3b8;
 }

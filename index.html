@@ -22,7 +22,7 @@
         <div
           class="px-6 py-5 border-b border-slate-700 flex items-start justify-between gap-3"
         >
-          <div class="sidebar-title-wrapper">
+          <div>
             <p
               class="text-sm uppercase tracking-wide text-slate-400 sidebar-title-text"
             >
@@ -42,19 +42,15 @@
           </button>
         </div>
         <nav class="flex-1 overflow-y-auto">
-          <ul>
+          <ul class="px-3 py-4 space-y-1">
             <li>
               <button
                 type="button"
                 data-target="yield"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white bg-slate-800 text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="page"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M10 2.5 2.5 8v9h5v-4h5v4h5v-9L10 2.5z" />
-                  </svg>
-                </span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-indigo-400"></span>
                 <span class="nav-label">歩留管理（総合）</span>
               </button>
             </li>
@@ -62,14 +58,10 @@
               <button
                 type="button"
                 data-target="candidates"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="false"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M10 10a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10zm0 2c-3.1 0-5.5 1.4-5.5 3.5V17h11v-1.5C15.5 13.4 13.1 12 10 12z" />
-                  </svg>
-                </span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
                 <span class="nav-label">候補者管理</span>
               </button>
             </li>
@@ -77,15 +69,10 @@
               <button
                 type="button"
                 data-target="referral"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="false"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M4 11h4v2H4a3 3 0 1 1 0-6h4v2H4a1 1 0 1 0 0 2zm8-4h4a3 3 0 1 1 0 6h-4v-2h4a1 1 0 1 0 0-2h-4z" />
-                    <path d="M7 9h6v2H7z" />
-                  </svg>
-                </span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
                 <span class="nav-label">紹介実績管理</span>
               </button>
             </li>
@@ -93,14 +80,10 @@
               <button
                 type="button"
                 data-target="ad-performance"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="false"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M3 15h14v2H3zm2-4h2v3H5zm4-5h2v8H9zm4 3h2v5h-2z" />
-                  </svg>
-                </span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
                 <span class="nav-label">広告管理</span>
               </button>
             </li>
@@ -108,14 +91,10 @@
               <button
                 type="button"
                 data-target="teleapo"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="false"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M3.5 4A1.5 1.5 0 0 1 5 2.5h2A1.5 1.5 0 0 1 8.5 4v1.5A1.5 1.5 0 0 1 7 7H6.5a8.5 8.5 0 0 0 6 6.5V13a1.5 1.5 0 0 1 1.5-1.5H15A1.5 1.5 0 0 1 16.5 13v2A1.5 1.5 0 0 1 15 16.5 12.5 12.5 0 0 1 3.5 5Z" />
-                  </svg>
-                </span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
                 <span class="nav-label">テレアポ管理</span>
               </button>
             </li>
@@ -123,69 +102,22 @@
               <button
                 type="button"
                 data-target="settings"
-                class="nav-link w-full text-left whitespace-nowrap transition"
+                class="nav-link w-full text-left px-4 py-3 rounded-lg transition hover:bg-slate-800 hover:text-white whitespace-nowrap flex items-center justify-start gap-3"
                 aria-current="false"
               >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z"/>
-                  </svg>
-                </span>
-                <span class="nav-label">評価・目標設定</span>
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                data-target="members"
-                class="nav-link w-full text-left whitespace-nowrap transition"
-                aria-current="false"
-              >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M10 10.5a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10.5Zm0 2c-3.33 0-6 1.52-6 3.4V17h12v-1.1c0-1.88-2.67-3.4-6-3.4ZM15 6a2 2 0 1 1 2 2 2 2 0 0 1-2-2Zm0 3.25a4 4 0 0 1 2.91 1.06A4 4 0 0 1 19 13.7V15h-2v-1.3c0-.9-.92-1.7-2-1.7Z" />
-                  </svg>
-                </span>
-                <span class="nav-label">メンバー</span>
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                data-target="kpi-summery-test"
-                class="nav-link w-full text-left whitespace-nowrap transition"
-                aria-current="false"
-              >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M4 4h12v2H4zm0 4h8v2H4zm0 4h6v2H4z" />
-                  </svg>
-                </span>
-                <span class="nav-label">KPI APIテスト</span>
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                data-action="logout"
-                class="nav-link w-full text-left whitespace-nowrap transition"
-              >
-                <span class="nav-icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                    <path d="M8 3a2 2 0 0 0-2 2v3h2V5h7v10H8v-3H6v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8z"/>
-                    <path d="M3.293 9.293 1.586 11l1.707 1.707L5 11.999 4.002 11H10v-2H4.002L5 8.001 3.293 9.293z"/>
-                  </svg>
-                </span>
-                <span class="nav-label">ログアウト</span>
+                <span class="nav-dot w-2 h-2 rounded-full bg-slate-500"></span>
+                <span class="nav-label">システム設定</span>
               </button>
             </li>
           </ul>
         </nav>
-        <div id="sidebarUserBadgeSlot" class="sidebar-user-slot"></div>
+        <div class="px-6 py-4 border-t border-slate-800 text-sm text-slate-400">
+          保存済みビューや通知は次期開発で追加予定
+        </div>
       </aside>
 
-      <div class="flex-1 flex flex-col main-layout">
-        <header class="bg-white border-b border-slate-200 page-header">
+      <div class="flex-1 flex flex-col">
+        <header class="bg-white border-b border-slate-200">
           <div
             class="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
           >
@@ -193,23 +125,24 @@
               <h2 id="pageTitle" class="text-2xl font-semibold text-slate-900">
                 歩留管理（総合）
               </h2>
+              <p id="pageSubtitle" class="text-sm text-slate-500 mt-1">
+                フィルター適用後の歩留KPIとトレンドをスプレッドシート形式で確認
+              </p>
             </div>
-            <div class="flex items-center gap-2 header-actions">
-  
-              <!-- <button
+            <div class="flex items-center gap-2">
+              <button
                 type="button"
-                data-action="logout"
-                class="px-3 py-2 rounded-lg border border-red-300 text-sm font-medium hover:bg-red-50 text-red-600 whitespace-nowrap"
+                class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 whitespace-nowrap"
               >
-                ログアウト
+                ビューを保存
               </button>
               <button
                 type="button"
-                id="sidebarToggleMobile"
+                id="sidebarToggle"
                 class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 lg:hidden"
               >
                 メニュー
-              </button> -->
+              </button>
             </div>
           </div>
         </header>

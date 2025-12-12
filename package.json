@@ -1,0 +1,33 @@
+{
+  "name": "ai-",
+  "version": "1.0.0",
+  "description": "企業の採用活動とKPI管理を統合したWebダッシュボードアプリケーション。シンプルで読みやすいコードアーキテクチャを採用し、外部依存を最小限に抑えた設計となっています。",
+  "main": "dashboard.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node scripts/seed.js",
+    "sync:kintone": "node scripts/syncKintone.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teraikosuke/AI-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/teraikosuke/AI-/issues"
+  },
+  "homepage": "https://github.com/teraikosuke/AI-#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
