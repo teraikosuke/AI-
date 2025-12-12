@@ -1,0 +1,74 @@
+.kpi-api-test-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.kpi-api-test-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #4f46e5;
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpi-api-test-button:hover {
+  background-color: #4338ca;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+}
+
+.kpi-api-test-status {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.kpi-api-test-endpoint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.kpi-api-test-endpoint-label {
+  font-weight: 500;
+}
+
+.kpi-api-test-endpoint-value {
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  background-color: #e5e7eb;
+}
+
+.kpi-api-test-response-wrapper {
+  margin-top: 1rem;
+}
+
+.kpi-api-test-response-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-api-test-response {
+  max-height: 480px;
+  overflow: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: #020617;
+  color: #e5e7eb;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+

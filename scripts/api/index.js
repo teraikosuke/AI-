@@ -7,6 +7,13 @@ import { KpiRepository } from './repositories/kpi.js';
 import { defaultApiClient } from './client.js';
 
 /**
+ * @typedef {import('../types/index.js').KpiDto} KpiDto
+ * @typedef {import('../types/index.js').EmployeeDto} EmployeeDto
+ * @typedef {import('../types/index.js').Session} Session
+ * @typedef {import('../types/index.js').LoginResponse} LoginResponse
+ */
+
+/**
  * リポジトリファクトリークラス
  * 依存性注入とリポジトリ管理を担当
  */
@@ -40,6 +47,18 @@ export class RepositoryFactory {
   reset() {
     this.clearAllCaches();
     this._kpiRepository = null;
+  }
+
+  /**
+   * 互換API: 既存コード向けにリポジトリオブジェクトを生成
+   * @param {import('./client.js').defaultApiClient} apiClient
+   * @returns {{kpi: KpiRepository}}
+   */
+  static create(apiClient = defaultApiClient) {
+    const factory = new RepositoryFactory(apiClient);
+    return {
+      kpi: factory.getKpiRepository()
+    };
   }
 }
 
