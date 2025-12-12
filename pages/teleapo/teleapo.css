@@ -1,10 +1,10 @@
-/* =========================================================
- * Teleapo (ATS 新規アポ管理画面) 専用スタイル
+﻿/* =========================================================
+ * Teleapo (ATS テレアポ画面) 専用スタイル
  *  - data-page="teleapo" をキーにしているので、
  *    HTML 側は <section data-page="teleapo" ...> でOK
  * =======================================================*/
 
-/* ラッパー全体 */
+/* レイアウト全体 */
 [data-page="teleapo"] .kpi-v2-wrapper {
   display: flex;
   flex-direction: column;
@@ -20,7 +20,7 @@
   box-shadow: 0 12px 45px rgba(15, 23, 42, 0.06);
 }
 
-/* 上部KPIセクション（青ベース） */
+/* 上部KPIセクション（青系グラデ） */
 [data-page="teleapo"] .kpi-v2-summary-section {
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 40%, #ffffff 100%);
   border-radius: 1rem;
@@ -43,7 +43,7 @@
   color: #64748b;
 }
 
-/* セクションヘッダー（社員成績・期間指定など） */
+/* セクションヘッダー（社員成績・期間など） */
 [data-page="teleapo"] .kpi-v2-header {
   display: flex;
   align-items: center;
@@ -53,7 +53,7 @@
   gap: 0.75rem;
 }
 
-/* 日付レンジ＋プリセットボタン周り */
+/* 日付レンジ・リセット周り */
 [data-page="teleapo"] .kpi-v2-range-picker {
   display: flex;
   align-items: center;
@@ -91,17 +91,14 @@
   flex-wrap: wrap;
 }
 
-/* プリセットボタン（今日／今週／今月） */
+/* プリセットボタン（今日/今週/今月など） */
 .kpi-v2-range-btn {
   font-size: 0.75rem;
   border-radius: 9999px;
   padding: 0.2rem 0.75rem;
   border: 1px solid #e5e7eb;
-  /* slate-200 */
   background-color: #f9fafb;
-  /* slate-50 */
   color: #4b5563;
-  /* slate-600 */
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -113,19 +110,17 @@
 
 .kpi-v2-range-btn:hover {
   background-color: #e5e7eb;
-  /* slate-200 */
 }
 
 .kpi-v2-range-btn-active {
   background-color: #4f46e5;
-  /* indigo-600 */
   color: #ffffff;
   border-color: #4f46e5;
   box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.25);
   transform: translateY(-0.5px);
 }
 
-/* サブセクション（社員成績／ヒートマップなど） */
+/* サブセクション共通 */
 [data-page="teleapo"] .kpi-v2-subsection {
   margin-bottom: 1.5rem;
 }
@@ -142,17 +137,17 @@
 }
 
 /* ===========================
- * 上部KPIカード（率＆件数）
+ * 上部KPIカード（率・件数）
  * =========================*/
 
-/* 上部KPI内のカード（率・件数共通） */
+/* 上部KPI内カード共通 */
 [data-page="teleapo"] .kpi-v2-summary-section .bg-white {
   border-radius: 0.9rem;
   border-color: #e5e7eb;
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
-/* 率の数字を少しだけ強調（Tailwindのtext-2xl / text-3xl前提） */
+/* 数字の字間を少し詰める */
 [data-page="teleapo"] .kpi-v2-summary-section .text-2xl,
 [data-page="teleapo"] .kpi-v2-summary-section .text-3xl {
   letter-spacing: -0.03em;
@@ -164,14 +159,13 @@
 
 .teleapo-employee-row-active {
   background-color: #eef2ff !important;
-  /* indigo-50 */
 }
 
 /* ===========================
  * ヒートマップ
  * =========================*/
 
-/* ヒートマップフィルタ */
+/* ヒートマップ用フィルタ */
 [data-page="teleapo"] .kpi-v2-subsection .kpi-v2-filters {
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
@@ -201,9 +195,11 @@
   font-size: 0.875rem;
 }
 
-/* ヒートマップ本体を中央寄せのカードっぽく */
+/* ヒートマップ本体 */
 [data-page="teleapo"] .teleapo-heatmap-wrapper {
-  max-width: 960px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
@@ -213,24 +209,37 @@
 [data-page="teleapo"] #teleapoHeatmapTable {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 [data-page="teleapo"] #teleapoHeatmapTable th,
 [data-page="teleapo"] #teleapoHeatmapTable td {
-  padding: 0.6rem 0.6rem;
+  padding: 0.3rem 0.3rem;
+  text-align: center;
+  min-height: 28px;
 }
 
 /* テーブルヘッダ */
 [data-page="teleapo"] #teleapoHeatmapTable th {
   background-color: #eff6ff;
-  /* indigo-50 */
   font-size: 0.8rem;
   font-weight: 600;
   color: #1f2937;
-  /* slate-800 */
 }
 
-/* セル本体（通電率%） */
+/* ヒートマップ：列幅を揃える（最初の列はラベル用に固定） */
+[data-page="teleapo"] #teleapoHeatmapTable th:first-child,
+[data-page="teleapo"] #teleapoHeatmapTable td:first-child {
+  width: 120px;
+  text-align: left;
+}
+
+[data-page="teleapo"] #teleapoHeatmapTable th:not(:first-child),
+[data-page="teleapo"] #teleapoHeatmapTable td:not(:first-child) {
+  width: calc((100% - 120px) / 5);
+}
+
+/* セル本体（通電率） */
 [data-page="teleapo"] .kpi-v2-heatmap-cell {
   font-size: 0.85rem;
   font-weight: 500;
@@ -267,7 +276,7 @@
 }
 
 /* ===========================
- * その他（共通の細かい調整）
+ * その他（汎用調整）
  * =========================*/
 
 @media (max-width: 768px) {
@@ -285,27 +294,23 @@
 }
 
 /* ===========================
- * ナビゲーションバー（ヘッダー風）
+ * ナビゲーションバー風
  * =========================*/
 
-/* 画面上部に常に表示されるバー */
+/* 画面上部のバー */
 .teleapo-tab-nav {
   position: fixed;
-  /* スクロールしても常に固定 */
   top: 0;
   left: 0;
   right: 0;
   z-index: 50;
   background-color: rgba(255, 255, 255, 0.9);
-  /* bg-white/80 風 */
   backdrop-filter: blur(8px);
-  /* backdrop-blur-md 風 */
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-  /* shadow-sm 風 */
   border-bottom: 1px solid #e5e7eb;
 }
 
-/* 中身を中央寄せ＋左右に分割 */
+/* 中身を中央寄せ */
 [data-page="teleapo"] .teleapo-tab-nav-inner {
   max-width: 1200px;
   margin: 0 auto;
@@ -316,7 +321,7 @@
   gap: 1.25rem;
 }
 
-/* 左側のタイトル */
+/* 左側タイトル */
 [data-page="teleapo"] .teleapo-tab-nav-title {
   font-size: 0.85rem;
   font-weight: 700;
@@ -324,7 +329,7 @@
   white-space: nowrap;
 }
 
-/* 右側のタブ群（メニュー） */
+/* 右側タブ群 */
 [data-page="teleapo"] .teleapo-tab-nav-tabs {
   display: flex;
   align-items: center;
@@ -343,7 +348,7 @@
   border-radius: 9999px;
 }
 
-/* タブ（ボタンだが見た目は nav メニュー） */
+/* タブ（ボタン） */
 .teleapo-tab-btn {
   position: relative;
   border: none;
@@ -352,7 +357,6 @@
   font-size: 0.8rem;
   font-weight: 500;
   color: #64748b;
-  /* text-gray-600 相当 */
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -360,7 +364,7 @@
     background-color 0.15s ease;
 }
 
-/* 下線用の擬似要素（アクティブタブのインジケータ） */
+/* 下線インジケータ */
 .teleapo-tab-btn::after {
   content: "";
   position: absolute;
@@ -377,15 +381,14 @@
     transform 0.2s ease;
 }
 
-/* ホバー時：文字色だけ濃く */
+/* ホバー */
 .teleapo-tab-btn:hover {
   color: #0f172a;
 }
 
-/* アクティブタブ：青＋下線 */
+/* アクティブタブ */
 .teleapo-tab-btn-active {
   color: #1d4ed8;
-  /* blue-700 */
 }
 
 .teleapo-tab-btn-active::after {
@@ -393,7 +396,7 @@
   transform: scaleX(1);
 }
 
-/* モバイル時：タイトルとタブを縦積みに */
+/* モバイル時は縦並び */
 @media (max-width: 768px) {
   [data-page="teleapo"] .teleapo-tab-nav-inner {
     flex-direction: column;
@@ -410,17 +413,16 @@
  * セクション区切りの見せ方
  * =========================*/
 
-/* タブからジャンプしたとき、タイトルがナビの下に見えるように */
+/* タブからジャンプしたとき、タイトルがナビの下に見えるよう調整 */
 [data-page="teleapo"] #teleapoSectionKpi,
 [data-page="teleapo"] #teleapoSectionEmployees,
 [data-page="teleapo"] #teleapoSectionHeatmap,
 [data-page="teleapo"] #teleapoSectionLogForm,
 [data-page="teleapo"] #teleapoSectionLogs {
   scroll-margin-top: 72px;
-  /* ナビバーの高さ＋少し余白 */
 }
 
-/* KPIの下に続くセクションは、上に余白を追加 */
+/* KPIの下に続くセクションに余白を追加 */
 [data-page="teleapo"] #teleapoSectionEmployees,
 [data-page="teleapo"] #teleapoSectionHeatmap,
 [data-page="teleapo"] #teleapoSectionLogForm,
@@ -456,7 +458,7 @@
   background: linear-gradient(180deg, #6366f1, #0ea5e9);
 }
 
-/* セクションごとのステップ表示 (STEP 1〜5 のバッジ) */
+/* セクションごとのステップ表示用バッジ */
 [data-page="teleapo"] .teleapo-section-step {
   display: inline-flex;
   align-items: center;
@@ -465,70 +467,109 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: #1d4ed8;
-  /* blue-700 */
   background-color: #e0f2fe;
-  /* sky-100 */
   margin-bottom: 0.25rem;
 }
 
-/* 社員別グラフを少しコンパクトに＆中央寄せ */
-[data-page="teleapo"] #teleapoEmployeeChartWrapper {
-  margin-top: 0.75rem;
-}
-
-[data-page="teleapo"] .kpi-v2-chart-container {
-  max-width: 720px;
-  /* 画面いっぱいではなく中央の箱に */
-  margin: 0.5rem auto 0;
-  /* 上に少し余白＋中央寄せ */
-  padding: 0.75rem 1rem;
-  /* パディングは少し控えめに */
-}
-
-/* SVG自体の高さを抑える */
-[data-page="teleapo"] #teleapoEmployeeTrendChart {
-  max-height: 220px;
-}
-
-/* 社員別グラフを少し大きめに、ただし画面いっぱいにはしない */
+/* 社員別グラフのコンテナ（共通） */
 [data-page="teleapo"] #teleapoEmployeeChartWrapper {
   margin-top: 0.75rem;
 }
 
 [data-page="teleapo"] .kpi-v2-chart-container {
   max-width: 880px;
-  /* 横幅をやや大きめに */
   margin: 0.75rem auto 0;
-  /* 上に余白＋中央寄せ */
   padding: 1rem 1.5rem;
-  /* 余白も少し増やす */
 }
 
-/* SVGの高さも少し余裕をもたせる */
+/* SVGの高さ */
 [data-page="teleapo"] #teleapoEmployeeTrendChart {
   max-height: 260px;
 }
 
-/* タブと対応した5つのセクションを、それぞれ薄い色のボックスとして見せる */
+/* セクション外枠（タブと対応する領域） */
 [data-page="teleapo"] #teleapoSectionKpi,
 [data-page="teleapo"] #teleapoSectionEmployees,
 [data-page="teleapo"] #teleapoSectionHeatmap,
 [data-page="teleapo"] #teleapoSectionLogForm,
 [data-page="teleapo"] #teleapoSectionLogs {
   background-color: #f9fafb;
-  /* ごく薄いグレー（セクションのベース色） */
   border-radius: 0.75rem;
   border: 1px solid #e5e7eb;
   padding: 0.85rem 0.85rem;
 }
 
-/* KPIセクションは内部にすでに青グラデのカードがあるので、外枠だけ控えめに */
+/* KPIセクションは少し青みの背景 */
 [data-page="teleapo"] #teleapoSectionKpi {
   background-color: #eff6ff;
-  /* 薄い青ベース（いまの雰囲気のまま） */
 }
 
-/* ログフィルタ＋テーブル部分は、ボックスの内側にさらにカードが入るイメージなので余白だけ少し広めに */
+/* ログフィルタ・テーブル部は余白多め */
 [data-page="teleapo"] #teleapoSectionLogs {
   padding: 1rem 1rem 0.75rem;
+}
+
+/* ===========================
+ * 通電率分析エリア（高さ揃え）
+ * =========================*/
+
+/* 左右ボックスの高さを揃える */
+[data-page="teleapo"] #teleapoSectionHeatmap .grid {
+  align-items: stretch;
+}
+
+/* カードを「タイトル/本体/フッタ」の3行に揃える */
+[data-page="teleapo"] .teleapo-analysis-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 200px;
+  height: 100%;
+}
+
+/* タイトルとサブヘッダの余白 */
+[data-page="teleapo"] .teleapo-analysis-title {
+  margin-bottom: 0.25rem;
+}
+
+[data-page="teleapo"] .teleapo-analysis-subhead {
+  margin-bottom: 0.25rem;
+}
+
+/* 本体エリアは高さを食い切る */
+[data-page="teleapo"] .teleapo-analysis-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+}
+
+/* グラフ用コンテナの余白を抑えつつ幅制限を解除 */
+[data-page="teleapo"] .teleapo-analysis-body.kpi-v2-chart-container {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0.4rem 0.6rem;
+}
+
+/* フッタ注釈 */
+[data-page="teleapo"] .teleapo-analysis-footnote {
+  margin-top: 0.4rem;
+}
+
+/* ヒートマップ列は「タイトル/フィルタ/本体」の3行 */
+[data-page="teleapo"] .teleapo-heatmap-col {
+  grid-template-rows: auto auto 1fr;
+}
+
+/* ヒートマップラッパーをカラム高さいっぱいに */
+[data-page="teleapo"] .teleapo-heatmap-wrapper {
+  height: 100%;
+}
+
+/* SVGは残り高さいっぱいに */
+[data-page="teleapo"] .teleapo-analysis-body svg {
+  width: 100%;
+  height: 100%;
 }

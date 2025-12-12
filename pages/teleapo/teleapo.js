@@ -46,7 +46,26 @@ const teleapoInitialMockLogs = [
   { datetime: '2025/10/05 11:00', employee: '佐藤', route: ROUTE_TEL, target: 'OLD社 佐藤様', tel: '03-2020-2020', email: 'old1@example.jp', resultCode: 'no_answer', memo: '1回目 不在' },
   { datetime: '2025/10/06 14:00', employee: '佐藤', route: ROUTE_TEL, target: 'OLD社 佐藤様', tel: '03-2020-2020', email: 'old1@example.jp', resultCode: 'connect', memo: '2回目 通電' },
   { datetime: '2025/09/28 09:30', employee: '鈴木', route: ROUTE_TEL, target: 'LEGACY社 山口様', tel: '03-3030-3030', email: 'legacy@example.jp', resultCode: 'callback', memo: '1回目 折返し待ち' },
-  { datetime: '2025/09/30 10:10', employee: '鈴木', route: ROUTE_TEL, target: 'LEGACY社 山口様', tel: '03-3030-3030', email: 'legacy@example.jp', resultCode: 'show', memo: '2回目 着座' }
+  { datetime: '2025/09/30 10:10', employee: '鈴木', route: ROUTE_TEL, target: 'LEGACY社 山口様', tel: '03-3030-3030', email: 'legacy@example.jp', resultCode: 'show', memo: '2回目 着座' },
+  // 9〜7月もカバーし、社員別の時系列グラフが長めに動くように追加
+  { datetime: '2025/09/12 15:30', employee: '佐藤', route: ROUTE_TEL, target: 'HIST社 佐々木様', tel: '03-1515-1515', email: 'sasaki@hist.jp', resultCode: 'connect', memo: '9月中旬 通電' },
+  { datetime: '2025/09/05 10:30', employee: '高橋', route: ROUTE_TEL, target: 'HIST社 山下様', tel: '03-1616-1616', email: 'yamashita@hist.jp', resultCode: 'set', memo: '9月上旬 設定' },
+  { datetime: '2025/08/25 11:00', employee: '鈴木', route: ROUTE_TEL, target: 'SUMMER社 佐伯様', tel: '03-1717-1717', email: 'saeki@summer.jp', resultCode: 'callback', memo: '8月下旬 折返し待ち' },
+  { datetime: '2025/08/18 16:00', employee: '田中', route: ROUTE_TEL, target: 'SUMMER社 斎藤様', tel: '03-1818-1818', email: 'saito@summer.jp', resultCode: 'show', memo: '8月中旬 着座' },
+  { datetime: '2025/08/02 09:15', employee: '佐藤', route: ROUTE_TEL, target: 'SUMMER社 江口様', tel: '03-1919-1919', email: 'eguchi@summer.jp', resultCode: 'no_answer', memo: '8月初旬 不在' },
+  { datetime: '2025/07/22 14:30', employee: '高橋', route: ROUTE_TEL, target: 'RAINY社 岩田様', tel: '03-2021-2021', email: 'iwata@rainy.jp', resultCode: 'connect', memo: '7月下旬 通電' },
+  { datetime: '2025/07/10 13:10', employee: '田中', route: ROUTE_TEL, target: 'RAINY社 三浦様', tel: '03-2121-2121', email: 'miura@rainy.jp', resultCode: 'set', memo: '7月中旬 設定' },
+  { datetime: '2025/07/05 10:40', employee: '鈴木', route: ROUTE_TEL, target: 'RAINY社 渡辺様', tel: '03-2221-2221', email: 'watanabe@rainy.jp', resultCode: 'show', memo: '7月初旬 着座' },
+  // 上期のモック（グラフを月単位でも確認できるように更に拡張）
+  { datetime: '2025/06/18 11:40', employee: '佐藤', route: ROUTE_TEL, target: 'EARLY社 河合様', tel: '03-2323-2323', email: 'kawai@early.jp', resultCode: 'connect', memo: '6月中旬 通電' },
+  { datetime: '2025/06/07 16:20', employee: '高橋', route: ROUTE_TEL, target: 'EARLY社 大西様', tel: '03-2424-2424', email: 'onishi@early.jp', resultCode: 'callback', memo: '6月初旬 折返し待ち' },
+  { datetime: '2025/05/27 09:50', employee: '鈴木', route: ROUTE_TEL, target: 'MAY社 井上様', tel: '03-2525-2525', email: 'inoue@may.jp', resultCode: 'set', memo: '5月末 設定' },
+  { datetime: '2025/05/15 14:05', employee: '田中', route: ROUTE_TEL, target: 'MAY社 木村様', tel: '03-2626-2626', email: 'kimura@may.jp', resultCode: 'show', memo: '5月中旬 着座' },
+  { datetime: '2025/04/22 10:25', employee: '佐藤', route: ROUTE_TEL, target: 'SPRING社 野村様', tel: '03-2727-2727', email: 'nomura@spring.jp', resultCode: 'connect', memo: '4月下旬 通電' },
+  { datetime: '2025/04/05 15:35', employee: '鈴木', route: ROUTE_TEL, target: 'SPRING社 大谷様', tel: '03-2828-2828', email: 'otani@spring.jp', resultCode: 'no_answer', memo: '4月初旬 不在' },
+  { datetime: '2025/03/18 11:10', employee: '高橋', route: ROUTE_TEL, target: 'MARCH社 佐野様', tel: '03-2929-2929', email: 'sano@march.jp', resultCode: 'set', memo: '3月中旬 設定' },
+  { datetime: '2025/02/09 09:40', employee: '田中', route: ROUTE_TEL, target: 'WINTER社 千葉様', tel: '03-3031-3031', email: 'chiba@winter.jp', resultCode: 'connect', memo: '2月初旬 通電' },
+  { datetime: '2024/12/12 13:00', employee: '佐藤', route: ROUTE_TEL, target: 'XMAS社 杉山様', tel: '03-3131-3131', email: 'sugiyama@xmas.jp', resultCode: 'show', memo: '12月 着座' }
 ];
 
 function parseDateTime(dateTimeStr) {
@@ -413,6 +432,88 @@ function computeAttemptDistribution(logs) {
   return { buckets, average, sample: connects.length };
 }
 
+function getDateRange(logs) {
+  const dates = logs.map(l => parseDateTime(l.datetime)).filter(Boolean);
+  if (!dates.length) return null;
+  let min = dates[0];
+  let max = dates[0];
+  dates.forEach(d => {
+    if (d < min) min = d;
+    if (d > max) max = d;
+  });
+  return { min, max };
+}
+
+function getWeekOfMonth(dt) {
+  const firstDay = new Date(dt.getFullYear(), dt.getMonth(), 1).getDay(); // 0(日)〜6(土)
+  return Math.floor((firstDay + dt.getDate() - 1) / 7) + 1;
+}
+
+function buildEmployeeTrendPoints(empLogs) {
+  const range = getDateRange(empLogs);
+  if (!range) return { mode: 'day', points: [] };
+
+  const spanDays = (range.max - range.min) / (1000 * 60 * 60 * 24);
+  let mode;
+  if (spanDays <= 1) mode = 'hour';
+  else if (spanDays <= 7) mode = 'weekday';
+  else if (spanDays <= 31) mode = 'week';
+  else mode = 'month';
+
+  const buckets = new Map();
+  const addBucket = (key, label, sortValue) => {
+    if (!buckets.has(key)) buckets.set(key, { label, sortValue, dials: 0, connects: 0, sets: 0, shows: 0 });
+    return buckets.get(key);
+  };
+
+  empLogs.forEach(log => {
+    const dt = parseDateTime(log.datetime);
+    if (!dt) return;
+    const flags = classifyTeleapoResult(log);
+    let key; let label; let sortValue;
+
+    if (mode === 'hour') {
+      const hour = dt.getHours();
+      key = hour;
+      label = `${String(hour).padStart(2, '0')}:00`;
+      sortValue = hour;
+    } else if (mode === 'weekday') {
+      const dow = dt.getDay(); // 0=日
+      const weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+      key = dow;
+      label = weekdayLabels[dow];
+      sortValue = dow;
+    } else if (mode === 'week') {
+      const week = getWeekOfMonth(dt);
+      key = `${dt.getFullYear()}-${dt.getMonth() + 1}-W${week}`;
+      label = `${dt.getMonth() + 1}月${week}週`;
+      sortValue = new Date(dt.getFullYear(), dt.getMonth(), (week - 1) * 7 + 1).getTime();
+    } else {
+      const month = dt.getMonth() + 1;
+      key = `${dt.getFullYear()}-${month}`;
+      label = `${dt.getFullYear()}/${String(month).padStart(2, '0')}`;
+      sortValue = new Date(dt.getFullYear(), dt.getMonth(), 1).getTime();
+    }
+
+    const bucket = addBucket(key, label, sortValue);
+    bucket.dials += 1;
+    if (flags.isConnect) bucket.connects += 1;
+    if (flags.isSet) bucket.sets += 1;
+    if (flags.isShow) bucket.shows += 1;
+  });
+
+  const points = Array.from(buckets.values())
+    .sort((a, b) => a.sortValue - b.sortValue)
+    .map(b => {
+      const connectRate = b.dials ? (b.connects / b.dials) * 100 : 0;
+      const setRate = b.connects ? (b.sets / b.connects) * 100 : 0;
+      const showRate = b.sets ? (b.shows / b.sets) * 100 : 0;
+      return { label: b.label, connectRate, setRate, showRate, dials: b.dials, connects: b.connects, sets: b.sets, shows: b.shows };
+    });
+
+  return { mode, points };
+}
+
 function renderAttemptChart(logs) {
   const wrapper = document.getElementById('teleapoAttemptChartWrapper');
   const svg = document.getElementById('teleapoAttemptChart');
@@ -427,12 +528,22 @@ function renderAttemptChart(logs) {
   wrapper.classList.remove('hidden');
   if (note) note.textContent = `平均 ${average.toFixed(1)} 回目で通電（サンプル${sample}件）`;
 
-  const width = 800;
-  // ヒートマップの表の下端と揃うよう、少し余白を増やす
-  const height = 240;
-  const padding = { top: 20, right: 20, bottom: 50, left: 50 };
+  const padding = { top: 12, right: 12, bottom: 44, left: 56 };
+  // さらにコンパクトに
+  const height = 170;
+  // 横幅は棒数に合わせて可変（余白を最小化）
+  const desiredBar = 20;
+  const gap = 10;
+  const minBar = 10;
+  const maxBar = 24;
+  const minWidth = 200;
+  const maxWidth = 420;
+  const desiredWidth = padding.left + padding.right + (desiredBar * buckets.length) + (Math.max(buckets.length - 1, 0) * gap);
+  const width = Math.min(maxWidth, Math.max(minWidth, desiredWidth));
+  const available = width - padding.left - padding.right - Math.max(buckets.length - 1, 0) * gap;
+  const barWidth = Math.min(maxBar, Math.max(minBar, available / Math.max(buckets.length, 1)));
   const maxRate = Math.max(...buckets.map(b => b.rate ?? 0), 100);
-  const barWidth = (width - padding.left - padding.right) / Math.max(buckets.length, 1) - 10;
+  const yTicks = [0, 20, 40, 60, 80, 100].filter(v => v <= maxRate);
 
   const bars = buckets.map((b, i) => {
     const rateVal = b.rate == null ? 0 : b.rate;
@@ -442,20 +553,34 @@ function renderAttemptChart(logs) {
     const label = b.rate == null ? '-' : `${rateVal.toFixed(0)}%`;
     return `
       <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="6" class="fill-indigo-400 opacity-90" />
-      <text x="${x + barWidth / 2}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${b.attempt}回目</text>
-      <text x="${x + barWidth / 2}" y="${y - 6}" text-anchor="middle" class="text-[11px] fill-slate-800 font-semibold">${label}</text>
+      <text x="${x + barWidth / 2}" y="${height - padding.bottom + 8}" text-anchor="middle" class="text-[8px] fill-slate-700">${b.attempt}回目</text>
+      <text x="${x + barWidth / 2}" y="${y - 3}" text-anchor="middle" class="text-[8px] fill-slate-800 font-semibold">${label}</text>
+    `;
+  }).join('');
+
+  const yGrid = yTicks.map(t => {
+    const y = height - padding.bottom - (t / maxRate) * (height - padding.top - padding.bottom);
+    return `
+      <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgb(226 232 240)" stroke-width="1" />
+      <text x="${padding.left - 10}" y="${y + 2.5}" text-anchor="end" class="text-[8px] fill-slate-600">${t}%</text>
     `;
   }).join('');
 
   const yAxis = `
     <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="rgb(148 163 184)" stroke-width="1" />
     <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="rgb(148 163 184)" stroke-width="1" />
-    <text x="${padding.left - 10}" y="${padding.top}" text-anchor="end" class="text-[10px] fill-slate-700">100%</text>
-    <text x="${padding.left - 10}" y="${height - padding.bottom}" text-anchor="end" class="text-[10px] fill-slate-700">0%</text>
+    ${yGrid}
+  `;
+
+  const yLabelX = padding.left - 32;
+  const yLabelY = (height - padding.bottom + padding.top) / 2;
+  const axisLabels = `
+    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 4}" text-anchor="middle" class="text-[8px] fill-slate-700 font-semibold">架電回数</text>
+    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="text-[8px] fill-slate-700 font-semibold" transform="rotate(-90 ${yLabelX} ${yLabelY})">通電率</text>
   `;
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  svg.innerHTML = `${yAxis}${bars}`;
+  svg.innerHTML = `${yAxis}${bars}${axisLabels}`;
 }
 
 function renderEmployeeTrendChart(empName, logs) {
@@ -469,29 +594,14 @@ function renderEmployeeTrendChart(empName, logs) {
 
   titleEl.textContent = `${empName} さんのKPI推移（架電のみ）`;
 
-  const byDate = new Map();
-  empLogs.forEach(log => {
-    const date = (log.datetime || '').split(' ')[0];
-    const flags = classifyTeleapoResult(log);
-    if (!byDate.has(date)) byDate.set(date, { dials: 0, connects: 0, sets: 0, shows: 0 });
-    const rec = byDate.get(date);
-    rec.dials += 1;
-    if (flags.isConnect) rec.connects += 1;
-    if (flags.isSet) rec.sets += 1;
-    if (flags.isShow) rec.shows += 1;
-  });
-
-  const points = Array.from(byDate.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([date, rec]) => {
-    const connectRate = rec.dials ? (rec.connects / rec.dials) * 100 : 0;
-    const setRate = rec.connects ? (rec.sets / rec.connects) * 100 : 0;
-    const showRate = rec.sets ? (rec.shows / rec.sets) * 100 : 0;
-    return { label: date.slice(5), connectRate, setRate, showRate };
-  });
+  const { points } = buildEmployeeTrendPoints(empLogs);
+  if (!points.length) { wrapper.classList.add('hidden'); return; }
 
   const width = 800;
   const height = 260;
   const padding = { top: 20, right: 20, bottom: 40, left: 50 };
   const maxY = Math.max(...points.map(p => Math.max(p.connectRate, p.setRate, p.showRate)), 100);
+  const yTicks = [0, 20, 40, 60, 80, 100].filter(v => v <= maxY + 5);
   const toX = (i) => padding.left + (i / Math.max(points.length - 1, 1)) * (width - padding.left - padding.right);
   const toY = (v) => height - padding.bottom - (v / Math.max(maxY, 1)) * (height - padding.top - padding.bottom);
 
@@ -504,14 +614,57 @@ function renderEmployeeTrendChart(empName, logs) {
   const setPath = line(points.map(p => p.setRate), '#f59e0b');
   const showPath = line(points.map(p => p.showRate), '#10b981');
 
+  const grid = yTicks.map(t => {
+    const y = toY(t);
+    return `
+      <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgb(226 232 240)" stroke-width="1" />
+      <text x="${padding.left - 12}" y="${y + 4}" text-anchor="end" class="text-[10px] fill-slate-600">${t}%</text>
+    `;
+  }).join('');
+
+  const legend = `
+    <g transform="translate(${width - padding.right - 180}, ${padding.top})">
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#2563eb" />
+      <text x="16" y="9" class="text-[10px] fill-slate-700">通電率</text>
+      <rect x="70" y="0" width="10" height="10" rx="2" fill="#f59e0b" />
+      <text x="86" y="9" class="text-[10px] fill-slate-700">設定率</text>
+      <rect x="140" y="0" width="10" height="10" rx="2" fill="#10b981" />
+      <text x="156" y="9" class="text-[10px] fill-slate-700">着座率</text>
+    </g>
+  `;
+
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.innerHTML = `
+    ${grid}
+    <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="rgb(148 163 184)" stroke-width="1" />
+    <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="rgb(148 163 184)" stroke-width="1" />
     ${connectPath}
     ${setPath}
     ${showPath}
-    ${points.map((p,i)=>`<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb" />`).join('')}
-    ${points.map((p,i)=>`<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b" />`).join('')}
-    ${points.map((p,i)=>`<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981" />`).join('')}
+    ${points.map((p,i)=>{
+      const tip = `${p.label}
+架電: ${p.dials}件
+通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
+      return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
+    }).join('')}
+    ${points.map((p,i)=>{
+      const tip = `${p.label}
+架電: ${p.dials}件
+通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
+      return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
+    }).join('')}
+    ${points.map((p,i)=>{
+      const tip = `${p.label}
+架電: ${p.dials}件
+通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
+      return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
+    }).join('')}
     ${points.map((p,i)=>`<text x="${toX(i)}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${p.label}</text>`).join('')}
   `;
 
@@ -559,6 +712,9 @@ function applyFilters() {
   renderHeatmap(teleapoFilteredLogs);
   renderAttemptChart(teleapoFilteredLogs);
   renderLogTable();
+
+  // グラフ側の期間ラベルを更新（空なら全期間）
+  setText('teleapoAttemptPeriodLabel', rangeLabel || '全期間');
 }
 
 function setRangePreset(preset) {
@@ -574,6 +730,8 @@ function setRangePreset(preset) {
     start = new Date(today.getFullYear(), today.getMonth(), 1);
   } else if (preset === 'last30') {
     start.setDate(today.getDate() - 30);
+  } else if (preset === 'last180') {
+    start.setDate(today.getDate() - 180);
   } else {
     start.setDate(today.getDate() - 30);
   }
@@ -593,8 +751,8 @@ function clearDateFilters() {
 }
 
 function initDateInputs() {
-  // デフォルトは直近30日でモックデータが含まれるようにする
-  setRangePreset('last30');
+  // デフォルトは直近180日で広めのモックデータが拾えるようにする
+  setRangePreset('last180');
 }
 
 function initFilters() {

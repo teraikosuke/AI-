@@ -134,53 +134,58 @@
     </div>
   </div>
 
-  <div class="kpi-v2-subsection" id="teleapoSectionHeatmap">
-    <h4 class="kpi-v2-subtitle mb-2">通電率分析</h4>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div id="teleapoAttemptChartWrapper" class="space-y-2">
-        <h5 class="text-sm font-semibold text-slate-800">架電回数と通電率</h5>
-        <div class="kpi-v2-chart-container">
-          <svg id="teleapoAttemptChart" viewBox="0 0 800 220" class="w-full h-auto"></svg>
-        </div>
-        <p id="teleapoAttemptChartNote" class="text-[11px] text-slate-500"></p>
-      </div>
-      <div class="space-y-2">
-        <h5 class="text-sm font-semibold text-slate-800">通電率ヒートマップ（曜日×時間帯）</h5>
-        <div class="kpi-v2-filters flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-2">
-            <span class="kpi-v2-filter-label">集計期間（ヒートマップ）</span>
-            <div id="teleapoHeatmapRangeButtons" class="flex flex-wrap gap-1">
-              <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active" data-heatmap-range="1w">直近1週</button>
-              <button type="button" class="kpi-v2-range-btn" data-heatmap-range="1m">直近1ヶ月</button>
-              <button type="button" class="kpi-v2-range-btn" data-heatmap-range="6m">直近半年</button>
+      <div class="kpi-v2-subsection" id="teleapoSectionHeatmap">
+        <h4 class="kpi-v2-subtitle mb-2">通電率分析</h4>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch teleapo-analysis-row">
+          <div id="teleapoAttemptChartWrapper" class="space-y-2 teleapo-analysis-card">
+            <div class="flex items-center justify-between">
+              <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">架電回数と通電率</h5>
+              <span id="teleapoAttemptPeriodLabel" class="text-[10px] text-slate-500"></span>
             </div>
-            <p id="teleapoHeatmapPeriodLabel" class="text-[11px] text-slate-500"></p>
+            <p id="teleapoAttemptChartNote" class="text-[10px] text-slate-500 teleapo-analysis-footnote"></p>
+            <div class="kpi-v2-chart-container teleapo-analysis-body">
+              <svg id="teleapoAttemptChart" viewBox="0 0 800 220" class="w-full h-full"></svg>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="kpi-v2-filter-label">社員</span>
-            <select id="teleapoHeatmapEmployeeFilter" class="kpi-v2-filter-select">
-              <option value="all">全員</option>
-              <option value="佐藤">佐藤</option>
-              <option value="鈴木">鈴木</option>
-              <option value="高橋">高橋</option>
-              <option value="田中">田中</option>
-            </select>
+          <div class="space-y-2 teleapo-analysis-card teleapo-heatmap-col">
+            <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">通電率ヒートマップ（曜日×時間帯）</h5>
+            <div class="kpi-v2-filters flex flex-wrap items-center gap-3 teleapo-analysis-subhead">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="kpi-v2-filter-label">集計期間（ヒートマップ）</span>
+                <div id="teleapoHeatmapRangeButtons" class="flex flex-wrap gap-1">
+                  <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active" data-heatmap-range="1w">直近1週</button>
+                  <button type="button" class="kpi-v2-range-btn" data-heatmap-range="1m">直近1ヶ月</button>
+                  <button type="button" class="kpi-v2-range-btn" data-heatmap-range="6m">直近半年</button>
+                </div>
+                <p id="teleapoHeatmapPeriodLabel" class="text-[11px] text-slate-500"></p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="kpi-v2-filter-label">社員</span>
+                <select id="teleapoHeatmapEmployeeFilter" class="kpi-v2-filter-select">
+                  <option value="all">全員</option>
+                  <option value="佐藤">佐藤</option>
+                  <option value="鈴木">鈴木</option>
+                  <option value="高橋">高橋</option>
+                  <option value="田中">田中</option>
+                </select>
+              </div>
+            </div>
+            <div class="overflow-auto rounded-lg border border-slate-200 bg-white teleapo-heatmap-wrapper teleapo-analysis-body">
+              <table class="min-w-[640px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-3 py-2 border border-slate-200 text-left">曜日＼時間帯</th>
+                    <th class="px-3 py-2 border border-slate-200 text-center">月</th>
+                    <th class="px-3 py-2 border border-slate-200 text-center">火</th>
+                    <th class="px-3 py-2 border border-slate-200 text-center">水</th>
+                    <th class="px-3 py-2 border border-slate-200 text-center">木</th>
+                    <th class="px-3 py-2 border border-slate-200 text-center">金</th>
+                  </tr>
+                </thead>
+                <tbody id="teleapoHeatmapTableBody"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="overflow-auto rounded-lg border border-slate-200 bg-white teleapo-heatmap-wrapper">
-          <table class="min-w-[640px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-3 py-2 border border-slate-200 text-left">曜日＼時間帯</th>
-                <th class="px-3 py-2 border border-slate-200 text-center">月</th>
-                <th class="px-3 py-2 border border-slate-200 text-center">火</th>
-                <th class="px-3 py-2 border border-slate-200 text-center">水</th>
-                <th class="px-3 py-2 border border-slate-200 text-center">木</th>
-                <th class="px-3 py-2 border border-slate-200 text-center">金</th>
-              </tr>
-            </thead>
-            <tbody id="teleapoHeatmapTableBody"></tbody>
-          </table>
         </div>
       </div>
     </div>

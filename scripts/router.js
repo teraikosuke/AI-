@@ -129,6 +129,13 @@ function updateNavigation(page) {
     button.hidden = false;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-current", isActive ? "page" : "false");
+
+    // Keep the nav dot in sync with the active page
+    const dot = button.querySelector(".nav-dot");
+    if (dot) {
+      dot.classList.toggle("bg-indigo-400", isActive);
+      dot.classList.toggle("bg-slate-500", !isActive);
+    }
   });
 }
 
