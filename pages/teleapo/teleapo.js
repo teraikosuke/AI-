@@ -3,9 +3,10 @@ console.log('teleapo.js loaded');
 
 const ROUTE_TEL = 'tel';
 const ROUTE_OTHER = 'other';
-const TELEAPO_EMPLOYEES = ['佐藤','鈴木','高橋','田中'];
-const TELEAPO_HEATMAP_DAYS = ['月','火','水','木','金'];
-const TELEAPO_HEATMAP_SLOTS = ['09-11','11-13','13-15','15-17','17-19'];
+const TELEAPO_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/teleapo/logs';
+const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
+const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
+const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
 
 const RESULT_LABELS = {
   connect: '通電',
@@ -107,6 +108,40 @@ function classifyTeleapoResult(log) {
   };
 }
 
+function zeroPad(n) {
+  return `${n}`.padStart(2, '0');
+}
+
+function toDateTimeString(value) {
+  if (!value) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return `${value}`; // 変換できない場合はそのまま返す
+  return `${d.getFullYear()}/${zeroPad(d.getMonth() + 1)}/${zeroPad(d.getDate())} ${zeroPad(d.getHours())}:${zeroPad(d.getMinutes())}`;
+}
+
+function mapApiLog(log = {}) {
+  const rawDatetime = log.datetime || log.called_at || log.calledAt || log.call_at;
+  const employee = log.employee || log.caller_name || log.caller || log.user_name || '';
+  const target = log.target || log.candidate_name || log.company_name || '';
+  const tel = log.tel || log.phone || '';
+  const email = log.email || '';
+  const resultCode = normalizeResultCode(log.resultCode || log.result || log.result_code);
+  const memo = log.memo || log.note || '';
+  const routeRaw = (log.route || '').toLowerCase();
+  const route = routeRaw.includes('other') ? ROUTE_OTHER : ROUTE_TEL;
+
+  return normalizeLog({
+    datetime: toDateTimeString(rawDatetime),
+    employee,
+    route,
+    target,
+    tel,
+    email,
+    resultCode,
+    memo
+  });
+}
+
 function getCallKey(log) {
   return log.target || log.tel || log.email || '不明';
 }
@@ -134,9 +169,9 @@ function formatRate(rate) {
 
 function formatRangeLabel(startStr, endStr) {
   if (!startStr && !endStr) return '';
-  if (startStr && endStr) return `${startStr.replace(/-/g,'/')} 〜 ${endStr.replace(/-/g,'/')}`;
-  if (startStr) return `${startStr.replace(/-/g,'/')} 〜`;
-  return `〜 ${endStr.replace(/-/g,'/')}`;
+  if (startStr && endStr) return `${startStr.replace(/-/g, '/')} 〜 ${endStr.replace(/-/g, '/')}`;
+  if (startStr) return `${startStr.replace(/-/g, '/')} 〜`;
+  return `〜 ${endStr.replace(/-/g, '/')}`;
 }
 
 function rateClass(rate) {
@@ -327,7 +362,7 @@ function renderHeatmap(logs) {
   else if (teleapoHeatmapRange === '6m') from.setDate(now.getDate() - 182);
   else from.setDate(now.getDate() - 30);
 
-  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0,10)} 〜 ${now.toISOString().slice(0,10)}`;
+  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} 〜 ${now.toISOString().slice(0, 10)}`;
 
   const buckets = {};
   TELEAPO_HEATMAP_DAYS.forEach(day => {
@@ -641,31 +676,31 @@ function renderEmployeeTrendChart(empName, logs) {
     ${connectPath}
     ${setPath}
     ${showPath}
-    ${points.map((p,i)=>{
-      const tip = `${p.label}
+    ${points.map((p, i) => {
+    const tip = `${p.label}
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
-設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
-      return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
-    }).join('')}
-    ${points.map((p,i)=>{
-      const tip = `${p.label}
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
+  }).join('')}
+    ${points.map((p, i) => {
+    const tip = `${p.label}
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
-設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
-      return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
-    }).join('')}
-    ${points.map((p,i)=>{
-      const tip = `${p.label}
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
+  }).join('')}
+    ${points.map((p, i) => {
+    const tip = `${p.label}
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
-設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects,1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets,1)})`;
-      return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
-    }).join('')}
-    ${points.map((p,i)=>`<text x="${toX(i)}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${p.label}</text>`).join('')}
+設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
+  }).join('')}
+    ${points.map((p, i) => `<text x="${toX(i)}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${p.label}</text>`).join('')}
   `;
 
   wrapper.classList.remove('hidden');
@@ -736,15 +771,15 @@ function setRangePreset(preset) {
     start.setDate(today.getDate() - 30);
   }
 
-  const startStr = start.toISOString().slice(0,10);
-  const endStr = end.toISOString().slice(0,10);
+  const startStr = start.toISOString().slice(0, 10);
+  const endStr = end.toISOString().slice(0, 10);
 
-  ['teleapoLogRangeStart','teleapoCompanyRangeStart'].forEach(id => { const el = document.getElementById(id); if (el) el.value = startStr; });
-  ['teleapoLogRangeEnd','teleapoCompanyRangeEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = endStr; });
+  ['teleapoLogRangeStart', 'teleapoCompanyRangeStart'].forEach(id => { const el = document.getElementById(id); if (el) el.value = startStr; });
+  ['teleapoLogRangeEnd', 'teleapoCompanyRangeEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = endStr; });
 }
 
 function clearDateFilters() {
-  ['teleapoLogRangeStart','teleapoCompanyRangeStart','teleapoLogRangeEnd','teleapoCompanyRangeEnd']
+  ['teleapoLogRangeStart', 'teleapoCompanyRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeEnd']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const companyPreset = document.querySelector('[data-scope=\"company\"]');
   if (companyPreset) companyPreset.querySelectorAll('.kpi-v2-range-btn').forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
@@ -756,7 +791,7 @@ function initDateInputs() {
 }
 
 function initFilters() {
-  ['teleapoLogEmployeeFilter','teleapoLogResultFilter','teleapoLogTargetSearch','teleapoLogRangeStart','teleapoLogRangeEnd','teleapoCompanyRangeStart','teleapoCompanyRangeEnd'].forEach(id => {
+  ['teleapoLogEmployeeFilter', 'teleapoLogResultFilter', 'teleapoLogTargetSearch', 'teleapoLogRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeStart', 'teleapoCompanyRangeEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener(id.includes('TargetSearch') ? 'input' : 'change', applyFilters);
@@ -858,7 +893,7 @@ function initLogForm() {
       applyFilters();
       setStatus('追加しました', 'success');
 
-      ['teleapoLogInputTarget','teleapoLogInputTel','teleapoLogInputEmail','teleapoLogInputMemo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['teleapoLogInputTarget', 'teleapoLogInputTel', 'teleapoLogInputEmail', 'teleapoLogInputMemo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     } catch (e) {
       console.error(e);
       setStatus('追加に失敗しました', 'error');
@@ -866,13 +901,56 @@ function initLogForm() {
   });
 }
 
-function initializeData() {
-  teleapoLogData = teleapoInitialMockLogs.map(normalizeLog);
-  annotateCallAttempts(teleapoLogData);
+async function fetchTeleapoApi() {
+  let startStr = document.getElementById('teleapoLogRangeStart')?.value || '';
+  let endStr = document.getElementById('teleapoLogRangeEnd')?.value || '';
+
+  // ★日付入力が空ならデフォルト期間を入れる（例：直近30日）
+  if (!startStr || !endStr) {
+    const today = new Date();
+    const from = new Date(today);
+    from.setDate(today.getDate() - 30);
+    startStr = from.toISOString().slice(0, 10);
+    endStr = today.toISOString().slice(0, 10);
+
+    // 入力欄が存在するならUIにも反映（任意）
+    const s1 = document.getElementById('teleapoLogRangeStart');
+    const e1 = document.getElementById('teleapoLogRangeEnd');
+    if (s1) s1.value = startStr;
+    if (e1) e1.value = endStr;
+  }
+
+  const params = new URLSearchParams();
+  params.append('from', startStr);
+  params.append('to', endStr);
+  params.append('limit', '2000');
+  params.append('offset', '0');
+
+  const url = `${TELEAPO_API_URL}?${params.toString()}`;
+
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`Teleapo API HTTP ${res.status}`);
+  return res.json();
+}
+
+
+
+async function loadTeleapoData() {
+  try {
+    const data = await fetchTeleapoApi();
+    const logs = Array.isArray(data?.logs) ? data.logs : Array.isArray(data?.items) ? data.items : [];
+    teleapoLogData = logs.map(mapApiLog).filter(l => l.datetime);
+    annotateCallAttempts(teleapoLogData);
+    applyFilters();
+  } catch (err) {
+    console.error('[teleapo] API取得に失敗したためモックを使用します', err);
+    teleapoLogData = teleapoInitialMockLogs.map(normalizeLog);
+    annotateCallAttempts(teleapoLogData);
+    applyFilters();
+  }
 }
 
 export function mount() {
-  initializeData();
   initDateInputs();
   initFilters();
   initCompanyRangePresets();
@@ -881,7 +959,7 @@ export function mount() {
   initEmployeeSortHeaders();
   initLogTableSort();
   initLogForm();
-  applyFilters();
+  loadTeleapoData();
 }
 
 export function unmount() {
@@ -898,3 +976,4 @@ if (typeof window !== 'undefined') {
     mount();
   });
 }
+
