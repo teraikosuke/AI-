@@ -17,6 +17,37 @@ import {
 const repositories = RepositoryFactory.create();
 const kpiRepository = repositories.kpi;
 
+// API接続設定（仮のユーザーIDを使用）
+const KPI_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi';
+const KPI_PERSONAL_PATH = '/yield/personal';
+const KPI_COMPANY_PATH = '/yield/company';
+const DEFAULT_ADVISOR_USER_ID = 2;
+
+async function fetchJson(url, params = {}) {
+  const query = new URLSearchParams(params);
+  const res = await fetch(`${url}?${query.toString()}`, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+async function fetchPersonalKpiFromApi({ startDate, endDate }) {
+  const advisorUserId = DEFAULT_ADVISOR_USER_ID;
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_PERSONAL_PATH}`, {
+    from: startDate,
+    to: endDate,
+    advisorUserId
+  });
+  return json?.kpi || null;
+}
+
+async function fetchCompanyKpiFromApi({ startDate, endDate }) {
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_COMPANY_PATH}`, {
+    from: startDate,
+    to: endDate
+  });
+  return json?.kpi || null;
+}
+
 let candidateDataset = [];
 let candidateLoadedAt = null;
 const getAdvisorName = () => getSession()?.user?.name || null;
@@ -1211,10 +1242,16 @@ async function loadPersonalKPIData() {
     const startDate = state.ranges.personal.startDate || '2025-01-01';
     const endDate = state.ranges.personal.endDate || isoDate(new Date());
     if (!startDate || !endDate) return null;
+    const kpi = await fetchPersonalKpiFromApi({ startDate, endDate });
+    if (kpi) return { period: kpi };
+  } catch (error) {
+    console.error('Failed to load personal KPI data (api):', error);
+  }
+  try {
     const candidates = await ensureCandidateDataset();
     const kpi = buildPersonalKpiFromCandidates(candidates, {
-      startDate,
-      endDate,
+      startDate: state.ranges.personal.startDate,
+      endDate: state.ranges.personal.endDate,
       advisorName: getAdvisorName()
     });
     return kpi && !Array.isArray(kpi) ? kpi : null;
@@ -1225,6 +1262,16 @@ async function loadPersonalKPIData() {
 }
 
 async function loadPersonalSummaryKPIData() {
+  try {
+    const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
+    const startDate = period?.startDate;
+    const endDate = period?.endDate;
+    if (!startDate || !endDate) return null;
+    const kpi = await fetchPersonalKpiFromApi({ startDate, endDate });
+    if (kpi) return { monthly: kpi };
+  } catch (error) {
+    console.error('Failed to load personal summary KPI data (api):', error);
+  }
   try {
     const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
     const startDate = period?.startDate;
@@ -1244,6 +1291,13 @@ async function loadPersonalSummaryKPIData() {
 }
 
 async function loadTodayPersonalKPIData() {
+  try {
+    const todayStr = isoDate(new Date());
+    const kpi = await fetchPersonalKpiFromApi({ startDate: todayStr, endDate: todayStr });
+    if (kpi) return { today: kpi };
+  } catch (error) {
+    console.error('Failed to load today personal KPI data (api):', error);
+  }
   try {
     const todayStr = isoDate(new Date());
     const candidates = await ensureCandidateDataset();
@@ -1278,7 +1332,14 @@ async function loadMonthToDatePersonalKPIData() {
 
 async function loadCompanyKPIData() {
   try {
-    
+    const range = getCompanySummaryRange();
+    if (!range.startDate || !range.endDate) return null;
+    const kpi = await fetchCompanyKpiFromApi({ startDate: range.startDate, endDate: range.endDate });
+    if (kpi) return kpi;
+  } catch (error) {
+    console.error('Failed to load company KPI data (api):', error);
+  }
+  try {
     const range = getCompanySummaryRange();
     if (!range.startDate || !range.endDate) return null;
 
@@ -1294,6 +1355,19 @@ async function loadCompanyKPIData() {
 }
 
 async function loadCompanyPeriodKPIData() {
+  try {
+    const startDate = state.ranges.company.startDate;
+    const endDate = state.ranges.company.endDate;
+    if (!startDate || !endDate) return null;
+
+    const kpi = await fetchCompanyKpiFromApi({ startDate, endDate });
+    if (kpi) {
+      renderCompanyPeriod(kpi);
+      return kpi;
+    }
+  } catch (error) {
+    console.error('Failed to load company period KPI data (api):', error);
+  }
   try {
     const startDate = state.ranges.company.startDate;
     const endDate = state.ranges.company.endDate;
