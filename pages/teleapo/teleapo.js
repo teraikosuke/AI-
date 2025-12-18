@@ -7,13 +7,37 @@ const TELEAPO_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws
 const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
+// 候補者詳細画面のURL（あなたの候補者画面のURLに合わせて変更してください）
+const CANDIDATE_DETAIL_PAGE_URL = 'http://localhost:8081/#/candidates'; // 例: '/candidates.html' などに変更OK
+const CANDIDATE_ID_PARAM = 'candidateId';
+
+function buildCandidateDetailUrl(candidateId) {
+  try {
+    const url = new URL(CANDIDATE_DETAIL_PAGE_URL, window.location.origin);
+    url.searchParams.set(CANDIDATE_ID_PARAM, String(candidateId));
+    return url.pathname + url.search;
+  } catch {
+    // 何かあっても落ちないように
+    return `${CANDIDATE_DETAIL_PAGE_URL}?${CANDIDATE_ID_PARAM}=${encodeURIComponent(candidateId)}`;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 
 const RESULT_LABELS = {
   connect: '通電',
   set: '設定',
   show: '着座',
   callback: 'コールバック',
-  no_answer: '不在'
+  no_answer: '不在',
+  sms_sent: 'SMS送信'
 };
 
 let teleapoLogData = [];
@@ -81,27 +105,38 @@ function parseDateTime(dateTimeStr) {
 function normalizeResultCode(raw) {
   const t = (raw || '').toString().toLowerCase();
   if (t.includes('show') || t.includes('着座')) return 'show';
-  if (t.includes('set') || t.includes('設定')) return 'set';
-  if (t.includes('callback') || t.includes('コールバック')) return 'callback';
+  if (t.includes('set') || t.includes('設定') || t.includes('アポ') || t.includes('面談')) return 'set';
+  if (t.includes('callback') || t.includes('コールバック') || t.includes('折返') || t.includes('折り返')) return 'callback';
   if (t.includes('no_answer') || t.includes('不在')) return 'no_answer';
   if (t.includes('connect') || t.includes('通電')) return 'connect';
+  if (t.includes('sms')) return 'sms_sent';
   return t || '';
 }
 
+function normalizeRoute(raw) {
+  const t = (raw || '').toString().toLowerCase();
+  if (t.includes('other')) return ROUTE_OTHER;
+  if (t.includes('sms') || t.includes('mail') || t.includes('メール') || t.includes('line')) return ROUTE_OTHER;
+  if (t.includes('tel') || t.includes('call') || t.includes('電話')) return ROUTE_TEL;
+  return ROUTE_TEL; // デフォルトは架電扱い
+}
+
 function normalizeLog(log) {
-  const resultCode = normalizeResultCode(log.resultCode || log.result);
+  const rawResult = log.result || log.resultRaw || '';
+  const resultCode = normalizeResultCode(log.resultCode || rawResult);
   return {
     ...log,
-    route: log.route === ROUTE_OTHER ? ROUTE_OTHER : ROUTE_TEL,
+    route: normalizeRoute(log.route),
     resultCode,
-    result: RESULT_LABELS[resultCode] || log.result || ''
+    result: RESULT_LABELS[resultCode] || rawResult || ''
   };
 }
 
 function classifyTeleapoResult(log) {
   const code = normalizeResultCode(log.resultCode || log.result);
   return {
-    isConnect: ['connect', 'set', 'show', 'callback'].includes(code),
+    isConnect: ['connect', 'set', 'show', 'callback'].includes(code), // 既存の通電判定（後方互換）
+    isConnectPlusSet: ['connect', 'callback', 'set', 'show'].includes(code), // 通電率定義用: 通電＋設定
     isSet: ['set', 'show'].includes(code),
     isShow: code === 'show',
     code
@@ -121,14 +156,41 @@ function toDateTimeString(value) {
 
 function mapApiLog(log = {}) {
   const rawDatetime = log.datetime || log.called_at || log.calledAt || log.call_at;
+
   const employee = log.employee || log.caller_name || log.caller || log.user_name || '';
-  const target = log.target || log.candidate_name || log.company_name || '';
-  const tel = log.tel || log.phone || '';
-  const email = log.email || '';
-  const resultCode = normalizeResultCode(log.resultCode || log.result || log.result_code);
+
+  // ★ 候補者ID（RDSの teleapo_logs.candidate_id）
+  const candidateIdRaw = log.candidate_id ?? log.candidateId ?? log.candidateID;
+  const candidateId = candidateIdRaw === undefined || candidateIdRaw === null || candidateIdRaw === ''
+    ? undefined
+    : Number(candidateIdRaw);
+
+  // ★ 相手（RDSは candidate_name が入っている）
+  const target = log.target || log.candidate_name || log.candidateName || log.company_name || '';
+
+  // ★ 電話・メール（RDS JOINで返ってくる candidate_phone/candidate_email を最優先）
+  const tel =
+    log.candidate_phone ||
+    log.candidatePhone ||
+    log.phone ||
+    log.tel ||
+    '';
+
+  const email =
+    log.candidate_email ||
+    log.candidateEmail ||
+    log.email ||
+    '';
+
+  const rawResult = log.result || log.result_code || log.status || log.outcome || '';
+  const resultCode = normalizeResultCode(log.resultCode || rawResult);
+
   const memo = log.memo || log.note || '';
-  const routeRaw = (log.route || '').toLowerCase();
-  const route = routeRaw.includes('other') ? ROUTE_OTHER : ROUTE_TEL;
+
+  const route = normalizeRoute(log.route || log.route_type || log.channel || '');
+
+  // ★ call_no（RDSの teleapo_logs.call_no）
+  const callNo = Number(log.call_no || log.callNo || log.call_number || log.callNoNumber);
 
   return normalizeLog({
     datetime: toDateTimeString(rawDatetime),
@@ -137,23 +199,38 @@ function mapApiLog(log = {}) {
     target,
     tel,
     email,
+    resultRaw: rawResult,
     resultCode,
-    memo
+    memo,
+
+    // ★ クリック遷移用に保持
+    candidateId: Number.isFinite(candidateId) && candidateId > 0 ? candidateId : undefined,
+
+    // ★ 何回目架電（RDSの call_no を優先）
+    callAttempt: Number.isFinite(callNo) && callNo > 0 ? callNo : undefined
   });
 }
 
 function getCallKey(log) {
-  return log.target || log.tel || log.email || '不明';
+  return log.candidateId || log.target || log.tel || log.email || '不明';
 }
+
+
 
 function annotateCallAttempts(logs) {
   const sorted = [...logs].sort((a, b) => (parseDateTime(a.datetime)?.getTime() || 0) - (parseDateTime(b.datetime)?.getTime() || 0));
   const counters = new Map();
   sorted.forEach(log => {
     const key = getCallKey(log);
-    const next = (counters.get(key) || 0) + 1;
-    counters.set(key, next);
-    log.callAttempt = next;
+    const current = counters.get(key) || 0;
+    if (Number.isFinite(log.callAttempt) && log.callAttempt > 0) {
+      // RDSの call_no を優先し、カウンタも更新
+      counters.set(key, Math.max(current, log.callAttempt));
+    } else {
+      const next = current + 1;
+      counters.set(key, next);
+      log.callAttempt = next;
+    }
   });
 }
 
@@ -181,14 +258,15 @@ function rateClass(rate) {
 }
 
 function computeKpi(logs) {
-  const tel = { attempts: 0, contacts: 0, sets: 0, shows: 0 };
-  const other = { attempts: 0, contacts: 0, sets: 0, shows: 0 };
+  const tel = { attempts: 0, contacts: 0, contactsPlusSets: 0, sets: 0, shows: 0 };
+  const other = { attempts: 0, contacts: 0, contactsPlusSets: 0, sets: 0, shows: 0 };
 
   logs.forEach(log => {
     const bucket = log.route === ROUTE_OTHER ? other : tel;
     const flags = classifyTeleapoResult(log);
     bucket.attempts += 1;
     if (flags.isConnect) bucket.contacts += 1;
+    if (flags.isConnectPlusSet) bucket.contactsPlusSets += 1;
     if (flags.isSet) bucket.sets += 1;
     if (flags.isShow) bucket.shows += 1;
   });
@@ -196,6 +274,7 @@ function computeKpi(logs) {
   const total = {
     attempts: tel.attempts + other.attempts,
     contacts: tel.contacts + other.contacts,
+    contactsPlusSets: tel.contactsPlusSets + other.contactsPlusSets,
     sets: tel.sets + other.sets,
     shows: tel.shows + other.shows
   };
@@ -204,7 +283,7 @@ function computeKpi(logs) {
 }
 
 function computeRates(counts) {
-  const contactRate = counts.attempts > 0 ? (counts.contacts / counts.attempts) * 100 : null;
+  const contactRate = counts.attempts > 0 ? ((counts.contactsPlusSets ?? counts.contacts) / counts.attempts) * 100 : null;
   const setRate = counts.contacts > 0 ? (counts.sets / counts.contacts) * 100 : null;
   const showRate = counts.sets > 0 ? (counts.shows / counts.sets) * 100 : null;
   return { contactRate, setRate, showRate };
@@ -351,18 +430,28 @@ function updateEmployeeSortIndicators() {
   });
 }
 
+
+// 上書き版: フィルタ済みログの範囲を使い、最大日時を基準にウィンドウを切る
 function renderHeatmap(logs) {
   const tbody = document.getElementById('teleapoHeatmapTableBody');
   const periodLabel = document.getElementById('teleapoHeatmapPeriodLabel');
   if (!tbody) return;
 
-  const now = new Date();
-  const from = new Date(now);
-  if (teleapoHeatmapRange === '1w') from.setDate(now.getDate() - 7);
-  else if (teleapoHeatmapRange === '6m') from.setDate(now.getDate() - 182);
-  else from.setDate(now.getDate() - 30);
+  const dates = logs.map(l => parseDateTime(l.datetime)).filter(Boolean).sort((a, b) => a - b);
+  if (!dates.length) {
+    tbody.innerHTML = '';
+    if (periodLabel) periodLabel.textContent = '集計期間: -';
+    return;
+  }
+  const maxDate = dates[dates.length - 1];
+  const minDate = dates[0];
+  const from = new Date(maxDate);
+  if (teleapoHeatmapRange === '1w') from.setDate(maxDate.getDate() - 7);
+  else if (teleapoHeatmapRange === '6m') from.setDate(maxDate.getDate() - 182);
+  else from.setDate(maxDate.getDate() - 30);
+  if (from < minDate) from.setTime(minDate.getTime());
 
-  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} 〜 ${now.toISOString().slice(0, 10)}`;
+  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} 〜 ${maxDate.toISOString().slice(0, 10)}`;
 
   const buckets = {};
   TELEAPO_HEATMAP_DAYS.forEach(day => {
@@ -372,7 +461,7 @@ function renderHeatmap(logs) {
 
   logs.filter(l => l.route === ROUTE_TEL).forEach(log => {
     const dt = parseDateTime(log.datetime);
-    if (!dt || dt < from || dt > now) return;
+    if (!dt || dt < from || dt > maxDate) return;
     const day = '日月火水木金土'[dt.getDay()];
     if (!buckets[day]) return;
     const hour = dt.getHours();
@@ -408,63 +497,106 @@ function renderLogTable() {
     }
     const valA = a[teleapoLogSort.key] || '';
     const valB = b[teleapoLogSort.key] || '';
-    return teleapoLogSort.dir === 'asc' ? `${valA}`.localeCompare(`${valB}`) : `${valB}`.localeCompare(`${valA}`);
+    return teleapoLogSort.dir === 'asc'
+      ? `${valA}`.localeCompare(`${valB}`)
+      : `${valB}`.localeCompare(`${valA}`);
   });
 
   tbody.innerHTML = sorted.map(row => {
     const flags = classifyTeleapoResult(row);
-    const badgeClass = flags.code === 'show' ? 'bg-green-100 text-green-700' : flags.code === 'set' ? 'bg-emerald-100 text-emerald-700' : flags.code === 'connect' ? 'bg-blue-100 text-blue-700' : flags.code === 'callback' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700';
-    const routeLabel = row.route === ROUTE_OTHER ? 'その他' : '架電';
+    const badgeClass =
+      flags.code === 'show' ? 'bg-green-100 text-green-700'
+        : flags.code === 'set' ? 'bg-emerald-100 text-emerald-700'
+          : flags.code === 'connect' ? 'bg-blue-100 text-blue-700'
+            : flags.code === 'callback' ? 'bg-amber-100 text-amber-700'
+              : 'bg-slate-100 text-slate-700';
+
+    const attemptLabel = row.callAttempt ? `（${row.callAttempt}回目）` : '';
+    const routeLabel = row.route === ROUTE_OTHER ? 'その他' : `架電${attemptLabel}`;
+
+    // ★ 相手（候補者名）をクリックで候補者詳細へ
+    const targetText = escapeHtml(row.target || '');
+    const targetCell = row.candidateId
+      ? `<a
+           href="${escapeHtml(buildCandidateDetailUrl(row.candidateId))}"
+           class="text-indigo-600 hover:underline"
+           data-candidate-id="${row.candidateId}"
+         >${targetText}</a>`
+      : targetText;
+
+    // ★ 電話・メールは mapApiLog で candidates 由来が tel/email に入るので表示できる
+    const telText = escapeHtml(row.tel || '');
+    const emailText = escapeHtml(row.email || '');
+    const memoText = escapeHtml(row.memo || '');
+
     return `
       <tr>
-        <td class="whitespace-nowrap">${row.datetime}</td>
-        <td>${row.employee || ''}</td>
-        <td>${routeLabel}</td>
-        <td>${row.target || ''}</td>
-        <td>${row.tel || ''}</td>
-        <td>${row.email || ''}</td>
-        <td><span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">${RESULT_LABELS[flags.code] || row.result || ''}</span></td>
-        <td>${row.memo || ''}</td>
+        <td class="whitespace-nowrap">${escapeHtml(row.datetime)}</td>
+        <td>${escapeHtml(row.employee || '')}</td>
+        <td>${escapeHtml(routeLabel)}</td>
+        <td>${targetCell}</td>
+        <td>${telText}</td>
+        <td>${emailText}</td>
+        <td><span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">
+          ${escapeHtml(RESULT_LABELS[flags.code] || row.result || '')}
+        </span></td>
+        <td>${memoText}</td>
       </tr>
     `;
   }).join('');
 
+  // 件数表示
   const countEl = document.getElementById('teleapoLogFilterCount');
   if (countEl) countEl.textContent = `${teleapoFilteredLogs.length}件`;
 }
 
 function computeAttemptDistribution(logs) {
-  const sorted = [...logs]
-    .filter(l => l.route === ROUTE_TEL)
-    .sort((a, b) => (parseDateTime(a.datetime) - parseDateTime(b.datetime)));
-
-  // targetごとに最終試行回数と、通電した試行回数を記録
-  const perTarget = new Map();
-  sorted.forEach(log => {
+  // 試行番号の確定: call_no があれば優先し、無ければ対象ごとに時系列で採番
+  const telLogs = [...logs].filter(l => l.route === ROUTE_TEL).sort((a, b) => (parseDateTime(a.datetime) - parseDateTime(b.datetime)));
+  const counters = new Map();
+  telLogs.forEach(log => {
     const key = getCallKey(log);
-    let rec = perTarget.get(key);
-    if (!rec) rec = { attempts: 0, connectAt: null };
-    rec.attempts += 1;
-    if (rec.connectAt == null && classifyTeleapoResult(log).isConnect) {
-      rec.connectAt = rec.attempts;
-    }
-    perTarget.set(key, rec);
+    const current = counters.get(key) || 0;
+    const attempt = Number.isFinite(log.callAttempt) && log.callAttempt > 0 ? log.callAttempt : current + 1;
+    counters.set(key, Math.max(current, attempt));
+    log._attempt = attempt;
   });
 
-  const targets = Array.from(perTarget.values());
-  const maxAttempt = targets.reduce((m, t) => Math.max(m, t.attempts), 0);
+  // 試行番号別に分母（dials）と分子（connect）を集計
+  const bucketsMap = new Map();
+  const addBucket = n => {
+    if (!bucketsMap.has(n)) bucketsMap.set(n, { attempt: n, dials: 0, connects: 0, connectsPlusSets: 0, sets: 0 });
+    return bucketsMap.get(n);
+  };
 
-  const buckets = [];
-  for (let n = 1; n <= maxAttempt; n++) {
-    const reached = targets.filter(t => t.attempts >= n).length;
-    const connectedAtN = targets.filter(t => t.connectAt === n).length;
-    const rate = reached ? (connectedAtN / reached) * 100 : null;
-    buckets.push({ attempt: n, reached, connected: connectedAtN, rate });
-  }
+  telLogs.forEach(log => {
+    const attempt = log._attempt || 0;
+    const bucket = addBucket(attempt);
+    bucket.dials += 1;
+    const flags = classifyTeleapoResult(log);
+    if (flags.isConnect) bucket.connects += 1;
+    if (flags.isConnectPlusSet) bucket.connectsPlusSets += 1;
+    if (flags.isSet) bucket.sets += 1;
+  });
 
-  const connects = targets.filter(t => t.connectAt != null).map(t => t.connectAt);
-  const average = connects.length ? connects.reduce((s, v) => s + v, 0) / connects.length : 0;
-  return { buckets, average, sample: connects.length };
+  const buckets = Array.from(bucketsMap.values())
+    .sort((a, b) => a.attempt - b.attempt)
+    .map(b => ({
+      attempt: b.attempt,
+      reached: b.dials,
+      connected: b.connectsPlusSets,
+      rate: b.dials ? (b.connectsPlusSets / b.dials) * 100 : null
+    }));
+
+  // 平均通電回数（通電したログのみ）
+  const connectAttempts = telLogs
+    .filter(l => classifyTeleapoResult(l).isConnectPlusSet && Number.isFinite(l._attempt))
+    .map(l => l._attempt);
+  const average = connectAttempts.length
+    ? connectAttempts.reduce((s, v) => s + v, 0) / connectAttempts.length
+    : 0;
+
+  return { buckets, average, sampleDials: telLogs.length, sampleConnects: connectAttempts.length };
 }
 
 function getDateRange(logs) {
@@ -555,13 +687,13 @@ function renderAttemptChart(logs) {
   const note = document.getElementById('teleapoAttemptChartNote');
   if (!wrapper || !svg) return;
 
-  const { buckets, average, sample } = computeAttemptDistribution(logs);
+  const { buckets, average, sampleDials, sampleConnects } = computeAttemptDistribution(logs);
   if (!buckets.length) {
     wrapper.classList.add('hidden');
     return;
   }
   wrapper.classList.remove('hidden');
-  if (note) note.textContent = `平均 ${average.toFixed(1)} 回目で通電（サンプル${sample}件）`;
+  if (note) note.textContent = `平均 ${average.toFixed(1)} 回目で通電（架電 ${sampleDials}件 / 通電 ${sampleConnects}件）`;
 
   const padding = { top: 12, right: 12, bottom: 44, left: 56 };
   // さらにコンパクトに
@@ -711,6 +843,7 @@ function applyFilters() {
 
   const empFilter = document.getElementById('teleapoLogEmployeeFilter')?.value || '';
   const resultFilter = document.getElementById('teleapoLogResultFilter')?.value || '';
+  const routeFilter = document.getElementById('teleapoLogRouteFilter')?.value || '';
   const targetSearch = (document.getElementById('teleapoLogTargetSearch')?.value || '').toLowerCase();
   const startStr = document.getElementById('teleapoLogRangeStart')?.value || document.getElementById('teleapoCompanyRangeStart')?.value || '';
   const endStr = document.getElementById('teleapoLogRangeEnd')?.value || document.getElementById('teleapoCompanyRangeEnd')?.value || '';
@@ -724,6 +857,8 @@ function applyFilters() {
     if (end && dt && dt > end) return false;
     if (empFilter && log.employee !== empFilter) return false;
     if (resultFilter && !(log.result || '').includes(resultFilter) && !(log.resultCode || '').includes(resultFilter)) return false;
+    if (routeFilter === 'tel' && log.route !== ROUTE_TEL) return false;
+    if (routeFilter === 'other' && log.route !== ROUTE_OTHER) return false;
     if (targetSearch && !(`${log.target || ''}`.toLowerCase().includes(targetSearch))) return false;
     return true;
   });
@@ -750,6 +885,7 @@ function applyFilters() {
 
   // グラフ側の期間ラベルを更新（空なら全期間）
   setText('teleapoAttemptPeriodLabel', rangeLabel || '全期間');
+  setText('teleapoLogPeriodLabel', rangeLabel || '全期間');
 }
 
 function setRangePreset(preset) {
@@ -791,7 +927,7 @@ function initDateInputs() {
 }
 
 function initFilters() {
-  ['teleapoLogEmployeeFilter', 'teleapoLogResultFilter', 'teleapoLogTargetSearch', 'teleapoLogRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeStart', 'teleapoCompanyRangeEnd'].forEach(id => {
+  ['teleapoLogEmployeeFilter', 'teleapoLogResultFilter', 'teleapoLogRouteFilter', 'teleapoLogTargetSearch', 'teleapoLogRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeStart', 'teleapoCompanyRangeEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener(id.includes('TargetSearch') ? 'input' : 'change', applyFilters);
@@ -976,4 +1112,3 @@ if (typeof window !== 'undefined') {
     mount();
   });
 }
-

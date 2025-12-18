@@ -192,7 +192,7 @@
   </div>
 </div><div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3" id="teleapoSectionLogs">
       <h4 class="text-sm font-semibold text-slate-700">架電ログ</h4>
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs text-slate-500">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 text-xs text-slate-500">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-semibold text-slate-500">担当者</label>
           <select id="teleapoLogEmployeeFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
@@ -215,6 +215,14 @@
           </select>
         </div>
         <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">経路</label>
+          <select id="teleapoLogRouteFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">全て</option>
+            <option value="tel">架電</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
           <label class="text-xs font-semibold text-slate-500">相手名検索</label>
           <input type="text" id="teleapoLogTargetSearch"
             class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
@@ -227,6 +235,7 @@
           <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
             0件
           </div>
+          <span id="teleapoLogPeriodLabel" class="text-[11px] text-slate-500"></span>
         </div>
       </div>
     </div>
