@@ -1,4 +1,4 @@
-<div class="section-shell space-y-6" id="candidatesPage">
+<div class="section-shell space-y-6" id="candidatesPage" data-page="candidates">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
@@ -8,40 +8,36 @@
         応募者の選考状況・面談予定・CS項目を1画面で把握
       </p>
     </div>
-    <button
-      class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500"
-    >
+    <button class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500">
       新規候補者を登録
     </button>
   </div>
 
-  <div
-    class="candidates-filter-card border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4"
-  >
+  <div class="candidates-filter-card border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
         絞り込み条件
       </h4>
       <div class="flex items-center gap-2">
-        <button
-          id="candidatesFilterReset"
-          class="px-3 py-1.5 border border-slate-300 rounded-md text-xs hover:bg-white"
-        >
+        <button id="candidatesFilterReset"
+          class="px-3 py-1.5 border border-slate-300 rounded-md text-xs hover:bg-white">
           条件をクリア
         </button>
         <span class="text-xs text-slate-500">自動で候補者一覧を更新</span>
       </div>
     </div>
+
     <div class="candidates-filter-grid">
       <label class="filter-field">
         <span>登録年</span>
         <select id="candidatesFilterYear" class="filter-input">
-          <option value="">すべて</option>
+          <option value="" selected>すべて</option>
           <option value="2023">2023</option>
-          <option value="2024" selected>2024</option>
+          <option value="2024">2024</option>
           <option value="2025">2025</option>
         </select>
       </label>
+
       <label class="filter-field">
         <span>登録月</span>
         <select id="candidatesFilterMonth" class="filter-input">
@@ -60,6 +56,7 @@
           <option value="12">12月</option>
         </select>
       </label>
+
       <label class="filter-field">
         <span>登録日</span>
         <select id="candidatesFilterDay" class="filter-input">
@@ -97,6 +94,7 @@
           <option value="31">31日</option>
         </select>
       </label>
+
       <label class="filter-field">
         <span>応募媒体</span>
         <select id="candidatesFilterSource" class="filter-input">
@@ -108,33 +106,22 @@
           <option value="doda">doda</option>
         </select>
       </label>
+
       <label class="filter-field">
         <span>求職者名</span>
-        <input
-          id="candidatesFilterName"
-          type="search"
-          class="filter-input"
-          placeholder="例：田中太郎"
-        />
+        <input id="candidatesFilterName" type="search" class="filter-input" placeholder="例：田中太郎" />
       </label>
+
       <label class="filter-field">
         <span>応募企業名</span>
-        <input
-          id="candidatesFilterCompany"
-          type="search"
-          class="filter-input"
-          placeholder="例：ABC株式会社"
-        />
+        <input id="candidatesFilterCompany" type="search" class="filter-input" placeholder="例：ABC株式会社" />
       </label>
+
       <label class="filter-field">
         <span>担当アドバイザー名</span>
-        <input
-          id="candidatesFilterAdvisor"
-          type="search"
-          class="filter-input"
-          placeholder="例：佐藤"
-        />
+        <input id="candidatesFilterAdvisor" type="search" class="filter-input" placeholder="例：佐藤" />
       </label>
+
       <label class="filter-field">
         <span>有効応募</span>
         <select id="candidatesFilterValid" class="filter-input">
@@ -143,6 +130,7 @@
           <option value="false">無効</option>
         </select>
       </label>
+
       <label class="filter-field">
         <span>フェーズ</span>
         <select id="candidatesFilterPhase" class="filter-input">
@@ -158,22 +146,14 @@
   </div>
 
   <div class="candidates-main-grid">
-    <div
-      class="candidates-table-card border border-slate-200 rounded-lg overflow-hidden bg-white"
-    >
+    <div class="candidates-table-card border border-slate-200 rounded-lg overflow-hidden bg-white">
       <div class="candidates-table-toolbar">
         <div class="text-sm text-slate-600">
-          <span class="font-semibold text-slate-900" id="candidatesResultCount"
-            >0件</span
-          >
+          <span class="font-semibold text-slate-900" id="candidatesResultCount">0件</span>
           の候補者を表示
         </div>
         <div class="flex items-center gap-3 flex-wrap">
-          <span
-            id="candidatesLastSynced"
-            class="text-xs text-slate-500 whitespace-nowrap"
-            >最終同期: -</span
-          >
+          <span id="candidatesLastSynced" class="text-xs text-slate-500 whitespace-nowrap">最終同期: -</span>
           <label class="flex items-center gap-2 text-xs text-slate-500">
             並び替え
             <select id="candidatesSortOrder" class="filter-input w-36">
@@ -181,15 +161,12 @@
               <option value="asc">古い順</option>
             </select>
           </label>
-          <button
-            id="candidatesToggleEdit"
-            type="button"
-            class="table-action-btn"
-          >
+          <button id="candidatesToggleEdit" type="button" class="table-action-btn">
             編集
           </button>
         </div>
       </div>
+
       <div class="overflow-auto">
         <table class="table-grid w-full">
           <colgroup>
@@ -248,26 +225,10 @@
     </div>
   </div>
 
-  <div
-    class="candidate-detail-modal"
-    id="candidateDetailModal"
-    aria-hidden="true"
-  >
-    <div
-      class="candidate-detail-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="candidateDetailModalHeading"
-    >
+  <div class="candidate-detail-modal" id="candidateDetailModal" aria-hidden="true">
+    <div class="candidate-detail-card" role="dialog" aria-modal="true" aria-labelledby="candidateDetailModalHeading">
       <h2 id="candidateDetailModalHeading" class="sr-only">候補者詳細</h2>
-      <button
-        type="button"
-        class="candidate-detail-close"
-        id="candidateDetailClose"
-        aria-label="閉じる"
-      >
-        ×
-      </button>
+      <button type="button" class="candidate-detail-close" id="candidateDetailClose" aria-label="閉じる">×</button>
       <div id="candidateDetailContent">
         <div class="candidate-detail-empty">
           <p class="text-sm text-slate-500">
