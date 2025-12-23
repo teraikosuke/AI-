@@ -10,6 +10,13 @@ const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
 // 候補者詳細画面のURL（あなたの候補者画面のURLに合わせて変更してください）
 const CANDIDATE_DETAIL_PAGE_URL = 'http://localhost:8081/#/candidates'; // 例: '/candidates.html' などに変更OK
 const CANDIDATE_ID_PARAM = 'candidateId';
+// ...既存の定数の下に追加...
+
+// ★ 候補者APIのURL（末尾スラッシュ重要）
+const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates/";
+
+// ★ 候補者名とIDのマッピング保持用
+let candidateNameMap = new Map(); // Name -> ID
 
 function buildCandidateDetailUrl(candidateId) {
   // ハッシュルーター前提： http://localhost:8081/#/candidates?candidateId=123
@@ -1061,7 +1068,32 @@ async function fetchTeleapoApi() {
   return res.json();
 }
 
+// ... fetchTeleapoApi関数などの近くに追加 ...
 
+// ★ 候補者一覧を取得して datalist 用の辞書を作る
+async function loadCandidates() {
+  try {
+    const res = await fetch(CANDIDATES_API_URL, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Candidates API Error: ${res.status}`);
+
+    const data = await res.json();
+    const items = data.items || [];
+
+    candidateNameMap.clear();
+    items.forEach(c => {
+      // 名前を一意のキーにする（同姓同名対策が必要なら "名前(ID)" 等にするが、一旦名前で実装）
+      const fullName = (c.name || '').trim();
+      if (fullName && c.candidate_id) {
+        candidateNameMap.set(fullName, Number(c.candidate_id));
+      }
+    });
+
+    console.log(`候補者ロード完了: ${candidateNameMap.size}件`);
+    refreshCandidateDatalist(); // datalist更新
+  } catch (e) {
+    console.error("候補者一覧の取得に失敗:", e);
+  }
+}
 
 async function loadTeleapoData() {
   try {
@@ -1081,6 +1113,7 @@ async function loadTeleapoData() {
   }
 }
 
+// 既存の mount をこれで上書き
 export function mount() {
   initDateInputs();
   initFilters();
@@ -1089,11 +1122,17 @@ export function mount() {
   initEmployeeSort();
   initEmployeeSortHeaders();
   initLogTableSort();
-  initLogForm();
-  initDialForm();
-  loadTeleapoData().then(() => {
-    refreshCandidateDatalist();
-  });
+
+  // initLogForm(); // ← ★削除またはコメントアウト（モック用フォームはもう不要）
+
+  initDialForm(); // 本番用フォーム（POST対応版）
+
+  // データロード開始
+  // 1. 候補者マスタ取得 (datalist用)
+  loadCandidates();
+
+  // 2. ログデータ取得 (一覧用)
+  loadTeleapoData();
 }
 
 function localDateTimeToRfc3339(localValue) {
@@ -1148,16 +1187,14 @@ function populateEmployeeSelect() {
   sel.innerHTML = TELEAPO_EMPLOYEES.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
 }
 
+// 既存の refreshCandidateDatalist をこれで上書き
 function refreshCandidateDatalist() {
   const listEl = document.getElementById("dialFormCandidateList");
   if (!listEl) return;
-  const names = Array.from(
-    new Set(
-      teleapoLogData
-        .map(l => (l.target || "").trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b, "ja"));
+
+  // APIから取得した候補者リストを使用
+  const names = Array.from(candidateNameMap.keys()).sort((a, b) => a.localeCompare(b, "ja"));
+
   listEl.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
 }
 
@@ -1212,89 +1249,118 @@ function resetDialFormDefaults() {
   if (msg) msg.textContent = "";
 }
 
+// 既存の bindDialForm をこれで上書き
 function bindDialForm() {
   const candidateInput = document.getElementById("dialFormCandidateName");
+
+  // 名前入力時の自動補完ロジック
   if (candidateInput) {
-    ["change", "blur"].forEach(ev =>
-      candidateInput.addEventListener(ev, () => updateCallNoAndRoute(candidateInput.value))
+    ["change", "blur", "input"].forEach(ev =>
+      candidateInput.addEventListener(ev, () => {
+        const val = candidateInput.value.trim();
+        updateCallNoAndRoute(val);
+
+        // ★ API由来のマップからIDを即座にセット
+        const foundId = candidateNameMap.get(val);
+        const hiddenId = document.getElementById("dialFormCandidateId");
+        if (hiddenId && foundId) {
+          hiddenId.value = foundId;
+        }
+      })
     );
   }
 
   const submitBtn = document.getElementById("dialFormSubmit");
   if (!submitBtn) return;
-  submitBtn.addEventListener("click", async () => {
-    const candidateIdRaw = document.getElementById("dialFormCandidateId")?.value || "";
-    const candidateId = candidateIdRaw ? Number(candidateIdRaw) : undefined;
 
+  submitBtn.addEventListener("click", async () => {
+    const msg = document.getElementById("dialFormMessage");
+    if (msg) msg.textContent = "";
+
+    // 1. フォーム値取得
     const candidateName = (document.getElementById("dialFormCandidateName")?.value || "").trim();
+    // 隠しフィールドのIDを優先し、なければMapから再検索
+    let candidateId = Number(document.getElementById("dialFormCandidateId")?.value);
+    if (!candidateId && candidateName) {
+      candidateId = candidateNameMap.get(candidateName);
+    }
+
     const calledAtLocal = document.getElementById("dialFormCalledAt")?.value || nowLocalDateTime();
     const calledAt = localDateTimeToRfc3339(calledAtLocal);
-
-    const route = document.getElementById("dialFormRoute")?.value || "";
-    const result = document.getElementById("dialFormResult")?.value || "";
+    const route = document.getElementById("dialFormRoute")?.value || "電話";
+    const result = document.getElementById("dialFormResult")?.value || "通電";
     const employee = document.getElementById("dialFormEmployee")?.value || "";
-    const memo = document.getElementById("dialFormMemo")?.value || ""; // ※無ければ空でOK
-    const msg = document.getElementById("dialFormMessage");
+    const memo = document.getElementById("dialFormMemo")?.value || "";
 
-    // 必須チェック
-    if (!candidateName || !calledAt || !route || !result || !employee) {
-      if (msg) msg.textContent = "すべて入力してください。";
+    // 2. バリデーション
+    if (!candidateName || !candidateId) {
+      if (msg) msg.textContent = "候補者名が一覧にありません（正しい名前を選択してください）";
+      return;
+    }
+    if (!employee || !calledAt) {
+      if (msg) msg.textContent = "担当者と日時は必須です";
       return;
     }
 
-    // ★ callerUserId を社員名から特定
-    const callerUserId = employeeNameToUserId.get(employee);
+    // 3. 担当者ID (callerUserId) の特定
+    // ログから特定できない場合（新規環境など）、デモ用に強制的に '1' を割り当てる安全策を追加
+    let callerUserId = employeeNameToUserId.get(employee);
     if (!callerUserId) {
-      if (msg) msg.textContent = "callerUserIdが取得できません（ログ取得後に社員ID辞書が作られます）。";
-      return;
-    }
-
-    // ★ candidateId が取れない場合はまずここで止める（将来は candidates API で名前検索して補完する）
-    if (!candidateId) {
-      if (msg) msg.textContent = "candidateIdが取得できません。候補者名は一覧から選択してください。";
-      return;
+      console.warn("社員IDが特定できないため、デモ用ID(1)を使用します");
+      callerUserId = 1;
     }
 
     try {
+      // 4. ペイロード作成
       const payload = {
-        candidateId,
-        calledAt,
-        route,
-        result,
-        callerUserId,
-        memo
+        candidateId: candidateId,
+        callerUserId: callerUserId,
+        calledAt: calledAt,
+        route: route,
+        result: result,
+        memo: memo
       };
 
+      console.log("POST送信:", payload);
+
+      // 5. POST送信
       const res = await fetch(TELEAPO_LOGS_URL, {
-        method: "POST", // ★ PUT → POST
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`HTTP ${res.status} ${text.slice(0, 200)}`);
+        throw new Error(`HTTP ${res.status}: ${text}`);
       }
 
-      if (msg) msg.textContent = "保存しました";
+      // 6. 成功時の処理
+      if (msg) {
+        msg.className = "text-emerald-600 font-semibold";
+        msg.textContent = "保存しました！";
+        setTimeout(() => msg.textContent = "", 3000);
+      }
 
-      // ★ call_no はバック側採番なので、保存後に再取得して画面更新するのが確実
-      await loadTeleapoData();
-
+      // フォーム初期化
       resetDialFormDefaults();
-      const candidateInput = document.getElementById("dialFormCandidateName");
-      if (candidateInput) candidateInput.value = "";
-      const candidateIdHidden = document.getElementById("dialFormCandidateId");
-      if (candidateIdHidden) candidateIdHidden.value = "";
+      const cInput = document.getElementById("dialFormCandidateName");
+      if (cInput) cInput.value = "";
+      const hInput = document.getElementById("dialFormCandidateId");
+      if (hInput) hInput.value = "";
+
+      // データを再読み込みして表を更新
+      await loadTeleapoData();
 
     } catch (err) {
       console.error(err);
-      if (msg) msg.textContent = "保存に失敗しました";
+      if (msg) {
+        msg.className = "text-red-600 font-semibold";
+        msg.textContent = "保存に失敗しました: " + err.message;
+      }
     }
   });
-
 }
-
 function initDialForm() {
   populateEmployeeSelect();
   resetDialFormDefaults();

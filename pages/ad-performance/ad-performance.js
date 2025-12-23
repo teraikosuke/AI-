@@ -1,4 +1,14 @@
-﻿// Ad Performance Page JavaScript Module
+﻿// Ad Performance Page JavaScript Module (RDS integrated)
+
+// ===== RDS API（あなたが作成した /dev/kpi/ads を利用）=====
+const ADS_KPI_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/ads';
+// groupBy は route 固定（apply_route）。必要なら route_mid に変更可
+const ADS_GROUP_BY = 'route';
+
+// 既存のUIは「初回面談設定数」だが、APIは firstInterviewDone（first_interview_at）を返している想定。
+// ひとまず initialInterviews = firstInterviewDone として接続（後でAPIを firstInterviewSet に拡張するとより正確）
+const MAP_INITIAL_INTERVIEWS_FIELD = 'firstInterviewDone';
+
 const adState = {
   data: [],
   filtered: [],
@@ -8,8 +18,9 @@ const adState = {
   pageSize: 50
 };
 
-const formatNumber = (num) => Number(num).toLocaleString();
+const formatNumber = (num) => Number(num || 0).toLocaleString();
 const formatPercent = (num) => `${(Number(num) || 0).toFixed(1)}%`;
+// cost/refund は現状DBに無いので 0 表示が紛らわしければ '-' にしたいが、既存UIを崩さないため一旦0で表示
 const formatCurrency = (num) => `¥${Number(num || 0).toLocaleString()}`;
 
 let selectedMediaFilter = null;
@@ -22,7 +33,7 @@ export function mount() {
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
-  loadAdPerformanceData();
+  loadAdPerformanceData(); // ★ここがRDS取得
 }
 
 export function unmount() {
@@ -40,14 +51,17 @@ function initializeAdFilters() {
   const resetBtn = document.getElementById('adResetFilter');
   const metricSelect = document.getElementById('adMetricSelect');
   const metricTitle = document.getElementById('adMetricTitle');
+
   mediaFilter?.addEventListener('input', handleMediaFilter);
   exportBtn?.addEventListener('click', handleExportCSV);
+
   resetBtn?.addEventListener('click', () => {
     const filter = document.getElementById('adMediaFilter');
     if (filter) filter.value = '';
     selectedMediaFilter = null;
     applyFilters('');
   });
+
   metricSelect?.addEventListener('change', (e) => {
     lineMetric = e.target.value || 'decisionRate';
     if (metricTitle) {
@@ -62,15 +76,18 @@ function initializeAdFilters() {
     }
     renderAdCharts(lastAggregated, adState.filtered);
   });
+
+  // ★月フィルタ変更時は再取得（RDSから該当期間だけ取り直す）
   ['adStartDate', 'adEndDate'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => applyFilters());
+    document.getElementById(id)?.addEventListener('change', () => loadAdPerformanceData());
   });
+
   document.getElementById('adDateClear')?.addEventListener('click', () => {
     const s = document.getElementById('adStartDate');
     const e = document.getElementById('adEndDate');
     if (s) s.value = '';
     if (e) e.value = '';
-    applyFilters();
+    loadAdPerformanceData();
   });
 }
 
@@ -89,59 +106,103 @@ function initializePagination() {
   [nextBtn, nextBtn2].forEach(btn => btn?.addEventListener('click', () => changePage(1)));
 }
 
-async function loadAdPerformanceData() {
-  const mockData = [
-    // リクナビ
-    { id: 0, mediaName: 'リクナビ', applications: 130, validApplications: 100, initialInterviews: 64, offers: 28, hired: 20, retention30: 89.0, refund: 40000, cost: 220000, period: '2023-12' },
-    { id: 1, mediaName: 'リクナビ', applications: 140, validApplications: 108, initialInterviews: 70, offers: 32, hired: 24, retention30: 90.0, refund: 42000, cost: 230000, period: '2024-03' },
-    { id: 2, mediaName: 'リクナビ', applications: 156, validApplications: 120, initialInterviews: 78, offers: 36, hired: 29, retention30: 91.2, refund: 45000, cost: 245000, period: '2024-05' },
-    { id: 3, mediaName: 'リクナビ', applications: 162, validApplications: 124, initialInterviews: 80, offers: 38, hired: 30, retention30: 92.0, refund: 47000, cost: 255000, period: '2024-07' },
-    { id: 4, mediaName: 'リクナビ', applications: 168, validApplications: 130, initialInterviews: 84, offers: 40, hired: 31, retention30: 92.5, refund: 48000, cost: 260000, period: '2024-10' },
-    // 求人ボックス
-    { id: 5, mediaName: '求人ボックス', applications: 165, validApplications: 124, initialInterviews: 78, offers: 36, hired: 26, retention30: 92.0, refund: 70000, cost: 210000, period: '2023-12' },
-    { id: 6, mediaName: '求人ボックス', applications: 175, validApplications: 130, initialInterviews: 82, offers: 38, hired: 28, retention30: 92.8, refund: 72000, cost: 215000, period: '2024-04' },
-    { id: 7, mediaName: '求人ボックス', applications: 189, validApplications: 142, initialInterviews: 90, offers: 42, hired: 33, retention30: 93.5, refund: 78000, cost: 225000, period: '2024-05' },
-    { id: 8, mediaName: '求人ボックス', applications: 202, validApplications: 150, initialInterviews: 96, offers: 46, hired: 35, retention30: 94.0, refund: 80000, cost: 235000, period: '2024-08' },
-    { id: 9, mediaName: '求人ボックス', applications: 210, validApplications: 158, initialInterviews: 100, offers: 48, hired: 36, retention30: 94.2, refund: 81000, cost: 240000, period: '2024-11' },
-    // エン転職
-    { id: 10, mediaName: 'エン転職', applications: 82, validApplications: 60, initialInterviews: 32, offers: 14, hired: 10, retention30: 80.0, refund: 78000, cost: 160000, period: '2023-12' },
-    { id: 11, mediaName: 'エン転職', applications: 88, validApplications: 65, initialInterviews: 36, offers: 16, hired: 11, retention30: 81.0, refund: 82000, cost: 165000, period: '2024-04' },
-    { id: 12, mediaName: 'エン転職', applications: 98, validApplications: 74, initialInterviews: 41, offers: 18, hired: 13, retention30: 82.0, refund: 89000, cost: 170000, period: '2024-06' },
-    { id: 13, mediaName: 'エン転職', applications: 110, validApplications: 80, initialInterviews: 45, offers: 19, hired: 14, retention30: 83.5, refund: 91000, cost: 175000, period: '2024-08' },
-    { id: 14, mediaName: 'エン転職', applications: 118, validApplications: 86, initialInterviews: 48, offers: 20, hired: 15, retention30: 84.0, refund: 93000, cost: 180000, period: '2024-11' },
-    // マイナビ
-    { id: 15, mediaName: 'マイナビ', applications: 112, validApplications: 86, initialInterviews: 54, offers: 22, hired: 16, retention30: 84.0, refund: 115000, cost: 250000, period: '2023-12' },
-    { id: 16, mediaName: 'マイナビ', applications: 120, validApplications: 92, initialInterviews: 58, offers: 24, hired: 18, retention30: 85.0, refund: 118000, cost: 255000, period: '2024-04' },
-    { id: 17, mediaName: 'マイナビ', applications: 134, validApplications: 101, initialInterviews: 68, offers: 30, hired: 22, retention30: 86.4, refund: 124000, cost: 265000, period: '2024-06' },
-    { id: 18, mediaName: 'マイナビ', applications: 148, validApplications: 112, initialInterviews: 74, offers: 34, hired: 26, retention30: 87.8, refund: 126000, cost: 275000, period: '2024-08' },
-    { id: 19, mediaName: 'マイナビ', applications: 154, validApplications: 118, initialInterviews: 78, offers: 36, hired: 27, retention30: 88.5, refund: 128000, cost: 280000, period: '2024-11' },
-    // Indeed
-    { id: 20, mediaName: 'Indeed', applications: 205, validApplications: 164, initialInterviews: 102, offers: 46, hired: 35, retention30: 87.0, refund: 140000, cost: 320000, period: '2023-12' },
-    { id: 21, mediaName: 'Indeed', applications: 220, validApplications: 176, initialInterviews: 108, offers: 49, hired: 37, retention30: 87.5, refund: 148000, cost: 330000, period: '2024-04' },
-    { id: 22, mediaName: 'Indeed', applications: 245, validApplications: 198, initialInterviews: 120, offers: 54, hired: 41, retention30: 88.7, refund: 156000, cost: 345000, period: '2024-07' },
-    { id: 23, mediaName: 'Indeed', applications: 260, validApplications: 205, initialInterviews: 128, offers: 58, hired: 43, retention30: 89.5, refund: 160000, cost: 355000, period: '2024-09' },
-    { id: 24, mediaName: 'Indeed', applications: 272, validApplications: 214, initialInterviews: 132, offers: 60, hired: 44, retention30: 90.0, refund: 162000, cost: 365000, period: '2024-11' },
-    // doda
-    { id: 25, mediaName: 'doda', applications: 74, validApplications: 54, initialInterviews: 26, offers: 12, hired: 8, retention30: 74.0, refund: 50000, cost: 150000, period: '2023-12' },
-    { id: 26, mediaName: 'doda', applications: 80, validApplications: 58, initialInterviews: 28, offers: 13, hired: 9, retention30: 75.0, refund: 52000, cost: 155000, period: '2024-04' },
-    { id: 27, mediaName: 'doda', applications: 87, validApplications: 63, initialInterviews: 32, offers: 15, hired: 11, retention30: 76.5, refund: 56000, cost: 158000, period: '2024-07' },
-    { id: 28, mediaName: 'doda', applications: 95, validApplications: 70, initialInterviews: 35, offers: 16, hired: 12, retention30: 78.0, refund: 58000, cost: 162000, period: '2024-09' },
-    { id: 29, mediaName: 'doda', applications: 102, validApplications: 76, initialInterviews: 38, offers: 17, hired: 13, retention30: 79.0, refund: 60000, cost: 165000, period: '2024-11' },
-    // Green
-    { id: 30, mediaName: 'Green', applications: 90, validApplications: 68, initialInterviews: 40, offers: 17, hired: 13, retention30: 82.0, refund: 29000, cost: 90000, period: '2023-12' },
-    { id: 31, mediaName: 'Green', applications: 96, validApplications: 72, initialInterviews: 42, offers: 18, hired: 14, retention30: 83.0, refund: 30000, cost: 95000, period: '2024-04' },
-    { id: 32, mediaName: 'Green', applications: 102, validApplications: 80, initialInterviews: 48, offers: 21, hired: 16, retention30: 84.3, refund: 32000, cost: 98000, period: '2024-08' },
-    { id: 33, mediaName: 'Green', applications: 110, validApplications: 86, initialInterviews: 50, offers: 22, hired: 17, retention30: 85.0, refund: 33000, cost: 100000, period: '2024-09' },
-    { id: 34, mediaName: 'Green', applications: 116, validApplications: 90, initialInterviews: 52, offers: 23, hired: 18, retention30: 85.5, refund: 34000, cost: 105000, period: '2024-11' },
-    // ビズリーチ
-    { id: 35, mediaName: 'ビズリーチ', applications: 150, validApplications: 124, initialInterviews: 84, offers: 38, hired: 30, retention30: 88.5, refund: 18000, cost: 200000, period: '2023-12' },
-    { id: 36, mediaName: 'ビズリーチ', applications: 160, validApplications: 132, initialInterviews: 90, offers: 42, hired: 32, retention30: 89.5, refund: 19000, cost: 205000, period: '2024-04' },
-    { id: 37, mediaName: 'ビズリーチ', applications: 178, validApplications: 150, initialInterviews: 102, offers: 47, hired: 35, retention30: 90.8, refund: 21000, cost: 210000, period: '2024-08' },
-    { id: 38, mediaName: 'ビズリーチ', applications: 184, validApplications: 155, initialInterviews: 106, offers: 49, hired: 36, retention30: 91.5, refund: 22000, cost: 215000, period: '2024-09' },
-    { id: 39, mediaName: 'ビズリーチ', applications: 192, validApplications: 160, initialInterviews: 110, offers: 52, hired: 38, retention30: 92.0, refund: 23000, cost: 220000, period: '2024-11' }
-  ].map(calcDerivedRates);
+// ===== 追加：月レンジ生成（type="month" 用）=====
+function ymFromDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
 
-  adState.data = mockData;
+function monthListInclusive(startYm, endYm) {
+  const [sy, sm] = startYm.split('-').map(Number);
+  const [ey, em] = endYm.split('-').map(Number);
+  const start = new Date(sy, sm - 1, 1);
+  const end = new Date(ey, em - 1, 1);
+
+  const list = [];
+  const cur = new Date(start);
+  while (cur.getTime() <= end.getTime()) {
+    list.push(ymFromDate(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return list;
+}
+
+function monthToFromTo(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate(); // mは1-12、Dateは月+1で末日が出る
+  const mm = String(m).padStart(2, '0');
+  const dd = String(lastDay).padStart(2, '0');
+  return {
+    period: ym,                 // "YYYY-MM"
+    from: `${y}-${mm}-01`,      // "YYYY-MM-01"
+    to: `${y}-${mm}-${dd}`      // "YYYY-MM-lastDay"
+  };
+}
+
+function ensureDefaultMonthRange() {
+  const startEl = document.getElementById('adStartDate');
+  const endEl = document.getElementById('adEndDate');
+
+  const startVal = (startEl?.value || '').trim(); // "YYYY-MM"
+  const endVal = (endEl?.value || '').trim();
+
+  // 未入力なら直近6ヶ月をデフォルト
+  if (!startVal || !endVal) {
+    const now = new Date();
+    const end = ymFromDate(now);
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const start = ymFromDate(startDate);
+
+    if (startEl && !startEl.value) startEl.value = start;
+    if (endEl && !endEl.value) endEl.value = end;
+
+    return { startYm: start, endYm: end };
+  }
+
+  // start > end の場合は入れ替え
+  if (startVal > endVal) {
+    if (startEl) startEl.value = endVal;
+    if (endEl) endEl.value = startVal;
+    return { startYm: endVal, endYm: startVal };
+  }
+
+  return { startYm: startVal, endYm: endVal };
+}
+
+// ===== 追加：RDS API 呼び出し =====
+async function fetchAdsKpi(fromYmd, toYmd) {
+  const url = new URL(ADS_KPI_API_URL);
+  url.searchParams.set('from', fromYmd);
+  url.searchParams.set('to', toYmd);
+  url.searchParams.set('groupBy', ADS_GROUP_BY);
+
+  // GETはpreflight回避のためContent-Typeは付けない
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Ads KPI API HTTP ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+async function loadAdPerformanceData() {
+  const startYm = document.getElementById('adStartDate')?.value || '2025-11';
+  const endYm = document.getElementById('adEndDate')?.value || '2025-12';
+
+  const url = new URL('https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/ads');
+  url.searchParams.set('mode', 'performance');
+  url.searchParams.set('startMonth', startYm);
+  url.searchParams.set('endMonth', endYm);
+  url.searchParams.set('groupBy', 'route');
+
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+
+  const data = await res.json();
+  const items = Array.isArray(data?.items) ? data.items : [];
+
+  adState.data = items.map(calcDerivedRates);
   applyFilters();
 }
 
@@ -170,8 +231,8 @@ function handleMediaFilter(event) {
 function applyFilters(text) {
   const filterText = (text ?? document.getElementById('adMediaFilter')?.value ?? '').trim().toLowerCase();
   if (!filterText) selectedMediaFilter = null;
-  const start = document.getElementById('adStartDate')?.value;
-  const end = document.getElementById('adEndDate')?.value;
+  const start = document.getElementById('adStartDate')?.value; // YYYY-MM
+  const end = document.getElementById('adEndDate')?.value;     // YYYY-MM
 
   adState.filtered = adState.data.filter(item => {
     const matchesMedia = item.mediaName.toLowerCase().includes(filterText);
@@ -179,6 +240,7 @@ function applyFilters(text) {
     const withinEnd = !end || (item.period && item.period <= end);
     return matchesMedia && withinStart && withinEnd;
   });
+
   adState.currentPage = 1;
   applySortAndRender();
 }
@@ -230,8 +292,8 @@ function aggregateByMedia(items) {
         hired: 0,
         refund: 0,
         cost: 0,
-        retentionNumer: 0, // hired * retention%
-        retentionDenom: 0  // hired
+        retentionNumer: 0,
+        retentionDenom: 0
       });
     }
     const agg = map.get(key);
@@ -306,7 +368,7 @@ function renderAdTable(data) {
   };
 
   tableBody.innerHTML = pageItems.map(ad => `
-      <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id}">
+      <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id ?? ''}">
         <td class="sticky left-0 bg-white font-medium text-slate-900 z-30">${ad.mediaName}</td>
         <td class="text-right font-semibold">${formatNumber(ad.applications)}</td>
         <td class="text-right">${formatNumber(ad.validApplications)}</td>
@@ -327,22 +389,29 @@ function renderAdTable(data) {
 }
 
 function updateAdSummary(data) {
-  const totalApps = data.reduce((sum, d) => sum + d.applications, 0);
-  const totalValid = data.reduce((sum, d) => sum + d.validApplications, 0);
+  const totalApps = data.reduce((sum, d) => sum + (d.applications || 0), 0);
+  const totalValid = data.reduce((sum, d) => sum + (d.validApplications || 0), 0);
   const totalCost = data.reduce((sum, d) => sum + (d.cost || 0), 0);
-  const totalHired = data.reduce((sum, d) => sum + d.hired, 0);
+  const totalHired = data.reduce((sum, d) => sum + (d.hired || 0), 0);
+
   const decisionRate = totalApps ? (totalHired / totalApps) * 100 : 0;
   const validRate = totalApps ? (totalValid / totalApps) * 100 : 0;
   const costPerHire = totalHired ? totalCost / totalHired : 0;
+
   const setText = (id, text) => {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
   };
+
   const validText = totalValid ? `${formatNumber(totalValid)} (${formatPercent(validRate)})` : '-';
   setText('adSummaryValidWithRate', validText);
   setText('adSummaryDecisionRate', totalApps ? formatPercent(decisionRate) : '-');
-  setText('adSummaryCostPerHire', totalHired ? formatCurrency(costPerHire) : '-');
+  // costは現状0しか無い想定なので、入社>0かつcost>0のときだけ表示
+  setText('adSummaryCostPerHire', (totalHired && totalCost) ? formatCurrency(costPerHire) : '-');
 }
+
+// renderAdCharts 以降はあなたの既存コードをそのまま使用
+// （以下、あなたが貼った renderAdCharts / renderMetricTable / updateContractInfo / ensureChartJs / pagination / export / cleanup などは無変更でOK）
 
 function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   const appsContainer = document.getElementById('adChartApplications');
@@ -406,6 +475,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   const isCostMetric = lineMetric === 'costPerHire';
   const formatValue = (val) => isCostMetric ? formatCurrency(val || 0) : formatPercent(val || 0);
   let yMin = 0, yMax = isCostMetric ? 0 : 100;
+
   if (values.length) {
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
@@ -426,6 +496,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   const parentWidth = lineCanvas.parentElement?.clientWidth || 800;
   lineCanvas.width = parentWidth;
   lineCanvas.height = 380;
+
   const metricLabels = {
     decisionRate: '決定率',
     initialInterviewRate: '初回面談設定率',
@@ -581,7 +652,7 @@ function changePage(direction) {
 
 function handleExportCSV() {
   const sortedData = getAggregatedSorted();
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '冀数', '冀率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）', '契約費用'];
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）', '契約費用'];
   const csvContent = [
     headers.join(','),
     ...sortedData.map(ad => [
@@ -611,12 +682,19 @@ function handleExportCSV() {
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-red-500 py-6"><div class="flex items-center justifycenter gap-2"><span>⚠</span><span>${message}</span></div></td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-red-500 py-6">${message}</td></tr>`;
   }
 }
 
 function cleanupAdEventListeners() {
-  const elements = ['adMediaFilter', 'exportAdManagement', 'adManagementPrevBtn', 'adManagementNextBtn', 'adManagementPrevBtn2', 'adManagementNextBtn2'];
+  const elements = [
+    'adMediaFilter',
+    'exportAdManagement',
+    'adManagementPrevBtn',
+    'adManagementNextBtn',
+    'adManagementPrevBtn2',
+    'adManagementNextBtn2'
+  ];
   elements.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;

@@ -257,15 +257,26 @@ const mockCandidatesList = [
 ];
 
 export function mount() {
-  loadReferralData();
   initializeFilters();
   initializePagination();
   initializeSort();
   initializeExport();
   initializeMatchingTabs();
   initializeMatching();
-  renderCompanyDetail();
-  updateFilterCount();
+
+  loadReferralData()
+    .then(() => {
+      renderCompanyDetail();
+      updateFilterCount();
+    })
+    .catch((e) => {
+      console.error('紹介実績API取得失敗:', e);
+      allData = [];
+      filteredData = [];
+      renderTable();
+      renderCompanyDetail();
+      updateFilterCount();
+    });
 }
 
 export function unmount() {
@@ -278,7 +289,27 @@ export function unmount() {
   currentPage = 1; filteredData = []; allData = []; currentSort = 'company-asc'; selectedCompanyId = null; currentMatchResults = [];
 }
 
-function loadReferralData() { allData = [...mockReferralData]; selectedCompanyId = allData[0]?.id || null; applyFilters(); }
+async function loadReferralData() {
+  const API = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/clients';
+
+  const from = document.getElementById('referralDateStart')?.value || '';
+  const to = document.getElementById('referralDateEnd')?.value || '';
+  const job = document.getElementById('referralJobFilter')?.value || '';
+
+  const url = new URL(API);
+  if (from) url.searchParams.set('from', from);
+  if (to) url.searchParams.set('to', to);
+  if (job) url.searchParams.set('job', job);
+
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+
+  const data = await res.json();
+  allData = Array.isArray(data?.items) ? data.items : [];
+  selectedCompanyId = allData[0]?.id || null;
+  applyFilters();
+}
+
 
 function initializeFilters() {
   document.getElementById('referralCompanyFilter')?.addEventListener('input', applyFilters);

@@ -26,15 +26,15 @@
   }
 
   /* 選択行ハイライトを右端まで維持 */
-  #referralTable tr.selected-row > td {
+  #referralTable tr.selected-row>td {
     background: #eef2ff !important;
   }
 
-  #referralTable tr.selected-row > td.sticky-col {
+  #referralTable tr.selected-row>td.sticky-col {
     position: sticky;
     left: 0;
     background: #eef2ff !important;
-    
+
     z-index: 60;
   }
 </style>
@@ -82,7 +82,7 @@
       <div class="flex flex-col gap-1">
         <label class="text-xs font-semibold text-slate-500">期間終了</label>
         <input type="date" id="referralDateEnd" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-          value="2024-12-31" />
+          value="2025-12-31" />
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-xs font-semibold text-slate-500">職種</label>
@@ -237,4 +237,3 @@
     </div>
   </div>
 </div>
-
