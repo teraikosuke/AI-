@@ -305,9 +305,183 @@ async function loadReferralData() {
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 
   const data = await res.json();
-  allData = Array.isArray(data?.items) ? data.items : [];
+  const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+  allData = items.map((item, index) => normalizeReferralItem(item, index));
   selectedCompanyId = allData[0]?.id || null;
   applyFilters();
+}
+
+function getNestedValue(source, path) {
+  if (!source || !path) return undefined;
+  return path.split('.').reduce((value, segment) => {
+    if (value && Object.prototype.hasOwnProperty.call(value, segment)) {
+      return value[segment];
+    }
+    return undefined;
+  }, source);
+}
+
+function readValue(source, paths, fallback = undefined) {
+  for (const path of paths) {
+    const value = getNestedValue(source, path);
+    if (value !== undefined && value !== null) return value;
+  }
+  return fallback;
+}
+
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function toText(value, fallback = '') {
+  if (value === undefined || value === null) return fallback;
+  const text = String(value).trim();
+  return text || fallback;
+}
+
+function normalizeRetention(raw, joined, retained) {
+  if (raw !== undefined && raw !== null && raw !== '') {
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.endsWith('%')) return trimmed;
+      const parsed = Number.parseFloat(trimmed);
+      if (Number.isFinite(parsed)) {
+        const rate = parsed <= 1 ? parsed * 100 : parsed;
+        return `${Math.round(rate)}%`;
+      }
+    }
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      const rate = numeric <= 1 ? numeric * 100 : numeric;
+      return `${Math.round(rate)}%`;
+    }
+  }
+  if (joined > 0 && retained >= 0) {
+    const rate = retained > 0 ? (retained / joined) * 100 : 0;
+    return `${Math.round(rate)}%`;
+  }
+  return '0%';
+}
+
+function normalizeFee(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const numeric = Number(raw);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric <= 1) return numeric;
+  if (numeric <= 100) return numeric / 100;
+  return null;
+}
+
+function normalizeList(value) {
+  if (Array.isArray(value)) {
+    return value.map(v => String(v).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(/[,、/]/).map(v => v.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeDesiredTalent(raw, fallbackSource = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const salaryRangeRaw = Array.isArray(source.salaryRange) ? source.salaryRange : null;
+  const salaryMin = toNumber(readValue(source, ['salaryMin', 'salary_min', 'minSalary', 'min_salary', 'salaryFrom'], null), null);
+  const salaryMax = toNumber(readValue(source, ['salaryMax', 'salary_max', 'maxSalary', 'max_salary', 'salaryTo'], null), null);
+  const salaryRange = salaryRangeRaw && salaryRangeRaw.length >= 2
+    ? salaryRangeRaw.map(v => toNumber(v, 0)).slice(0, 2)
+    : (Number.isFinite(salaryMin) && Number.isFinite(salaryMax) ? [salaryMin, salaryMax] : null);
+  const mustQualifications = normalizeList(readValue(source, ['mustQualifications', 'must_qualifications', 'must', 'musts'], readValue(fallbackSource, ['mustQualifications', 'must_qualifications'], [])));
+  const niceQualifications = normalizeList(readValue(source, ['niceQualifications', 'nice_qualifications', 'nice', 'nices'], readValue(fallbackSource, ['niceQualifications', 'nice_qualifications'], [])));
+  const locations = normalizeList(readValue(source, ['locations', 'location', 'areas'], readValue(fallbackSource, ['locations', 'location'], [])));
+  const personality = normalizeList(readValue(source, ['personality', 'personalities', 'traits'], readValue(fallbackSource, ['personality', 'traits'], [])));
+  const experiences = normalizeList(readValue(source, ['experiences', 'experience', 'keywords'], readValue(fallbackSource, ['experiences', 'experience'], [])));
+  if (!salaryRange && !mustQualifications.length && !niceQualifications.length && !locations.length && !personality.length && !experiences.length) {
+    return null;
+  }
+  return {
+    salaryRange,
+    mustQualifications,
+    niceQualifications,
+    locations,
+    personality,
+    experiences
+  };
+}
+
+function normalizeCurrentCandidates(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(candidate => ({
+      name: toText(readValue(candidate, ['name', 'candidateName', 'candidate_name'])),
+      stage: toText(readValue(candidate, ['stage', 'status'])),
+      note: toText(readValue(candidate, ['note', 'memo'])),
+      date: toText(readValue(candidate, ['date', 'registeredAt', 'createdAt', 'updatedAt']))
+    }))
+    .filter(c => c.name || c.stage || c.note || c.date);
+}
+
+function normalizeReferralItem(item = {}, index = 0) {
+  const rawId = readValue(item, ['id', 'companyId', 'company_id', 'clientId', 'client_id', 'jobId', 'job_id']);
+  const company = toText(readValue(item, ['company', 'companyName', 'company_name', 'clientName', 'client_name', 'client', 'name', 'company.name', 'client.name']));
+  const jobTitle = toText(readValue(item, ['jobTitle', 'job_title', 'jobName', 'job_name', 'position', 'position_name', 'job.name', 'job.title']));
+  const highlightPosition = toText(readValue(item, ['highlightPosition', 'highlight_position', 'highlight', 'featuredPosition', 'featured_position'], jobTitle));
+  const planHeadcount = toNumber(readValue(item, ['planHeadcount', 'plan_headcount', 'plannedHeadcount', 'planned_headcount', 'headcount', 'targetHeadcount'], 0), 0);
+  const joined = toNumber(readValue(item, ['joined', 'joinedCount', 'joined_count', 'hired', 'hiredCount', 'hired_count', 'accepts'], 0), 0);
+  const remainingRaw = readValue(item, ['remaining', 'remainingCount', 'remaining_count']);
+  const remaining = remainingRaw !== undefined && remainingRaw !== null
+    ? toNumber(remainingRaw, 0)
+    : Math.max(planHeadcount - joined, 0);
+  const retainedCount = toNumber(readValue(item, ['retainedCount', 'retained_count', 'retained', 'retentionCount', 'retention_count'], 0), 0);
+  const retention = normalizeRetention(readValue(item, ['retention', 'retentionRate', 'retention_rate', 'retentionPercent', 'retention_percent']), joined, retainedCount);
+  const proposal = toNumber(readValue(item, ['proposal', 'proposals', 'proposalCount', 'proposal_count'], 0), 0);
+  const docScreen = toNumber(readValue(item, ['docScreen', 'doc_screen', 'documentScreen', 'document_screen', 'docScreenCount', 'doc_screen_count'], 0), 0);
+  const interview1 = toNumber(readValue(item, ['interview1', 'interview_1', 'firstInterview', 'first_interview', 'interview1Count', 'first_interview_count'], 0), 0);
+  const interview2 = toNumber(readValue(item, ['interview2', 'interview_2', 'secondInterview', 'second_interview', 'interview2Count', 'second_interview_count'], 0), 0);
+  const offer = toNumber(readValue(item, ['offer', 'offers', 'offerCount', 'offer_count'], 0), 0);
+  const prejoinDeclines = toNumber(readValue(item, ['prejoinDeclines', 'prejoin_declines', 'preJoinDeclines', 'pre_join_declines'], 0), 0);
+  const refundAmount = toNumber(readValue(item, ['refundAmount', 'refund_amount', 'refund'], 0), 0);
+  const leadTime = readValue(item, ['leadTime', 'lead_time', 'avgLeadTimeDays', 'avg_lead_time_days', 'leadTimeDays', 'lead_time_days'], '-');
+  const fee = normalizeFee(readValue(item, ['fee', 'feeRate', 'fee_rate', 'introductionFeeRate', 'introduction_fee_rate']));
+  const dropoutCount = toNumber(readValue(item, ['dropoutCount', 'dropout_count', 'dropouts', 'dropout'], 0), 0);
+  const prejoinDeclineReason = toText(readValue(item, ['prejoinDeclineReason', 'prejoin_decline_reason', 'preJoinDeclineReason', 'pre_join_decline_reason']), '-');
+  const location = toText(readValue(item, ['location', 'workLocation', 'work_location', 'companyLocation', 'company.location', 'client.location']), '-');
+  const contact = toText(readValue(item, ['contact', 'contactPerson', 'contact_person', 'clientContact', 'company.contact', 'client.contact']), '-');
+  const industry = toText(readValue(item, ['industry', 'companyIndustry', 'company.industry', 'client.industry']), '-');
+  const profile = toText(readValue(item, ['profile', 'companyProfile', 'company.profile', 'client.profile']), '');
+  const intro = toText(readValue(item, ['intro', 'introduction', 'companyIntro', 'company.intro', 'client.intro']), '');
+  const desiredTalent = normalizeDesiredTalent(readValue(item, ['desiredTalent', 'desired_talent', 'talent', 'desired']), item);
+  const currentCandidates = normalizeCurrentCandidates(readValue(item, ['currentCandidates', 'current_candidates', 'candidates', 'activeCandidates', 'active_candidates']));
+  const id = toText(rawId, `${company}-${jobTitle}-${index}`);
+
+  return {
+    id,
+    company: company || '-',
+    jobTitle: jobTitle || '-',
+    highlightPosition: highlightPosition || jobTitle || '-',
+    planHeadcount,
+    remaining,
+    proposal,
+    docScreen,
+    interview1,
+    interview2,
+    offer,
+    joined,
+    retention,
+    prejoinDeclines,
+    location,
+    contact,
+    industry,
+    profile,
+    intro,
+    refundAmount,
+    leadTime,
+    fee,
+    dropoutCount,
+    prejoinDeclineReason,
+    desiredTalent,
+    currentCandidates
+  };
 }
 
 
