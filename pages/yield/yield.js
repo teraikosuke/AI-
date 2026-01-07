@@ -1247,18 +1247,18 @@ async function loadPersonalKPIData() {
   } catch (error) {
     console.error('Failed to load personal KPI data (api):', error);
   }
-  try {
-    const candidates = await ensureCandidateDataset();
-    const kpi = buildPersonalKpiFromCandidates(candidates, {
-      startDate: state.ranges.personal.startDate,
-      endDate: state.ranges.personal.endDate,
-      advisorName: getAdvisorName()
-    });
-    return kpi && !Array.isArray(kpi) ? kpi : null;
-  } catch (error) {
-    console.error('Failed to load personal KPI data (from candidates mock):', error);
-    return null;
-  }
+  // try {
+  //   const candidates = await ensureCandidateDataset();
+  //   const kpi = buildPersonalKpiFromCandidates(candidates, {
+  //     startDate: state.ranges.personal.startDate,
+  //     endDate: state.ranges.personal.endDate,
+  //     advisorName: getAdvisorName()
+  //   });
+  //   return kpi && !Array.isArray(kpi) ? kpi : null;
+  // } catch (error) {
+  //   console.error('Failed to load personal KPI data (from candidates mock):', error);
+  //   return null;
+  // }
 }
 
 async function loadPersonalSummaryKPIData() {
@@ -1270,24 +1270,24 @@ async function loadPersonalSummaryKPIData() {
     const kpi = await fetchPersonalKpiFromApi({ startDate, endDate });
     if (kpi) return { monthly: kpi };
   } catch (error) {
-    console.error('Failed to load personal summary KPI data (api):', error);
+    console.log('Failed to load personal summary KPI data (api):', error);
   }
-  try {
-    const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
-    const startDate = period?.startDate;
-    const endDate = period?.endDate;
-    if (!startDate || !endDate) return null;
-    const candidates = await ensureCandidateDataset();
-    const kpi = buildPersonalKpiFromCandidates(candidates, {
-      startDate,
-      endDate,
-      advisorName: getAdvisorName()
-    });
-    return kpi && !Array.isArray(kpi) ? kpi : null;
-  } catch (error) {
-    console.error('Failed to load personal summary KPI data (from candidates mock):', error);
-    return null;
-  }
+  // try {
+  //   const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
+  //   const startDate = period?.startDate;
+  //   const endDate = period?.endDate;
+  //   if (!startDate || !endDate) return null;
+  //   const candidates = await ensureCandidateDataset();
+  //   const kpi = buildPersonalKpiFromCandidates(candidates, {
+  //     startDate,
+  //     endDate,
+  //     advisorName: getAdvisorName()
+  //   });
+  //   return kpi && !Array.isArray(kpi) ? kpi : null;
+  // } catch (error) {
+  //   console.error('Failed to load personal summary KPI data (from candidates mock):', error);
+  //   return null;
+  // }
 }
 
 async function loadTodayPersonalKPIData() {
@@ -1296,21 +1296,21 @@ async function loadTodayPersonalKPIData() {
     const kpi = await fetchPersonalKpiFromApi({ startDate: todayStr, endDate: todayStr });
     if (kpi) return { today: kpi };
   } catch (error) {
-    console.error('Failed to load today personal KPI data (api):', error);
+    console.log('Failed to load today personal KPI data (api):', error);
   }
-  try {
-    const todayStr = isoDate(new Date());
-    const candidates = await ensureCandidateDataset();
-    const kpi = buildPersonalKpiFromCandidates(candidates, {
-      startDate: todayStr,
-      endDate: todayStr,
-      advisorName: getAdvisorName()
-    });
-    return kpi && !Array.isArray(kpi) ? kpi : null;
-  } catch (error) {
-    console.error('Failed to load today personal KPI data (from candidates mock):', error);
-    return null;
-  }
+  // try {
+  //   const todayStr = isoDate(new Date());
+  //   const candidates = await ensureCandidateDataset();
+  //   const kpi = buildPersonalKpiFromCandidates(candidates, {
+  //     startDate: todayStr,
+  //     endDate: todayStr,
+  //     advisorName: getAdvisorName()
+  //   });
+  //   return kpi && !Array.isArray(kpi) ? kpi : null;
+  // } catch (error) {
+  //   console.error('Failed to load today personal KPI data (from candidates mock):', error);
+  //   return null;
+  // }
 }
 
 async function loadMonthToDatePersonalKPIData() {
@@ -1337,21 +1337,21 @@ async function loadCompanyKPIData() {
     const kpi = await fetchCompanyKpiFromApi({ startDate: range.startDate, endDate: range.endDate });
     if (kpi) return kpi;
   } catch (error) {
-    console.error('Failed to load company KPI data (api):', error);
+    console.log('Failed to load company KPI data (api):', error);
   }
-  try {
-    const range = getCompanySummaryRange();
-    if (!range.startDate || !range.endDate) return null;
+  // try {
+  //   const range = getCompanySummaryRange();
+  //   if (!range.startDate || !range.endDate) return null;
 
-    const candidates = await ensureCandidateDataset();
-    const kpi = buildCompanyKpiFromCandidates(candidates, range);
-    console.log('[yield] company KPI (summary range)', { range, candidateCount: candidates.length });
+  //   const candidates = await ensureCandidateDataset();
+  //   const kpi = buildCompanyKpiFromCandidates(candidates, range);
+  //   console.log('[yield] company KPI (summary range)', { range, candidateCount: candidates.length });
 
-    return kpi;
-  } catch (error) {
-    console.error('Failed to load company KPI data (from candidates):', error);
-    return null;
-  }
+  //   return kpi;
+  // } catch (error) {
+  //   console.error('Failed to load company KPI data (from candidates):', error);
+  //   return null;
+  // }
 }
 
 async function loadCompanyPeriodKPIData() {
@@ -1366,23 +1366,23 @@ async function loadCompanyPeriodKPIData() {
       return kpi;
     }
   } catch (error) {
-    console.error('Failed to load company period KPI data (api):', error);
+    console.log('Failed to load company period KPI data (api):', error);
   }
-  try {
-    const startDate = state.ranges.company.startDate;
-    const endDate = state.ranges.company.endDate;
-    if (!startDate || !endDate) return null;
+  // try {
+  //   const startDate = state.ranges.company.startDate;
+  //   const endDate = state.ranges.company.endDate;
+  //   if (!startDate || !endDate) return null;
 
-    const candidates = await ensureCandidateDataset();
-    const kpi = buildCompanyKpiFromCandidates(candidates, { startDate, endDate });
-    console.log('[yield] company KPI (period range)', { startDate, endDate, candidateCount: candidates.length });
+  //   const candidates = await ensureCandidateDataset();
+  //   const kpi = buildCompanyKpiFromCandidates(candidates, { startDate, endDate });
+  //   console.log('[yield] company KPI (period range)', { startDate, endDate, candidateCount: candidates.length });
 
-    if (kpi) renderCompanyPeriod(kpi);
-    return kpi;
-  } catch (error) {
-    console.error('Failed to load company period KPI data (from candidates):', error);
-    return null;
-  }
+  //   if (kpi) renderCompanyPeriod(kpi);
+  //   return kpi;
+  // } catch (error) {
+  //   console.error('Failed to load company period KPI data (from candidates):', error);
+  //   return null;
+  // }
 }
 
 async function loadCompanyTodayEmployeeKpi() {

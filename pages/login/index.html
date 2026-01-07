@@ -44,21 +44,22 @@
           ログイン
         </button>
       </div>
+      <div>
+        <button
+          type="button"
+          id="devLoginButton"
+          class="group relative flex w-full justify-center rounded-md border border-slate-300 py-2 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+        >
+          開発用ログイン
+        </button>
+      </div>
     </form>
 
     <div class="text-sm text-gray-600" style="width: 100%;">
-      <p>開発用アカウント:</p>
-      <p>管理者: admin@example.com / admin123</p>
-      <p>一般: member@example.com / member123</p>
-      <p>（DB接続時のみ）一般: analyst@example.com / analyst123</p>
-      <p>（DB接続時のみ）一般: sales@example.com / sales123</p>
-      <p>（DB接続時のみ）一般: designer@example.com / designer123</p>
-      <p>（DB接続時のみ）一般: hr@example.com / hr123</p>
-      <p style="color: red; padding-top:10px">DB接続時に接続可能なポート番号(この数字のこと http://localhost:8080) 8000,8001,8002,8080</p>
-      <p style="color: red;">DBの使い方について：README.md 61行目以降を参照してください。</p>
-      <p style="color: red;">DB無しでも歩留管理は見れますが、使うと個人成績の閲覧や管理ができます。</p>
-      <p style="color: red;">現状はローカルに各自のPCでDBを作成し、それぞれのデータを入れて保存・取り出しをするという方法でしか使えません。</p>
-      <p style="color: red;">勉強のためにPostgresSQLを使用しましたが、クラウド環境での運用やkintoneからの取得をしないといけないので、どうしたらいいかまた質問したいです。</p>
+      <p class="font-semibold">ログイン方法</p>
+      <p>通常ログイン: DBに登録したメールアドレスとパスワードでログインします。</p>
+      <p>開発用ログイン: DBに接続できない場合は「開発用ログイン」ボタンで管理者としてログインできます（ローカルのみ）。</p>
+      <p class="text-xs text-gray-500">※ 権限は is_admin から admin/member に変換して判定します。</p>
     </div>
   </div>
 </div>
