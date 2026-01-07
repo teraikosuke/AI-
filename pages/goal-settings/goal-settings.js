@@ -38,14 +38,19 @@ const state = {
   selectedPersonalDailyPeriodId: ''
 };
 
-export function mount() {
+export async function mount() {
+  try {
+    await goalSettingsService.load();
+  } catch (error) {
+    console.warn('[goal-settings] failed to load settings', error);
+  }
   hydrateInitialState();
   initializeTabs();
   renderEvaluationRuleSection();
   renderPeriodSelects();
-  renderCompanyTargets();
-  renderPersonalTargets();
-  renderDailyTargets();
+  await renderCompanyTargets();
+  await renderPersonalTargets();
+  await renderDailyTargets();
   bindEvents();
 }
 
@@ -114,7 +119,7 @@ function initializeTabs() {
   });
 }
 
-function handleRuleSelect(nextRule) {
+async function handleRuleSelect(nextRule) {
   const options = readRuleOptions(nextRule);
   state.evaluationRule = { type: nextRule, options };
   state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(state.evaluationRule);
@@ -125,18 +130,24 @@ function handleRuleSelect(nextRule) {
   state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
   renderEvaluationRuleSection();
   renderPeriodSelects();
-  renderCompanyTargets();
-  renderPersonalTargets();
-  renderDailyTargets();
+  await renderCompanyTargets();
+  await renderPersonalTargets();
+  await renderDailyTargets();
 }
 
-function handleSaveEvaluationRule() {
+async function handleSaveEvaluationRule() {
   const type = getSelectedRule();
   const options = readRuleOptions(type);
   const rule = { type, options };
   state.evaluationRule = rule;
   state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(rule);
-  goalSettingsService.setEvaluationRule(rule);
+  try {
+    await goalSettingsService.setEvaluationRule(rule);
+  } catch (error) {
+    console.error('[goal-settings] failed to save evaluation rule', error);
+    showSaveStatus('evaluationSaveStatus', '保存に失敗しました');
+    return;
+  }
   goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
   const firstPeriod = state.evaluationPeriods[0];
   const todayId = findPeriodIdByDate(isoDate(new Date()), state.evaluationPeriods);
@@ -145,9 +156,9 @@ function handleSaveEvaluationRule() {
   state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
   renderEvaluationRuleSection();
   renderPeriodSelects();
-  renderCompanyTargets();
-  renderPersonalTargets();
-  renderDailyTargets();
+  await renderCompanyTargets();
+  await renderPersonalTargets();
+  await renderDailyTargets();
   showSaveStatus('evaluationSaveStatus', '期間設定を保存しました');
 }
 
@@ -174,19 +185,19 @@ function addCustomPeriodRow() {
   state.evaluationPeriods = [...state.evaluationPeriods, newPeriod];
 }
 
-function handleCompanyPeriodChange(event) {
+async function handleCompanyPeriodChange(event) {
   state.selectedCompanyPeriodId = event.target.value || '';
-  renderCompanyTargets();
+  await renderCompanyTargets();
 }
 
-function handlePersonalPeriodChange(event) {
+async function handlePersonalPeriodChange(event) {
   state.selectedPersonalPeriodId = event.target.value || '';
-  renderPersonalTargets();
+  await renderPersonalTargets();
 }
 
-function handlePersonalDailyPeriodChange(event) {
+async function handlePersonalDailyPeriodChange(event) {
   state.selectedPersonalDailyPeriodId = event.target.value || '';
-  renderDailyTargets();
+  await renderDailyTargets();
 }
 
 function renderPeriodSelects() {
@@ -237,12 +248,18 @@ function renderPeriodSelects() {
   }
 }
 
-function renderCompanyTargets() {
+async function renderCompanyTargets() {
+  if (state.selectedCompanyPeriodId) {
+    await goalSettingsService.loadCompanyPeriodTarget(state.selectedCompanyPeriodId);
+  }
   const target = goalSettingsService.getCompanyPeriodTarget(state.selectedCompanyPeriodId) || {};
   renderTargetTable('companyTargetTableBody', target);
 }
 
-function renderPersonalTargets() {
+async function renderPersonalTargets() {
+  if (state.selectedPersonalPeriodId) {
+    await goalSettingsService.loadPersonalPeriodTarget(state.selectedPersonalPeriodId);
+  }
   const target = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalPeriodId) || {};
   renderTargetTable('personalTargetTableBody', target);
 }
@@ -287,27 +304,38 @@ function readTargetTable(tbodyId) {
   return result;
 }
 
-function handleSaveCompanyTarget() {
+async function handleSaveCompanyTarget() {
   if (!state.selectedCompanyPeriodId) return;
   const values = readTargetTable('companyTargetTableBody');
-  goalSettingsService.saveCompanyPeriodTarget(state.selectedCompanyPeriodId, values);
-  showSaveStatus('companyTargetSaveStatus', '会社目標を保存しました');
+  try {
+    await goalSettingsService.saveCompanyPeriodTarget(state.selectedCompanyPeriodId, values);
+    showSaveStatus('companyTargetSaveStatus', '会社目標を保存しました');
+  } catch (error) {
+    console.error('[goal-settings] failed to save company target', error);
+    showSaveStatus('companyTargetSaveStatus', '保存に失敗しました');
+  }
 }
 
-function handleSavePersonalTarget() {
+async function handleSavePersonalTarget() {
   if (!state.selectedPersonalPeriodId) return;
   const values = readTargetTable('personalTargetTableBody');
-  goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
-  showSaveStatus('personalTargetSaveStatus', '個人目標を保存しました');
+  try {
+    await goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
+    showSaveStatus('personalTargetSaveStatus', '個人目標を保存しました');
+  } catch (error) {
+    console.error('[goal-settings] failed to save personal target', error);
+    showSaveStatus('personalTargetSaveStatus', '保存に失敗しました');
+  }
 }
 
-function handleCopyCompanyTarget() {
+async function handleCopyCompanyTarget() {
   if (!state.selectedPersonalPeriodId) return;
+  await goalSettingsService.loadCompanyPeriodTarget(state.selectedPersonalPeriodId);
   const source = goalSettingsService.getCompanyPeriodTarget(state.selectedPersonalPeriodId) || {};
   renderTargetTable('personalTargetTableBody', source);
 }
 
-function renderDailyTargets() {
+async function renderDailyTargets() {
   const body = document.getElementById('personalDailyTableBody');
   if (!body) return;
   const period = state.evaluationPeriods.find(item => item.id === state.selectedPersonalDailyPeriodId);
@@ -316,6 +344,7 @@ function renderDailyTargets() {
     return;
   }
   const dates = enumerateDates(period.startDate, period.endDate);
+  await goalSettingsService.loadPersonalDailyTargets(period.id);
   const savedTargets = goalSettingsService.getPersonalDailyTargets(period.id) || {};
 
   body.innerHTML = dates
@@ -334,11 +363,12 @@ function renderDailyTargets() {
     .join('');
 }
 
-function handleDistributeDailyTargets() {
+async function handleDistributeDailyTargets() {
   const period = state.evaluationPeriods.find(item => item.id === state.selectedPersonalDailyPeriodId);
   if (!period) return;
   const dates = enumerateDates(period.startDate, period.endDate);
   if (!dates.length) return;
+  await goalSettingsService.loadPersonalPeriodTarget(state.selectedPersonalDailyPeriodId);
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalDailyPeriodId) || {};
   const distributed = {};
   DAILY_FIELDS.forEach(field => {
@@ -355,7 +385,7 @@ function handleDistributeDailyTargets() {
   });
 }
 
-function handleSaveDailyTargets() {
+async function handleSaveDailyTargets() {
   const periodId = state.selectedPersonalDailyPeriodId;
   if (!periodId) return;
   const body = document.getElementById('personalDailyTableBody');
@@ -371,8 +401,13 @@ function handleSaveDailyTargets() {
     });
     dailyTargets[date] = target;
   });
-  goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
-  showSaveStatus('dailyTargetSaveStatus', '日別目標を保存しました');
+  try {
+    await goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
+    showSaveStatus('dailyTargetSaveStatus', '日別目標を保存しました');
+  } catch (error) {
+    console.error('[goal-settings] failed to save daily targets', error);
+    showSaveStatus('dailyTargetSaveStatus', '保存に失敗しました');
+  }
 }
 
 function getSelectedRule() {

@@ -5,7 +5,7 @@
 
 /**
  * @typedef {Object} Session
- * @property {{email: string, name: string}} user - ユーザー基本情報
+ * @property {{id?: string, email: string, name: string}} user - ユーザー基本情報
  * @property {string} role - メインロール（後方互換用）
  * @property {string[]} roles - 付与されている全ロール
  * @property {string} token - アクセストークン（モック環境ではダミー文字列）
