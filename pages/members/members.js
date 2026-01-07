@@ -1,20 +1,68 @@
-import { mockUsers } from '../../scripts/mock/users.js';
+import { getSession } from '../../scripts/auth.js';
+
+const MEMBERS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const MEMBERS_LIST_PATH = '/members';
+const membersApi = (path) => `${MEMBERS_API_BASE}${path}`;
 
 export function mount() {
   const title = document.getElementById('pageTitle');
   if (title) title.textContent = 'メンバー';
 
-  renderMembers();
+  renderMembersLoading();
+  loadMembers();
 }
 
 export function unmount() {}
 
-function renderMembers() {
+async function loadMembers() {
+  try {
+    const session = getSession();
+    const headers = { Accept: 'application/json' };
+    if (session?.token) {
+      headers.Authorization = `Bearer ${session.token}`;
+    }
+
+    const url = membersApi(MEMBERS_LIST_PATH);
+    console.log('[members] fetching', { url, hasToken: Boolean(session?.token) });
+    const response = await fetch(url, { headers });
+    console.log('[members] response', { status: response.status });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const result = await response.json();
+    console.log('[members] payload', result);
+    const members = normalizeMembers(result);
+    console.log('[members] normalized count', members.length);
+    renderMembers(members);
+  } catch (error) {
+    console.error('[members] load failed', error);
+    renderMembersError(error);
+  }
+}
+
+function normalizeMembers(result) {
+  const raw = Array.isArray(result)
+    ? result
+    : (result?.items || result?.members || result?.users || []);
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((member) => ({
+    id: member.id,
+    name: member.name || member.fullName || '',
+    email: member.email || '',
+    role: member.role || (member.is_admin ? 'admin' : 'member')
+  }));
+}
+
+function renderMembers(members) {
   const grid = document.getElementById('membersGrid');
   const countEl = document.getElementById('membersCount');
   if (!grid) return;
 
-  grid.innerHTML = mockUsers
+  if (!members.length) {
+    grid.innerHTML = '<p class="member-card__email">メンバーが見つかりませんでした。</p>';
+  } else {
+    grid.innerHTML = members
     .map(user => {
       const roleBadge = user.role === 'admin' ? '<span class="member-card__badge">管理者</span>' : '';
       return `
@@ -35,9 +83,32 @@ function renderMembers() {
       `;
     })
     .join('');
+  }
 
   if (countEl) {
-    countEl.textContent = `${mockUsers.length}名`;
+    countEl.textContent = `${members.length}名`;
+  }
+}
+
+function renderMembersLoading() {
+  const grid = document.getElementById('membersGrid');
+  const countEl = document.getElementById('membersCount');
+  if (grid) {
+    grid.innerHTML = '<p class="member-card__email">読み込み中...</p>';
+  }
+  if (countEl) {
+    countEl.textContent = '';
+  }
+}
+
+function renderMembersError(error) {
+  const grid = document.getElementById('membersGrid');
+  const countEl = document.getElementById('membersCount');
+  if (grid) {
+    grid.innerHTML = `<p class="member-card__email">取得に失敗しました: ${escapeHtml(error?.message || 'unknown')}</p>`;
+  }
+  if (countEl) {
+    countEl.textContent = '';
   }
 }
 

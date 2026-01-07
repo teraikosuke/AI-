@@ -1,4 +1,5 @@
-const STORAGE_KEY = 'goalSettings.v1';
+import { getSession } from '../auth.js';
+
 const DEFAULT_RULE = { type: 'monthly', options: {} };
 const KPI_TARGET_KEYS = [
   'newInterviewsTarget',
@@ -18,28 +19,75 @@ const KPI_TARGET_KEYS = [
   'hireRateTarget'
 ];
 
+const DEFAULT_GOAL_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/goal';
+const GOAL_API_BASE = resolveGoalApiBase();
+
+const cache = {
+  loaded: false,
+  evaluationRule: normalizeRule(DEFAULT_RULE),
+  evaluationPeriods: [],
+  companyTargets: new Map(),
+  personalTargets: new Map(),
+  dailyTargets: new Map()
+};
+
+cache.evaluationPeriods = buildDefaultPeriods(cache.evaluationRule);
+
+function resolveGoalApiBase() {
+  if (typeof window === 'undefined') return DEFAULT_GOAL_API_BASE;
+  const fromWindow = window.GOAL_API_BASE || '';
+  let fromStorage = '';
+  try {
+    fromStorage = localStorage.getItem('dashboard.goalApiBase') || '';
+  } catch {
+    fromStorage = '';
+  }
+  const base = (fromWindow || fromStorage || '').trim();
+  const resolved = base ? base : DEFAULT_GOAL_API_BASE;
+  return resolved.replace(/\/$/, '');
+}
+
+function buildGoalUrl(path) {
+  if (!GOAL_API_BASE) return path;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${GOAL_API_BASE}${suffix}`;
+}
+
+function getAuthHeaders() {
+  const token = getSession()?.token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function requestJson(path, options = {}) {
+  const res = await fetch(buildGoalUrl(path), {
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers || {}),
+      ...getAuthHeaders()
+    },
+    ...options
+  });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    const message = data?.error || data?.message || `HTTP ${res.status}`;
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
+  }
+  return data;
+}
+
 function isoDate(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-
-function readState() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {};
-  } catch (error) {
-    console.warn('[goalSettingsService] failed to parse storage', error);
-    return {};
-  }
-}
-
-function writeState(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  return data;
-}
-
-const advisorKey = name => (name && typeof name === 'string' ? name : 'default');
 
 function padMonth(value) {
   return String(value).padStart(2, '0');
@@ -115,7 +163,7 @@ function buildHalfMonthPeriods() {
 function buildWeeklyPeriods(startWeekday = 'monday') {
   const now = new Date();
   const periods = [];
-  const dayOffset = startWeekday === 'sunday' ? 0 : 1; // Sunday=0, Monday=1
+  const dayOffset = startWeekday === 'sunday' ? 0 : 1;
   for (let offset = -26; offset <= 26; offset += 1) {
     const base = new Date(now);
     base.setDate(base.getDate() + offset * 7);
@@ -199,39 +247,12 @@ function safeDay(year, month, day) {
   return new Date(year, month, clamped);
 }
 
-function ensureState() {
-  const data = readState();
-  data.evaluationRule = normalizeRule(data.evaluationRule);
-  if (!Array.isArray(data.evaluationPeriods) || data.evaluationPeriods.length === 0) {
-    data.evaluationPeriods = buildDefaultPeriods(data.evaluationRule);
-  }
-  data.company = data.company || {};
-  data.company.periodTargets = data.company.periodTargets || {};
-  data.personal = data.personal || {};
-  data.personal.periodTargets = data.personal.periodTargets || {};
-  data.personal.dailyTargets = data.personal.dailyTargets || {};
-  data.personalByAdvisor = data.personalByAdvisor || {};
-  return writeState(data);
-}
-
 function normalizeTarget(raw = {}) {
   return KPI_TARGET_KEYS.reduce((acc, key) => {
     const value = Number(raw[key]);
     acc[key] = Number.isFinite(value) ? value : 0;
     return acc;
   }, {});
-}
-
-function getDailyTargetsForPeriod(data, periodId) {
-  const store = data.personal?.dailyTargets || {};
-  return store[periodId] || {};
-}
-
-function setDailyTargetsForPeriod(data, periodId, dailyTargets) {
-  if (!data.personal) data.personal = {};
-  if (!data.personal.dailyTargets) data.personal.dailyTargets = {};
-  data.personal.dailyTargets[periodId] = dailyTargets;
-  return data.personal.dailyTargets[periodId];
 }
 
 function getPeriodByDate(dateStr, periods) {
@@ -247,110 +268,6 @@ function getPeriodByDate(dateStr, periods) {
     }) || null
   );
 }
-
-export const goalSettingsService = {
-  getEvaluationRule() {
-    return ensureState().evaluationRule;
-  },
-  setEvaluationRule(rule) {
-    const nextRule = normalizeRule(rule);
-    const data = ensureState();
-    data.evaluationRule = nextRule;
-    data.evaluationPeriods = buildDefaultPeriods(nextRule);
-    return writeState(data).evaluationRule;
-  },
-  getEvaluationPeriods() {
-    const data = ensureState();
-    return Array.isArray(data.evaluationPeriods) ? data.evaluationPeriods : [];
-  },
-  setEvaluationPeriods(periods = []) {
-    const data = ensureState();
-    data.evaluationPeriods = Array.isArray(periods) ? periods : [];
-    return writeState(data).evaluationPeriods;
-  },
-  getCompanyPeriodTarget(periodId) {
-    const data = ensureState();
-    return data.company?.periodTargets?.[periodId] || null;
-  },
-  saveCompanyPeriodTarget(periodId, target = {}) {
-    if (!periodId) return null;
-    const data = ensureState();
-    if (!data.company) data.company = {};
-    if (!data.company.periodTargets) data.company.periodTargets = {};
-    data.company.periodTargets[periodId] = normalizeTarget(target);
-    writeState(data);
-    return data.company.periodTargets[periodId];
-  },
-  getPersonalPeriodTarget(periodId, advisorName) {
-    const data = ensureState();
-    if (advisorName) {
-      const key = advisorKey(advisorName);
-      return (
-        data.personalByAdvisor?.[key]?.periodTargets?.[periodId] ||
-        data.personal?.periodTargets?.[periodId] ||
-        null
-      );
-    }
-    return data.personal?.periodTargets?.[periodId] || null;
-  },
-  savePersonalPeriodTarget(periodId, target = {}, advisorName) {
-    if (!periodId) return null;
-    const data = ensureState();
-    const key = advisorKey(advisorName);
-    data.personalByAdvisor = data.personalByAdvisor || {};
-    data.personalByAdvisor[key] = data.personalByAdvisor[key] || {};
-    data.personalByAdvisor[key].periodTargets = data.personalByAdvisor[key].periodTargets || {};
-    data.personalByAdvisor[key].periodTargets[periodId] = normalizeTarget(target);
-    writeState(data);
-    return data.personalByAdvisor[key].periodTargets[periodId];
-  },
-  getPersonalDailyTargets(periodId, advisorName) {
-    const data = ensureState();
-    if (advisorName) {
-      const key = advisorKey(advisorName);
-      const byAdv = data.personalByAdvisor?.[key];
-      if (byAdv) {
-        return getDailyTargetsForPeriod({ personal: { dailyTargets: byAdv.dailyTargets } }, periodId);
-      }
-      return getDailyTargetsForPeriod(data, periodId);
-    }
-    return getDailyTargetsForPeriod(data, periodId);
-  },
-  savePersonalDailyTargets(periodId, dailyTargets = {}, advisorName) {
-    if (!periodId) return {};
-    const data = ensureState();
-    const key = advisorKey(advisorName);
-    data.personalByAdvisor = data.personalByAdvisor || {};
-    data.personalByAdvisor[key] = data.personalByAdvisor[key] || {};
-    data.personalByAdvisor[key].dailyTargets = data.personalByAdvisor[key].dailyTargets || {};
-    const normalized = {};
-    Object.entries(dailyTargets || {}).forEach(([date, target]) => {
-      normalized[date] = normalizeTarget(target || {});
-    });
-    data.personalByAdvisor[key].dailyTargets[periodId] = normalized;
-    writeState(data);
-    return data.personalByAdvisor[key].dailyTargets[periodId];
-  },
-  getPeriodByDate(dateStr, periods) {
-    const data = ensureState();
-    return getPeriodByDate(dateStr, periods || data.evaluationPeriods);
-  },
-  resolvePeriodIdByDate(dateStr, periods) {
-    const period = this.getPeriodByDate(dateStr, periods);
-    return period?.id || null;
-  },
-  formatPeriodLabel(period) {
-    if (!period) return '';
-    const range = period.startDate && period.endDate ? `（${period.startDate}〜${period.endDate}）` : '';
-    return `${period.label || period.id || '期間未設定'}${range}`;
-  },
-  generateDefaultPeriods(rule) {
-    return buildDefaultPeriods(rule || DEFAULT_RULE);
-  },
-  listKpiTargetKeys() {
-    return [...KPI_TARGET_KEYS];
-  }
-};
 
 function normalizeRule(raw) {
   if (raw && typeof raw === 'object' && raw.type) {
@@ -368,5 +285,230 @@ function normalizeRule(raw) {
         : legacy;
   return { type: mapped || 'monthly', options: {} };
 }
+
+function resolveAdvisorUserId(advisorName) {
+  const session = getSession();
+  const sessionId = Number(session?.user?.id);
+  if (Number.isFinite(sessionId) && sessionId > 0) {
+    if (!advisorName || session?.user?.name === advisorName) {
+      return sessionId;
+    }
+  }
+  const parsed = Number(advisorName);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return null;
+}
+
+function makePersonalKey(advisorUserId, periodId) {
+  return `${advisorUserId}:${periodId}`;
+}
+
+async function loadEvaluationRuleFromApi() {
+  const data = await requestJson('/goal-settings');
+  const rule = normalizeRule({
+    type: data?.evaluation_rule_type || DEFAULT_RULE.type,
+    options: data?.evaluation_rule_options || {}
+  });
+  cache.evaluationRule = rule;
+  cache.evaluationPeriods = buildDefaultPeriods(rule);
+  cache.loaded = true;
+  return cache.evaluationRule;
+}
+
+async function loadCompanyTargetFromApi(periodId, { force = false } = {}) {
+  if (!periodId) return null;
+  if (!force && cache.companyTargets.has(periodId)) return cache.companyTargets.get(periodId);
+  const params = new URLSearchParams({ scope: 'company', periodId });
+  const data = await requestJson(`/goal-targets?${params.toString()}`);
+  const target = normalizeTarget(data?.targets || {});
+  cache.companyTargets.set(periodId, target);
+  return target;
+}
+
+async function loadPersonalTargetFromApi(periodId, advisorName, { force = false } = {}) {
+  if (!periodId) return null;
+  const advisorUserId = resolveAdvisorUserId(advisorName);
+  if (!advisorUserId) return null;
+  const key = makePersonalKey(advisorUserId, periodId);
+  if (!force && cache.personalTargets.has(key)) return cache.personalTargets.get(key);
+  const params = new URLSearchParams({
+    scope: 'personal',
+    periodId,
+    advisorUserId: String(advisorUserId)
+  });
+  const data = await requestJson(`/goal-targets?${params.toString()}`);
+  const target = normalizeTarget(data?.targets || {});
+  cache.personalTargets.set(key, target);
+  return target;
+}
+
+async function loadDailyTargetsFromApi(periodId, advisorName, { force = false } = {}) {
+  if (!periodId) return {};
+  const advisorUserId = resolveAdvisorUserId(advisorName);
+  if (!advisorUserId) return {};
+  const key = makePersonalKey(advisorUserId, periodId);
+  if (!force && cache.dailyTargets.has(key)) return cache.dailyTargets.get(key);
+  const params = new URLSearchParams({
+    advisorUserId: String(advisorUserId),
+    periodId
+  });
+  const data = await requestJson(`/goal-daily-targets?${params.toString()}`);
+  const raw = data?.dailyTargets || {};
+  const normalized = {};
+  Object.entries(raw).forEach(([date, target]) => {
+    normalized[date] = normalizeTarget(target || {});
+  });
+  cache.dailyTargets.set(key, normalized);
+  return normalized;
+}
+
+export const goalSettingsService = {
+  async load({ force = false } = {}) {
+    if (!force && cache.loaded) return cache.evaluationRule;
+    try {
+      return await loadEvaluationRuleFromApi();
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load settings', error);
+      cache.loaded = true;
+      return cache.evaluationRule;
+    }
+  },
+  getEvaluationRule() {
+    return cache.evaluationRule;
+  },
+  async setEvaluationRule(rule) {
+    const nextRule = normalizeRule(rule);
+    await requestJson('/goal-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        evaluation_rule_type: nextRule.type,
+        evaluation_rule_options: nextRule.options || {}
+      })
+    });
+    cache.evaluationRule = nextRule;
+    cache.evaluationPeriods = buildDefaultPeriods(nextRule);
+    return cache.evaluationRule;
+  },
+  getEvaluationPeriods() {
+    return Array.isArray(cache.evaluationPeriods) ? cache.evaluationPeriods : [];
+  },
+  setEvaluationPeriods(periods = []) {
+    cache.evaluationPeriods = Array.isArray(periods) ? periods : [];
+    return cache.evaluationPeriods;
+  },
+  getCompanyPeriodTarget(periodId) {
+    return cache.companyTargets.get(periodId) || null;
+  },
+  async loadCompanyPeriodTarget(periodId, { force = false } = {}) {
+    try {
+      return await loadCompanyTargetFromApi(periodId, { force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load company target', error);
+      return this.getCompanyPeriodTarget(periodId);
+    }
+  },
+  async saveCompanyPeriodTarget(periodId, target = {}) {
+    if (!periodId) return null;
+    const normalized = normalizeTarget(target);
+    await requestJson('/goal-targets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'company', periodId, targets: normalized })
+    });
+    cache.companyTargets.set(periodId, normalized);
+    return normalized;
+  },
+  getPersonalPeriodTarget(periodId, advisorName) {
+    const advisorUserId = resolveAdvisorUserId(advisorName);
+    if (!advisorUserId || !periodId) return null;
+    const key = makePersonalKey(advisorUserId, periodId);
+    return cache.personalTargets.get(key) || null;
+  },
+  async loadPersonalPeriodTarget(periodId, advisorName, { force = false } = {}) {
+    try {
+      return await loadPersonalTargetFromApi(periodId, advisorName, { force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load personal target', error);
+      return this.getPersonalPeriodTarget(periodId, advisorName);
+    }
+  },
+  async savePersonalPeriodTarget(periodId, target = {}, advisorName) {
+    if (!periodId) return null;
+    const advisorUserId = resolveAdvisorUserId(advisorName);
+    if (!advisorUserId) {
+      throw new Error('advisorUserId is required');
+    }
+    const normalized = normalizeTarget(target);
+    await requestJson('/goal-targets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'personal',
+        advisorUserId,
+        periodId,
+        targets: normalized
+      })
+    });
+    const key = makePersonalKey(advisorUserId, periodId);
+    cache.personalTargets.set(key, normalized);
+    return normalized;
+  },
+  getPersonalDailyTargets(periodId, advisorName) {
+    const advisorUserId = resolveAdvisorUserId(advisorName);
+    if (!advisorUserId || !periodId) return {};
+    const key = makePersonalKey(advisorUserId, periodId);
+    return cache.dailyTargets.get(key) || {};
+  },
+  async loadPersonalDailyTargets(periodId, advisorName, { force = false } = {}) {
+    try {
+      return await loadDailyTargetsFromApi(periodId, advisorName, { force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load daily targets', error);
+      return this.getPersonalDailyTargets(periodId, advisorName);
+    }
+  },
+  async savePersonalDailyTargets(periodId, dailyTargets = {}, advisorName) {
+    if (!periodId) return {};
+    const advisorUserId = resolveAdvisorUserId(advisorName);
+    if (!advisorUserId) {
+      throw new Error('advisorUserId is required');
+    }
+    const items = Object.entries(dailyTargets || {}).map(([date, target]) => ({
+      target_date: date,
+      targets: normalizeTarget(target || {})
+    }));
+    await requestJson('/goal-daily-targets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ advisorUserId, periodId, items })
+    });
+    const key = makePersonalKey(advisorUserId, periodId);
+    const normalized = {};
+    items.forEach(item => {
+      normalized[item.target_date] = item.targets;
+    });
+    cache.dailyTargets.set(key, normalized);
+    return normalized;
+  },
+  getPeriodByDate(dateStr, periods) {
+    return getPeriodByDate(dateStr, periods || cache.evaluationPeriods);
+  },
+  resolvePeriodIdByDate(dateStr, periods) {
+    const period = this.getPeriodByDate(dateStr, periods);
+    return period?.id || null;
+  },
+  formatPeriodLabel(period) {
+    if (!period) return '';
+    const range = period.startDate && period.endDate ? `（${period.startDate}〜${period.endDate}）` : '';
+    return `${period.label || period.id || '期間未設定'}${range}`;
+  },
+  generateDefaultPeriods(rule) {
+    return buildDefaultPeriods(rule || DEFAULT_RULE);
+  },
+  listKpiTargetKeys() {
+    return [...KPI_TARGET_KEYS];
+  }
+};
 
 export default goalSettingsService;

@@ -191,11 +191,16 @@ export const authRepo = {
 function createSessionFromUser(user, token = 'mock') {
   const payload = token ? decodeJwtPayload(token) : null;
   const exp = payload?.exp ? payload.exp * 1000 : Date.now() + 12 * 60 * 60 * 1000;
+  const userId = user?.id ?? user?.userId ?? payload?.sub ?? '';
+  const sessionUser = {
+    email: user.email,
+    name: user.name
+  };
+  if (userId) {
+    sessionUser.id = String(userId);
+  }
   return {
-    user: {
-      email: user.email,
-      name: user.name
-    },
+    user: sessionUser,
     role: user.role,
     roles: [user.role],
     token,
