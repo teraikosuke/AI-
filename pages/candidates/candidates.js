@@ -42,6 +42,8 @@ const detailSectionKeys = [
   "hearing",
   "meeting",
   "selection",
+  "teleapoLogs",
+  "money",
 ];
 
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
@@ -79,6 +81,8 @@ function normalizeCandidate(candidate) {
   candidate.meetingPlans = Array.isArray(candidate.meetingPlans) ? candidate.meetingPlans : [];
   candidate.resumeDocuments = Array.isArray(candidate.resumeDocuments) ? candidate.resumeDocuments : [];
   candidate.selectionProgress = Array.isArray(candidate.selectionProgress) ? candidate.selectionProgress : [];
+  candidate.teleapoLogs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs : [];
+  candidate.moneyInfo = Array.isArray(candidate.moneyInfo) ? candidate.moneyInfo : [];
   candidate.hearing = candidate.hearing || {};
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
@@ -236,7 +240,7 @@ function renderCandidatesTable(list) {
   if (list.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
+        <td colspan="8" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
       </tr>
     `;
     return;
@@ -257,6 +261,7 @@ function buildTableRow(candidate) {
       ${renderTextCell(candidate, "callerName")}
       ${renderTextCell(candidate, "candidateName", { strong: true })}
       ${renderTextCell(candidate, "advisorName")}
+      ${renderTextCell(candidate, "partnerName")}
       ${renderTextCell(candidate, "phase", {
     allowHTML: true,
     format: (value) => `<span class="candidate-phase-pill">${escapeHtml(value || "-")}</span>`,
@@ -385,28 +390,7 @@ function updateLastSyncedDisplay(ts) {
 // 行クリック：必ず詳細APIを叩く（重要）
 // =========================
 async function fetchCandidateDetailById(id) {
-  // 1) すでに一覧にある場合はそれを返す（不要なAPIコールを減らす）
-  const cached =
-    allCandidates.find((c) => String(c.id) === String(id)) ||
-    filteredCandidates.find((c) => String(c.id) === String(id));
-  if (cached) return cached;
-
-  // 2) 一覧APIを id 絞りで呼ぶ（安定しているほうを優先）
-  const altUrl = candidatesApi(`${CANDIDATES_LIST_PATH}?id=${encodeURIComponent(id)}`);
-  try {
-    const altRes = await fetch(altUrl);
-    if (altRes.ok) {
-      const altJson = await altRes.json().catch(() => null);
-      const item = Array.isArray(altJson?.items)
-        ? altJson.items.find((it) => String(it.id) === String(id))
-        : null;
-      if (item) return normalizeCandidate({ ...item, id: String(item.id) });
-    }
-  } catch (e) {
-    console.error("candidate detail alt fetch failed", e);
-  }
-
-  // 3) 最後の手段として詳細APIを叩く（これが 500 を返す場合はそのまま例外）
+  // 画面の詳細は必ず詳細APIから取得する
   const url = candidatesApi(candidateDetailPath(id)); // /candidates/{candidateId}
   const res = await fetch(url);
   if (!res.ok) {
@@ -568,6 +552,8 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     renderDetailSection("面談メモ / 希望条件", renderHearingSection(candidate), "hearing"),
     renderDetailSection("CS項目", renderMeetingSection(candidate), "meeting"),
     renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection"),
+    renderDetailSection("クリック詳細（テレアポログ一覧）", renderTeleapoLogsSection(candidate), "teleapoLogs"),
+    renderDetailSection("お金関係", renderMoneySection(candidate), "money"),
   ].join("");
 
   container.innerHTML = `
@@ -1171,6 +1157,99 @@ function renderSelectionProgressSection(candidate) {
             <th>内定日</th><th>内定承諾日</th><th>入社日</th><th>入社前辞退日</th>
             <th>内定後退社日</th><th>選考状況</th>${headerAction}
           </tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderTeleapoLogsSection(candidate) {
+  const rows = candidate.teleapoLogs || [];
+  if (rows.length === 0) {
+    return `
+      <div class="detail-table-wrapper">
+        <table class="detail-table">
+          <thead>
+            <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const bodyHtml = rows
+    .map((row) => {
+      const cells = [
+        row.callNo,
+        row.callerName,
+        row.memo,
+        formatDateTimeJP(row.calledAt),
+      ]
+        .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+
+  return `
+    <div class="detail-table-wrapper">
+      <table class="detail-table">
+        <thead>
+          <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderMoneySection(candidate) {
+  const rows = candidate.moneyInfo || [];
+  if (rows.length === 0) {
+    return `
+      <div class="detail-table-wrapper">
+        <table class="detail-table">
+          <thead>
+            <tr><th>企業名</th><th>入社承諾の金額</th><th>退社返金額</th><th>返金区分</th></tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" class="detail-empty-row text-center py-3">金額情報はありません。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const bodyHtml = rows
+    .map((row) => {
+      const refundType = row.preJoinWithdrawDate
+        ? "入社前辞退"
+        : row.postJoinQuitDate
+          ? "内定後退社"
+          : row.joinDate
+            ? "入社"
+            : "";
+      const cells = [
+        row.companyName,
+        row.feeAmount,
+        row.refundAmount,
+        refundType,
+      ]
+        .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+
+  return `
+    <div class="detail-table-wrapper">
+      <table class="detail-table">
+        <thead>
+          <tr><th>企業名</th><th>入社承諾の金額</th><th>退社返金額</th><th>返金区分</th></tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
       </table>
