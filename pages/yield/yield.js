@@ -1,15 +1,12 @@
 // Yield Page JavaScript Module (simplified)
 import { RepositoryFactory } from '../../scripts/api/index.js';
-import { hasRole, getSession } from '../../scripts/auth.js';
+import { getSession } from '../../scripts/auth.js';
 // 例: 実際のパスに合わせてください
 import { getMockCandidates } from '../../scripts/mock/candidates.js';
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 import {
   buildPersonalKpiFromCandidates,
-  buildCompanyKpiFromCandidates,
-  buildEmployeeKpiFromCandidates,
-  buildGenderAndAgeBreakdownFromCandidates,
-  buildTrendRatesFromCandidates
+  buildCompanyKpiFromCandidates
 } from './yield-metrics-from-candidates.js';
 
 const repositories = RepositoryFactory.create();
@@ -17,15 +14,141 @@ const kpiRepository = repositories.kpi;
 
 // API接続設定
 const KPI_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi';
+const MEMBERS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const MEMBERS_LIST_PATH = '/members';
 const KPI_YIELD_PATH = '/yield';
-const KPI_YIELD_DAILY_PATH = '/yield/daily';
+const KPI_YIELD_TREND_PATH = '/yield/trend';
+const KPI_YIELD_BREAKDOWN_PATH = '/yield/breakdown';
 const DEFAULT_ADVISOR_USER_ID = 30;
+const DEFAULT_CALC_MODE = 'cohort';
 
 async function fetchJson(url, params = {}) {
   const query = new URLSearchParams(params);
   const res = await fetch(`${url}?${query.toString()}`, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
+}
+
+let membersCache = [];
+let membersPromise = null;
+
+function normalizeMembers(payload) {
+  const raw = Array.isArray(payload)
+    ? payload
+    : (payload?.items || payload?.members || payload?.users || []);
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(member => ({
+      id: member.id ?? member.user_id ?? member.userId,
+      name: member.name || member.fullName || member.displayName || '',
+      role: member.role || (member.is_admin ? 'admin' : 'member')
+    }))
+    .filter(member => Number.isFinite(Number(member.id)));
+}
+
+async function ensureMembersList({ force = false } = {}) {
+  if (!force && membersCache.length) return membersCache;
+  if (membersPromise) return membersPromise;
+  membersPromise = (async () => {
+    try {
+      const session = getSession();
+      const headers = { Accept: 'application/json' };
+      if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+      const res = await fetch(`${MEMBERS_API_BASE}${MEMBERS_LIST_PATH}`, { headers });
+      if (!res.ok) throw new Error(`members HTTP ${res.status}`);
+      const json = await res.json();
+      membersCache = normalizeMembers(json);
+      return membersCache;
+    } catch (error) {
+      console.warn('[yield] failed to load members', error);
+      membersCache = [];
+      return membersCache;
+    } finally {
+      membersPromise = null;
+    }
+  })();
+  return membersPromise;
+}
+
+function normalizeAdvisorId(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isAdvisorRole(role) {
+  return String(role || '').toLowerCase().includes('advisor');
+}
+
+function normalizeCalcMode(value) {
+  return String(value || '').toLowerCase() === 'cohort' ? 'cohort' : 'period';
+}
+
+function getCalcMode() {
+  return normalizeCalcMode(state?.calcMode || DEFAULT_CALC_MODE);
+}
+
+async function mergeMembersWithDailyItems(items) {
+  const members = await ensureMembersList();
+  if (!members.length) return items;
+  const map = new Map();
+  (items || []).forEach(item => {
+    const id = normalizeAdvisorId(item?.advisorUserId ?? item?.advisor_user_id ?? item?.id);
+    if (!id) return;
+    map.set(String(id), item);
+  });
+  const merged = members.map(member => {
+    const id = normalizeAdvisorId(member.id);
+    const existing = id ? map.get(String(id)) : null;
+    if (existing) {
+      return {
+        ...existing,
+        advisorUserId: id,
+        name: existing.name || member.name || `ID:${id}`
+      };
+    }
+    return {
+      advisorUserId: id,
+      name: member.name || `ID:${id}`,
+      series: {}
+    };
+  });
+  const extras = (items || []).filter(item => {
+    const id = normalizeAdvisorId(item?.advisorUserId ?? item?.advisor_user_id ?? item?.id);
+    return !id || !members.some(member => String(member.id) === String(id));
+  });
+  return [...merged, ...extras];
+}
+
+async function mergeMembersWithKpiItems(items) {
+  const members = await ensureMembersList();
+  if (!members.length) return items;
+  const map = new Map();
+  (items || []).forEach(item => {
+    const id = normalizeAdvisorId(item?.advisorUserId ?? item?.advisor_user_id ?? item?.id);
+    if (!id) return;
+    map.set(String(id), item);
+  });
+  const merged = members.map(member => {
+    const id = normalizeAdvisorId(member.id);
+    const existing = id ? map.get(String(id)) : null;
+    if (existing) {
+      return {
+        ...existing,
+        advisorUserId: id,
+        name: existing.name || member.name || `ID:${id}`
+      };
+    }
+    return {
+      advisorUserId: id,
+      name: member.name || `ID:${id}`,
+      kpi: {}
+    };
+  });
+  const extras = (items || []).filter(item => {
+    const id = normalizeAdvisorId(item?.advisorUserId ?? item?.advisor_user_id ?? item?.id);
+    return !id || !members.some(member => String(member.id) === String(id));
+  });
+  return [...merged, ...extras];
 }
 
 function resolveAdvisorUserId() {
@@ -49,29 +172,111 @@ async function fetchPersonalKpiFromApi({ startDate, endDate }) {
     from: startDate,
     to: endDate,
     scope: 'personal',
-    advisorUserId
+    advisorUserId,
+    granularity: 'summary',
+    groupBy: 'none',
+    calcMode: getCalcMode()
   });
-  return json?.kpi || null;
+  return json?.items?.[0]?.kpi || null;
 }
 
 async function fetchCompanyKpiFromApi({ startDate, endDate }) {
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, {
     from: startDate,
     to: endDate,
-    scope: 'company'
+    scope: 'company',
+    granularity: 'summary',
+    groupBy: 'none',
+    calcMode: getCalcMode()
   });
-  return json?.kpi || null;
+  return json?.items?.[0]?.kpi || null;
 }
 
 const dailyYieldCache = new Map();
 
 async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
-  const params = { from: startDate, to: endDate };
+  const params = {
+    from: startDate,
+    to: endDate,
+    scope: 'company',
+    granularity: 'day',
+    groupBy: 'advisor',
+    calcMode: getCalcMode()
+  };
+  console.log('[yield] fetch daily kpi', params);
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
+  const rawItems = Array.isArray(json?.items) ? json.items : [];
+  const items = await mergeMembersWithDailyItems(rawItems);
+  const employees = items.map(item => ({
+    advisorUserId: item?.advisorUserId,
+    name: item?.name || `ID:${item?.advisorUserId}`,
+    daily: item?.series || {}
+  }));
+  const targetId = String(advisorUserId || '');
+  const personalItem = items.find(item => String(item?.advisorUserId || '') === targetId);
+  return {
+    personal: personalItem ? { advisorUserId, daily: personalItem.series || {} } : { advisorUserId, daily: {} },
+    employees
+  };
+}
+
+async function fetchYieldTrendFromApi({ startDate, endDate, scope, advisorUserId, granularity = 'month' }) {
+  const params = {
+    from: startDate,
+    to: endDate,
+    scope,
+    granularity,
+    calcMode: getCalcMode()
+  };
   if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
     params.advisorUserId = advisorUserId;
   }
-  console.log('[yield] fetch daily kpi', params);
-  return fetchJson(`${KPI_API_BASE}${KPI_YIELD_DAILY_PATH}`, params);
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_TREND_PATH}`, params);
+  const series = Array.isArray(json?.series) ? json.series : [];
+  return {
+    labels: series.map(item => item.period),
+    rates: series.map(item => item.rates || {})
+  };
+}
+
+async function fetchYieldBreakdownFromApi({ startDate, endDate, scope, advisorUserId, dimension }) {
+  const params = {
+    from: startDate,
+    to: endDate,
+    scope,
+    dimension,
+    calcMode: getCalcMode()
+  };
+  if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
+    params.advisorUserId = advisorUserId;
+  }
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_BREAKDOWN_PATH}`, params);
+  const items = Array.isArray(json?.items) ? json.items : [];
+  return {
+    labels: items.map(item => item.label),
+    data: items.map(item => num(item.count))
+  };
+}
+
+async function fetchCompanyEmployeeKpis({ startDate, endDate }) {
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, {
+    from: startDate,
+    to: endDate,
+    scope: 'company',
+    granularity: 'summary',
+    groupBy: 'advisor',
+    calcMode: getCalcMode()
+  });
+  const items = Array.isArray(json?.items) ? json.items : [];
+  return mergeMembersWithKpiItems(items);
+}
+
+function mapEmployeeKpiItems(items) {
+  return (Array.isArray(items) ? items : []).map(item => ({
+    advisorUserId: item?.advisorUserId,
+    name: item?.name || `ID:${item?.advisorUserId}`,
+    ...normalizeKpi(item?.kpi || {})
+  }));
 }
 
 function applyDailyYieldResponse(periodId, payload) {
@@ -350,16 +555,6 @@ const DAILY_FIELDS = [
   { targetKey: 'acceptsTarget', dataKey: 'accepts' }
 ];
 
-const DEFAULT_DAILY_TARGETS = {
-  newInterviewsTarget: 5,
-  proposalsTarget: 5,
-  recommendationsTarget: 4,
-  interviewsScheduledTarget: 4,
-  interviewsHeldTarget: 3,
-  offersTarget: 2,
-  acceptsTarget: 2
-};
-
 const DAILY_LABELS = {
   newInterviews: '新規面談数',
   proposals: '提案数',
@@ -564,8 +759,18 @@ const RATE_DETAIL_PIPELINE = [
   { labelA: '面接実施数', keyA: 'interviewsHeld', labelB: '面接設定数', keyB: 'interviewsScheduled', prevKey: 'prevInterviewsScheduled' },
   { labelA: '内定数', keyA: 'offers', labelB: '面接実施数', keyB: 'interviewsHeld', prevKey: 'prevInterviewsHeld' },
   { labelA: '承諾数', keyA: 'accepts', labelB: '内定数', keyB: 'offers', prevKey: 'prevOffers' },
-  { labelA: '承諾数', keyA: 'accepts', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' }
+  { labelA: '入社数', keyA: 'hires', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' }
 ];
+
+const COHORT_NUMERATOR_MAP = {
+  proposals: 'cohortProposals',
+  recommendations: 'cohortRecommendations',
+  interviewsScheduled: 'cohortInterviewsScheduled',
+  interviewsHeld: 'cohortInterviewsHeld',
+  offers: 'cohortOffers',
+  accepts: 'cohortAccepts',
+  hires: 'cohortHires'
+};
 
 const mockDashboardData = {
   personal: {
@@ -622,6 +827,7 @@ const mockDashboardData = {
 
 const state = {
   isAdmin: false,
+  calcMode: DEFAULT_CALC_MODE,
   kpi: {
     today: {},
     monthly: {},
@@ -694,6 +900,28 @@ function getOneYearRange() {
     startDate: isoDate(start),
     endDate: isoDate(end)
   };
+}
+
+function getDashboardRange(scope) {
+  const current = state.dashboard[scope];
+  const year = Number(current.year) || new Date().getFullYear();
+  if (current.trendMode === 'year') {
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`
+    };
+  }
+  const month = Number(current.month) || new Date().getMonth() + 1;
+  const paddedMonth = String(month).padStart(2, '0');
+  const endDate = isoDate(new Date(year, month, 0));
+  return {
+    startDate: `${year}-${paddedMonth}-01`,
+    endDate
+  };
+}
+
+function getDashboardTrendGranularity(scope) {
+  return state.dashboard[scope].trendMode === 'year' ? 'month' : 'day';
 }
 
 function isoDate(date) {
@@ -799,8 +1027,8 @@ function seedGoalDefaultsFromSettings() {
 }
 
 function syncAccessRole() {
-  state.isAdmin = hasRole('admin');
-  toggleEmployeeSections(state.isAdmin);
+  state.isAdmin = true;
+  toggleEmployeeSections(true);
 }
 
 function toggleEmployeeSections(shouldShow) {
@@ -812,6 +1040,29 @@ function toggleEmployeeSections(shouldShow) {
     state.employees.list = [];
     renderEmployeeRows([]);
   }
+}
+
+function initializeCalcModeControls() {
+  const selects = Array.from(document.querySelectorAll('[data-calc-mode-select]'));
+  if (!selects.length) return;
+  const initial = normalizeCalcMode(selects[0].value || state.calcMode || DEFAULT_CALC_MODE);
+  state.calcMode = initial;
+  selects.forEach(select => {
+    select.value = initial;
+  });
+  selects.forEach(select => {
+    select.addEventListener('change', () => {
+      const next = normalizeCalcMode(select.value);
+      if (next === state.calcMode) return;
+      state.calcMode = next;
+      selects.forEach(other => {
+        if (other !== select) other.value = next;
+      });
+      loadYieldData();
+      reloadDashboardData('personal');
+      reloadDashboardData('company');
+    });
+  });
 }
 
 export async function mount() {
@@ -831,6 +1082,7 @@ export async function mount() {
   safe('initializeDashboardSection', initializeDashboardSection);
   safe('initializeKpiTabs', initializeKpiTabs);
   safe('initializeEvaluationPeriods', initializeEvaluationPeriods);
+  safe('initializeCalcModeControls', initializeCalcModeControls);
   safe('loadYieldData', loadYieldData);
 }
 
@@ -930,7 +1182,6 @@ function initCompanyPeriodPreset() {
 }
 
 function initEmployeePeriodPreset() {
-  if (!state.isAdmin) return;
   const startInput = document.getElementById('employeeRangeStart');
   const endInput = document.getElementById('employeeRangeEnd');
 
@@ -960,7 +1211,6 @@ function initEmployeePeriodPreset() {
 }
 
 function initializeEmployeeControls() {
-  if (!state.isAdmin) return;
   const searchInput = document.getElementById('employeeSearchInput');
   const searchButton = document.getElementById('employeeSearchButton');
   const sortSelect = document.getElementById('employeeSortSelect');
@@ -1169,10 +1419,16 @@ function renderRates(section, data) {
 function renderRateDetails(section, data) {
   const cardIds = RATE_CARD_IDS[section];
   if (!cardIds) return;
+  const isCohort = getCalcMode() === 'cohort';
   cardIds.forEach((cardId, index) => {
     const detail = RATE_DETAIL_PIPELINE[index];
     const card = document.getElementById(cardId)?.closest('.kpi-v2-card');
-    writeRateDetailInline(card, detail.labelA, data?.[detail.keyA], detail.labelB, data?.[detail.keyB], data?.[detail.prevKey]);
+    const numeratorKey = isCohort ? COHORT_NUMERATOR_MAP[detail.keyA] : null;
+    const numeratorValue =
+      isCohort && numeratorKey && data && data[numeratorKey] !== undefined
+        ? data[numeratorKey]
+        : data?.[detail.keyA];
+    writeRateDetailInline(card, detail.labelA, numeratorValue, detail.labelB, data?.[detail.keyB]);
   });
 }
 
@@ -1328,11 +1584,7 @@ async function loadYieldData() {
     await loadAndRenderPersonalDaily();
     await loadAndRenderCompanyDaily();
 
-    if (state.isAdmin) {
-      await loadEmployeeData(state.ranges.employee.startDate ? state.ranges.employee : {});
-    } else {
-      renderEmployeeRows([]);
-    }
+    await loadEmployeeData(state.ranges.employee.startDate ? state.ranges.employee : {});
   } catch (error) {
     console.error('Failed to load yield data:', error);
   }
@@ -1488,31 +1740,37 @@ async function loadCompanyPeriodKPIData() {
 
 async function loadCompanyTodayEmployeeKpi() {
   const todayStr = isoDate(new Date());
-  const candidates = await ensureCandidateDataset();
   const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(todayStr, state.evaluationPeriods);
+  const items = await fetchCompanyEmployeeKpis({ startDate: todayStr, endDate: todayStr });
+  const rows = mapEmployeeKpiItems(items);
+  const advisorIds = rows
+    .map(row => row.advisorUserId)
+    .filter(id => Number.isFinite(id) && id > 0);
+  if (todayPeriodId && typeof goalSettingsService.loadPersonalPeriodTargetsBulk === 'function') {
+    await goalSettingsService.loadPersonalPeriodTargetsBulk(todayPeriodId, advisorIds, { force: true });
+  }
 
-  const rows = buildEmployeeKpiFromCandidates(candidates, {
-    startDate: todayStr,
-    endDate: todayStr
+  state.companyToday.rows = rows.map(row => {
+    const advisorKey = row.advisorUserId || row.name;
+    return {
+      advisorUserId: row.advisorUserId,
+      name: row.name,
+      newInterviews: row.newInterviews,
+      newInterviewsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'newInterviewsTarget'),
+      proposals: row.proposals,
+      proposalsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'proposalsTarget'),
+      recommendations: row.recommendations,
+      recommendationsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'recommendationsTarget'),
+      interviewsScheduled: row.interviewsScheduled,
+      interviewsScheduledGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'interviewsScheduledTarget'),
+      interviewsHeld: row.interviewsHeld,
+      interviewsHeldGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'interviewsHeldTarget'),
+      offers: row.offers,
+      offersGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'offersTarget'),
+      accepts: row.accepts,
+      acceptsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, advisorKey, 'acceptsTarget')
+    };
   });
-
-  state.companyToday.rows = rows.map(row => ({
-    name: row.name,
-    newInterviews: row.newInterviews,
-    newInterviewsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'newInterviewsTarget'),
-    proposals: row.proposals,
-    proposalsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'proposalsTarget'),
-    recommendations: row.recommendations,
-    recommendationsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'recommendationsTarget'),
-    interviewsScheduled: row.interviewsScheduled,
-    interviewsScheduledGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'interviewsScheduledTarget'),
-    interviewsHeld: row.interviewsHeld,
-    interviewsHeldGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'interviewsHeldTarget'),
-    offers: row.offers,
-    offersGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'offersTarget'),
-    accepts: row.accepts,
-    acceptsGoal: resolveAdvisorGoal(todayPeriodId, todayStr, row.name, 'acceptsTarget')
-  }));
 
   return state.companyToday.rows;
 }
@@ -1525,19 +1783,33 @@ async function loadCompanyTermEmployeeKpi() {
     return [];
   }
 
-  const candidates = await ensureCandidateDataset();
-  const rows = buildEmployeeKpiFromCandidates(candidates, {
-    startDate: period.startDate,
-    endDate: period.endDate
-  });
+  const items = await fetchCompanyEmployeeKpis({ startDate: period.startDate, endDate: period.endDate });
+  const rows = mapEmployeeKpiItems(items);
+  const members = await ensureMembersList();
+  const advisorIdSet = new Set(
+    members
+      .filter(member => isAdvisorRole(member.role))
+      .map(member => String(member.id))
+  );
+  const filteredRows = advisorIdSet.size
+    ? rows.filter(row => advisorIdSet.has(String(row.advisorUserId)))
+    : rows;
+  const advisorIds = filteredRows
+    .map(row => row.advisorUserId)
+    .filter(id => Number.isFinite(id) && id > 0);
+  if (typeof goalSettingsService.loadPersonalPeriodTargetsBulk === 'function') {
+    await goalSettingsService.loadPersonalPeriodTargetsBulk(periodId, advisorIds, { force: true });
+  }
 
-  state.companyTerm.rows = rows.map(row => {
-    const target = goalSettingsService.getPersonalPeriodTarget(periodId, row.name) || {};
+  state.companyTerm.rows = filteredRows.map(row => {
+    const advisorKey = row.advisorUserId || row.name;
+    const target = goalSettingsService.getPersonalPeriodTarget(periodId, advisorKey) || {};
     const goalOrNull = key => {
       const raw = target[key];
       return raw === undefined || raw === null ? null : num(raw);
     };
     return {
+      advisorUserId: row.advisorUserId,
       name: row.name,
       newInterviews: row.newInterviews,
       newInterviewsGoal: goalOrNull('newInterviewsTarget'),
@@ -1627,14 +1899,14 @@ function renderDailyMatrix({ headerRow, body, dates, dailyData, resolveValues })
     const actualNumbers = [];
     const targetNumbers = [];
     dates.forEach(date => {
-      const { actual = 0, target = 0 } = resolveValues(field, date);
+      const { actual = 0, target = null } = resolveValues(field, date);
       actualNumbers.push(num(actual));
-      targetNumbers.push(num(target));
+      targetNumbers.push(target === null || target === undefined ? null : num(target));
     });
     const actualCells = actualNumbers.map(formatNumberCell);
     const targetCells = targetNumbers.map(formatNumberCell);
     const achvCells = targetNumbers.map((target, idx) => {
-      if (target > 0) {
+      if (Number.isFinite(target) && target > 0) {
         const percent = Math.round((actualNumbers[idx] / target) * 100);
         return formatAchievementCell(percent);
       }
@@ -1666,6 +1938,7 @@ function renderDailyMatrix({ headerRow, body, dates, dailyData, resolveValues })
 }
 
 function formatNumberCell(value) {
+  if (value === null || value === undefined || value === '') return '--';
   const numeric = num(value);
   return Number.isFinite(numeric) ? numeric.toLocaleString() : '--';
 }
@@ -1701,7 +1974,9 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
   const savedTargets = goalSettingsService.getPersonalDailyTargets(periodId, advisorName) || {};
   const perDayFallback = DAILY_FIELDS.reduce((acc, field) => {
-    const total = num(periodTarget[field.targetKey]) || DEFAULT_DAILY_TARGETS[field.targetKey] || 0;
+    const rawTotal = periodTarget[field.targetKey];
+    if (rawTotal === undefined || rawTotal === null) return acc;
+    const total = num(rawTotal);
     const span = dates.length ? Math.max(1, Math.round(total / dates.length)) : total;
     acc[field.targetKey] = span;
     return acc;
@@ -1716,8 +1991,12 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
     resolveValues: (field, date) => {
       const actual = dailyData[date] || {};
       const target = savedTargets[date] || {};
-      const expected =
-        target[field.targetKey] !== undefined ? num(target[field.targetKey]) : perDayFallback[field.targetKey] || 0;
+      const rawTarget = target[field.targetKey];
+      const expected = rawTarget !== undefined && rawTarget !== null
+        ? num(rawTarget)
+        : perDayFallback[field.targetKey] !== undefined
+          ? perDayFallback[field.targetKey]
+          : null;
       return { actual: actual[field.dataKey], target: expected };
     }
   });
@@ -1758,7 +2037,9 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
   const savedTargets = goalSettingsService.getPersonalDailyTargets(periodId, advisorName) || {};
   const perDayFallback = DAILY_FIELDS.reduce((acc, field) => {
-    const totalTarget = num(periodTarget[field.targetKey]) || DEFAULT_DAILY_TARGETS[field.targetKey] || 0;
+    const rawTotal = periodTarget[field.targetKey];
+    if (rawTotal === undefined || rawTotal === null) return acc;
+    const totalTarget = num(rawTotal);
     const span = dates.length ? Math.max(1, Math.round(totalTarget / dates.length)) : totalTarget;
     acc[field.targetKey] = span;
     return acc;
@@ -1773,8 +2054,12 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
     resolveValues: (field, date) => {
       const actual = dailyData[date] || {};
       const target = savedTargets[date] || {};
-      const expected =
-        target[field.targetKey] !== undefined ? num(target[field.targetKey]) : perDayFallback[field.targetKey] || 0;
+      const rawTarget = target[field.targetKey];
+      const expected = rawTarget !== undefined && rawTarget !== null
+        ? num(rawTarget)
+        : perDayFallback[field.targetKey] !== undefined
+          ? perDayFallback[field.targetKey]
+          : null;
       return { actual: actual[field.dataKey], target: expected };
     }
   });
@@ -1803,7 +2088,6 @@ function getCompanySummaryRange() {
 }
 
 async function loadEmployeeData(rangeFilters = {}) {
-  if (!state.isAdmin) return [];
   try {
     const range = rangeFilters.startDate ? rangeFilters : state.ranges.employee.startDate ? state.ranges.employee : getCurrentMonthRange();
     state.ranges.employee = { ...range };
@@ -1812,16 +2096,13 @@ async function loadEmployeeData(rangeFilters = {}) {
     if (startInput && range.startDate) startInput.value = range.startDate;
     if (endInput && range.endDate) endInput.value = range.endDate;
 
-    const candidates = await ensureCandidateDataset();
-    const rows = buildEmployeeKpiFromCandidates(candidates, {
-      startDate: range.startDate,
-      endDate: range.endDate
-    });
+    const items = await fetchCompanyEmployeeKpis({ startDate: range.startDate, endDate: range.endDate });
+    const rows = mapEmployeeKpiItems(items);
     state.employees.list = [...rows];
     renderEmployeeRows();
     return rows;
   } catch (error) {
-    console.error('Failed to load employee data (from candidates):', error);
+    console.error('Failed to load employee data (api):', error);
     state.employees.list = [];
     renderEmployeeRows([]);
     return [];
@@ -2094,7 +2375,7 @@ function setCardAchievementProgress(achvElement, percentValue) {
   card.style.setProperty('--achv-progress', `${normalized}%`);
 }
 
-function writeRateDetailInline(cardEl, labelA, valA, labelB, valB, prevInflowB) {
+function writeRateDetailInline(cardEl, labelA, valA, labelB, valB) {
   if (!cardEl) return;
   let subtext = cardEl.querySelector('.kpi-v2-subtext');
   if (!subtext) {
@@ -2112,7 +2393,9 @@ function writeRateDetailInline(cardEl, labelA, valA, labelB, valB, prevInflowB) 
       }
     }
   }
-  subtext.textContent = `${labelA} ${num(valA)} / ${labelB} ${num(valB)}(${num(prevInflowB)})`;
+  const modeLabel = getCalcMode() === 'cohort' ? 'コホート' : '';
+  const prefix = modeLabel ? `${modeLabel} ` : '';
+  subtext.textContent = `${prefix}${labelA} ${num(valA)} / ${labelB} ${num(valB)}`;
 }
 
 function initializeKpiTabs() {
@@ -2325,46 +2608,71 @@ async function initializeDashboardSection() {
   const scopes = Array.from(new Set(panels.map(panel => panel.dataset.dashboardScope).filter(scope => scope && state.dashboard[scope])));
   if (!scopes.length) return;
 
-  try {
-    const candidates = await ensureCandidateDataset();
-    const range = getOneYearRange();
-    const advisorName = getAdvisorName();
-
-    state.dashboard.personal.breakdown = buildGenderAndAgeBreakdownFromCandidates(candidates, {
-      startDate: range.startDate,
-      endDate: range.endDate,
-      advisorName
-    });
-
-    state.dashboard.company.breakdown = buildGenderAndAgeBreakdownFromCandidates(candidates, {
-      startDate: range.startDate,
-      endDate: range.endDate,
-      advisorName: null
-    });
-
-    state.dashboard.personal.trendData = buildTrendRatesFromCandidates(candidates, {
-      startDate: range.startDate,
-      endDate: range.endDate,
-      advisorName
-    });
-
-    state.dashboard.company.trendData = buildTrendRatesFromCandidates(candidates, {
-      startDate: range.startDate,
-      endDate: range.endDate,
-      advisorName: null
-    });
-  } catch (error) {
-    console.error('[yield] failed to build dashboard breakdown:', error);
-  }
-
   ensureChartJs()
     .then(() => {
       scopes.forEach(scope => {
         setupDashboardControls(scope);
-        renderDashboardCharts(scope);
+        reloadDashboardData(scope);
       });
     })
     .catch(error => console.error('[yield] failed to load Chart.js', error));
+}
+
+async function reloadDashboardData(scope) {
+  const range = getDashboardRange(scope);
+  const advisorUserId = scope === 'personal' ? resolveAdvisorUserId() : null;
+  const granularity = getDashboardTrendGranularity(scope);
+  try {
+    const [trend, job, gender, age, media] = await Promise.all([
+      fetchYieldTrendFromApi({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        scope,
+        advisorUserId,
+        granularity
+      }),
+      fetchYieldBreakdownFromApi({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        scope,
+        advisorUserId,
+        dimension: 'job'
+      }),
+      fetchYieldBreakdownFromApi({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        scope,
+        advisorUserId,
+        dimension: 'gender'
+      }),
+      fetchYieldBreakdownFromApi({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        scope,
+        advisorUserId,
+        dimension: 'age'
+      }),
+      scope === 'company'
+        ? fetchYieldBreakdownFromApi({
+            startDate: range.startDate,
+            endDate: range.endDate,
+            scope,
+            dimension: 'media'
+          })
+        : Promise.resolve(null)
+    ]);
+
+    state.dashboard[scope].trendData = trend;
+    state.dashboard[scope].breakdown = {
+      jobCategories: job,
+      gender,
+      ageGroups: age,
+      ...(scope === 'company' ? { mediaSources: media } : {})
+    };
+    renderDashboardCharts(scope);
+  } catch (error) {
+    console.error('[yield] failed to reload dashboard data:', error);
+  }
 }
 
 function setupDashboardControls(scope) {
@@ -2377,7 +2685,7 @@ function setupDashboardControls(scope) {
       button.classList.add('is-active');
       state.dashboard[scope].trendMode = button.dataset.mode === 'year' ? 'year' : 'month';
       updateTrendSelectState(scope);
-      renderTrendChart(scope);
+      reloadDashboardData(scope);
     });
   });
 
@@ -2386,12 +2694,12 @@ function setupDashboardControls(scope) {
   yearSelect?.addEventListener('change', () => {
     const selectedYear = Number(yearSelect.value) || state.dashboard[scope].year;
     state.dashboard[scope].year = selectedYear;
-    renderTrendChart(scope);
+    reloadDashboardData(scope);
   });
   monthSelect?.addEventListener('change', () => {
     const selectedMonth = Number(monthSelect.value) || state.dashboard[scope].month;
     state.dashboard[scope].month = selectedMonth;
-    if (state.dashboard[scope].trendMode === 'month') renderTrendChart(scope);
+    if (state.dashboard[scope].trendMode === 'month') reloadDashboardData(scope);
   });
   updateTrendSelectState(scope);
 }

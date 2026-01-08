@@ -142,10 +142,19 @@
     <div class="kpi-v2-subsection">
       <div class="kpi-v2-header">
         <h4 class="kpi-v2-subtitle" id="personalSummaryTitle">今月の実績サマリー</h4>
-        <label class="kpi-v2-inline-select">
-          <span>評価期間</span>
-          <select id="personalEvaluationPeriodSelect"></select>
-        </label>
+        <div class="kpi-v2-inline-select-group">
+          <label class="kpi-v2-inline-select">
+            <span>評価期間</span>
+            <select id="personalEvaluationPeriodSelect"></select>
+          </label>
+          <label class="kpi-v2-inline-select">
+            <span>計算方式</span>
+            <select data-calc-mode-select>
+              <option value="cohort">コホート（期間内スタート）</option>
+              <option value="period">期間内イベント</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="kpi-v2-summary-unified summary-neutral">
@@ -614,10 +623,19 @@
     <div class="kpi-v2-subsection">
       <div class="kpi-v2-header">
         <h4 class="kpi-v2-subtitle">今月の実績サマリー</h4>
-        <label class="kpi-v2-inline-select">
-          <span>全社評価期間</span>
-          <select id="companyEvaluationPeriodSelect"></select>
-        </label>
+        <div class="kpi-v2-inline-select-group">
+          <label class="kpi-v2-inline-select">
+            <span>全社評価期間</span>
+            <select id="companyEvaluationPeriodSelect"></select>
+          </label>
+          <label class="kpi-v2-inline-select">
+            <span>計算方式</span>
+            <select data-calc-mode-select>
+              <option value="cohort">コホート（期間内スタート）</option>
+              <option value="period">期間内イベント</option>
+            </select>
+          </label>
+        </div>
       </div>
       
       <div class="kpi-v2-summary-unified summary-neutral">

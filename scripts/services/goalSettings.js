@@ -303,6 +303,14 @@ function makePersonalKey(advisorUserId, periodId) {
   return `${advisorUserId}:${periodId}`;
 }
 
+function normalizeAdvisorIds(advisorUserIds) {
+  if (!advisorUserIds) return [];
+  const raw = Array.isArray(advisorUserIds) ? advisorUserIds : String(advisorUserIds).split(',');
+  return raw
+    .map(value => Number(String(value).trim()))
+    .filter(value => Number.isFinite(value) && value > 0);
+}
+
 async function loadEvaluationRuleFromApi() {
   const data = await requestJson('/goal-settings');
   const rule = normalizeRule({
@@ -360,6 +368,70 @@ async function loadDailyTargetsFromApi(periodId, advisorName, { force = false } 
   });
   cache.dailyTargets.set(key, normalized);
   return normalized;
+}
+
+async function loadPersonalTargetsBulkFromApi(periodId, advisorUserIds, { force = false } = {}) {
+  if (!periodId) return [];
+  const ids = normalizeAdvisorIds(advisorUserIds);
+  if (!ids.length) return [];
+  const pending = force ? ids : ids.filter(id => !cache.personalTargets.has(makePersonalKey(id, periodId)));
+  if (!pending.length) return [];
+  const params = new URLSearchParams({
+    scope: 'personal',
+    periodId,
+    advisorUserIds: pending.join(',')
+  });
+  const data = await requestJson(`/goal-targets?${params.toString()}`);
+  const items = Array.isArray(data?.items)
+    ? data.items
+    : data?.targetsByAdvisor && typeof data.targetsByAdvisor === 'object'
+      ? Object.entries(data.targetsByAdvisor).map(([advisorUserId, targets]) => ({
+          advisorUserId,
+          targets
+        }))
+      : [];
+  items.forEach(item => {
+    const advisorUserId = Number(item?.advisorUserId ?? item?.advisor_user_id);
+    if (!Number.isFinite(advisorUserId) || advisorUserId <= 0) return;
+    const target = normalizeTarget(item?.targets || {});
+    const key = makePersonalKey(advisorUserId, periodId);
+    cache.personalTargets.set(key, target);
+  });
+  return items;
+}
+
+async function loadDailyTargetsBulkFromApi(periodId, advisorUserIds, { force = false, date } = {}) {
+  if (!periodId) return [];
+  const ids = normalizeAdvisorIds(advisorUserIds);
+  if (!ids.length) return [];
+  const pending = force ? ids : ids.filter(id => !cache.dailyTargets.has(makePersonalKey(id, periodId)));
+  if (!pending.length) return [];
+  const params = new URLSearchParams({
+    periodId,
+    advisorUserIds: pending.join(',')
+  });
+  if (date) params.set('date', date);
+  const data = await requestJson(`/goal-daily-targets?${params.toString()}`);
+  const items = Array.isArray(data?.items)
+    ? data.items
+    : data?.dailyTargetsByAdvisor && typeof data.dailyTargetsByAdvisor === 'object'
+      ? Object.entries(data.dailyTargetsByAdvisor).map(([advisorUserId, dailyTargets]) => ({
+          advisorUserId,
+          dailyTargets
+        }))
+      : [];
+  items.forEach(item => {
+    const advisorUserId = Number(item?.advisorUserId ?? item?.advisor_user_id);
+    if (!Number.isFinite(advisorUserId) || advisorUserId <= 0) return;
+    const raw = item?.dailyTargets || {};
+    const normalized = {};
+    Object.entries(raw).forEach(([targetDate, target]) => {
+      normalized[targetDate] = normalizeTarget(target || {});
+    });
+    const key = makePersonalKey(advisorUserId, periodId);
+    cache.dailyTargets.set(key, normalized);
+  });
+  return items;
 }
 
 export const goalSettingsService = {
@@ -433,6 +505,16 @@ export const goalSettingsService = {
       return this.getPersonalPeriodTarget(periodId, advisorName);
     }
   },
+  async loadPersonalPeriodTargetsBulk(periodId, advisorUserIds, { force = false } = {}) {
+    try {
+      return await loadPersonalTargetsBulkFromApi(periodId, advisorUserIds, { force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load personal targets (bulk)', error);
+      const ids = normalizeAdvisorIds(advisorUserIds);
+      await Promise.all(ids.map(id => loadPersonalTargetFromApi(periodId, id, { force: true })));
+      return [];
+    }
+  },
   async savePersonalPeriodTarget(periodId, target = {}, advisorName) {
     if (!periodId) return null;
     const advisorUserId = resolveAdvisorUserId(advisorName);
@@ -466,6 +548,16 @@ export const goalSettingsService = {
     } catch (error) {
       console.warn('[goalSettingsService] failed to load daily targets', error);
       return this.getPersonalDailyTargets(periodId, advisorName);
+    }
+  },
+  async loadPersonalDailyTargetsBulk(periodId, advisorUserIds, { force = false, date } = {}) {
+    try {
+      return await loadDailyTargetsBulkFromApi(periodId, advisorUserIds, { force, date });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load daily targets (bulk)', error);
+      const ids = normalizeAdvisorIds(advisorUserIds);
+      await Promise.all(ids.map(id => loadDailyTargetsFromApi(periodId, id, { force: true })));
+      return [];
     }
   },
   async savePersonalDailyTargets(periodId, dailyTargets = {}, advisorName) {
