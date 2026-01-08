@@ -641,7 +641,8 @@
 }
 
 [data-page="teleapo"] .teleapo-form-field input,
-[data-page="teleapo"] .teleapo-form-field select {
+[data-page="teleapo"] .teleapo-form-field select,
+[data-page="teleapo"] .teleapo-form-field textarea {
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
   padding: 0.6rem 0.75rem;
@@ -652,10 +653,20 @@
 }
 
 [data-page="teleapo"] .teleapo-form-field input:focus,
-[data-page="teleapo"] .teleapo-form-field select:focus {
+[data-page="teleapo"] .teleapo-form-field select:focus,
+[data-page="teleapo"] .teleapo-form-field textarea:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+[data-page="teleapo"] .teleapo-form-field textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+[data-page="teleapo"] .teleapo-form-field-full {
+  grid-column: 1 / -1;
 }
 
 [data-page="teleapo"] .teleapo-form-actions {
