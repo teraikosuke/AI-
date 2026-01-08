@@ -135,6 +135,16 @@
         <span>フェーズ</span>
         <select id="candidatesFilterPhase" class="filter-input">
           <option value="">すべて</option>
+          <option value="未接触">未接触</option>
+          <option value="架電中">架電中</option>
+          <option value="SMS送信">SMS送信</option>
+          <option value="通電">通電</option>
+          <option value="面接設定">面接設定</option>
+          <option value="面接">面接</option>
+          <option value="内定">内定</option>
+          <option value="内定承諾">内定承諾</option>
+          <option value="入社">入社</option>
+          <option value="辞退">辞退</option>
           <option value="初回面談設定">初回面談設定</option>
           <option value="一次面接調整">一次面接調整</option>
           <option value="内定承諾待ち">内定承諾待ち</option>
@@ -170,53 +180,23 @@
       <div class="overflow-auto">
         <table class="table-grid w-full">
           <colgroup>
-            <col style="width: 90px" />
-            <col style="width: 90px" />
-            <col style="width: 100px" />
-            <col style="width: 150px" />
-            <col style="width: 150px" />
-            <col style="width: 150px" />
-            <col style="width: 130px" />
-            <col style="width: 130px" />
-            <col style="width: 180px" />
-            <col style="width: 190px" />
-            <col style="width: 140px" />
-            <col style="width: 150px" />
-            <col style="width: 130px" />
-            <col style="width: 80px" />
-            <col style="width: 240px" />
-            <col style="width: 150px" />
-            <col style="width: 150px" />
-            <col style="width: 130px" />
-            <col style="width: 250px" />
-            <col style="width: 130px" />
-            <col style="width: 130px" />
             <col style="width: 160px" />
+            <col style="width: 100px" />
+            <col style="width: 90px" />
+            <col style="width: 150px" />
+            <col style="width: 160px" />
+            <col style="width: 150px" />
+            <col style="width: 140px" />
           </colgroup>
           <thead>
             <tr>
+              <th>登録日</th>
               <th>有効応募</th>
               <th>通電</th>
-              <th>SMS送信</th>
-              <th>担当アドバイザー</th>
               <th>通電実施者</th>
-              <th>フェーズ</th>
-              <th>登録日</th>
-              <th>流入媒体</th>
-              <th>応募企業名</th>
-              <th>応募求人名</th>
               <th>求職者名</th>
-              <th>電話番号</th>
-              <th>生年月日</th>
-              <th>年齢</th>
-              <th>備考</th>
-              <th>新規接触予定日</th>
-              <th>新規接触日</th>
-              <th>着座確認</th>
-              <th>メールアドレス</th>
-              <th>通電日</th>
-              <th>日程確定日</th>
-              <th>経歴書</th>
+              <th>アドバイザー</th>
+              <th>フェーズ</th>
             </tr>
           </thead>
           <tbody id="candidatesTableBody"></tbody>
