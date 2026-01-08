@@ -251,10 +251,14 @@
           <option value="SMS送信">SMS送信</option>
         </select>
       </label>
+      <label class="teleapo-form-field teleapo-form-field-full">
+        <span>メモ</span>
+        <textarea id="dialFormMemo" rows="2" placeholder="メモを入力"></textarea>
+      </label>
     </div>
     <input type="hidden" id="dialFormCandidateId" />
     <div class="teleapo-form-actions">
-      <div class="teleapo-form-hint">日時は自動入力、候補者名を選ぶと架電回数・経路を自動セットします</div>
+      <div class="teleapo-form-hint">日時は自動入力、候補者名を選ぶと架電回数・経路を自動セットします（一覧にない候補者も登録可能）</div>
       <button id="dialFormSubmit" type="button" class="teleapo-form-submit">保存</button>
     </div>
     <p id="dialFormMessage" class="teleapo-form-message text-sm"></p>
@@ -306,6 +310,7 @@
           0件
         </div>
         <span id="teleapoLogPeriodLabel" class="text-[11px] text-slate-500"></span>
+        <span id="teleapoLogStatus" class="text-[11px] text-slate-500"></span>
       </div>
     </div>
   </div>
@@ -334,6 +339,7 @@
             アポ結果
           </th>
           <th>メモ</th>
+          <th>削除</th>
         </tr>
       </thead>
       <tbody id="teleapoLogTableBody">
@@ -343,5 +349,5 @@
   </div>
   </div>
 
-  <script type="module" src="./teleapo.js"></script>
+  <script type="module" src="./teleapo.js?v=20260108"></script>
 </section>
