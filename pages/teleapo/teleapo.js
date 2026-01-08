@@ -12,10 +12,9 @@ const CANDIDATE_DETAIL_PAGE_URL = 'http://localhost:8081/#/candidates'; // 例: 
 const CANDIDATE_ID_PARAM = 'candidateId';
 // ...既存の定数の下に追加...
 
-// ★ 候補者APIのURL（末尾スラッシュ重要）
-const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates/";
+// Candidates API URL (no trailing slash)
+const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates";
 
-// ★ 候補者名とIDのマッピング保持用
 let candidateNameMap = new Map(); // Name -> ID
 
 function buildCandidateDetailUrl(candidateId) {
@@ -31,6 +30,24 @@ function escapeHtml(str) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function normalizeNameKey(name) {
+  return String(name ?? '')
+    .replace(/[\s\u3000]/g, '')
+    .toLowerCase();
+}
+
+function findCandidateIdByName(name) {
+  if (!name) return undefined;
+  const direct = candidateNameMap.get(name);
+  if (direct) return direct;
+  const targetKey = normalizeNameKey(name);
+  if (!targetKey) return undefined;
+  for (const [candidateName, id] of candidateNameMap.entries()) {
+    if (normalizeNameKey(candidateName) === targetKey) return id;
+  }
+  return undefined;
 }
 
 const RESULT_LABELS = {
@@ -49,6 +66,8 @@ let teleapoSummaryScope = { type: 'company', name: '全体' };
 let teleapoHeatmapRange = '1m';
 let teleapoLogSort = { key: 'datetime', dir: 'desc' };
 let teleapoEmployeeSortState = { key: 'connectRate', dir: 'desc' };
+let teleapoHighlightLogId = null;
+let teleapoHighlightFingerprint = null;
 let employeeNameToUserId = new Map();
 
 function rebuildEmployeeMap() {
@@ -84,7 +103,7 @@ const teleapoInitialMockLogs = [
   { datetime: '2025/10/06 14:00', employee: '佐藤', route: ROUTE_TEL, target: 'OLD社 佐藤様', tel: '03-2020-2020', email: 'old1@example.jp', resultCode: 'connect', memo: '2回目 通電' },
   { datetime: '2025/09/28 09:30', employee: '鈴木', route: ROUTE_TEL, target: 'LEGACY社 山口様', tel: '03-3030-3030', email: 'legacy@example.jp', resultCode: 'callback', memo: '1回目 折返し待ち' },
   { datetime: '2025/09/30 10:10', employee: '鈴木', route: ROUTE_TEL, target: 'LEGACY社 山口様', tel: '03-3030-3030', email: 'legacy@example.jp', resultCode: 'show', memo: '2回目 着座' },
-  // 9〜7月もカバーし、社員別の時系列グラフが長めに動くように追加
+  // 9?7月もカバーし、社員別の時系列グラフが長めに動くように追加
   { datetime: '2025/09/12 15:30', employee: '佐藤', route: ROUTE_TEL, target: 'HIST社 佐々木様', tel: '03-1515-1515', email: 'sasaki@hist.jp', resultCode: 'connect', memo: '9月中旬 通電' },
   { datetime: '2025/09/05 10:30', employee: '高橋', route: ROUTE_TEL, target: 'HIST社 山下様', tel: '03-1616-1616', email: 'yamashita@hist.jp', resultCode: 'set', memo: '9月上旬 設定' },
   { datetime: '2025/08/25 11:00', employee: '鈴木', route: ROUTE_TEL, target: 'SUMMER社 佐伯様', tel: '03-1717-1717', email: 'saeki@summer.jp', resultCode: 'callback', memo: '8月下旬 折返し待ち' },
@@ -127,7 +146,7 @@ function normalizeResultCode(raw) {
 
 function normalizeRoute(raw) {
   const t = (raw || '').toString().toLowerCase();
-  if (t.includes('other')) return ROUTE_OTHER;
+  if (t.includes('other') || t.includes('その他')) return ROUTE_OTHER;
   if (t.includes('sms') || t.includes('mail') || t.includes('メール') || t.includes('line')) return ROUTE_OTHER;
   if (t.includes('tel') || t.includes('call') || t.includes('電話')) return ROUTE_TEL;
   return ROUTE_TEL; // デフォルトは架電扱い
@@ -166,9 +185,76 @@ function toDateTimeString(value) {
   return `${d.getFullYear()}/${zeroPad(d.getMonth() + 1)}/${zeroPad(d.getDate())} ${zeroPad(d.getHours())}:${zeroPad(d.getMinutes())}`;
 }
 
+function buildLogHighlightFingerprint(candidateId, calledAt, callerUserId, candidateName) {
+  const ts = new Date(calledAt).getTime();
+  if (!Number.isFinite(ts)) return null;
+  const candidateNum = Number(candidateId);
+  const hasCandidateId = Number.isFinite(candidateNum) && candidateNum > 0;
+  const name = (candidateName || "").trim();
+  if (!hasCandidateId && !name) return null;
+  const callerNum = Number(callerUserId);
+  return {
+    candidateId: hasCandidateId ? candidateNum : null,
+    candidateName: name || null,
+    callerUserId: Number.isFinite(callerNum) ? callerNum : null,
+    timestampMs: ts
+  };
+}
+
+function setLogHighlightTarget({ id, candidateId, calledAt, callerUserId, candidateName }) {
+  teleapoHighlightLogId = id != null && id !== '' ? String(id) : null;
+  teleapoHighlightFingerprint = teleapoHighlightLogId
+    ? null
+    : buildLogHighlightFingerprint(candidateId, calledAt, callerUserId, candidateName);
+}
+
+function shouldHighlightLog(row) {
+  if (teleapoHighlightLogId && row?.id != null && String(row.id) === teleapoHighlightLogId) return true;
+  if (!teleapoHighlightFingerprint) return false;
+  const fp = teleapoHighlightFingerprint;
+  if (fp.candidateId != null) {
+    const rowCandidate = Number(row?.candidateId);
+    if (!Number.isFinite(rowCandidate) || rowCandidate !== fp.candidateId) return false;
+  } else if (fp.candidateName) {
+    const rowName = (row?.target || "").trim();
+    if (!rowName || rowName !== fp.candidateName) return false;
+  } else {
+    return false;
+  }
+  if (fp.callerUserId && row?.callerUserId && Number(row.callerUserId) !== fp.callerUserId) return false;
+  const rowTime = parseDateTime(row?.datetime);
+  if (!rowTime) return false;
+  const diffMs = Math.abs(rowTime.getTime() - fp.timestampMs);
+  return diffMs <= 5 * 60 * 1000;
+}
+
+function clearLogHighlightTarget() {
+  teleapoHighlightLogId = null;
+  teleapoHighlightFingerprint = null;
+}
+
+function ensureLogHighlightStyles() {
+  if (document.getElementById('teleapo-log-highlight-style')) return;
+  const style = document.createElement('style');
+  style.id = 'teleapo-log-highlight-style';
+  style.textContent = `
+    @keyframes teleapo-log-highlight {
+      0% { background-color: #fef3c7; }
+      70% { background-color: #fff7ed; }
+      100% { background-color: transparent; }
+    }
+    .teleapo-log-highlight td {
+      animation: teleapo-log-highlight 2.4s ease-out;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function mapApiLog(log = {}) {
+  const id = log.id ?? log.log_id ?? log.logId ?? log.logID;
   const rawDatetime = log.datetime || log.called_at || log.calledAt || log.call_at;
   const employee = log.employee || log.caller_name || log.caller || log.user_name || '';
+  const datetime = toDateTimeString(rawDatetime) || (rawDatetime ? String(rawDatetime) : '');
 
   const candidateIdRaw = log.candidate_id ?? log.candidateId ?? log.candidateID;
   const candidateId = candidateIdRaw === undefined || candidateIdRaw === null || candidateIdRaw === ''
@@ -194,7 +280,8 @@ function mapApiLog(log = {}) {
   const callNo = Number(log.call_no || log.callNo || log.call_number || log.callNoNumber);
 
   return normalizeLog({
-    datetime: toDateTimeString(rawDatetime),
+    id: id != null && id !== '' ? String(id) : undefined,
+    datetime,
     employee,
     route,
     target,
@@ -211,31 +298,53 @@ function mapApiLog(log = {}) {
 
 
 function getCallKey(log) {
-  return log.candidateId || log.target || log.tel || log.email || '不明';
+  if (log.candidateId) return log.candidateId;
+  const targetKey = normalizeNameKey(log.target || '');
+  return targetKey || log.tel || log.email || '不明';
 }
 
 
 
 function annotateCallAttempts(logs) {
-  const sorted = [...logs].sort((a, b) => (parseDateTime(a.datetime)?.getTime() || 0) - (parseDateTime(b.datetime)?.getTime() || 0));
+  const telLogs = logs.filter(l => l.route === ROUTE_TEL);
+  const sorted = [...telLogs].sort((a, b) => (parseDateTime(a.datetime)?.getTime() || 0) - (parseDateTime(b.datetime)?.getTime() || 0));
   const counters = new Map();
   sorted.forEach(log => {
     const key = getCallKey(log);
-    const current = counters.get(key) || 0;
-    if (Number.isFinite(log.callAttempt) && log.callAttempt > 0) {
-      // RDSの call_no を優先し、カウンタも更新
-      counters.set(key, Math.max(current, log.callAttempt));
-    } else {
-      const next = current + 1;
-      counters.set(key, next);
-      log.callAttempt = next;
-    }
+    const next = (counters.get(key) || 0) + 1;
+    counters.set(key, next);
+    log.callAttempt = next;
+  });
+  logs.filter(l => l.route !== ROUTE_TEL).forEach(log => {
+    if ('callAttempt' in log) delete log.callAttempt;
   });
 }
 
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+function setLogStatus(message, type = 'info') {
+  const el = document.getElementById('teleapoLogStatus');
+  if (!el) return;
+  const baseClass = 'text-[11px]';
+  const colorClass = type === 'success'
+    ? 'text-emerald-600'
+    : type === 'error'
+      ? 'text-rose-600'
+      : 'text-slate-500';
+  el.className = `${baseClass} ${colorClass}`;
+  el.textContent = message || '';
+  if (message) {
+    const current = message;
+    window.setTimeout(() => {
+      if (el.textContent === current) {
+        el.textContent = '';
+        el.className = `${baseClass} text-slate-500`;
+      }
+    }, 3000);
+  }
 }
 
 function formatRate(rate) {
@@ -245,11 +354,20 @@ function formatRate(rate) {
 
 function formatRangeLabel(startStr, endStr) {
   if (!startStr && !endStr) return '';
-  if (startStr && endStr) return `${startStr.replace(/-/g, '/')} 〜 ${endStr.replace(/-/g, '/')}`;
-  if (startStr) return `${startStr.replace(/-/g, '/')} 〜`;
-  return `〜 ${endStr.replace(/-/g, '/')}`;
+  if (startStr && endStr) return `${startStr.replace(/-/g, '/')} ? ${endStr.replace(/-/g, '/')}`;
+  if (startStr) return `${startStr.replace(/-/g, '/')} ?`;
+  return `? ${endStr.replace(/-/g, '/')}`;
 }
 
+
+function addDaysToDateString(dateStr, days) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${zeroPad(dt.getMonth() + 1)}-${zeroPad(dt.getDate())}`;
+}
 function rateClass(rate) {
   if (rate >= 70) return 'text-green-700';
   if (rate >= 40) return 'text-amber-600';
@@ -436,7 +554,9 @@ function renderHeatmap(logs) {
   const periodLabel = document.getElementById('teleapoHeatmapPeriodLabel');
   if (!tbody) return;
 
-  const dates = logs.map(l => parseDateTime(l.datetime)).filter(Boolean).sort((a, b) => a - b);
+  const employeeFilter = document.getElementById('teleapoHeatmapEmployeeFilter')?.value || 'all';
+  const scopedLogs = employeeFilter === 'all' ? logs : logs.filter(l => l.employee === employeeFilter);
+  const dates = scopedLogs.map(l => parseDateTime(l.datetime)).filter(Boolean).sort((a, b) => a - b);
   if (!dates.length) {
     tbody.innerHTML = '';
     if (periodLabel) periodLabel.textContent = '集計期間: -';
@@ -450,7 +570,7 @@ function renderHeatmap(logs) {
   else from.setDate(maxDate.getDate() - 30);
   if (from < minDate) from.setTime(minDate.getTime());
 
-  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} 〜 ${maxDate.toISOString().slice(0, 10)}`;
+  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} ? ${maxDate.toISOString().slice(0, 10)}`;
 
   const buckets = {};
   TELEAPO_HEATMAP_DAYS.forEach(day => {
@@ -458,7 +578,7 @@ function renderHeatmap(logs) {
     TELEAPO_HEATMAP_SLOTS.forEach(slot => { buckets[day][slot] = { dials: 0, connects: 0 }; });
   });
 
-  logs.filter(l => l.route === ROUTE_TEL).forEach(log => {
+  scopedLogs.filter(l => l.route === ROUTE_TEL).forEach(log => {
     const dt = parseDateTime(log.datetime);
     if (!dt || dt < from || dt > maxDate) return;
     const day = '日月火水木金土'[dt.getDay()];
@@ -527,9 +647,17 @@ function renderLogTable() {
     const telText = escapeHtml(row.tel || '');
     const emailText = escapeHtml(row.email || '');
     const memoText = escapeHtml(row.memo || '');
+    const isHighlight = shouldHighlightLog(row);
+    const rowClass = isHighlight ? 'teleapo-log-highlight' : '';
+    const rowIdAttr = row.id ? `data-log-id="${escapeHtml(String(row.id))}"` : '';
+
+    const deleteCell = row.id
+      ? `<button type="button" class="px-2 py-1 rounded text-xs border border-rose-200 text-rose-600 hover:bg-rose-50"
+           data-action="delete-log" data-log-id="${escapeHtml(String(row.id))}">削除</button>`
+      : `<span class="text-xs text-slate-400">-</span>`;
 
     return `
-      <tr>
+      <tr class="${rowClass}" ${rowIdAttr}>
         <td class="whitespace-nowrap">${escapeHtml(row.datetime)}</td>
         <td>${escapeHtml(row.employee || '')}</td>
         <td>${escapeHtml(routeLabel)}</td>
@@ -540,13 +668,32 @@ function renderLogTable() {
           ${escapeHtml(RESULT_LABELS[flags.code] || row.result || '')}
         </span></td>
         <td>${memoText}</td>
+        <td class="text-center">${deleteCell}</td>
       </tr>
     `;
   }).join('');
 
+  const highlightRow = tbody.querySelector('.teleapo-log-highlight');
+  if (highlightRow) {
+    window.setTimeout(() => highlightRow.classList.remove('teleapo-log-highlight'), 2400);
+    clearLogHighlightTarget();
+  }
+
   // 件数表示
   const countEl = document.getElementById('teleapoLogFilterCount');
   if (countEl) countEl.textContent = `${teleapoFilteredLogs.length}件`;
+}
+
+async function deleteTeleapoLog(logId) {
+  const res = await fetch(TELEAPO_LOGS_URL, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: logId })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
 }
 
 function computeAttemptDistribution(logs) {
@@ -611,7 +758,7 @@ function getDateRange(logs) {
 }
 
 function getWeekOfMonth(dt) {
-  const firstDay = new Date(dt.getFullYear(), dt.getMonth(), 1).getDay(); // 0(日)〜6(土)
+  const firstDay = new Date(dt.getFullYear(), dt.getMonth(), 1).getDay(); // 0(日)?6(土)
   return Math.floor((firstDay + dt.getDate() - 1) / 7) + 1;
 }
 
@@ -945,6 +1092,10 @@ function initHeatmapControls() {
       renderHeatmap(teleapoFilteredLogs);
     });
   });
+  const employeeSelect = document.getElementById('teleapoHeatmapEmployeeFilter');
+  if (employeeSelect) {
+    employeeSelect.addEventListener('change', () => renderHeatmap(teleapoFilteredLogs));
+  }
 }
 
 function initEmployeeSort() {
@@ -988,6 +1139,42 @@ function initLogTableSort() {
       }
       renderLogTable();
     });
+  });
+}
+
+function initLogTableActions() {
+  const tbody = document.getElementById('teleapoLogTableBody');
+  if (!tbody) return;
+
+  tbody.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-action="delete-log"]');
+    if (!btn) return;
+    const logId = btn.dataset.logId;
+    if (!logId) return;
+
+    if (!window.confirm('この架電ログを削除しますか？')) return;
+
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '削除中...';
+
+    try {
+      const removedLog = teleapoLogData.find(l => String(l.id) === String(logId));
+      await deleteTeleapoLog(logId);
+      teleapoLogData = teleapoLogData.filter(l => String(l.id) !== String(logId));
+      annotateCallAttempts(teleapoLogData);
+      applyFilters();
+      if (removedLog?.route === ROUTE_TEL) {
+        const candidateInput = document.getElementById("dialFormCandidateName");
+        if (candidateInput) updateCallNoAndRoute(candidateInput.value);
+      }
+      setLogStatus('架電ログを削除しました', 'success');
+    } catch (err) {
+      console.error(err);
+      setLogStatus(`削除に失敗しました: ${err.message}`, 'error');
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   });
 }
 
@@ -1037,10 +1224,15 @@ function initLogForm() {
 }
 
 async function fetchTeleapoApi() {
-  let startStr = document.getElementById('teleapoLogRangeStart')?.value || '';
-  let endStr = document.getElementById('teleapoLogRangeEnd')?.value || '';
+  let startStr = document.getElementById('teleapoLogRangeStart')?.value
+    || document.getElementById('teleapoCompanyRangeStart')?.value
+    || '';
+  let endStr = document.getElementById('teleapoLogRangeEnd')?.value
+    || document.getElementById('teleapoCompanyRangeEnd')?.value
+    || '';
 
-  // ★日付入力が空ならデフォルト期間を入れる（例：直近30日）
+  // Default to last 30 days when date inputs are empty.
+  // (keeps API queries bounded)
   if (!startStr || !endStr) {
     const today = new Date();
     const from = new Date(today);
@@ -1048,22 +1240,27 @@ async function fetchTeleapoApi() {
     startStr = from.toISOString().slice(0, 10);
     endStr = today.toISOString().slice(0, 10);
 
-    // 入力欄が存在するならUIにも反映（任意）
+    // Sync defaults back to both date ranges when present.
     const s1 = document.getElementById('teleapoLogRangeStart');
     const e1 = document.getElementById('teleapoLogRangeEnd');
+    const s2 = document.getElementById('teleapoCompanyRangeStart');
+    const e2 = document.getElementById('teleapoCompanyRangeEnd');
     if (s1) s1.value = startStr;
     if (e1) e1.value = endStr;
+    if (s2) s2.value = startStr;
+    if (e2) e2.value = endStr;
   }
 
   const params = new URLSearchParams();
   params.append('from', startStr);
-  params.append('to', endStr);
+  params.append('to', endStr ? addDaysToDateString(endStr, 1) : endStr);
   params.append('limit', '2000');
   params.append('offset', '0');
 
-  const url = `${TELEAPO_LOGS_URL}?${params.toString()}`;
+  const url = new URL(TELEAPO_LOGS_URL);
+  params.forEach((value, key) => url.searchParams.append(key, value));
 
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Teleapo API HTTP ${res.status}`);
   return res.json();
 }
@@ -1099,7 +1296,11 @@ async function loadTeleapoData() {
   try {
     const data = await fetchTeleapoApi();
     const logs = Array.isArray(data?.logs) ? data.logs : Array.isArray(data?.items) ? data.items : [];
-    teleapoLogData = logs.map(mapApiLog).filter(l => l.datetime);
+    const mappedLogs = logs.map(mapApiLog).filter(Boolean);
+    teleapoLogData = mappedLogs.filter(l => l.datetime);
+    if (!teleapoLogData.length && mappedLogs.length) {
+      teleapoLogData = mappedLogs;
+    }
     annotateCallAttempts(teleapoLogData);
     rebuildEmployeeMap();
     refreshCandidateDatalist();
@@ -1115,6 +1316,7 @@ async function loadTeleapoData() {
 
 // 既存の mount をこれで上書き
 export function mount() {
+  ensureLogHighlightStyles();
   initDateInputs();
   initFilters();
   initCompanyRangePresets();
@@ -1122,6 +1324,7 @@ export function mount() {
   initEmployeeSort();
   initEmployeeSortHeaders();
   initLogTableSort();
+  initLogTableActions();
 
   // initLogForm(); // ← ★削除またはコメントアウト（モック用フォームはもう不要）
 
@@ -1213,7 +1416,14 @@ function updateCallNoAndRoute(candidateName) {
   const candidateIdHidden = document.getElementById("dialFormCandidateId");
   if (!name) return;
 
-  const matched = teleapoLogData.filter(l => (l.target || "").trim() === name);
+  const matchedCandidateId = findCandidateIdByName(name);
+  if (matchedCandidateId && candidateIdHidden) {
+    candidateIdHidden.value = String(matchedCandidateId);
+  }
+  const nameKey = normalizeNameKey(name);
+  const matched = matchedCandidateId
+    ? teleapoLogData.filter(l => Number(l.candidateId) === Number(matchedCandidateId))
+    : teleapoLogData.filter(l => normalizeNameKey(l.target || '') === nameKey);
   if (matched.length === 0) {
     if (callNoInput) callNoInput.value = "1";
     if (routeSelect) routeSelect.value = "電話";
@@ -1221,11 +1431,9 @@ function updateCallNoAndRoute(candidateName) {
     return;
   }
 
-  const maxAttempt = matched.reduce((acc, l) => {
-    const n = Number(l.callAttempt || l.call_no || l.callNo || 0);
-    return Number.isFinite(n) ? Math.max(acc, n) : acc;
-  }, 0);
-  if (callNoInput) callNoInput.value = String(maxAttempt + 1 || 1);
+  const telMatched = matched.filter(l => l.route === ROUTE_TEL);
+  const nextAttempt = telMatched.length + 1;
+  if (callNoInput) callNoInput.value = String(nextAttempt || 1);
 
   const latest = [...matched].sort((a, b) => {
     const ta = parseDateTime(a.datetime)?.getTime() || 0;
@@ -1236,7 +1444,7 @@ function updateCallNoAndRoute(candidateName) {
   if (candidateIdHidden && latest?.candidateId) candidateIdHidden.value = String(latest.candidateId);
 }
 
-function resetDialFormDefaults() {
+function resetDialFormDefaults(clearMessage = true) {
   const dt = document.getElementById("dialFormCalledAt");
   if (dt) dt.value = nowLocalDateTime();
   const emp = document.getElementById("dialFormEmployee");
@@ -1245,8 +1453,10 @@ function resetDialFormDefaults() {
   if (route) route.value = "電話";
   const callNo = document.getElementById("dialFormCallNo");
   if (callNo) callNo.value = "1";
+  const memo = document.getElementById("dialFormMemo");
+  if (memo) memo.value = "";
   const msg = document.getElementById("dialFormMessage");
-  if (msg) msg.textContent = "";
+  if (msg && clearMessage) msg.textContent = "";
 }
 
 // 既存の bindDialForm をこれで上書き
@@ -1261,7 +1471,7 @@ function bindDialForm() {
         updateCallNoAndRoute(val);
 
         // ★ API由来のマップからIDを即座にセット
-        const foundId = candidateNameMap.get(val);
+        const foundId = findCandidateIdByName(val);
         const hiddenId = document.getElementById("dialFormCandidateId");
         if (hiddenId && foundId) {
           hiddenId.value = foundId;
@@ -1282,8 +1492,9 @@ function bindDialForm() {
     // 隠しフィールドのIDを優先し、なければMapから再検索
     let candidateId = Number(document.getElementById("dialFormCandidateId")?.value);
     if (!candidateId && candidateName) {
-      candidateId = candidateNameMap.get(candidateName);
+      candidateId = findCandidateIdByName(candidateName);
     }
+    const candidateIdValue = Number.isFinite(candidateId) && candidateId > 0 ? candidateId : null;
 
     const calledAtLocal = document.getElementById("dialFormCalledAt")?.value || nowLocalDateTime();
     const calledAt = localDateTimeToRfc3339(calledAtLocal);
@@ -1291,10 +1502,11 @@ function bindDialForm() {
     const result = document.getElementById("dialFormResult")?.value || "通電";
     const employee = document.getElementById("dialFormEmployee")?.value || "";
     const memo = document.getElementById("dialFormMemo")?.value || "";
+    const callNo = Number(document.getElementById("dialFormCallNo")?.value);
 
     // 2. バリデーション
-    if (!candidateName || !candidateId) {
-      if (msg) msg.textContent = "候補者名が一覧にありません（正しい名前を選択してください）";
+    if (!candidateName) {
+      if (msg) msg.textContent = "候補者名は必須です";
       return;
     }
     if (!employee || !calledAt) {
@@ -1313,19 +1525,19 @@ function bindDialForm() {
     try {
       // 4. ペイロード作成
       const payload = {
-        candidateId: candidateId,
+        candidateName: candidateName,
         callerUserId: callerUserId,
         calledAt: calledAt,
         route: route,
         result: result,
         memo: memo
       };
+      if (candidateIdValue) payload.candidateId = candidateIdValue;
+      if (Number.isFinite(callNo) && callNo > 0) payload.callNo = callNo;
 
-      console.log("POST送信:", payload);
-
-      // 5. POST送信
+      // 5. PUT送信
       const res = await fetch(TELEAPO_LOGS_URL, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -1336,14 +1548,27 @@ function bindDialForm() {
       }
 
       // 6. 成功時の処理
+      let responseJson = null;
+      try {
+        responseJson = await res.json();
+      } catch (e) {
+        responseJson = null;
+      }
+      setLogHighlightTarget({
+        id: responseJson?.id,
+        candidateId: candidateIdValue,
+        calledAt,
+        callerUserId,
+        candidateName
+      });
       if (msg) {
-        msg.className = "text-emerald-600 font-semibold";
-        msg.textContent = "保存しました！";
+        msg.className = "teleapo-form-message text-sm text-emerald-600 font-semibold";
+        msg.textContent = "架電ログに追加しました";
         setTimeout(() => msg.textContent = "", 3000);
       }
 
       // フォーム初期化
-      resetDialFormDefaults();
+      resetDialFormDefaults(false);
       const cInput = document.getElementById("dialFormCandidateName");
       if (cInput) cInput.value = "";
       const hInput = document.getElementById("dialFormCandidateId");
@@ -1355,7 +1580,7 @@ function bindDialForm() {
     } catch (err) {
       console.error(err);
       if (msg) {
-        msg.className = "text-red-600 font-semibold";
+        msg.className = "teleapo-form-message text-sm text-red-600 font-semibold";
         msg.textContent = "保存に失敗しました: " + err.message;
       }
     }
@@ -1367,3 +1592,4 @@ function initDialForm() {
   refreshCandidateDatalist();
   bindDialForm();
 }
+

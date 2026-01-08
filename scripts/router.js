@@ -14,7 +14,7 @@ const routes = {
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js"),
-  teleapo: () => import("../pages/teleapo/teleapo.js"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260108"),
   referral: () => import("../pages/referral/referral.js"),
   settings: () => import("../pages/settings/settings.js"),
   "goal-settings":     () => import("../pages/goal-settings/goal-settings.js"),
