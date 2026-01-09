@@ -8,13 +8,16 @@ const ADS_GROUP_BY = 'route';
 // 既存のUIは「初回面談設定数」だが、APIは firstInterviewDone（first_interview_at）を返している想定。
 // ひとまず initialInterviews = firstInterviewDone として接続（後でAPIを firstInterviewSet に拡張するとより正確）
 const MAP_INITIAL_INTERVIEWS_FIELD = 'firstInterviewDone';
-const CONTRACT_STORAGE_KEY = 'ad.contractInfo.v1';
+// TODO: API Gatewayの媒体契約情報エンドポイントに差し替えてください
+const AD_CONTRACT_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/ads/detail';
 const DEFAULT_CONTRACT_INFO = {
-  period: '2024-01-01 ～ 2024-12-31',
-  price: '2,500,000 / 年',
-  billing: '月額固定＋応募課金（応募 3,000）',
-  autoRenew: '自動更新あり（30日前通知で解約可）',
-  notes: ''
+  contractStartDate: '',
+  contractEndDate: '',
+  contractAmount: '',
+  amountPeriod: '',
+  contractMethod: '',
+  renewalTerms: '',
+  memo: ''
 };
 
 const adState = {
@@ -43,10 +46,11 @@ let decisionLineChart = null;
 let chartJsLoading = null;
 let lastAggregated = [];
 let lineMetric = 'decisionRate';
-let contractInfoStore = new Map();
+let contractInfoCache = new Map();
+let contractFetchInFlight = new Map();
+let contractEditTarget = null;
 
 export function mount() {
-  loadContractInfoStore();
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
@@ -69,7 +73,7 @@ function initializeAdFilters() {
   const metricSelect = document.getElementById('adMetricSelect');
   const metricTitle = document.getElementById('adMetricTitle');
 
-  mediaFilter?.addEventListener('input', handleMediaFilter);
+  mediaFilter?.addEventListener('change', handleMediaFilter);
   exportBtn?.addEventListener('click', handleExportCSV);
 
   resetBtn?.addEventListener('click', () => {
@@ -187,36 +191,75 @@ function ensureDefaultMonthRange() {
   return { startYm: startVal, endYm: endVal };
 }
 
-function loadContractInfoStore() {
-  try {
-    const raw = localStorage.getItem(CONTRACT_STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return;
-    contractInfoStore = new Map(Object.entries(parsed));
-  } catch (err) {
-    console.warn('Failed to load ad contract info:', err);
-  }
-}
-
-function saveContractInfoStore() {
-  try {
-    const obj = Object.fromEntries(contractInfoStore.entries());
-    localStorage.setItem(CONTRACT_STORAGE_KEY, JSON.stringify(obj));
-  } catch (err) {
-    console.warn('Failed to save ad contract info:', err);
-  }
+function normalizeContractInfo(payload) {
+  const amount = payload?.contractAmount;
+  return {
+    contractStartDate: payload?.contractStartDate || '',
+    contractEndDate: payload?.contractEndDate || '',
+    contractAmount: amount === null || amount === undefined ? '' : String(amount),
+    amountPeriod: payload?.amountPeriod || '',
+    contractMethod: payload?.contractMethod || '',
+    renewalTerms: payload?.renewalTerms || '',
+    memo: payload?.memo || ''
+  };
 }
 
 function getContractInfo(mediaName) {
-  const stored = contractInfoStore.get(mediaName);
+  const stored = contractInfoCache.get(mediaName);
   return { ...DEFAULT_CONTRACT_INFO, ...(stored || {}) };
 }
 
-function updateContractInfoStore(mediaName, payload) {
+function setContractInfoCache(mediaName, payload) {
   if (!mediaName) return;
-  contractInfoStore.set(mediaName, payload);
-  saveContractInfoStore();
+  contractInfoCache.set(mediaName, normalizeContractInfo(payload));
+}
+
+async function fetchContractInfo(mediaName) {
+  const url = new URL(AD_CONTRACT_API_URL);
+  url.searchParams.set('mediaName', mediaName);
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Ad contract API HTTP ${res.status}: ${text}`);
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!json?.data) return normalizeContractInfo(DEFAULT_CONTRACT_INFO);
+  return normalizeContractInfo(json.data);
+}
+
+function ensureContractInfo(mediaName) {
+  if (!mediaName) return Promise.reject(new Error('mediaName is required'));
+  if (contractInfoCache.has(mediaName)) {
+    return Promise.resolve(getContractInfo(mediaName));
+  }
+  if (contractFetchInFlight.has(mediaName)) {
+    return contractFetchInFlight.get(mediaName);
+  }
+  const request = fetchContractInfo(mediaName)
+    .then((info) => {
+      setContractInfoCache(mediaName, info);
+      return info;
+    })
+    .finally(() => {
+      contractFetchInFlight.delete(mediaName);
+    });
+  contractFetchInFlight.set(mediaName, request);
+  return request;
+}
+
+async function saveContractInfo(mediaName, payload) {
+  const res = await fetch(AD_CONTRACT_API_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mediaName, ...payload })
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Ad contract API HTTP ${res.status}: ${text}`);
+  }
+  await res.json().catch(() => null);
+  setContractInfoCache(mediaName, payload);
+  return getContractInfo(mediaName);
 }
 
 // ===== 追加：RDS API 呼び出し =====
@@ -274,17 +317,20 @@ function calcDerivedRates(item) {
 }
 
 function handleMediaFilter(event) {
-  applyFilters(event.target.value);
+  const value = (event.target.value || '').trim();
+  selectedMediaFilter = value || null;
+  applyFilters(value);
 }
 
 function applyFilters(text) {
-  const filterText = (text ?? document.getElementById('adMediaFilter')?.value ?? '').trim().toLowerCase();
-  if (!filterText) selectedMediaFilter = null;
+  const rawValue = (text ?? document.getElementById('adMediaFilter')?.value ?? '').trim();
+  const filterText = rawValue.toLowerCase();
+  selectedMediaFilter = rawValue || null;
   const start = document.getElementById('adStartDate')?.value; // YYYY-MM
   const end = document.getElementById('adEndDate')?.value;     // YYYY-MM
 
   adState.filtered = adState.data.filter(item => {
-    const matchesMedia = item.mediaName.toLowerCase().includes(filterText);
+    const matchesMedia = !filterText || item.mediaName.toLowerCase() === filterText;
     const withinStart = !start || (item.period && item.period >= start);
     const withinEnd = !end || (item.period && item.period <= end);
     return matchesMedia && withinStart && withinEnd;
@@ -317,9 +363,37 @@ function updateSortIndicators() {
   });
 }
 
+function updateMediaFilterOptions(items) {
+  const select = document.getElementById('adMediaFilter');
+  if (!select) return;
+
+  const names = Array.from(new Set(items
+    .map(item => item.mediaName)
+    .filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'ja'));
+
+  const currentValue = (select.value || selectedMediaFilter || '').trim();
+  const matched = currentValue
+    ? names.find(name => name.toLowerCase() === currentValue.toLowerCase())
+    : '';
+
+  select.innerHTML = `<option value="">媒体を選択</option>` + names
+    .map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
+    .join('');
+
+  if (matched) {
+    select.value = matched;
+    selectedMediaFilter = matched;
+  } else {
+    select.value = '';
+    selectedMediaFilter = null;
+  }
+}
+
 function applySortAndRender() {
   const aggregatedSorted = getAggregatedSorted();
   lastAggregated = aggregatedSorted;
+  updateMediaFilterOptions(adState.data);
   renderAdTable(aggregatedSorted);
   updateAdPagination(aggregatedSorted.length);
   updateSortIndicators();
@@ -626,74 +700,251 @@ function renderMetricTable(labels, mediaMap) {
   `;
 }
 
+function formatContractField(value, emptyLabel = '-') {
+  const trimmed = String(value ?? '').trim();
+  return trimmed ? escapeHtml(trimmed) : emptyLabel;
+}
+
+function formatContractRange(startDate, endDate) {
+  const start = String(startDate ?? '').trim();
+  const end = String(endDate ?? '').trim();
+  if (!start && !end) return '-';
+  if (start && end) return `${start} ～ ${end}`;
+  if (start) return `${start} ～`;
+  return `～ ${end}`;
+}
+
+function formatContractAmount(amount, period) {
+  const raw = String(amount ?? '').trim();
+  const numeric = raw ? Number(raw.replace(/,/g, '')) : null;
+  const amountText = Number.isFinite(numeric) ? `¥${numeric.toLocaleString()}` : '';
+  const periodText = String(period ?? '').trim();
+  if (!amountText) return '-';
+  return periodText ? `${amountText} / ${periodText}` : amountText;
+}
+
+function buildAmountPeriodOptions(current) {
+  const base = ['', '月', '年', '一括', 'その他'];
+  const currentVal = String(current ?? '').trim();
+  const options = currentVal && !base.includes(currentVal)
+    ? [currentVal, ...base]
+    : base;
+  return options.map((value) => {
+    const label = value ? value : '未設定';
+    const selected = value === currentVal ? ' selected' : '';
+    return `<option value="${escapeAttr(value)}"${selected}>${escapeHtml(label)}</option>`;
+  }).join('');
+}
+
+function buildContractSummary(target) {
+  return `
+    <div class="text-sm text-slate-600 mt-1">決定率: ${formatPercent(target.decisionRate || 0)}</div>
+    <div class="text-sm text-slate-600">返金額: ${formatCurrency(target.refund || 0)}</div>
+    <div class="text-sm text-slate-600">応募: ${formatNumber(target.applications)} / 有効: ${formatNumber(target.validApplications)}</div>
+  `;
+}
+
+function renderContractLoading(box, target) {
+  box.innerHTML = `
+    <div class="space-y-1">
+      <span class="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5">媒体契約情報</span>
+      <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
+    </div>
+    <div class="mt-2 text-sm text-slate-500">読み込み中...</div>
+  `;
+}
+
+function renderContractError(box, target, message) {
+  box.innerHTML = `
+    <div class="space-y-1">
+      <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-semibold px-2 py-0.5">媒体契約情報</span>
+      <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
+    </div>
+    <div class="mt-2 text-sm text-rose-600">読み込みに失敗しました: ${escapeHtml(message)}</div>
+    <button type="button" id="adContractRetryBtn"
+      class="mt-2 px-3 py-1 rounded border border-rose-200 text-xs text-rose-600 hover:bg-rose-50">再読み込み</button>
+  `;
+
+  const retryBtn = box.querySelector('#adContractRetryBtn');
+  retryBtn?.addEventListener('click', () => {
+    contractInfoCache.delete(target.mediaName);
+    updateContractInfo(lastAggregated);
+  });
+}
+
+function renderContractView(box, target, contractInfo) {
+  const notes = String(contractInfo.memo ?? '').trim();
+  const notesDisplay = notes ? escapeHtml(notes) : '（なし）';
+  const rangeText = formatContractRange(contractInfo.contractStartDate, contractInfo.contractEndDate);
+  const amountText = formatContractAmount(contractInfo.contractAmount, contractInfo.amountPeriod);
+
+  box.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div class="space-y-1">
+        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5">媒体契約情報</span>
+        <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
+      </div>
+      <button type="button" id="adContractEditBtn"
+        class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">編集</button>
+    </div>
+    ${buildContractSummary(target)}
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+      <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div class="text-[11px] text-slate-500">契約期間</div>
+        <div class="text-sm font-semibold text-slate-900">${formatContractField(rangeText)}</div>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div class="text-[11px] text-slate-500">契約金額</div>
+        <div class="text-sm font-semibold text-slate-900">${formatContractField(amountText)}</div>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div class="text-[11px] text-slate-500">契約方式</div>
+        <div class="text-sm font-semibold text-slate-900">${formatContractField(contractInfo.contractMethod)}</div>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div class="text-[11px] text-slate-500">更新・解約</div>
+        <div class="text-sm font-semibold text-slate-900">${formatContractField(contractInfo.renewalTerms)}</div>
+      </div>
+    </div>
+    <div class="mt-3 rounded-lg border border-slate-200 bg-indigo-50/50 px-3 py-2 text-xs text-slate-600">
+      <span class="font-semibold text-slate-700">その他</span>
+      <span class="ml-2 text-slate-700">${notesDisplay}</span>
+    </div>
+    <div class="text-[11px] text-slate-400 mt-2">保存内容はDBに記録されます。</div>
+  `;
+
+  const editBtn = box.querySelector('#adContractEditBtn');
+  editBtn?.addEventListener('click', () => {
+    contractEditTarget = target.mediaName;
+    updateContractInfo(lastAggregated);
+  });
+}
+
+function renderContractEditor(box, target, contractInfo) {
+  const amountOptions = buildAmountPeriodOptions(contractInfo.amountPeriod);
+  box.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div class="space-y-1">
+        <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5">媒体契約情報（編集）</span>
+        <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
+      </div>
+      <button type="button" id="adContractCancelBtn"
+        class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">キャンセル</button>
+    </div>
+    ${buildContractSummary(target)}
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <label class="text-xs text-slate-600 sm:col-span-2">
+        契約期間
+        <div class="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input id="adContractStartDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+            value="${escapeAttr(contractInfo.contractStartDate)}" />
+          <input id="adContractEndDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+            value="${escapeAttr(contractInfo.contractEndDate)}" />
+        </div>
+      </label>
+      <label class="text-xs text-slate-600">
+        契約金額
+        <div class="mt-1 flex items-center gap-2">
+          <input id="adContractAmount" type="number" min="0" step="1" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+            value="${escapeAttr(contractInfo.contractAmount)}" />
+          <select id="adContractAmountPeriod" class="rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200">
+            ${amountOptions}
+          </select>
+        </div>
+      </label>
+      <label class="text-xs text-slate-600">
+        契約方式
+        <input id="adContractMethod" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+          value="${escapeAttr(contractInfo.contractMethod)}" />
+      </label>
+      <label class="text-xs text-slate-600">
+        更新・解約
+        <input id="adContractRenewalTerms" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+          value="${escapeAttr(contractInfo.renewalTerms)}" />
+      </label>
+      <label class="text-xs text-slate-600 sm:col-span-2">
+        その他
+        <textarea id="adContractMemo" rows="2" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200">${escapeHtml(contractInfo.memo || '')}</textarea>
+      </label>
+    </div>
+    <div class="mt-2 flex items-center gap-2">
+      <button type="button" id="adContractSaveBtn"
+        class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">保存</button>
+      <span id="adContractSaveStatus" class="text-xs text-slate-500"></span>
+    </div>
+    <div class="text-[11px] text-slate-400 mt-1">保存内容はDBに記録されます。</div>
+  `;
+
+  const saveBtn = box.querySelector('#adContractSaveBtn');
+  const cancelBtn = box.querySelector('#adContractCancelBtn');
+  const statusEl = box.querySelector('#adContractSaveStatus');
+
+  cancelBtn?.addEventListener('click', () => {
+    contractEditTarget = null;
+    renderContractView(box, target, getContractInfo(target.mediaName));
+  });
+
+  saveBtn?.addEventListener('click', async () => {
+    if (!saveBtn) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+    if (statusEl) statusEl.textContent = '';
+
+    const amountRaw = box.querySelector('#adContractAmount')?.value?.trim() || '';
+    const amountValue = amountRaw ? Number(amountRaw.replace(/,/g, '')) : null;
+    const contractAmount = Number.isFinite(amountValue) ? amountValue : null;
+
+    const payload = {
+      contractStartDate: box.querySelector('#adContractStartDate')?.value?.trim() || null,
+      contractEndDate: box.querySelector('#adContractEndDate')?.value?.trim() || null,
+      contractAmount,
+      amountPeriod: box.querySelector('#adContractAmountPeriod')?.value?.trim() || null,
+      contractMethod: box.querySelector('#adContractMethod')?.value?.trim() || null,
+      renewalTerms: box.querySelector('#adContractRenewalTerms')?.value?.trim() || null,
+      memo: box.querySelector('#adContractMemo')?.value?.trim() || null
+    };
+
+    try {
+      await saveContractInfo(target.mediaName, payload);
+      contractEditTarget = null;
+      renderContractView(box, target, getContractInfo(target.mediaName));
+    } catch (err) {
+      const message = err?.message || '保存に失敗しました';
+      if (statusEl) statusEl.textContent = message;
+      saveBtn.disabled = false;
+      saveBtn.textContent = '保存';
+    }
+  });
+}
+
 function updateContractInfo(data) {
   const box = document.getElementById('adContractInfo');
   if (!box) return;
   const filterText = (document.getElementById('adMediaFilter')?.value || '').trim().toLowerCase();
   const target = data.find(d => d.mediaName.toLowerCase() === filterText) || null;
   if (!target) {
-    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">??????</div><div class="text-base text-slate-700">???????????????????</div>`;
+    contractEditTarget = null;
+    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
     return;
   }
-  const contractInfo = getContractInfo(target.mediaName);
-  box.innerHTML = `
-    <div class="text-sm text-slate-500 mb-1">??????</div>
-    <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
-    <div class="text-sm text-slate-600 mt-1">???: ${formatPercent(target.decisionRate || 0)}</div>
-    <div class="text-sm text-slate-600">???: ${formatCurrency(target.refund || 0)}</div>
-    <div class="text-sm text-slate-600">??: ${formatNumber(target.applications)} / ??: ${formatNumber(target.validApplications)}</div>
-    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-      <label class="text-xs text-slate-600">
-        ????
-        <input id="adContractPeriod" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-          value="${escapeAttr(contractInfo.period)}" />
-      </label>
-      <label class="text-xs text-slate-600">
-        ????
-        <input id="adContractPrice" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-          value="${escapeAttr(contractInfo.price)}" />
-      </label>
-      <label class="text-xs text-slate-600">
-        ????
-        <input id="adContractBilling" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-          value="${escapeAttr(contractInfo.billing)}" />
-      </label>
-      <label class="text-xs text-slate-600">
-        ?????
-        <input id="adContractAutoRenew" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-          value="${escapeAttr(contractInfo.autoRenew)}" />
-      </label>
-      <label class="text-xs text-slate-600 sm:col-span-2">
-        ???
-        <textarea id="adContractNotes" rows="2" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm">${escapeHtml(contractInfo.notes || '')}</textarea>
-      </label>
-    </div>
-    <div class="mt-2 flex items-center gap-2">
-      <button type="button" id="adContractSaveBtn"
-        class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">??</button>
-      <span id="adContractSaveStatus" class="text-xs text-slate-500"></span>
-    </div>
-    <div class="text-[11px] text-slate-400 mt-1">???????????????????</div>
-  `;
+  if (contractEditTarget && contractEditTarget !== target.mediaName) {
+    contractEditTarget = null;
+  }
 
-  const saveBtn = box.querySelector('#adContractSaveBtn');
-  const statusEl = box.querySelector('#adContractSaveStatus');
-  saveBtn?.addEventListener('click', () => {
-    const payload = {
-      period: box.querySelector('#adContractPeriod')?.value?.trim() || '',
-      price: box.querySelector('#adContractPrice')?.value?.trim() || '',
-      billing: box.querySelector('#adContractBilling')?.value?.trim() || '',
-      autoRenew: box.querySelector('#adContractAutoRenew')?.value?.trim() || '',
-      notes: box.querySelector('#adContractNotes')?.value?.trim() || ''
-    };
-    updateContractInfoStore(target.mediaName, payload);
-    if (statusEl) {
-      statusEl.textContent = '??????';
-      window.setTimeout(() => {
-        if (statusEl.textContent === '??????') statusEl.textContent = '';
-      }, 2000);
-    }
-  });
+  const cached = contractInfoCache.get(target.mediaName);
+  if (!cached) {
+    renderContractLoading(box, target);
+    ensureContractInfo(target.mediaName)
+      .then(() => updateContractInfo(lastAggregated))
+      .catch((err) => renderContractError(box, target, err?.message || '読み込みに失敗しました'));
+    return;
+  }
+
+  if (contractEditTarget === target.mediaName) {
+    renderContractEditor(box, target, getContractInfo(target.mediaName));
+    return;
+  }
+  renderContractView(box, target, getContractInfo(target.mediaName));
 }
 
 function ensureChartJs() {
