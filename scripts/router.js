@@ -14,8 +14,8 @@ const routes = {
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260108"),
-  referral: () => import("../pages/referral/referral.js"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260115"),
+  referral: () => import("../pages/referral/referral.js?v=20260114"),
   settings: () => import("../pages/settings/settings.js"),
   "goal-settings":     () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
@@ -52,6 +52,7 @@ let current = null;
 let currentCSS = null;
 const BADGE_SELECTORS = ["#sidebarUserBadgeSlot"];
 const BADGE_SELECTOR = "[data-user-badge]";
+const PAGE_TITLE_SELECTOR = "#pageTitle";
 let unsubscribeBadge = null;
 
 function resolveAsset(path) {
@@ -171,6 +172,7 @@ export async function navigate(to) {
     if (mod?.mount) {
       mod.mount(app);
     }
+    updatePageTitle(page);
 
     // Update URL
     history.replaceState({}, "", `#/${page}`);
@@ -212,6 +214,33 @@ function updateNavigation(page) {
       dot.classList.toggle("bg-slate-500", !isActive);
     }
   });
+}
+
+function updatePageTitle(page) {
+  const titleEl = document.querySelector(PAGE_TITLE_SELECTOR);
+  if (!titleEl) return;
+
+  const navLabel = document.querySelector(`[data-target="${page}"] .nav-label`);
+  const navText = navLabel?.textContent?.trim();
+  if (navText) {
+    titleEl.textContent = navText;
+    return;
+  }
+
+  const pageTitle = document.querySelector("[data-page-title]")?.textContent?.trim();
+  if (pageTitle) {
+    titleEl.textContent = pageTitle;
+    return;
+  }
+
+  const heading = document.querySelector("#app h1, #app h2, #app h3");
+  const headingText = heading?.textContent?.trim();
+  if (headingText) {
+    titleEl.textContent = headingText;
+    return;
+  }
+
+  titleEl.textContent = page.replace(/-/g, " ");
 }
 
 function setupSidebarToggle() {

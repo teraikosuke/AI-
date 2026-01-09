@@ -216,14 +216,42 @@ function normalizeText(str) {
   return str.normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 
+function normalizeListToken(token) {
+  const value = String(token ?? '').trim();
+  if (!value) return '';
+  const lower = value.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') return '';
+  if (!value.replace(/[\s\[\]\{\}"'\\]+/g, '')) return '';
+  return value;
+}
+
+function sanitizeList(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeListToken).filter(Boolean);
+}
+
 // ヘルパー: 求める人材データの正規化（修正版）
 function normalizeDesiredTalent(src) {
   // リスト項目（資格や勤務地など）を配列化するヘルパー
   const list = (k) => {
-    if (Array.isArray(src[k])) return src[k];
-    if (typeof src[k] === 'string') {
+    const raw = src[k];
+    if (Array.isArray(raw)) return sanitizeList(raw);
+    if (typeof raw === 'string') {
       // カンマ、読点、改行、スペース等で分割
-      return src[k].split(/[,、\n\s]+/).filter(str => str.trim().length > 0);
+      const trimmed = raw.trim();
+      if (!trimmed) return [];
+      const lower = trimmed.toLowerCase();
+      if (lower === 'null' || lower === 'undefined' || trimmed === '{}' || trimmed === '[]') return [];
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return sanitizeList(parsed);
+          return [];
+        } catch (e) {
+          // fall through to split
+        }
+      }
+      return sanitizeList(trimmed.split(/[,、\n\s]+/));
     }
     return [];
   };
@@ -268,7 +296,7 @@ function normalizeCandidates(list) {
 
 function listToInputValue(list) {
   if (!Array.isArray(list)) return '';
-  return list.filter(Boolean).join(', ');
+  return sanitizeList(list).join(', ');
 }
 
 function parseListValue(value) {
@@ -300,13 +328,17 @@ function readOptionalNumberValue(id) {
 
 function buildAIInsight(company) {
   const dt = company.desiredTalent || {};
-  const must = dt.mustQualifications?.length ? dt.mustQualifications.join(' / ') : '';
-  const nice = dt.niceQualifications?.length ? dt.niceQualifications.join(' / ') : '';
-  const exp = dt.experiences?.length ? dt.experiences.join(' / ') : '';
+  const mustList = sanitizeList(dt.mustQualifications);
+  const niceList = sanitizeList(dt.niceQualifications);
+  const expList = sanitizeList(dt.experiences);
+  const must = mustList.length ? mustList.join(' / ') : '';
+  const nice = niceList.length ? niceList.join(' / ') : '';
+  const exp = expList.length ? expList.join(' / ') : '';
   const salary = dt.salaryRange ? `${dt.salaryRange[0]}〜${dt.salaryRange[1]}万` : '年収レンジ未設定';
   const pos = company.highlightPosition || company.jobTitle || 'ポジション未設定';
   const parts = [must ? `必須「${must}」` : '', nice ? `歓迎「${nice}」` : '', exp ? `経験「${exp}」` : ''].filter(Boolean).join('・');
-  const personalities = dt.personality?.length ? dt.personality.join(' / ') : '';
+  const personalitiesList = sanitizeList(dt.personality);
+  const personalities = personalitiesList.length ? personalitiesList.join(' / ') : '';
   return `${pos}を${salary}、${parts || '柔軟に検討'}で採用強化。${personalities ? `求める気質は「${personalities}」。` : ''}`;
 }
 
@@ -567,6 +599,11 @@ function renderCompanyDetail() {
   const salaryLabel = (salaryMinValue || salaryMaxValue)
     ? `${salaryMinValue || '-'}〜${salaryMaxValue || '-'} 万円`
     : '-';
+  const mustDisplay = sanitizeList(desired.mustQualifications).join(' / ') || '-';
+  const niceDisplay = sanitizeList(desired.niceQualifications).join(' / ') || '-';
+  const locationDisplay = sanitizeList(desired.locations).join(' / ') || '-';
+  const personalityDisplay = sanitizeList(desired.personality).join(' / ') || '-';
+  const experienceDisplay = sanitizeList(desired.experiences).join(' / ') || '-';
   const selectionNoteText = company.selectionNote || '';
   const editActions = editing
     ? `
@@ -610,11 +647,11 @@ function renderCompanyDetail() {
     `
     : `
       <div><span class="font-semibold text-slate-700">年収レンジ：</span>${salaryLabel}</div>
-      <div><span class="font-semibold text-slate-700">必須資格：</span>${desired.mustQualifications?.join(' / ') || '-'}</div>
-      <div><span class="font-semibold text-slate-700">歓迎資格：</span>${desired.niceQualifications?.join(' / ') || '-'}</div>
-      <div><span class="font-semibold text-slate-700">勤務地：</span>${desired.locations?.join(' / ') || '-'}</div>
-      <div><span class="font-semibold text-slate-700">性格傾向：</span>${desired.personality?.join(' / ') || '-'}</div>
-      <div><span class="font-semibold text-slate-700">経験：</span>${desired.experiences?.join(' / ') || '-'}</div>
+      <div><span class="font-semibold text-slate-700">必須資格：</span>${mustDisplay}</div>
+      <div><span class="font-semibold text-slate-700">歓迎資格：</span>${niceDisplay}</div>
+      <div><span class="font-semibold text-slate-700">勤務地：</span>${locationDisplay}</div>
+      <div><span class="font-semibold text-slate-700">性格傾向：</span>${personalityDisplay}</div>
+      <div><span class="font-semibold text-slate-700">経験：</span>${experienceDisplay}</div>
     `;
 
   const memoContent = editing
@@ -641,29 +678,29 @@ function renderCompanyDetail() {
   ];
 
   const candidateBubble = (c) => `
-    <div class="inline-flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-full shadow-sm text-[11px] text-slate-700">
+    <div class="inline-flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-full shadow-sm text-[11px] text-slate-700 max-w-[160px] sm:max-w-[220px]">
       <span class="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
-      <div class="flex flex-col leading-tight">
-        <span class="font-semibold text-[12px]">${c.name}</span>
-        <span class="text-slate-500">${formatDateString(c.date)}</span>
+      <div class="flex flex-col leading-tight min-w-0">
+        <span class="font-semibold text-[12px] truncate">${c.name}</span>
+        <span class="text-slate-500 truncate">${formatDateString(c.date)}</span>
       </div>
-      ${c.note ? `<span class="text-slate-500">${c.note}</span>` : ''}
+      ${c.note ? `<span class="text-slate-500 truncate max-w-[80px] sm:max-w-[120px]">${c.note}</span>` : ''}
     </div>`;
 
   const flow = stages.map((s, idx) => {
     const stageCands = (company.currentCandidates || []).filter(c => c.stage === s.key);
     const bubbles = stageCands.length ? `<div class="flex flex-col gap-1 mt-2">${stageCands.map(candidateBubble).join('')}</div>` : '';
     return `
-      <div class="flex flex-col items-center min-w-[90px]">
+      <div class="flex flex-col items-center min-w-[64px] sm:min-w-[90px] lg:min-w-[110px] flex-shrink-0">
         <div class="flex items-center">
-          <div class="w-12 h-12 rounded-full ${s.color} text-white flex items-center justify-center text-base font-semibold leading-tight">
+          <div class="w-9 h-9 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full ${s.color} text-white flex items-center justify-center text-[11px] sm:text-base lg:text-lg font-semibold leading-tight">
             <span>${s.value ?? 0}</span><span class="text-[10px] ml-0.5">件</span>
           </div>
         </div>
-        <span class="text-xs text-slate-700 mt-1">${s.label}</span>
+        <span class="text-[11px] sm:text-xs lg:text-sm text-slate-700 mt-1">${s.label}</span>
         ${bubbles}
       </div>
-      ${idx < stages.length - 1 ? '<div class="flex-1 flex items-center justify-center text-slate-400 text-2xl leading-none min-w-[60px] max-w-[80px]">➜</div>' : ''}
+      ${idx < stages.length - 1 ? '<div class="flex items-center justify-center text-slate-400 text-base sm:text-2xl lg:text-3xl leading-none w-5 sm:w-10 lg:w-14 flex-shrink-0">➜</div>' : ''}
     `;
   }).join('');
 
@@ -696,8 +733,8 @@ function renderCompanyDetail() {
 
   container.innerHTML = `
     <div class="border border-slate-200 rounded-xl p-5 bg-white space-y-5 shadow-sm text-sm text-slate-800">
-      <div class="flex flex-col lg:flex-row justify-between gap-4 relative">
-        <div class="space-y-3 flex-1 min-w-0 w-full lg:pr-48">
+      <div class="flex flex-col lg:flex-row justify-between gap-4">
+        <div class="space-y-3 flex-1 min-w-0 w-full">
           <div class="flex flex-wrap items-center gap-2">
             <div class="text-2xl font-bold text-slate-900">${company.company}</div>
             <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">担当 ${company.contact}</span>
@@ -708,12 +745,12 @@ function renderCompanyDetail() {
           </div>
           <div class="text-lg font-bold text-indigo-800">募集ポジション：${company.highlightPosition}</div>
         </div>
-        <div class="text-right space-y-1 w-auto flex-none max-w-full lg:absolute lg:right-0 lg:top-0">
-          <div class="text-sm whitespace-normal">
-            ${badge(`定着率 ${company.retention}`, retentionClass, 'px-4 py-2 text-sm inline-block whitespace-nowrap')}
-            ${badge(`リードタイム ${company.leadTime}日`, leadClass, 'px-4 py-2 text-sm inline-block whitespace-nowrap')}
-            ${badge(`Fee ${company.feeDisplay}`, 'bg-indigo-50 text-indigo-700 border border-indigo-100', 'px-4 py-2 text-sm inline-block whitespace-nowrap')}
-            ${badge(`返金額 ${formatCurrency(company.refundAmount)}`, refundClass, 'px-4 py-2 text-sm inline-block whitespace-nowrap')}
+        <div class="w-full lg:w-auto flex-none max-w-full order-3 lg:order-none mt-2 lg:mt-0 lg:ml-auto">
+          <div class="flex flex-wrap gap-1.5 sm:gap-2 justify-start lg:justify-end text-[10px] sm:text-sm">
+            ${badge(`定着率 ${company.retention}`, retentionClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
+            ${badge(`リードタイム ${company.leadTime}日`, leadClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
+            ${badge(`Fee ${company.feeDisplay}`, 'bg-indigo-50 text-indigo-700 border border-indigo-100', 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
+            ${badge(`返金額 ${formatCurrency(company.refundAmount)}`, refundClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
           </div>
         </div>
       </div>
@@ -726,7 +763,7 @@ function renderCompanyDetail() {
 
       <div class="space-y-3 pt-1">
         <div class="text-base font-bold text-slate-900 tracking-wide">募集・選考の進捗</div>
-        <div class="flex flex-wrap lg:flex-nowrap items-start gap-4 justify-start lg:justify-between">
+        <div class="flex flex-nowrap items-start gap-2 sm:gap-4 lg:gap-6 justify-start lg:justify-between overflow-x-auto pb-2 w-full max-w-full">
           ${flow}
         </div>
       </div>
@@ -735,15 +772,15 @@ function renderCompanyDetail() {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 text-center">
         <div class="p-4 border border-slate-200 rounded-lg bg-slate-50">
           <div class="text-xs text-slate-500">採用予定</div>
-          <div class="text-2xl font-bold text-slate-900">${company.planHeadcount}名</div>
+          <div class="text-lg sm:text-2xl font-bold text-slate-900">${company.planHeadcount}名</div>
         </div>
         <div class="p-4 border border-slate-200 rounded-lg bg-indigo-50">
           <div class="text-xs text-indigo-600">内定 / 入社</div>
-          <div class="text-2xl font-bold text-indigo-800">${company.offer} / ${company.joined}</div>
+          <div class="text-lg sm:text-2xl font-bold text-indigo-800">${company.offer} / ${company.joined}</div>
         </div>
         <div class="p-4 border border-slate-200 rounded-lg bg-emerald-50">
           <div class="text-xs text-emerald-700">残り人数</div>
-          <div class="text-2xl font-bold text-emerald-800">${company.remaining}</div>
+          <div class="text-lg sm:text-2xl font-bold text-emerald-800">${company.remaining}</div>
         </div>
       </div>
 

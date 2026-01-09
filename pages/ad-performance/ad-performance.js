@@ -8,6 +8,14 @@ const ADS_GROUP_BY = 'route';
 // 既存のUIは「初回面談設定数」だが、APIは firstInterviewDone（first_interview_at）を返している想定。
 // ひとまず initialInterviews = firstInterviewDone として接続（後でAPIを firstInterviewSet に拡張するとより正確）
 const MAP_INITIAL_INTERVIEWS_FIELD = 'firstInterviewDone';
+const CONTRACT_STORAGE_KEY = 'ad.contractInfo.v1';
+const DEFAULT_CONTRACT_INFO = {
+  period: '2024-01-01 ～ 2024-12-31',
+  price: '2,500,000 / 年',
+  billing: '月額固定＋応募課金（応募 3,000）',
+  autoRenew: '自動更新あり（30日前通知で解約可）',
+  notes: ''
+};
 
 const adState = {
   data: [],
@@ -22,14 +30,23 @@ const formatNumber = (num) => Number(num || 0).toLocaleString();
 const formatPercent = (num) => `${(Number(num) || 0).toFixed(1)}%`;
 // cost/refund は現状DBに無いので 0 表示が紛らわしければ '-' にしたいが、既存UIを崩さないため一旦0で表示
 const formatCurrency = (num) => `¥${Number(num || 0).toLocaleString()}`;
+const escapeHtml = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+const escapeAttr = (value) => escapeHtml(value);
 
 let selectedMediaFilter = null;
 let decisionLineChart = null;
 let chartJsLoading = null;
 let lastAggregated = [];
 let lineMetric = 'decisionRate';
+let contractInfoStore = new Map();
 
 export function mount() {
+  loadContractInfoStore();
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
@@ -168,6 +185,38 @@ function ensureDefaultMonthRange() {
   }
 
   return { startYm: startVal, endYm: endVal };
+}
+
+function loadContractInfoStore() {
+  try {
+    const raw = localStorage.getItem(CONTRACT_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+    contractInfoStore = new Map(Object.entries(parsed));
+  } catch (err) {
+    console.warn('Failed to load ad contract info:', err);
+  }
+}
+
+function saveContractInfoStore() {
+  try {
+    const obj = Object.fromEntries(contractInfoStore.entries());
+    localStorage.setItem(CONTRACT_STORAGE_KEY, JSON.stringify(obj));
+  } catch (err) {
+    console.warn('Failed to save ad contract info:', err);
+  }
+}
+
+function getContractInfo(mediaName) {
+  const stored = contractInfoStore.get(mediaName);
+  return { ...DEFAULT_CONTRACT_INFO, ...(stored || {}) };
+}
+
+function updateContractInfoStore(mediaName, payload) {
+  if (!mediaName) return;
+  contractInfoStore.set(mediaName, payload);
+  saveContractInfoStore();
 }
 
 // ===== 追加：RDS API 呼び出し =====
@@ -583,27 +632,68 @@ function updateContractInfo(data) {
   const filterText = (document.getElementById('adMediaFilter')?.value || '').trim().toLowerCase();
   const target = data.find(d => d.mediaName.toLowerCase() === filterText) || null;
   if (!target) {
-    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
+    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">??????</div><div class="text-base text-slate-700">???????????????????</div>`;
     return;
   }
-  const contractMock = {
-    period: '2024-01-01 〜 2024-12-31',
-    price: '¥2,500,000 / 年',
-    billing: '月額固定＋応募課金（応募 ¥3,000）',
-    autoRenew: '自動更新あり（30日前通知で解約可）'
-  };
+  const contractInfo = getContractInfo(target.mediaName);
   box.innerHTML = `
-    <div class="text-sm text-slate-500 mb-1">媒体契約情報</div>
-    <div class="text-base text-slate-800 font-semibold">${target.mediaName}</div>
-    <div class="text-sm text-slate-600 mt-1">決定率: ${formatPercent(target.decisionRate || 0)}</div>
-    <div class="text-sm text-slate-600">返金額: ${formatCurrency(target.refund || 0)}</div>
-    <div class="text-sm text-slate-600">応募: ${formatNumber(target.applications)} / 有効: ${formatNumber(target.validApplications)}</div>
-    <div class="text-sm text-slate-600">契約期間: ${contractMock.period}</div>
-    <div class="text-sm text-slate-600">契約金額: ${contractMock.price}</div>
-    <div class="text-sm text-slate-600">契約方式: ${contractMock.billing}</div>
-    <div class="text-sm text-slate-600">更新・解約: ${contractMock.autoRenew}</div>
-    <div class="text-xs text-slate-500 mt-1">契約条件のメモをここに追記できます</div>
+    <div class="text-sm text-slate-500 mb-1">??????</div>
+    <div class="text-base text-slate-800 font-semibold">${escapeHtml(target.mediaName)}</div>
+    <div class="text-sm text-slate-600 mt-1">???: ${formatPercent(target.decisionRate || 0)}</div>
+    <div class="text-sm text-slate-600">???: ${formatCurrency(target.refund || 0)}</div>
+    <div class="text-sm text-slate-600">??: ${formatNumber(target.applications)} / ??: ${formatNumber(target.validApplications)}</div>
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <label class="text-xs text-slate-600">
+        ????
+        <input id="adContractPeriod" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          value="${escapeAttr(contractInfo.period)}" />
+      </label>
+      <label class="text-xs text-slate-600">
+        ????
+        <input id="adContractPrice" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          value="${escapeAttr(contractInfo.price)}" />
+      </label>
+      <label class="text-xs text-slate-600">
+        ????
+        <input id="adContractBilling" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          value="${escapeAttr(contractInfo.billing)}" />
+      </label>
+      <label class="text-xs text-slate-600">
+        ?????
+        <input id="adContractAutoRenew" type="text" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          value="${escapeAttr(contractInfo.autoRenew)}" />
+      </label>
+      <label class="text-xs text-slate-600 sm:col-span-2">
+        ???
+        <textarea id="adContractNotes" rows="2" class="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm">${escapeHtml(contractInfo.notes || '')}</textarea>
+      </label>
+    </div>
+    <div class="mt-2 flex items-center gap-2">
+      <button type="button" id="adContractSaveBtn"
+        class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">??</button>
+      <span id="adContractSaveStatus" class="text-xs text-slate-500"></span>
+    </div>
+    <div class="text-[11px] text-slate-400 mt-1">???????????????????</div>
   `;
+
+  const saveBtn = box.querySelector('#adContractSaveBtn');
+  const statusEl = box.querySelector('#adContractSaveStatus');
+  saveBtn?.addEventListener('click', () => {
+    const payload = {
+      period: box.querySelector('#adContractPeriod')?.value?.trim() || '',
+      price: box.querySelector('#adContractPrice')?.value?.trim() || '',
+      billing: box.querySelector('#adContractBilling')?.value?.trim() || '',
+      autoRenew: box.querySelector('#adContractAutoRenew')?.value?.trim() || '',
+      notes: box.querySelector('#adContractNotes')?.value?.trim() || ''
+    };
+    updateContractInfoStore(target.mediaName, payload);
+    if (statusEl) {
+      statusEl.textContent = '??????';
+      window.setTimeout(() => {
+        if (statusEl.textContent === '??????') statusEl.textContent = '';
+      }, 2000);
+    }
+  });
 }
 
 function ensureChartJs() {

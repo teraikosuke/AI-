@@ -354,9 +354,9 @@ function formatRate(rate) {
 
 function formatRangeLabel(startStr, endStr) {
   if (!startStr && !endStr) return '';
-  if (startStr && endStr) return `${startStr.replace(/-/g, '/')} ? ${endStr.replace(/-/g, '/')}`;
-  if (startStr) return `${startStr.replace(/-/g, '/')} ?`;
-  return `? ${endStr.replace(/-/g, '/')}`;
+  if (startStr && endStr) return `${startStr.replace(/-/g, '/')} ～ ${endStr.replace(/-/g, '/')}`;
+  if (startStr) return `${startStr.replace(/-/g, '/')} ～`;
+  return `～ ${endStr.replace(/-/g, '/')}`;
 }
 
 
@@ -570,7 +570,7 @@ function renderHeatmap(logs) {
   else from.setDate(maxDate.getDate() - 30);
   if (from < minDate) from.setTime(minDate.getTime());
 
-  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} ? ${maxDate.toISOString().slice(0, 10)}`;
+  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} ～ ${maxDate.toISOString().slice(0, 10)}`;
 
   const buckets = {};
   TELEAPO_HEATMAP_DAYS.forEach(day => {
