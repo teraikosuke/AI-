@@ -13,7 +13,7 @@ const routes = {
   members:      () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260119"),
   teleapo: () => import("../pages/teleapo/teleapo.js?v=20260115"),
   referral: () => import("../pages/referral/referral.js?v=20260114"),
   settings: () => import("../pages/settings/settings.js"),
