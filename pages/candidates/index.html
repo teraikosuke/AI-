@@ -5,7 +5,7 @@
         候補者管理
       </h3>
       <p class="text-sm text-slate-500">
-        応募者の選考状況・面談予定・CS項目を1画面で把握
+        選考状況・新規面談日・希望条件・CS項目を1画面で把握
       </p>
     </div>
     <button class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500">
@@ -181,24 +181,20 @@
         <table class="table-grid w-full">
           <colgroup>
             <col style="width: 160px" />
-            <col style="width: 100px" />
-            <col style="width: 90px" />
-            <col style="width: 150px" />
-            <col style="width: 150px" />
+            <col style="width: 220px" />
+            <col style="width: 110px" />
+            <col style="width: 170px" />
             <col style="width: 160px" />
-            <col style="width: 160px" />
-            <col style="width: 140px" />
+            <col style="width: 180px" />
           </colgroup>
           <thead>
             <tr>
               <th>登録日</th>
-              <th>有効応募</th>
-              <th>通電</th>
-              <th>通電実施者</th>
-              <th>求職者名</th>
-              <th>担当者</th>
-              <th>担当パートナー</th>
               <th>フェーズ</th>
+              <th>有効応募</th>
+              <th>求職者名</th>
+              <th>担当CS</th>
+              <th>担当パートナー</th>
             </tr>
           </thead>
           <tbody id="candidatesTableBody"></tbody>
@@ -217,7 +213,7 @@
             候補者行をクリックすると詳細が表示されます。
           </p>
           <p class="text-xs text-slate-400">
-            面談予定・書類リンク・選考進捗・CS項目などをまとめて確認できます。
+            新規面談日・希望条件・選考進捗・CS項目などをまとめて確認できます。
           </p>
         </div>
       </div>
