@@ -6,9 +6,6 @@
 - 小さな変更で致命的な欠陥を解消し、実装可能な制約/型を明確化する
 - 命名規則は `lower_snake_case`、テーブル名は複数形で統一する
 
-<!-- 変更理由: 監査/ETL差分取得に必須のため、全テーブルに created_at/updated_at を追加。 -->
-<!-- 変更理由: call_logs の call_count 重複を防ぐため、(application_id, call_count) の UNIQUE を追加。 -->
-
 ## ER 図
 
 ```mermaid
