@@ -42,6 +42,7 @@ export function mount() {
   initializeExport();
   initializeMatchingTabs();
   initializeMatching();
+  initializeCreateForm();
 
   // APIからデータをロード
   loadReferralData()
@@ -63,7 +64,10 @@ export function unmount() {
   const ids = [
     'referralCompanyFilter', 'referralDateStart', 'referralDateEnd', 'referralJobFilter', 'referralFilterReset',
     'referralSortSelect', 'referralPrevBtn', 'referralNextBtn', 'referralPageSize', 'referralExportBtn',
-    'matchTabCandidate', 'matchTabCondition', 'matchFromCandidate', 'matchFromCondition', 'matchResultSort'
+    'matchTabCandidate', 'matchTabCondition', 'matchFromCandidate', 'matchFromCondition', 'matchResultSort',
+    'referralCreateCompany', 'referralCreateJobTitle', 'referralCreatePlanHeadcount', 'referralCreateIndustry',
+    'referralCreateLocation', 'referralCreateFee', 'referralCreateSelectionNote', 'referralCreateSubmit',
+    'referralCreateReset'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -930,6 +934,144 @@ function applyDetailEdits(company, edits) {
 
   company.desiredTalent = edits.desiredTalent;
   company.selectionNote = edits.selectionNote || '';
+}
+
+// ==========================================
+// 新規紹介先企業の登録
+// ==========================================
+function initializeCreateForm() {
+  document.getElementById('referralCreateSubmit')?.addEventListener('click', handleCreateSubmit);
+  document.getElementById('referralCreateReset')?.addEventListener('click', () => resetCreateForm(true));
+}
+
+function setCreateStatus(message, variant = 'info') {
+  const el = document.getElementById('referralCreateStatus');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.remove('text-slate-500', 'text-rose-600', 'text-emerald-600');
+  if (variant === 'error') el.classList.add('text-rose-600');
+  else if (variant === 'success') el.classList.add('text-emerald-600');
+  else el.classList.add('text-slate-500');
+}
+
+function resetCreateForm(clearStatus = false) {
+  const ids = [
+    'referralCreateCompany', 'referralCreateJobTitle', 'referralCreatePlanHeadcount',
+    'referralCreateIndustry', 'referralCreateLocation', 'referralCreateFee',
+    'referralCreateSelectionNote'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  if (clearStatus) setCreateStatus('');
+}
+
+function collectCreateFormData() {
+  const company = readInputValue('referralCreateCompany');
+  const jobTitle = readInputValue('referralCreateJobTitle');
+  const industry = readInputValue('referralCreateIndustry');
+  const location = readInputValue('referralCreateLocation');
+  const planHeadcount = readOptionalNumberValue('referralCreatePlanHeadcount');
+  const feeAmount = readOptionalNumberValue('referralCreateFee');
+  const selectionNote = readInputValue('referralCreateSelectionNote');
+
+  if (!company) {
+    return { error: '\u4F01\u696D\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044' };
+  }
+
+  return {
+    company,
+    jobTitle,
+    industry,
+    location,
+    planHeadcount,
+    feeAmount,
+    selectionNote
+  };
+}
+
+function buildCreatePayload(data) {
+  return {
+    name: data.company,
+    companyName: data.company,
+    industry: data.industry || null,
+    location: data.location || null,
+    jobCategories: data.jobTitle || null,
+    plannedHiresCount: data.planHeadcount ?? null,
+    feeAmount: data.feeAmount ?? null,
+    selectionNote: data.selectionNote || null
+  };
+}
+
+async function createReferralCompany(payload) {
+  const res = await fetch(CLIENTS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '');
+    throw new Error(`HTTP Error: ${res.status} ${errorBody}`);
+  }
+
+  return res.json().catch(() => ({}));
+}
+
+function buildCreatedCompany(payload, result) {
+  const source = result?.item || result?.data || result?.client || result || {};
+  const merged = {
+    ...payload,
+    ...source,
+    name: source.name || payload.name,
+    companyName: source.companyName || payload.companyName || payload.name,
+    jobCategories: source.jobCategories || payload.jobCategories,
+    plannedHiresCount: source.plannedHiresCount ?? payload.plannedHiresCount,
+    feeAmount: source.feeAmount ?? payload.feeAmount,
+    selectionNote: source.selectionNote ?? payload.selectionNote
+  };
+
+  return normalizeReferralItem(merged, allData.length);
+}
+
+async function handleCreateSubmit() {
+  const submitBtn = document.getElementById('referralCreateSubmit');
+  const resetBtn = document.getElementById('referralCreateReset');
+  const data = collectCreateFormData();
+
+  if (data.error) {
+    setCreateStatus(data.error, 'error');
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = '\u767B\u9332\u4E2D...';
+  }
+  if (resetBtn) resetBtn.disabled = true;
+  setCreateStatus('\u767B\u9332\u4E2D...', 'info');
+
+  try {
+    const payload = buildCreatePayload(data);
+    const result = await createReferralCompany(payload);
+    const created = buildCreatedCompany(payload, result);
+    allData = [created, ...allData];
+    selectedCompanyId = created.id;
+    detailEditMode = false;
+    applyFilters();
+    resetCreateForm(false);
+    setCreateStatus('\u767B\u9332\u3057\u307E\u3057\u305F', 'success');
+  } catch (err) {
+    console.error('new company create failed:', err);
+    setCreateStatus('\u767B\u9332\u306B\u5931\u6557\u3057\u307E\u3057\u305F', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '\u767B\u9332';
+    }
+    if (resetBtn) resetBtn.disabled = false;
+  }
 }
 
 // ==========================================

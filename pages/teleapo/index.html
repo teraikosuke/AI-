@@ -263,6 +263,30 @@
     <p id="dialFormMessage" class="teleapo-form-message text-sm"></p>
   </section>
 
+  <section class="kpi-v2-section" id="teleapoCsTaskSection">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h4 class="text-base font-semibold text-slate-800">CSタスク管理</h4>
+        <p class="text-xs text-slate-500">未接触かつ有効応募の候補者</p>
+      </div>
+      <div class="text-xs text-slate-500"><span id="teleapoCsTaskCount">0件</span></div>
+    </div>
+    <div class="table-surface overflow-auto mt-3">
+      <table class="table-grid min-w-[780px]" id="teleapoCsTaskTable">
+        <thead>
+          <tr>
+            <th class="whitespace-nowrap">フェーズ</th>
+            <th class="whitespace-nowrap">有効応募</th>
+            <th class="whitespace-nowrap">求職者名</th>
+            <th class="whitespace-nowrap">登録日時</th>
+            <th class="whitespace-nowrap">電話番号</th>
+          </tr>
+        </thead>
+        <tbody id="teleapoCsTaskTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3" id="teleapoSectionLogs">
     <h4 class="text-sm font-semibold text-slate-700">架電ログ</h4>
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 text-xs text-slate-500">
@@ -348,5 +372,5 @@
   </div>
   </div>
 
-  <script type="module" src="./teleapo.js?v=20260124"></script>
+  <script type="module" src="./teleapo.js?v=20260128"></script>
 </section>

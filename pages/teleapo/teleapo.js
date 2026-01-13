@@ -16,6 +16,7 @@ const CANDIDATE_ID_PARAM = 'candidateId';
 const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates";
 
 let candidateNameMap = new Map(); // Name -> ID
+let teleapoCsTaskCandidates = [];
 
 function buildCandidateDetailUrl(candidateId) {
   // ハッシュルーター前提： http://localhost:8081/#/candidates?candidateId=123
@@ -48,6 +49,161 @@ function findCandidateIdByName(name) {
     if (normalizeNameKey(candidateName) === targetKey) return id;
   }
   return undefined;
+}
+
+function normalizePhaseList(raw) {
+  const list = Array.isArray(raw)
+    ? raw
+    : String(raw || "")
+      .split(/[,/、|]/)
+      .map((value) => value.trim())
+      .filter((value) => value);
+  return Array.from(new Set(list));
+}
+
+function resolveCandidatePhaseDisplay(candidate) {
+  const list = normalizePhaseList(candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "");
+  if (list.length) return list.join(" / ");
+
+  const hasConnected = candidate?.csSummary?.hasConnected ?? candidate?.phoneConnected ?? false;
+  const hasSms = candidate?.csSummary?.hasSms ?? candidate?.smsSent ?? candidate?.smsConfirmed ?? false;
+  const callCount = candidate?.csSummary?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
+  if (hasConnected) return "通電";
+  if (hasSms) return "SMS送信";
+  if (Number(callCount || 0) > 0) return "架電中";
+  return "未接触";
+}
+
+function isValidApplicationCandidate(candidate) {
+  const raw = candidate?.validApplication
+    ?? candidate?.valid_application
+    ?? candidate?.valid
+    ?? candidate?.isValidApplication;
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+    if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
+    if (["false", "0", "no", "無効", "無効応募"].includes(normalized)) return false;
+  }
+  return Boolean(raw);
+}
+
+function formatCandidateDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+}
+
+function renderValidApplicationBadge(isValid) {
+  const label = isValid ? "有効応募" : "無効応募";
+  const classes = isValid
+    ? "bg-emerald-100 text-emerald-700"
+    : "bg-slate-100 text-slate-500";
+  return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${classes}">${label}</span>`;
+}
+
+function normalizeCandidateTask(candidate) {
+  if (!candidate) return null;
+  const candidateId =
+    candidate.id ??
+    candidate.candidate_id ??
+    candidate.candidateId ??
+    candidate.candidateID ??
+    null;
+  const candidateName = String(
+    candidate.candidateName ??
+    candidate.candidate_name ??
+    candidate.name ??
+    ""
+  ).trim();
+  const phaseList = normalizePhaseList(candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "");
+  const phaseText = phaseList.length ? phaseList.join(" / ") : resolveCandidatePhaseDisplay(candidate);
+  const validApplication = isValidApplicationCandidate(candidate);
+  const registeredAt =
+    candidate.registeredAt ??
+    candidate.registered_at ??
+    candidate.createdAt ??
+    candidate.created_at ??
+    candidate.createdDate ??
+    candidate.created_date ??
+    null;
+  const phone =
+    candidate.phone ??
+    candidate.phone_number ??
+    candidate.phoneNumber ??
+    candidate.tel ??
+    candidate.candidate_phone ??
+    candidate.mobile ??
+    candidate.mobilePhone ??
+    "";
+  const isUncontacted = phaseList.includes("未接触") || phaseText === "未接触";
+
+  return {
+    candidateId,
+    candidateName,
+    phaseText,
+    validApplication,
+    registeredAt,
+    phone,
+    isUncontacted,
+  };
+}
+
+function renderCsTaskTable(list, state = {}) {
+  const body = document.getElementById("teleapoCsTaskTableBody");
+  const countEl = document.getElementById("teleapoCsTaskCount");
+  if (countEl) {
+    countEl.textContent = state.loading ? "読み込み中..." : `${list.length}件`;
+  }
+  if (!body) return;
+
+  if (state.loading) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-slate-500 py-6">読み込み中...</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (state.error) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-rose-600 py-6">候補者の取得に失敗しました</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!list.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = list.map((row) => {
+    const nameLabel = row.candidateName || "-";
+    const nameCell = row.candidateId
+      ? `<a class="text-indigo-600 hover:text-indigo-800 underline" href="${escapeHtml(buildCandidateDetailUrl(row.candidateId))}">${escapeHtml(nameLabel)}</a>`
+      : escapeHtml(nameLabel);
+    return `
+      <tr>
+        <td class="whitespace-nowrap">${escapeHtml(row.phaseText || "-")}</td>
+        <td class="whitespace-nowrap">${renderValidApplicationBadge(row.validApplication)}</td>
+        <td class="whitespace-nowrap">${nameCell}</td>
+        <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
+        <td class="whitespace-nowrap">${escapeHtml(row.phone || "-")}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 const RESULT_LABELS = {
@@ -1427,6 +1583,7 @@ async function fetchTeleapoApi() {
 
 // ★ 候補者一覧を取得して datalist 用の辞書を作る
 async function loadCandidates() {
+  renderCsTaskTable([], { loading: true });
   try {
     const res = await fetch(CANDIDATES_API_URL, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Candidates API Error: ${res.status}`);
@@ -1437,16 +1594,23 @@ async function loadCandidates() {
     candidateNameMap.clear();
     items.forEach(c => {
       // 名前を一意のキーにする（同姓同名対策が必要なら "名前(ID)" 等にするが、一旦名前で実装）
-      const fullName = (c.name || '').trim();
-      if (fullName && c.candidate_id) {
-        candidateNameMap.set(fullName, Number(c.candidate_id));
+      const fullName = String(c.candidateName ?? c.candidate_name ?? c.name ?? '').trim();
+      const candidateId = Number(c.candidate_id ?? c.id ?? c.candidateId ?? c.candidateID);
+      if (fullName && Number.isFinite(candidateId) && candidateId > 0) {
+        candidateNameMap.set(fullName, candidateId);
       }
     });
 
     console.log(`候補者ロード完了: ${candidateNameMap.size}件`);
     refreshCandidateDatalist(); // datalist更新
+
+    teleapoCsTaskCandidates = items
+      .map(normalizeCandidateTask)
+      .filter((c) => c && c.validApplication && c.isUncontacted);
+    renderCsTaskTable(teleapoCsTaskCandidates);
   } catch (e) {
     console.error("候補者一覧の取得に失敗:", e);
+    renderCsTaskTable([], { error: true });
   }
 }
 

@@ -2,7 +2,7 @@
   #referralTable thead th {
     position: sticky;
     top: 0;
-    background: #fff;
+    background: #f8fafc;
     z-index: 30;
   }
 
@@ -10,7 +10,7 @@
     position: sticky;
     left: 0;
     top: 0;
-    background: #fff;
+    background: #f8fafc;
     z-index: 50;
   }
 
@@ -155,7 +155,66 @@
       </select>
     </div>
   </div>
-</div>
+<!-- 新規紹介先企業登録 -->
+  <div class="border border-slate-200 rounded-lg p-4 bg-white space-y-3" id="referralCreateSection">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h4 class="text-sm font-semibold text-slate-700">&#x65B0;&#x898F;&#x7D39;&#x4ECB;&#x5148;&#x4F01;&#x696D;&#x767B;&#x9332;</h4>
+        <p class="text-xs text-slate-500">&#x4F01;&#x696D;&#x540D;&#x306F;&#x5FC5;&#x9808;&#x3001;&#x305D;&#x306E;&#x4ED6;&#x306F;&#x4EFB;&#x610F;&#x3067;&#x3059;</p>
+      </div>
+      <div id="referralCreateStatus" class="text-xs text-slate-500"></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">&#x4F01;&#x696D;&#x540D; *</span>
+        <input type="text" id="referralCreateCompany"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="Sample Inc." />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">&#x52DF;&#x96C6;&#x8077;&#x7A2E;</span>
+        <input type="text" id="referralCreateJobTitle"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="Engineer / Sales" />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">&#x63A1;&#x7528;&#x4E88;&#x5B9A;&#x4EBA;&#x6570;</span>
+        <input type="number" min="0" id="referralCreatePlanHeadcount"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="5" />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">&#x696D;&#x754C;</span>
+        <input type="text" id="referralCreateIndustry"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="IT / SaaS" />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">&#x52E4;&#x52D9;&#x5730;</span>
+        <input type="text" id="referralCreateLocation"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="Tokyo / Remote" />
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-slate-600">Fee (&#x5186;)</span>
+        <input type="number" min="0" id="referralCreateFee"
+          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="3000000" />
+      </label>
+    </div>
+    <label class="flex flex-col gap-1">
+      <span class="text-xs font-semibold text-slate-600">&#x9078;&#x8003;&#x30E1;&#x30E2;</span>
+      <textarea id="referralCreateSelectionNote" rows="3"
+        class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
+        placeholder="Add notes for this company"></textarea>
+    </label>
+    <div class="flex items-center gap-2">
+      <button id="referralCreateSubmit"
+        class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-500">
+        &#x767B;&#x9332;
+      </button>
+      <button id="referralCreateReset"
+        class="px-4 py-2 border border-slate-300 rounded-md text-sm text-slate-600 hover:bg-slate-100">
+        &#x30AF;&#x30EA;&#x30A2;
+      </button>
+    </div>
+  </div>
+
+  </div>
 
 <!-- AIマッチング -->
 <div class="section-shell space-y-4 max-w-screen-2xl mx-auto w-full">

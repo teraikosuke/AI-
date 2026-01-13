@@ -13,9 +13,9 @@ const routes = {
   members:      () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260119"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260124"),
-  referral: () => import("../pages/referral/referral.js?v=20260114"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260128"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260128"),
+  referral: () => import("../pages/referral/referral.js?v=20260129"),
   settings: () => import("../pages/settings/settings.js"),
   "goal-settings":     () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
@@ -36,13 +36,13 @@ const routeMeta = {
 
 // CSS files for specific pages
 const pageCSS = {
-  yield: "pages/yield/yield.css?v=20260126",
+  yield: "pages/yield/yield.css?v=20260127",
   candidates: "pages/candidates/candidates.css",
-  "ad-performance": "pages/ad-performance/ad-performance.css",
-  teleapo: "pages/teleapo/teleapo.css?v=20260126",
-  referral: "pages/referral/referral.css",
+  "ad-performance": "pages/ad-performance/ad-performance.css?v=20260128",
+  teleapo: "pages/teleapo/teleapo.css?v=20260128",
+  referral: "pages/referral/referral.css?v=20260129",
   settings: "pages/settings/settings.css",
-  "goal-settings": "pages/goal-settings/goal-settings.css?v=20260126",
+  "goal-settings": "pages/goal-settings/goal-settings.css?v=20260127",
   members: "pages/members/members.css",
   "kpi-summery-test": "pages/kpi-summery-test/kpi-summery-test.css",
   login: null, // Uses global styles
