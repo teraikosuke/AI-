@@ -820,6 +820,13 @@
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
+[data-kpi="v2"] .kpi-v2-employee-table-wrapper.table-surface {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
 [data-kpi="v2"] .kpi-v2-scroll-area {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

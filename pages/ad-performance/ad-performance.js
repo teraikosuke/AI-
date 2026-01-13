@@ -687,7 +687,7 @@ function renderMetricTable(labels, mediaMap) {
   });
 
   wrapper.innerHTML = `
-    <div class="rounded-lg border border-slate-200 bg-white shadow-sm overflow-auto">
+    <div class="table-surface overflow-auto">
       <table class="min-w-max text-left w-full border-separate border-spacing-0">
         <thead class="bg-slate-50">
           <tr>${header.join('')}</tr>

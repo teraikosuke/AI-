@@ -63,7 +63,7 @@ let teleapoLogData = [];
 let teleapoFilteredLogs = [];
 let teleapoEmployeeMetrics = [];
 let teleapoSummaryScope = { type: 'company', name: '全体' };
-let teleapoHeatmapRange = '1m';
+let teleapoAnalysisRange = '1m';
 let teleapoLogSort = { key: 'datetime', dir: 'desc' };
 let teleapoEmployeeSortState = { key: 'connectRate', dir: 'desc' };
 let teleapoHighlightLogId = null;
@@ -537,12 +537,15 @@ function initEmployeeSortHeaders() {
 function updateEmployeeSortIndicators() {
   const headers = document.querySelectorAll('#teleapoEmployeeTableWrapper th[data-sort]');
   headers.forEach(th => {
-    const base = (th.textContent || '').replace(/[▲▼]/g, '').trim();
-    if (teleapoEmployeeSortState.key === th.dataset.sort) {
-      const arrow = teleapoEmployeeSortState.dir === 'asc' ? '▲' : '▼';
-      th.textContent = `${base} ${arrow}`;
+    const isActive = teleapoEmployeeSortState.key === th.dataset.sort;
+    const dir = isActive ? teleapoEmployeeSortState.dir : '';
+    th.classList.toggle('is-sorted', isActive);
+    if (dir) {
+      th.dataset.sortDir = dir;
+      th.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
     } else {
-      th.textContent = base;
+      th.removeAttribute('data-sort-dir');
+      th.setAttribute('aria-sort', 'none');
     }
   });
 }
@@ -551,26 +554,7 @@ function updateEmployeeSortIndicators() {
 // 上書き版: フィルタ済みログの範囲を使い、最大日時を基準にウィンドウを切る
 function renderHeatmap(logs) {
   const tbody = document.getElementById('teleapoHeatmapTableBody');
-  const periodLabel = document.getElementById('teleapoHeatmapPeriodLabel');
   if (!tbody) return;
-
-  const employeeFilter = document.getElementById('teleapoHeatmapEmployeeFilter')?.value || 'all';
-  const scopedLogs = employeeFilter === 'all' ? logs : logs.filter(l => l.employee === employeeFilter);
-  const dates = scopedLogs.map(l => parseDateTime(l.datetime)).filter(Boolean).sort((a, b) => a - b);
-  if (!dates.length) {
-    tbody.innerHTML = '';
-    if (periodLabel) periodLabel.textContent = '集計期間: -';
-    return;
-  }
-  const maxDate = dates[dates.length - 1];
-  const minDate = dates[0];
-  const from = new Date(maxDate);
-  if (teleapoHeatmapRange === '1w') from.setDate(maxDate.getDate() - 7);
-  else if (teleapoHeatmapRange === '6m') from.setDate(maxDate.getDate() - 182);
-  else from.setDate(maxDate.getDate() - 30);
-  if (from < minDate) from.setTime(minDate.getTime());
-
-  if (periodLabel) periodLabel.textContent = `集計期間: ${from.toISOString().slice(0, 10)} ～ ${maxDate.toISOString().slice(0, 10)}`;
 
   const buckets = {};
   TELEAPO_HEATMAP_DAYS.forEach(day => {
@@ -578,9 +562,9 @@ function renderHeatmap(logs) {
     TELEAPO_HEATMAP_SLOTS.forEach(slot => { buckets[day][slot] = { dials: 0, connects: 0 }; });
   });
 
-  scopedLogs.filter(l => l.route === ROUTE_TEL).forEach(log => {
+  logs.filter(l => l.route === ROUTE_TEL).forEach(log => {
     const dt = parseDateTime(log.datetime);
-    if (!dt || dt < from || dt > maxDate) return;
+    if (!dt) return;
     const day = '日月火水木金土'[dt.getDay()];
     if (!buckets[day]) return;
     const hour = dt.getHours();
@@ -597,11 +581,179 @@ function renderHeatmap(logs) {
       const c = buckets[day][slot];
       const rate = c.dials ? (c.connects / c.dials) * 100 : null;
       const intensity = rate == null ? 'bg-white' : rate >= 70 ? 'bg-green-100' : rate >= 40 ? 'bg-amber-50' : 'bg-rose-50';
-      const text = rate == null ? '-' : `${rate.toFixed(0)}%`;
-      return `<td class="px-2 py-2 border border-slate-200 text-center ${intensity}">${text}</td>`;
+      const rateText = rate == null ? '-' : `${rate.toFixed(0)}%`;
+      const countText = rate == null ? '' : `(${c.dials}-${c.connects})`;
+      return `
+        <td class="px-2 py-2 border border-slate-200 text-center ${intensity}">
+          <div class="teleapo-heatmap-cell">
+            <span class="teleapo-heatmap-rate">${rateText}</span>
+            <span class="teleapo-heatmap-count">${countText}</span>
+          </div>
+        </td>
+      `;
     }).join('');
     return `<tr><th class="px-3 py-2 border border-slate-200 text-left bg-slate-50">${slot}帯</th>${cells}</tr>`;
   }).join('');
+}
+
+function buildHeatmapInsight(logs, scopeLabel) {
+  const telLogs = logs.filter(l => l.route === ROUTE_TEL);
+  if (!telLogs.length) return null;
+
+  const buckets = new Map();
+  const addBucket = (day, slot) => {
+    const key = `${day}-${slot}`;
+    if (!buckets.has(key)) buckets.set(key, { day, slot, dials: 0, connects: 0 });
+    return buckets.get(key);
+  };
+
+  telLogs.forEach(log => {
+    const dt = parseDateTime(log.datetime);
+    if (!dt) return;
+    const day = '日月火水木金土'[dt.getDay()];
+    const hour = dt.getHours();
+    const slot = hour < 11 ? '09-11' : hour < 13 ? '11-13' : hour < 15 ? '13-15' : hour < 17 ? '15-17' : hour < 19 ? '17-19' : null;
+    if (!slot) return;
+    const flags = classifyTeleapoResult(log);
+    const bucket = addBucket(day, slot);
+    bucket.dials += 1;
+    if (flags.isConnect) bucket.connects += 1;
+  });
+
+  const totalDials = telLogs.length;
+  const totalConnects = telLogs.filter(l => classifyTeleapoResult(l).isConnect).length;
+  const baselineRate = totalDials ? (totalConnects / totalDials) * 100 : 0;
+  const minSamples = Math.max(5, Math.ceil(totalDials * 0.05));
+  const priorWeight = 6;
+
+  const ranked = Array.from(buckets.values())
+    .map(b => {
+      const rate = b.dials ? (b.connects / b.dials) * 100 : null;
+      const smoothed = b.dials
+        ? ((b.connects + (baselineRate / 100) * priorWeight) / (b.dials + priorWeight)) * 100
+        : null;
+      const lift = smoothed == null ? null : smoothed - baselineRate;
+      const score = lift == null ? -Infinity : lift * Math.sqrt(b.dials);
+      return { ...b, rate, smoothed, lift, score };
+    })
+    .filter(b => b.rate != null && b.dials >= minSamples)
+    .sort((a, b) => (b.score - a.score) || (b.dials - a.dials));
+
+  if (!ranked.length || totalDials < minSamples) {
+    return { type: 'lowSample', scopeLabel, baselineRate, totalDials };
+  }
+
+  const best = ranked[0];
+  if (best.lift != null && best.lift >= 6) {
+    return { type: 'lift', ...best, scopeLabel, baselineRate, totalDials };
+  }
+
+  const byVolume = ranked.slice().sort((a, b) => b.dials - a.dials)[0];
+  return { type: 'volume', ...byVolume, scopeLabel, baselineRate, totalDials };
+}
+
+function buildAttemptInsight(logs) {
+  const { buckets, average } = computeAttemptDistribution(logs);
+  if (!buckets.length) return null;
+  const totalDials = buckets.reduce((s, b) => s + (b.reached || 0), 0);
+  const totalConnects = buckets.reduce((s, b) => s + (b.connected || 0), 0);
+  const baselineRate = totalDials ? (totalConnects / totalDials) * 100 : 0;
+  const minSamples = Math.max(5, Math.ceil(totalDials * 0.05));
+  const priorWeight = 4;
+  const ranked = buckets
+    .map(b => {
+      const smoothed = b.reached
+        ? ((b.connected + (baselineRate / 100) * priorWeight) / (b.reached + priorWeight)) * 100
+        : null;
+      const lift = smoothed == null ? null : smoothed - baselineRate;
+      const score = lift == null ? -Infinity : lift * Math.sqrt(b.reached);
+      return { ...b, smoothed, lift, score };
+    })
+    .filter(b => b.rate != null && b.reached >= minSamples)
+    .sort((a, b) => (b.score - a.score) || (b.reached - a.reached));
+  if (!ranked.length) return null;
+  const best = ranked[0];
+  if (best.lift != null && best.lift >= 3) {
+    return { ...best, average };
+  }
+  return { ...best, average, lowSignal: true };
+}
+
+function updateTeleapoInsight(logs, scope) {
+  const el = document.getElementById('teleapoInsightText');
+  if (!el) return;
+  const telLogs = logs.filter(l => l.route === ROUTE_TEL);
+  if (!telLogs.length) {
+    el.textContent = 'データがまだ少なめです！ログを増やせば勝ちパターンが見えてきますよ！';
+    return;
+  }
+
+  const scopeLabel = scope?.scopeLabel || '全体';
+  const attempt = buildAttemptInsight(logs);
+  const heatmap = buildHeatmapInsight(logs, scopeLabel);
+
+  if (attempt && heatmap && heatmap.type === 'lift') {
+    const lift = Math.round(heatmap.lift || 0);
+    el.textContent = `通電は${attempt.attempt}回目が勝負！${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が平均より+${lift}ptと強いので、ここを集中攻略しましょう！`;
+    return;
+  }
+  if (attempt && heatmap && heatmap.type === 'volume') {
+    el.textContent = `通電は${attempt.attempt}回目が勝負！${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が母数最多（${heatmap.dials}件）なので、ここを底上げすると伸びます！`;
+    return;
+  }
+  if (attempt && heatmap && heatmap.type === 'lowSample') {
+    el.textContent = `通電は${attempt.attempt}回目が勝負！ヒートマップは母数が少なめなので、まず件数を積み上げましょう！`;
+    return;
+  }
+  if (attempt) {
+    const baseText = `${attempt.attempt}回目の通電率が${attempt.rate.toFixed(0)}%！`;
+    el.textContent = attempt.lowSignal
+      ? `${baseText} ただし差は小さめなので、まずは母数を増やして精度を上げましょう！`
+      : `${baseText} 粘りが結果につながっています、あと一押し行きましょう！`;
+    return;
+  }
+  if (heatmap && heatmap.type === 'lift') {
+    const lift = Math.round(heatmap.lift || 0);
+    el.textContent = `${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が平均より+${lift}ptで好調！この時間帯を攻めて伸ばしましょう！`;
+    return;
+  }
+  if (heatmap && heatmap.type === 'volume') {
+    el.textContent = `${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が母数最多（${heatmap.dials}件）！ここを磨けば全体が伸びます！`;
+    return;
+  }
+  if (heatmap && heatmap.type === 'lowSample') {
+    el.textContent = 'ヒートマップは母数が少なめです！まずは件数を増やして勝ち時間帯を見つけましょう！';
+    return;
+  }
+
+  el.textContent = '傾向がまだ出ていません！まずは母数を増やして、勝ち筋を掴みましょう！';
+}
+
+function getAnalysisScope(logs) {
+  const employeeFilter = document.getElementById('teleapoAnalysisEmployeeFilter')?.value || 'all';
+  const scopeLabel = employeeFilter === 'all' ? '全体' : `${employeeFilter}さん`;
+  let scopedLogs = employeeFilter === 'all' ? logs : logs.filter(l => l.employee === employeeFilter);
+
+  const dates = scopedLogs.map(l => parseDateTime(l.datetime)).filter(Boolean).sort((a, b) => a - b);
+  if (!dates.length) {
+    return { logs: [], from: null, to: null, label: '', scopeLabel };
+  }
+  const maxDate = dates[dates.length - 1];
+  const minDate = dates[0];
+  const from = new Date(maxDate);
+  if (teleapoAnalysisRange === '1w') from.setDate(maxDate.getDate() - 7);
+  else if (teleapoAnalysisRange === '6m') from.setDate(maxDate.getDate() - 182);
+  else from.setDate(maxDate.getDate() - 30);
+  if (from < minDate) from.setTime(minDate.getTime());
+
+  scopedLogs = scopedLogs.filter(log => {
+    const dt = parseDateTime(log.datetime);
+    return dt && dt >= from && dt <= maxDate;
+  });
+
+  const fromStr = from.toISOString().slice(0, 10).replace(/-/g, '/');
+  const toStr = maxDate.toISOString().slice(0, 10).replace(/-/g, '/');
+  return { logs: scopedLogs, from, to: maxDate, label: `${fromStr} ～ ${toStr}`, scopeLabel };
 }
 
 function renderLogTable() {
@@ -1025,12 +1177,16 @@ function applyFilters() {
     if (wrapper) wrapper.classList.add('hidden');
   }
 
-  renderHeatmap(teleapoFilteredLogs);
-  renderAttemptChart(teleapoFilteredLogs);
+  const analysisScope = getAnalysisScope(teleapoFilteredLogs);
+  const analysisLogs = analysisScope.logs;
+
+  renderHeatmap(analysisLogs);
+  renderAttemptChart(analysisLogs);
+  updateTeleapoInsight(analysisLogs, analysisScope);
   renderLogTable();
 
   // グラフ側の期間ラベルを更新（空なら全期間）
-  setText('teleapoAttemptPeriodLabel', rangeLabel || '全期間');
+  setText('teleapoAnalysisPeriodLabel', analysisScope.label ? `集計期間: ${analysisScope.label}` : '集計期間: -');
   setText('teleapoLogPeriodLabel', rangeLabel || '全期間');
 }
 
@@ -1083,18 +1239,20 @@ function initFilters() {
 }
 
 function initHeatmapControls() {
-  const rangeButtons = document.querySelectorAll('[data-heatmap-range]');
+  const rangeButtons = document.querySelectorAll('[data-analysis-range]');
   rangeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      teleapoHeatmapRange = btn.dataset.heatmapRange || '1m';
+      teleapoAnalysisRange = btn.dataset.analysisRange || '1m';
       rangeButtons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
       btn.classList.add('kpi-v2-range-btn-active');
-      renderHeatmap(teleapoFilteredLogs);
+      applyFilters();
     });
   });
-  const employeeSelect = document.getElementById('teleapoHeatmapEmployeeFilter');
+  const employeeSelect = document.getElementById('teleapoAnalysisEmployeeFilter');
   if (employeeSelect) {
-    employeeSelect.addEventListener('change', () => renderHeatmap(teleapoFilteredLogs));
+    employeeSelect.addEventListener('change', () => {
+      applyFilters();
+    });
   }
 }
 

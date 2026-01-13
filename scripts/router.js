@@ -14,7 +14,7 @@ const routes = {
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260119"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260115"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260124"),
   referral: () => import("../pages/referral/referral.js?v=20260114"),
   settings: () => import("../pages/settings/settings.js"),
   "goal-settings":     () => import("../pages/goal-settings/goal-settings.js"),
@@ -36,13 +36,13 @@ const routeMeta = {
 
 // CSS files for specific pages
 const pageCSS = {
-  yield: "pages/yield/yield.css",
+  yield: "pages/yield/yield.css?v=20260126",
   candidates: "pages/candidates/candidates.css",
   "ad-performance": "pages/ad-performance/ad-performance.css",
-  teleapo: "pages/teleapo/teleapo.css",
+  teleapo: "pages/teleapo/teleapo.css?v=20260126",
   referral: "pages/referral/referral.css",
   settings: "pages/settings/settings.css",
-  "goal-settings": "pages/goal-settings/goal-settings.css",
+  "goal-settings": "pages/goal-settings/goal-settings.css?v=20260126",
   members: "pages/members/members.css",
   "kpi-summery-test": "pages/kpi-summery-test/kpi-summery-test.css",
   login: null, // Uses global styles

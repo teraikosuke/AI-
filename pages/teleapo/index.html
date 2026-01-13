@@ -113,13 +113,9 @@
     </div>
 
     <div class="kpi-v2-subsection" id="teleapoSectionEmployees">
-      <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h4 class="text-base font-semibold text-slate-800">社員成績（架電ルートのみ）</h4>
-        <select id="teleapoEmployeeSortSelect" class="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs">
-          <option value="connectRate-desc">通電率（高い順）</option>
-          <option value="setRate-desc">設定率（高い順）</option>
-          <option value="showRate-desc">着座率（高い順）</option>
-        </select>
+        <div class="teleapo-employee-sort-hint text-xs text-slate-500">列名をクリックして並び替え</div>
       </div>
 
       <div id="teleapoEmployeeTableWrapper" class="overflow-auto rounded-lg border border-slate-200 mb-4 bg-white">
@@ -150,11 +146,32 @@
 
     <div class="kpi-v2-subsection" id="teleapoSectionHeatmap">
       <h4 class="kpi-v2-subtitle mb-2">通電率分析</h4>
+      <div class="kpi-v2-filters flex flex-wrap items-center gap-3 teleapo-analysis-subhead mb-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="kpi-v2-filter-label">集計期間（通電率分析）</span>
+          <div id="teleapoAnalysisRangeButtons" class="flex flex-wrap gap-1">
+            <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active" data-analysis-range="1w">直近1週</button>
+            <button type="button" class="kpi-v2-range-btn" data-analysis-range="1m">直近1ヶ月</button>
+            <button type="button" class="kpi-v2-range-btn" data-analysis-range="6m">直近半年</button>
+          </div>
+          <p id="teleapoAnalysisPeriodLabel" class="text-[11px] text-slate-500"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="kpi-v2-filter-label">社員</span>
+          <select id="teleapoAnalysisEmployeeFilter" class="kpi-v2-filter-select">
+            <option value="all">全員</option>
+            <option value="佐藤">佐藤</option>
+            <option value="鈴木">鈴木</option>
+            <option value="高橋">高橋</option>
+            <option value="田中">田中</option>
+          </select>
+        </div>
+        <span class="text-[10px] text-slate-400">※左のグラフ/右のヒートマップに反映</span>
+      </div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch teleapo-analysis-row">
         <div id="teleapoAttemptChartWrapper" class="space-y-2 teleapo-analysis-card">
           <div class="flex items-center justify-between">
             <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">架電回数と通電率</h5>
-            <span id="teleapoAttemptPeriodLabel" class="text-[10px] text-slate-500"></span>
           </div>
           <p id="teleapoAttemptChartNote" class="text-[10px] text-slate-500 teleapo-analysis-footnote"></p>
           <div class="kpi-v2-chart-container teleapo-analysis-body">
@@ -163,31 +180,9 @@
         </div>
         <div class="space-y-2 teleapo-analysis-card teleapo-heatmap-col">
           <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">通電率ヒートマップ（曜日×時間帯）</h5>
-          <div class="kpi-v2-filters flex flex-wrap items-center gap-3 teleapo-analysis-subhead">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="kpi-v2-filter-label">集計期間（ヒートマップ）</span>
-              <div id="teleapoHeatmapRangeButtons" class="flex flex-wrap gap-1">
-                <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active"
-                  data-heatmap-range="1w">直近1週</button>
-                <button type="button" class="kpi-v2-range-btn" data-heatmap-range="1m">直近1ヶ月</button>
-                <button type="button" class="kpi-v2-range-btn" data-heatmap-range="6m">直近半年</button>
-              </div>
-              <p id="teleapoHeatmapPeriodLabel" class="text-[11px] text-slate-500"></p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="kpi-v2-filter-label">社員</span>
-              <select id="teleapoHeatmapEmployeeFilter" class="kpi-v2-filter-select">
-                <option value="all">全員</option>
-                <option value="佐藤">佐藤</option>
-                <option value="鈴木">鈴木</option>
-                <option value="高橋">高橋</option>
-                <option value="田中">田中</option>
-              </select>
-            </div>
-          </div>
           <div
             class="overflow-auto rounded-lg border border-slate-200 bg-white teleapo-heatmap-wrapper teleapo-analysis-body">
-            <table class="min-w-[640px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
+            <table class="min-w-[520px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
               <thead class="bg-slate-50">
                 <tr>
                   <th class="px-3 py-2 border border-slate-200 text-left">曜日＼時間帯</th>
@@ -202,6 +197,10 @@
             </table>
           </div>
         </div>
+      </div>
+      <div class="teleapo-insight-card mt-3">
+        <div class="teleapo-insight-title">一言分析</div>
+        <p id="teleapoInsightText" class="teleapo-insight-text">-</p>
       </div>
     </div>
   </div>
@@ -349,5 +348,5 @@
   </div>
   </div>
 
-  <script type="module" src="./teleapo.js?v=20260115"></script>
+  <script type="module" src="./teleapo.js?v=20260124"></script>
 </section>
