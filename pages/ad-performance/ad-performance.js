@@ -22,6 +22,7 @@ const DEFAULT_CONTRACT_INFO = {
 
 const adState = {
   data: [],
+  summary: null,
   filtered: [],
   sortField: 'applications',
   sortDirection: 'desc',
@@ -294,6 +295,7 @@ async function loadAdPerformanceData() {
   const data = await res.json();
   const items = Array.isArray(data?.items) ? data.items : [];
 
+  adState.summary = data?.summary ?? null;
   adState.data = items.map(calcDerivedRates);
   applyFilters();
 }
@@ -353,12 +355,18 @@ function handleAdSort(event) {
 
 function updateSortIndicators() {
   document.querySelectorAll('.sortable').forEach(h => {
-    const indicator = h.querySelector('.sort-indicator');
-    if (!indicator) return;
-    if (h.dataset.sort === adState.sortField) {
-      indicator.textContent = adState.sortDirection === 'asc' ? '▲' : '▼';
+    const isActive = h.dataset.sort === adState.sortField;
+    h.classList.toggle('is-sorted', isActive);
+    if (isActive) {
+      h.dataset.sortDir = adState.sortDirection;
+      h.setAttribute('aria-sort', adState.sortDirection === 'asc' ? 'ascending' : 'descending');
     } else {
-      indicator.textContent = '▼';
+      h.removeAttribute('data-sort-dir');
+      h.setAttribute('aria-sort', 'none');
+    }
+    const indicator = h.querySelector('.sort-indicator');
+    if (indicator) {
+      indicator.textContent = isActive ? (adState.sortDirection === 'asc' ? '▲' : '▼') : '▼';
     }
   });
 }
@@ -397,7 +405,7 @@ function applySortAndRender() {
   renderAdTable(aggregatedSorted);
   updateAdPagination(aggregatedSorted.length);
   updateSortIndicators();
-  updateAdSummary(aggregatedSorted);
+  updateAdSummary(aggregatedSorted, adState.summary);
   renderAdCharts(aggregatedSorted, adState.filtered);
 }
 
@@ -480,7 +488,7 @@ function renderAdTable(data) {
   const pageItems = data.slice(start, end);
 
   if (!pageItems.length) {
-    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="13" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
     return;
   }
 
@@ -505,33 +513,44 @@ function renderAdTable(data) {
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
         <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
         <td class="text-right font-semibold">${formatCurrency(ad.refund)}</td>
-        <td class="text-right font-semibold">${formatCurrency(ad.cost)}</td>
-        <td class="text-right font-semibold">${ad.hired ? formatCurrency(ad.costPerHire) : '-'}</td>
       </tr>
   `).join('');
 }
 
-function updateAdSummary(data) {
-  const totalApps = data.reduce((sum, d) => sum + (d.applications || 0), 0);
-  const totalValid = data.reduce((sum, d) => sum + (d.validApplications || 0), 0);
-  const totalCost = data.reduce((sum, d) => sum + (d.cost || 0), 0);
-  const totalHired = data.reduce((sum, d) => sum + (d.hired || 0), 0);
+function updateAdSummary(data, summary) {
+  const useSummary = summary && typeof summary === 'object' && !selectedMediaFilter;
+  const rate = (num, den) => (den ? (num / den) * 100 : 0);
+  const totalApps = useSummary
+    ? Number(summary.totalApplications || 0)
+    : data.reduce((sum, d) => sum + (d.applications || 0), 0);
+  const totalValid = useSummary
+    ? Number(summary.totalValid || 0)
+    : data.reduce((sum, d) => sum + (d.validApplications || 0), 0);
+  const totalHired = useSummary
+    ? Number(summary.totalHired || 0)
+    : data.reduce((sum, d) => sum + (d.hired || 0), 0);
+  const totalInitialInterviews = data.reduce((sum, d) => sum + (d.initialInterviews || 0), 0);
+  const retentionWeighted = data.reduce((sum, d) => sum + (Number(d.retention30) || 0) * (Number(d.hired) || 0), 0);
 
-  const decisionRate = totalApps ? (totalHired / totalApps) * 100 : 0;
-  const validRate = totalApps ? (totalValid / totalApps) * 100 : 0;
-  const costPerHire = totalHired ? totalCost / totalHired : 0;
+  const decisionRate = rate(totalHired, totalApps);
+  const validRate = rate(totalValid, totalApps);
+  const interviewDenom = totalValid || totalApps;
+  const initialInterviewRate = rate(totalInitialInterviews, interviewDenom);
+  const retentionRate = totalHired ? retentionWeighted / totalHired : 0;
 
-  const setText = (id, text) => {
+  const setText = (id, value) => {
     const el = document.getElementById(id);
-    if (el) el.textContent = text;
+    if (el) el.textContent = value;
   };
 
   const validText = totalValid ? `${formatNumber(totalValid)} (${formatPercent(validRate)})` : '-';
   setText('adSummaryValidWithRate', validText);
+  setText('adSummaryInitialInterviewRate', interviewDenom ? formatPercent(initialInterviewRate) : '-');
   setText('adSummaryDecisionRate', totalApps ? formatPercent(decisionRate) : '-');
-  // costは現状0しか無い想定なので、入社>0かつcost>0のときだけ表示
-  setText('adSummaryCostPerHire', (totalHired && totalCost) ? formatCurrency(costPerHire) : '-');
+  setText('adSummaryRetentionRate', totalHired ? formatPercent(retentionRate) : '-');
 }
+
+
 
 // renderAdCharts 以降はあなたの既存コードをそのまま使用
 // （以下、あなたが貼った renderAdCharts / renderMetricTable / updateContractInfo / ensureChartJs / pagination / export / cleanup などは無変更でOK）
@@ -687,12 +706,12 @@ function renderMetricTable(labels, mediaMap) {
   });
 
   wrapper.innerHTML = `
-    <div class="table-surface overflow-auto">
-      <table class="min-w-max text-left w-full border-separate border-spacing-0">
-        <thead class="bg-slate-50">
+    <div class="table-surface table-teleapo overflow-auto">
+      <table class="table-grid min-w-max w-full text-left">
+        <thead>
           <tr>${header.join('')}</tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody>
           ${rows.join('')}
         </tbody>
       </table>
@@ -993,7 +1012,7 @@ function changePage(direction) {
 
 function handleExportCSV() {
   const sortedData = getAggregatedSorted();
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）', '契約費用'];
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）'];
   const csvContent = [
     headers.join(','),
     ...sortedData.map(ad => [
@@ -1008,8 +1027,7 @@ function handleExportCSV() {
       `${ad.hireRate.toFixed(1)}%`,
       `${ad.decisionRate.toFixed(1)}%`,
       `${ad.retention30.toFixed(1)}%`,
-      ad.refund,
-      ad.cost
+      ad.refund
     ].join(','))
   ].join('\n');
   const bom = '\uFEFF';
@@ -1023,7 +1041,7 @@ function handleExportCSV() {
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-red-500 py-6">${message}</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="13" class="text-center text-red-500 py-6">${message}</td></tr>`;
   }
 }
 

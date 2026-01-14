@@ -7,8 +7,7 @@ const TELEAPO_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws
 const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
-// 候補者詳細画面のURL（あなたの候補者画面のURLに合わせて変更してください）
-const CANDIDATE_DETAIL_PAGE_URL = 'http://localhost:8081/#/candidates'; // 例: '/candidates.html' などに変更OK
+// Candidate detail URL (hash router + query)
 const CANDIDATE_ID_PARAM = 'candidateId';
 // ...既存の定数の下に追加...
 
@@ -16,11 +15,18 @@ const CANDIDATE_ID_PARAM = 'candidateId';
 const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates";
 
 let candidateNameMap = new Map(); // Name -> ID
+let candidateNameList = [];
 let teleapoCsTaskCandidates = [];
 
 function buildCandidateDetailUrl(candidateId) {
-  // ハッシュルーター前提： http://localhost:8081/#/candidates?candidateId=123
-  return `${CANDIDATE_DETAIL_PAGE_URL}?${CANDIDATE_ID_PARAM}=${encodeURIComponent(candidateId)}`;
+  const id = String(candidateId ?? '').trim();
+  if (typeof window === 'undefined' || !window.location) {
+    return `#/candidates?${CANDIDATE_ID_PARAM}=${encodeURIComponent(id)}`;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set(CANDIDATE_ID_PARAM, id);
+  url.hash = '/candidates';
+  return url.toString();
 }
 
 
@@ -49,6 +55,30 @@ function findCandidateIdByName(name) {
     if (normalizeNameKey(candidateName) === targetKey) return id;
   }
   return undefined;
+}
+
+function findCandidateIdFromTarget(target) {
+  if (!target) return undefined;
+  const direct = findCandidateIdByName(target);
+  if (direct) return direct;
+
+  const normalizedTarget = normalizeNameKey(target);
+  if (!normalizedTarget) return undefined;
+
+  let bestMatch = null;
+  let bestId;
+  const list = candidateNameList.length ? candidateNameList : Array.from(candidateNameMap.keys());
+  for (const name of list) {
+    const normalizedName = normalizeNameKey(name);
+    if (!normalizedName) continue;
+    if (normalizedTarget.includes(normalizedName)) {
+      if (!bestMatch || normalizedName.length > bestMatch.length) {
+        bestMatch = normalizedName;
+        bestId = candidateNameMap.get(name);
+      }
+    }
+  }
+  return bestId;
 }
 
 function normalizePhaseList(raw) {
@@ -191,8 +221,9 @@ function renderCsTaskTable(list, state = {}) {
 
   body.innerHTML = list.map((row) => {
     const nameLabel = row.candidateName || "-";
-    const nameCell = row.candidateId
-      ? `<a class="text-indigo-600 hover:text-indigo-800 underline" href="${escapeHtml(buildCandidateDetailUrl(row.candidateId))}">${escapeHtml(nameLabel)}</a>`
+    const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
+    const nameCell = candidateId
+      ? `<a class="text-indigo-600 hover:text-indigo-800 underline" href="${escapeHtml(buildCandidateDetailUrl(candidateId))}">${escapeHtml(nameLabel)}</a>`
       : escapeHtml(nameLabel);
     return `
       <tr>
@@ -943,11 +974,12 @@ function renderLogTable() {
 
     // ★ 相手（候補者名）をクリックで候補者詳細へ
     const targetText = escapeHtml(row.target || '');
-    const targetCell = row.candidateId
+    const targetCandidateId = row.candidateId ?? findCandidateIdFromTarget(row.target);
+    const targetCell = targetCandidateId
       ? `<a
-           href="${escapeHtml(buildCandidateDetailUrl(row.candidateId))}"
+           href="${escapeHtml(buildCandidateDetailUrl(targetCandidateId))}"
            class="text-indigo-600 hover:underline"
-           data-candidate-id="${row.candidateId}"
+           data-candidate-id="${targetCandidateId}"
          >${targetText}</a>`
       : targetText;
 
@@ -1440,6 +1472,21 @@ function initCompanyRangePresets() {
   });
 }
 
+function updateLogSortIndicators() {
+  const headers = document.querySelectorAll('#teleapoLogTable th[data-sort]');
+  headers.forEach(th => {
+    const isActive = teleapoLogSort.key === th.dataset.sort;
+    th.classList.toggle('is-sorted', isActive);
+    if (isActive) {
+      th.dataset.sortDir = teleapoLogSort.dir;
+      th.setAttribute('aria-sort', teleapoLogSort.dir === 'asc' ? 'ascending' : 'descending');
+    } else {
+      th.removeAttribute('data-sort-dir');
+      th.setAttribute('aria-sort', 'none');
+    }
+  });
+}
+
 function initLogTableSort() {
   const headers = document.querySelectorAll('#teleapoLogTable th.sortable');
   headers.forEach(th => {
@@ -1452,8 +1499,10 @@ function initLogTableSort() {
         teleapoLogSort = { key, dir: 'asc' };
       }
       renderLogTable();
+      updateLogSortIndicators();
     });
   });
+  updateLogSortIndicators();
 }
 
 function initLogTableActions() {
@@ -1600,6 +1649,7 @@ async function loadCandidates() {
         candidateNameMap.set(fullName, candidateId);
       }
     });
+    candidateNameList = Array.from(candidateNameMap.keys()).sort((a, b) => b.length - a.length);
 
     console.log(`候補者ロード完了: ${candidateNameMap.size}件`);
     refreshCandidateDatalist(); // datalist更新
@@ -1608,6 +1658,7 @@ async function loadCandidates() {
       .map(normalizeCandidateTask)
       .filter((c) => c && c.validApplication && c.isUncontacted);
     renderCsTaskTable(teleapoCsTaskCandidates);
+    if (teleapoFilteredLogs.length) renderLogTable();
   } catch (e) {
     console.error("候補者一覧の取得に失敗:", e);
     renderCsTaskTable([], { error: true });
