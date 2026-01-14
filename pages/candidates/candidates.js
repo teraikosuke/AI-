@@ -159,6 +159,12 @@ function normalizeCandidate(candidate) {
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
   candidate.csChecklist = candidate.csChecklist || {};
+  candidate.phoneConnected = candidate.phoneConnected ?? candidate.phone_connected ?? candidate.has_connected ?? false;
+  candidate.smsSent = candidate.smsSent ?? candidate.sms_sent ?? candidate.has_sms ?? false;
+  candidate.callCount = candidate.callCount ?? candidate.call_count ?? candidate.max_call_no ?? candidate.csSummary?.callCount ?? 0;
+  const resolvedPhases = resolvePhaseList(candidate);
+  candidate.phases = resolvedPhases;
+  candidate.phase = resolvedPhases.join(" / ");
   return candidate;
 }
 
@@ -908,27 +914,19 @@ function initializeDetailContentListeners() {
 // -----------------------
 // 最低限のユーティリティ（既存にあるならそのまま）
 // -----------------------
-function resolvePhaseDisplay(candidate) {
-  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value);
-  const unique = Array.from(new Set(list));
-  if (unique.length > 0) return unique.join(" / ");
+const PRE_CONTACT_PHASES = ["未接触", "架電中", "SMS送信", "通電"];
 
+function resolveTeleapoPhase(candidate) {
   const hasConnected = candidate?.csSummary?.hasConnected ?? candidate?.phoneConnected ?? false;
   const hasSms = candidate?.csSummary?.hasSms ?? candidate?.smsSent ?? candidate?.smsConfirmed ?? false;
-  const callCount = candidate?.csSummary?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
+  const callCount = candidate?.csSummary?.callCount ?? candidate?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
   if (hasConnected) return "通電";
   if (hasSms) return "SMS送信";
   if (Number(callCount || 0) > 0) return "架電中";
   return "未接触";
 }
 
-function renderPhasePills(candidate) {
+function resolvePhaseList(candidate) {
   const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
   const list = Array.isArray(raw)
     ? raw
@@ -937,7 +935,24 @@ function renderPhasePills(candidate) {
       .map((value) => value.trim())
       .filter((value) => value);
   const unique = Array.from(new Set(list));
-  const display = unique.length ? unique : [resolvePhaseDisplay(candidate)];
+  const teleapoPhase = resolveTeleapoPhase(candidate);
+
+  if (!unique.length) return [teleapoPhase];
+
+  const nonPreContact = unique.filter((value) => !PRE_CONTACT_PHASES.includes(value));
+  if (nonPreContact.length) return nonPreContact;
+
+  if (teleapoPhase && teleapoPhase !== "未接触") return [teleapoPhase];
+
+  return unique;
+}
+
+function resolvePhaseDisplay(candidate) {
+  return resolvePhaseList(candidate).join(" / ");
+}
+
+function renderPhasePills(candidate) {
+  const display = resolvePhaseList(candidate);
   const pills = display
     .map((value) => `<span class="candidate-phase-pill">${escapeHtml(value || "-")}</span>`)
     .join("");
