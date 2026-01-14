@@ -38,6 +38,7 @@ const modalHandlers = { closeButton: null, overlay: null, keydown: null };
 
 const detailSectionKeys = [
   "profile",
+  "assignees",
   "hearing",
   "selection",
   "cs",
@@ -66,6 +67,8 @@ let currentDetailCandidateId = null;
 let lastSyncedAt = null;
 let pendingInlineUpdates = {};
 let openedFromUrlOnce = false;
+let masterClients = [];
+let masterUsers = [];
 
 // =========================
 // 正規化
@@ -108,17 +111,113 @@ function normalizeCandidate(candidate) {
   candidate.desiredJobType = candidate.desiredJobType ?? candidate.desired_job_type ?? "";
   candidate.otherSelectionStatus = candidate.otherSelectionStatus ?? candidate.other_selection_status ?? "";
   candidate.attendanceConfirmed = candidate.attendanceConfirmed ?? candidate.first_interview_attended ?? null;
+  candidate.advisorUserId = candidate.advisorUserId ?? candidate.advisor_user_id ?? null;
+  candidate.partnerUserId = candidate.partnerUserId ?? candidate.partner_user_id ?? null;
   candidate.meetingPlans = Array.isArray(candidate.meetingPlans) ? candidate.meetingPlans : [];
   candidate.resumeDocuments = Array.isArray(candidate.resumeDocuments) ? candidate.resumeDocuments : [];
   candidate.selectionProgress = Array.isArray(candidate.selectionProgress) ? candidate.selectionProgress : [];
+  candidate.selectionProgress = candidate.selectionProgress.map((row = {}) => ({
+    ...row,
+    id: row.id ?? row.applicationId ?? row.application_id ?? null,
+    clientId: row.clientId ?? row.client_id ?? null,
+    companyName: row.companyName ?? row.company_name ?? "",
+    route: row.route ?? row.applyRoute ?? row.apply_route ?? row.mediaName ?? row.media_name ?? "",
+    recommendationDate: row.recommendationDate ?? row.recommended_at ?? null,
+    interviewSetupDate: row.interviewSetupDate ?? row.first_interview_set_at ?? null,
+    interviewDate: row.interviewDate ?? row.first_interview_at ?? null,
+    secondInterviewSetupDate: row.secondInterviewSetupDate ?? row.second_interview_set_at ?? null,
+    secondInterviewDate: row.secondInterviewDate ?? row.second_interview_at ?? null,
+    offerDate: row.offerDate ?? row.offer_date ?? null,
+    acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? null,
+    onboardingDate: row.onboardingDate ?? row.join_date ?? null,
+    preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date ?? null,
+    preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason ?? "",
+    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
+    postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason ?? "",
+    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? null,
+    feeAmount: row.feeAmount ?? row.fee_amount ?? "",
+    selectionNote: row.selectionNote ?? row.selection_note ?? "",
+    status: row.status ?? row.stage_current ?? "",
+  }));
   candidate.teleapoLogs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs : [];
   candidate.moneyInfo = Array.isArray(candidate.moneyInfo) ? candidate.moneyInfo : [];
+  candidate.moneyInfo = candidate.moneyInfo.map((row = {}) => ({
+    ...row,
+    applicationId: row.applicationId ?? row.application_id ?? null,
+    clientId: row.clientId ?? row.client_id ?? null,
+    companyName: row.companyName ?? row.company_name ?? "",
+    feeAmount: row.feeAmount ?? row.fee_amount ?? "",
+    refundAmount: row.refundAmount ?? row.refund_amount ?? "",
+    joinDate: row.joinDate ?? row.join_date ?? null,
+    preJoinWithdrawDate: row.preJoinWithdrawDate ?? row.pre_join_withdraw_date ?? null,
+    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
+    orderReported: row.orderReported ?? row.order_reported ?? null,
+    refundReported: row.refundReported ?? row.refund_reported ?? null,
+  }));
   candidate.hearing = candidate.hearing || {};
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
   candidate.csChecklist = candidate.csChecklist || {};
   return candidate;
+}
+
+function updateMastersFromDetail(detail) {
+  const masters = detail?.masters;
+  if (!masters) return;
+  if (Array.isArray(masters.clients)) masterClients = masters.clients;
+  if (Array.isArray(masters.users)) masterUsers = masters.users;
+}
+
+function resolveUserName(userId) {
+  if (!userId) return "";
+  const found = (masterUsers || []).find((user) => String(user.id) === String(userId));
+  return found?.name ?? "";
+}
+
+function resolveClientName(clientId) {
+  if (!clientId) return "";
+  const found = (masterClients || []).find((client) => String(client.id) === String(clientId));
+  return found?.name ?? "";
+}
+
+function buildSelectOptions(list, selectedValue, { blankLabel = "選択" } = {}) {
+  const base = Array.isArray(list) ? list : [];
+  const options = [{ value: "", label: blankLabel }].concat(
+    base.map((item) => ({
+      value: item.id ?? item.value ?? "",
+      label: item.name ?? item.label ?? "",
+    }))
+  );
+  return options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    selected: String(option.value) === String(selectedValue ?? ""),
+  }));
+}
+
+function buildClientOptions(selectedId, selectedName) {
+  if (Array.isArray(masterClients) && masterClients.length > 0) {
+    return buildSelectOptions(masterClients, selectedId, { blankLabel: "企業を選択" });
+  }
+  const fallback = selectedId ? [{ id: selectedId, name: selectedName || "-" }] : [];
+  return buildSelectOptions(fallback, selectedId, { blankLabel: "企業を選択" });
+}
+
+function buildUserOptions(selectedId) {
+  return buildSelectOptions(masterUsers || [], selectedId, { blankLabel: "担当者を選択" });
+}
+
+function buildBooleanOptions(value, { trueLabel = "報告済み", falseLabel = "未報告", blankLabel = "-" } = {}) {
+  const options = [
+    { value: "", label: blankLabel },
+    { value: "true", label: trueLabel },
+    { value: "false", label: falseLabel },
+  ];
+  return options.map((option) => ({
+    ...option,
+    selected: String(option.value) === String(value ?? ""),
+  }));
 }
 
 // =========================
@@ -429,13 +528,16 @@ function updateLastSyncedDisplay(ts) {
 // =========================
 async function fetchCandidateDetailById(id) {
   // 画面の詳細は必ず詳細APIから取得する
-  const url = candidatesApi(candidateDetailPath(id)); // /candidates/{candidateId}
+  const url = candidatesApi(`${candidateDetailPath(id)}?includeMaster=1`); // /candidates/{candidateId}
   const res = await fetch(url);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Candidate detail HTTP ${res.status}: ${text}`);
   }
-  return normalizeCandidate(await res.json());
+  const detail = normalizeCandidate(await res.json());
+  updateMastersFromDetail(detail);
+  if (detail?.masters) delete detail.masters;
+  return detail;
 }
 
 function setCandidateDetailLoading(message = "読み込み中...") {
@@ -594,12 +696,13 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   `;
 
   const sections = [
-    renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile"),
+    renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile", { editable: false }),
+    renderDetailSection("担当者", renderAssigneeSection(candidate), "assignees"),
     renderDetailSection("共有面談", renderHearingSection(candidate), "hearing"),
-    renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection", { editable: false }),
-    renderDetailSection("CS項目", renderCsSection(candidate), "cs", { editable: false }),
+    renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection"),
+    renderDetailSection("CS項目", renderCsSection(candidate), "cs"),
     renderDetailSection("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
-    renderDetailSection("売上・返金", renderMoneySection(candidate), "money", { editable: false }),
+    renderDetailSection("売上・返金", renderMoneySection(candidate), "money"),
     renderDetailSection("次回アクション", renderNextActionSection(candidate), "nextAction", { editable: false }),
   ].join("");
 
@@ -684,6 +787,27 @@ function resolveSelectionStatusVariant(status) {
   return "warning";
 }
 
+function resolveSelectionStageValue(row = {}) {
+  if (row.postJoinQuitDate) return "入社後辞退";
+  if (row.onboardingDate) return "入社";
+  if (row.preJoinDeclineDate) return "内定後辞退";
+  if (row.acceptanceDate) return "内定承諾済み";
+  if (row.offerDate) return "内定承諾待ち";
+  if (row.secondInterviewDate) return "二次面接";
+  if (row.secondInterviewSetupDate) return "二次面接調整";
+  if (row.interviewDate) return "一次面接";
+  if (row.interviewSetupDate) return "一次面接調整";
+  return "";
+}
+
+function updateSelectionStatusCell(index, status) {
+  const row = document.querySelector(`[data-selection-row="${index}"]`);
+  if (!row) return;
+  const cell = row.querySelector("[data-selection-status]");
+  if (!cell) return;
+  cell.innerHTML = renderStatusPill(status || "-", resolveSelectionStatusVariant(status));
+}
+
 // --- 以下、あなたの既存の詳細セクション群はそのまま使えます ---
 // ここから下は「あなたが貼ってくれた既存コード」を変更せずに残せばOKです。
 // ただし、saveCandidateRecord のURLだけは下で candidatesApi を使うように修正しています。
@@ -696,15 +820,20 @@ function resolveSelectionStatusVariant(status) {
 // -----------------------
 // 必須：保存APIのURLを統一
 // -----------------------
-async function saveCandidateRecord(candidate, { preserveDetailState = true } = {}) {
+async function saveCandidateRecord(candidate, { preserveDetailState = true, includeDetail = false } = {}) {
   if (!candidate || !candidate.id) throw new Error("保存対象の候補者が見つかりません。");
 
   normalizeCandidate(candidate);
 
+  const payload = includeDetail
+    ? { ...candidate, detailMode: true }
+    : { id: candidate.id, validApplication: candidate.validApplication };
+  if (payload?.masters) delete payload.masters;
+
   const response = await fetch(candidatesApi(candidateDetailPath(candidate.id)), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(candidate),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -997,7 +1126,7 @@ async function toggleDetailSectionEdit(sectionKey) {
   // 編集完了時（OFFに戻ったタイミング）で保存
   if (!detailEditState[sectionKey]) {
     try {
-      await saveCandidateRecord(candidate, { preserveDetailState: false });
+      await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
       // 保存結果を一覧にも反映（applyCandidateUpdate内でテーブル再描画される想定）
       renderCandidatesTable(filteredCandidates);
       highlightSelectedRow();
@@ -1101,12 +1230,47 @@ function handleDetailFieldChange(event) {
   }
 
   const valueType = target.dataset.valueType;
-  if (valueType === "number") value = Number(value) || 0;
+  if (valueType === "number") {
+    if (value === "") {
+      value = "";
+    } else {
+      const parsed = Number(value);
+      value = Number.isFinite(parsed) ? parsed : "";
+    }
+  }
+  if (valueType === "boolean") {
+    if (value === "" || value === null || value === undefined) {
+      value = null;
+    } else {
+      value = value === true || value === "true";
+    }
+  }
 
   updateCandidateFieldValue(candidate, fieldPath, value);
 
   if (fieldPath === "birthday") {
     candidate.age = calculateAge(candidate.birthday);
+  }
+
+  if (fieldPath === "advisorUserId") {
+    candidate.advisorName = resolveUserName(candidate.advisorUserId);
+  }
+  if (fieldPath === "partnerUserId") {
+    candidate.partnerName = resolveUserName(candidate.partnerUserId);
+  }
+
+  const selectionMatch = fieldPath.match(/^selectionProgress\.(\d+)\./);
+  if (selectionMatch) {
+    const index = Number(selectionMatch[1]);
+    const row = candidate.selectionProgress?.[index];
+    if (row) {
+      if (fieldPath.endsWith(".clientId")) {
+        row.companyName = resolveClientName(row.clientId);
+      }
+      const status = resolveSelectionStageValue(row);
+      row.status = status;
+      updateSelectionStatusCell(index, status);
+    }
   }
 }
 
@@ -1187,6 +1351,28 @@ function renderRegistrationSection(candidate) {
 
 function renderMeetingSection(candidate) {
   return renderCsSection(candidate);
+}
+
+function renderAssigneeSection(candidate) {
+  const fields = [
+    {
+      label: "担当CS",
+      value: candidate.advisorUserId,
+      input: "select",
+      options: buildUserOptions(candidate.advisorUserId),
+      path: "advisorUserId",
+      displayFormatter: () => candidate.advisorName || "-",
+    },
+    {
+      label: "担当パートナー",
+      value: candidate.partnerUserId,
+      input: "select",
+      options: buildUserOptions(candidate.partnerUserId),
+      path: "partnerUserId",
+      displayFormatter: () => candidate.partnerName || "-",
+    },
+  ];
+  return renderDetailGridFields(fields, "assignees");
 }
 
 function renderApplicantInfoSection(candidate) {
@@ -1275,27 +1461,59 @@ function renderSelectionProgressSection(candidate) {
   const rows = candidate.selectionProgress || [];
   const editing = detailEditState.selection;
   const headerAction = editing ? "<th>操作</th>" : "";
+  const addButton = editing
+    ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress">追加</button>`
+    : "";
 
   let bodyHtml;
   if (rows.length === 0) {
-    const colspan = editing ? 15 : 14;
+    const colspan = editing ? 19 : 18;
     bodyHtml = `<tr><td colspan="${colspan}" class="detail-empty-row text-center py-3">企業の進捗は登録されていません。</td></tr>`;
   } else {
     bodyHtml = rows
       .map((row, index) => {
-        const statusValue = row.status || "-";
+        const statusValue = resolveSelectionStageValue(row) || row.status || "";
+        if (editing) {
+          const pathPrefix = `selectionProgress.${index}`;
+          const cells = [
+            `<td>${renderTableSelect(buildClientOptions(row.clientId, row.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
+            `<td>${renderTableInput(row.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
+            `<td class="text-center" data-selection-status>${renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue))}</td>`,
+            `<td>${renderTableInput(row.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.interviewSetupDate, `${pathPrefix}.interviewSetupDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.interviewDate, `${pathPrefix}.interviewDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.secondInterviewSetupDate, `${pathPrefix}.secondInterviewSetupDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.acceptanceDate, `${pathPrefix}.acceptanceDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.onboardingDate, `${pathPrefix}.onboardingDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.preJoinDeclineDate, `${pathPrefix}.preJoinDeclineDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.preJoinDeclineReason, `${pathPrefix}.preJoinDeclineReason`, "text", "selection")}</td>`,
+            `<td>${renderTableInput(row.postJoinQuitDate, `${pathPrefix}.postJoinQuitDate`, "date", "selection")}</td>`,
+            `<td>${renderTableInput(row.postJoinQuitReason, `${pathPrefix}.postJoinQuitReason`, "text", "selection")}</td>`,
+            `<td>${renderTableInput(row.closeExpectedDate, `${pathPrefix}.closeExpectedDate`, "date", "selection")}</td>`,
+            `<td><span class="detail-value">${escapeHtml(formatDisplayValue(row.feeAmount))}</span></td>`,
+            `<td>${renderTableTextarea(row.selectionNote, `${pathPrefix}.selectionNote`, "selection")}</td>`,
+          ].join("");
+          const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
+          return `<tr data-selection-row="${index}">${cells}${action}</tr>`;
+        }
         const cells = [
           { value: row.companyName },
           { value: row.route },
-          { html: renderStatusPill(statusValue, resolveSelectionStatusVariant(statusValue)) },
+          { html: renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue)) },
           { value: formatDateJP(row.recommendationDate) },
           { value: formatDateJP(row.interviewSetupDate) },
           { value: formatDateJP(row.interviewDate) },
+          { value: formatDateJP(row.secondInterviewSetupDate) },
+          { value: formatDateJP(row.secondInterviewDate) },
           { value: formatDateJP(row.offerDate) },
           { value: formatDateJP(row.acceptanceDate) },
           { value: formatDateJP(row.onboardingDate) },
           { value: formatDateJP(row.preJoinDeclineDate) },
+          { value: row.preJoinDeclineReason },
           { value: formatDateJP(row.postJoinQuitDate) },
+          { value: row.postJoinQuitReason },
           { value: formatDateJP(row.closeExpectedDate) },
           { value: row.feeAmount },
           { value: row.selectionNote },
@@ -1305,10 +1523,7 @@ function renderSelectionProgressSection(candidate) {
             return `<td><span class="detail-value">${escapeHtml(formatDisplayValue(cell.value))}</span></td>`;
           })
           .join("");
-        const action = editing
-          ? `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`
-          : "";
-        return `<tr>${cells}${action}</tr>`;
+        return `<tr>${cells}</tr>`;
       })
       .join("");
   }
@@ -1316,14 +1531,15 @@ function renderSelectionProgressSection(candidate) {
   return `
     <div class="repeatable-header">
       <h5>企業ごとの進捗</h5>
+      ${addButton}
     </div>
     <div class="detail-table-wrapper">
       <table class="detail-table detail-table--wide">
         <thead>
           <tr>
-            <th>受験企業名</th><th>応募経路</th><th>選考状況</th><th>推薦日</th><th>面接設定日</th><th>面接日</th>
-            <th>内定日</th><th>内定承諾日</th><th>入社日</th><th>入社前辞退日</th>
-            <th>内定後退社日</th><th>クロージング予定日</th><th>FEE</th><th>備考</th>${headerAction}
+            <th>受験企業名</th><th>応募経路</th><th>選考状況</th><th>推薦日</th><th>一次面接調整日</th><th>一次面接日</th>
+            <th>二次面接調整日</th><th>二次面接日</th><th>内定日</th><th>内定承諾日</th><th>入社日</th><th>内定後辞退日</th><th>内定後辞退理由</th>
+            <th>入社後辞退日</th><th>入社後辞退理由</th><th>クロージング予定日</th><th>FEE</th><th>備考</th>${headerAction}
           </tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
@@ -1378,37 +1594,54 @@ function renderTeleapoLogsSection(candidate) {
 function renderMoneySection(candidate) {
   const rows = candidate.moneyInfo || [];
   const hasRows = rows.length > 0;
+  const editing = detailEditState.money;
 
   const orderBody = hasRows
     ? rows
-      .map((row) => `
-        <tr>
-          <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
-          <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.feeAmount))}</span></td>
-          <td class="text-center">${renderBooleanPill(row.orderReported)}</td>
-        </tr>
-      `)
+      .map((row, index) => {
+        const canEdit = editing && row.joinDate;
+        const feeCell = canEdit
+          ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
+          : `<span class="detail-value">${escapeHtml(formatDisplayValue(row.feeAmount))}</span>`;
+        const reportCell = canEdit
+          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
+          : renderBooleanPill(row.orderReported);
+        return `
+          <tr>
+            <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
+            <td>${feeCell}</td>
+            <td class="text-center">${reportCell}</td>
+          </tr>
+        `;
+      })
       .join("")
     : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
 
   const refundBody = hasRows
     ? rows
-      .map((row) => {
+      .map((row, index) => {
         const retirementDate = row.preJoinWithdrawDate || row.postJoinQuitDate || "";
         const refundType = row.preJoinWithdrawDate
-          ? "入社前辞退"
+          ? "内定後辞退"
           : row.postJoinQuitDate
-            ? "内定後退社"
+            ? "入社後辞退"
             : row.joinDate
               ? "入社"
               : "-";
+        const canEdit = editing && (row.preJoinWithdrawDate || row.postJoinQuitDate);
+        const refundAmountCell = canEdit
+          ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
+          : `<span class="detail-value">${escapeHtml(formatDisplayValue(row.refundAmount))}</span>`;
+        const refundReportCell = canEdit
+          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
+          : renderBooleanPill(row.refundReported);
         return `
           <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
-            <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.refundAmount))}</span></td>
+            <td>${refundAmountCell}</td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(retirementDate)))}</span></td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(refundType))}</span></td>
-            <td class="text-center">${renderBooleanPill(row.refundReported)}</td>
+            <td class="text-center">${refundReportCell}</td>
           </tr>
         `;
       })
@@ -1544,14 +1777,15 @@ function renderCsSection(candidate) {
   const hasConnected = Boolean(candidate.phoneConnected ?? csSummary.hasConnected);
   const callCount = csSummary.callCount ?? candidate.callCount ?? 0;
   const lastConnectedAt = candidate.callDate ?? csSummary.lastConnectedAt ?? null;
+  const editing = detailEditState.cs;
 
   const items = [
-    { label: "SMS送信", value: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
-    { label: "架電回数", value: escapeHtml(Number(callCount) > 0 ? `${callCount}回` : "-") },
-    { label: "通電", value: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
-    { label: "通電日", value: escapeHtml(formatDateJP(lastConnectedAt)) },
-    { label: "設定日", value: escapeHtml(formatDateJP(candidate.scheduleConfirmedAt)) },
-    { label: "新規接触予定日", value: escapeHtml(formatDateJP(candidate.firstContactPlannedAt)) },
+    { label: "SMS送信", html: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
+    { label: "架電回数", value: Number(callCount) > 0 ? `${callCount}回` : "-" },
+    { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
+    { label: "通電日", value: formatDateJP(lastConnectedAt) },
+    { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
+    { label: "新規接触予定日", value: candidate.firstContactPlannedAt, path: "firstContactPlannedAt", type: "date" },
   ];
 
   return `
@@ -1561,7 +1795,13 @@ function renderCsSection(candidate) {
           (item) => `
             <div class="cs-summary-item">
               <span class="cs-summary-label">${escapeHtml(item.label)}</span>
-              <div class="cs-summary-value">${item.value}</div>
+              <div class="cs-summary-value">
+                ${
+                  editing && item.path
+                    ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
+                    : item.html || escapeHtml(formatDisplayValue(item.value))
+                }
+              </div>
             </div>
           `
         )
@@ -1597,6 +1837,8 @@ function pickNextAction(candidate) {
     const prefix = row.companyName ? `${row.companyName} ` : "";
     pushIfUpcoming(`${prefix}面接設定日`, row.interviewSetupDate);
     pushIfUpcoming(`${prefix}面接日`, row.interviewDate);
+    pushIfUpcoming(`${prefix}二次面接調整日`, row.secondInterviewSetupDate);
+    pushIfUpcoming(`${prefix}二次面接日`, row.secondInterviewDate);
     pushIfUpcoming(`${prefix}内定日`, row.offerDate);
     pushIfUpcoming(`${prefix}内定承諾日`, row.acceptanceDate);
     pushIfUpcoming(`${prefix}入社日`, row.onboardingDate);
@@ -1669,7 +1911,15 @@ function renderDetailFieldInput(field, value, sectionKey) {
     return `
       <select class="detail-inline-input" ${dataset}${valueType}>
         ${(field.options || [])
-          .map((option) => `<option value="${option}" ${option === value ? "selected" : ""}>${option}</option>`)
+          .map((option) => {
+            const isObject = option && typeof option === "object";
+            const optValue = isObject ? option.value : option;
+            const optLabel = isObject ? option.label : option;
+            const isSelected = isObject && "selected" in option
+              ? option.selected
+              : String(optValue ?? "") === String(value ?? "");
+            return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+          })
           .join("")}
       </select>
     `;
@@ -1684,6 +1934,37 @@ function renderDetailFieldInput(field, value, sectionKey) {
   }
   const type = field.type === "datetime" ? "datetime-local" : field.type || "text";
   return `<input type="${type}" class="detail-inline-input" value="${escapeHtmlAttr(formatInputValue(value, type))}" ${dataset}${valueType}>`;
+}
+
+function renderTableInput(value, path, type = "text", sectionKey, valueType) {
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  const valueTypeAttr = valueType ? ` data-value-type="${valueType}"` : "";
+  const inputType = type === "datetime" ? "datetime-local" : type;
+  const inputValue = value === 0 ? "0" : formatInputValue(value, inputType);
+  return `<input type="${inputType}" class="detail-table-input" value="${escapeHtmlAttr(inputValue)}" ${dataset}${valueTypeAttr}>`;
+}
+
+function renderTableTextarea(value, path, sectionKey) {
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  return `<textarea class="detail-table-input" ${dataset}>${escapeHtml(value || "")}</textarea>`;
+}
+
+function renderTableSelect(options, path, sectionKey, valueType) {
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  const valueTypeAttr = valueType ? ` data-value-type="${valueType}"` : "";
+  const selectedValue = (options || []).find((option) => option && typeof option === "object" && option.selected)?.value;
+  const html = (options || [])
+    .map((option) => {
+      const isObject = option && typeof option === "object";
+      const optValue = isObject ? option.value : option;
+      const optLabel = isObject ? option.label : option;
+      const isSelected = isObject && "selected" in option
+        ? option.selected
+        : String(optValue ?? "") === String(selectedValue ?? "");
+      return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+    })
+    .join("");
+  return `<select class="detail-table-input" ${dataset}${valueTypeAttr}>${html}</select>`;
 }
 
 function formatInputValue(value, type) {
