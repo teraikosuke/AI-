@@ -1,0 +1,167 @@
+.mypage-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  padding: 20px 24px;
+}
+
+.mypage-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.mypage-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.mypage-card-subtitle {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.mypage-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mypage-role-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.mypage-role-badge.is-caller {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mypage-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.mypage-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.mypage-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.mypage-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+  color: #0f172a;
+  vertical-align: top;
+}
+
+.mypage-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mypage-empty {
+  display: none;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  padding: 12px 4px 0;
+}
+
+.mypage-empty.is-visible {
+  display: block;
+}
+
+.mypage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mypage-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.mypage-list-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.mypage-ghost-btn {
+  border: 1px solid #cbd5f5;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mypage-ghost-btn:hover {
+  background: #e0e7ff;
+  color: #312e81;
+}
+
+.mypage-yield-slot .kpi-v2-wrapper {
+  padding: 0;
+}
+
+.mypage-yield-slot .kpi-v2-section {
+  margin: 0;
+}
+
+.mypage-goal-slot .settings-page {
+  padding: 0;
+}
+
+.mypage-goal-slot .settings-section {
+  margin-top: 0;
+}
+
+.mypage-goal-slot .settings-card {
+  box-shadow: none;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 768px) {
+  .mypage-card {
+    padding: 16px;
+  }
+
+  .mypage-table {
+    min-width: 420px;
+  }
+}
