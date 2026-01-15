@@ -159,12 +159,6 @@ function normalizeCandidate(candidate) {
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
   candidate.csChecklist = candidate.csChecklist || {};
-  candidate.phoneConnected = candidate.phoneConnected ?? candidate.phone_connected ?? candidate.has_connected ?? false;
-  candidate.smsSent = candidate.smsSent ?? candidate.sms_sent ?? candidate.has_sms ?? false;
-  candidate.callCount = candidate.callCount ?? candidate.call_count ?? candidate.max_call_no ?? candidate.csSummary?.callCount ?? 0;
-  const resolvedPhases = resolvePhaseList(candidate);
-  candidate.phases = resolvedPhases;
-  candidate.phase = resolvedPhases.join(" / ");
   return candidate;
 }
 
@@ -680,20 +674,22 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   );
 
   const header = `
-    <div class="candidate-detail-header">
-      <div class="candidate-detail-header-left">
-        <div class="candidate-header-badges">
-          ${renderPhasePills(candidate)}
-          ${validBadge}
+    <div class="candidate-detail-header bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="candidate-detail-header-left space-y-2">
+        <div class="candidate-header-title-row flex flex-wrap items-center gap-3">
+          <h3 class="candidate-detail-title text-2xl font-bold text-slate-900">${escapeHtml(candidate.candidateName || "-")}</h3>
+          <div class="candidate-header-badges flex flex-wrap items-center gap-2">
+            ${renderPhasePills(candidate)}
+            ${validBadge}
+          </div>
         </div>
-        <h3 class="candidate-detail-title">${escapeHtml(candidate.candidateName || "-")}</h3>
-        <div class="candidate-header-meta">
+        <div class="candidate-header-meta text-xs text-slate-500">
           <span>登録日</span>
-          <strong>${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</strong>
+          <strong class="text-slate-900">${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</strong>
         </div>
       </div>
-      <div class="candidate-detail-header-right">
-        <div class="candidate-header-card">
+      <div class="candidate-detail-header-right flex items-start gap-3">
+        <div class="candidate-header-card bg-slate-50 border border-slate-100 shadow-sm rounded-lg px-4 py-3 text-xs">
           <div><span>担当CS</span><strong>${escapeHtml(candidate.advisorName || "-")}</strong></div>
           <div><span>担当パートナー</span><strong>${escapeHtml(candidate.partnerName || "-")}</strong></div>
         </div>
@@ -747,8 +743,8 @@ function renderDetailSection(title, body, key, options = {}) {
     `
     : "";
   return `
-    <section class="candidate-detail-section" data-section="${key}">
-      <header class="candidate-detail-section-header">
+    <section class="candidate-detail-section bg-white rounded-xl shadow-sm border border-slate-100" data-section="${key}">
+      <header class="candidate-detail-section-header bg-slate-50">
         <h4>${title}</h4>
         <div class="detail-section-actions">
           ${actions}
@@ -763,7 +759,7 @@ function renderDetailSection(title, body, key, options = {}) {
 
 function renderDetailSubsection(title, body) {
   return `
-    <div class="detail-subsection">
+    <div class="detail-subsection bg-slate-50 rounded-lg p-4">
       <div class="detail-subsection-header">
         <h5>${escapeHtml(title)}</h5>
       </div>
@@ -914,19 +910,7 @@ function initializeDetailContentListeners() {
 // -----------------------
 // 最低限のユーティリティ（既存にあるならそのまま）
 // -----------------------
-const PRE_CONTACT_PHASES = ["未接触", "架電中", "SMS送信", "通電"];
-
-function resolveTeleapoPhase(candidate) {
-  const hasConnected = candidate?.csSummary?.hasConnected ?? candidate?.phoneConnected ?? false;
-  const hasSms = candidate?.csSummary?.hasSms ?? candidate?.smsSent ?? candidate?.smsConfirmed ?? false;
-  const callCount = candidate?.csSummary?.callCount ?? candidate?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
-  if (hasConnected) return "通電";
-  if (hasSms) return "SMS送信";
-  if (Number(callCount || 0) > 0) return "架電中";
-  return "未接触";
-}
-
-function resolvePhaseList(candidate) {
+function resolvePhaseDisplay(candidate) {
   const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
   const list = Array.isArray(raw)
     ? raw
@@ -935,24 +919,27 @@ function resolvePhaseList(candidate) {
       .map((value) => value.trim())
       .filter((value) => value);
   const unique = Array.from(new Set(list));
-  const teleapoPhase = resolveTeleapoPhase(candidate);
+  if (unique.length > 0) return unique.join(" / ");
 
-  if (!unique.length) return [teleapoPhase];
-
-  const nonPreContact = unique.filter((value) => !PRE_CONTACT_PHASES.includes(value));
-  if (nonPreContact.length) return nonPreContact;
-
-  if (teleapoPhase && teleapoPhase !== "未接触") return [teleapoPhase];
-
-  return unique;
-}
-
-function resolvePhaseDisplay(candidate) {
-  return resolvePhaseList(candidate).join(" / ");
+  const hasConnected = candidate?.csSummary?.hasConnected ?? candidate?.phoneConnected ?? false;
+  const hasSms = candidate?.csSummary?.hasSms ?? candidate?.smsSent ?? candidate?.smsConfirmed ?? false;
+  const callCount = candidate?.csSummary?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
+  if (hasConnected) return "通電";
+  if (hasSms) return "SMS送信";
+  if (Number(callCount || 0) > 0) return "架電中";
+  return "未接触";
 }
 
 function renderPhasePills(candidate) {
-  const display = resolvePhaseList(candidate);
+  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
+  const list = Array.isArray(raw)
+    ? raw
+    : String(raw || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value) => value);
+  const unique = Array.from(new Set(list));
+  const display = unique.length ? unique : [resolvePhaseDisplay(candidate)];
   const pills = display
     .map((value) => `<span class="candidate-phase-pill">${escapeHtml(value || "-")}</span>`)
     .join("");
@@ -1377,6 +1364,7 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.advisorUserId),
       path: "advisorUserId",
       displayFormatter: () => candidate.advisorName || "-",
+      span: 3,
     },
     {
       label: "担当パートナー",
@@ -1385,6 +1373,7 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.partnerUserId),
       path: "partnerUserId",
       displayFormatter: () => candidate.partnerName || "-",
+      span: 3,
     },
   ];
   return renderDetailGridFields(fields, "assignees");
@@ -1395,25 +1384,25 @@ function renderApplicantInfoSection(candidate) {
   const ageDisplay = age !== null ? `${age}歳` : candidate.age ? `${candidate.age}歳` : "-";
   const address = candidate.address || [candidate.addressPref, candidate.addressCity, candidate.addressDetail].filter(Boolean).join("");
   const basicFields = [
-    { label: "求職者名", value: candidate.candidateName, editable: false },
-    { label: "ヨミガナ", value: candidate.candidateKana, editable: false },
-    { label: "性別", value: candidate.gender, editable: false },
-    { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP },
-    { label: "年齢", value: ageDisplay, editable: false },
-    { label: "郵便番号", value: candidate.postalCode, path: "postalCode" },
-    { label: "現住所", value: address, editable: false },
-    { label: "最終学歴", value: candidate.education, editable: false },
+    { label: "求職者名", value: candidate.candidateName, editable: false, span: 3 },
+    { label: "ヨミガナ", value: candidate.candidateKana, editable: false, span: 3 },
+    { label: "性別", value: candidate.gender, editable: false, span: 1 },
+    { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP, span: 1 },
+    { label: "年齢", value: ageDisplay, editable: false, span: 1 },
+    { label: "郵便番号", value: candidate.postalCode, path: "postalCode", span: 1 },
+    { label: "最終学歴", value: candidate.education, editable: false, span: 2 },
+    { label: "現住所", value: address, editable: false, span: "full" },
   ];
   const contactFields = [
-    { label: "電話番号", value: candidate.phone, type: "tel", path: "phone" },
-    { label: "メール", value: candidate.email, type: "email", path: "email" },
-    { label: "連絡希望時間帯", value: candidate.contactPreferredTime, path: "contactPreferredTime" },
+    { label: "電話番号", value: candidate.phone, type: "tel", path: "phone", span: 2 },
+    { label: "メール", value: candidate.email, type: "email", path: "email", span: 2 },
+    { label: "連絡希望時間帯", value: candidate.contactPreferredTime, path: "contactPreferredTime", span: 2 },
   ];
   const applicationFields = [
-    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName" },
-    { label: "応募求人名", value: candidate.applyJobName, path: "applyJobName" },
-    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText" },
-    { label: "備考", value: candidate.applicationNote, input: "textarea", path: "applicationNote" },
+    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName", span: 2 },
+    { label: "応募求人名", value: candidate.applyJobName, path: "applyJobName", span: 2 },
+    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText", span: 2 },
+    { label: "備考", value: candidate.applicationNote, input: "textarea", path: "applicationNote", span: "full" },
   ];
   return [
     renderDetailSubsection("基本情報", renderDetailGridFields(basicFields, "profile")),
@@ -1431,6 +1420,7 @@ function renderHearingSection(candidate) {
       type: "date",
       path: "firstInterviewDate",
       displayFormatter: formatDateJP,
+      span: 1,
     },
     {
       label: "着座確認",
@@ -1439,36 +1429,38 @@ function renderHearingSection(candidate) {
       checkboxLabel: "確認済",
       path: "attendanceConfirmed",
       displayFormatter: (v) => (v ? "確認済" : "未"),
+      span: 1,
     },
   ];
 
   const hearingFields = [
-    { label: "新規面談マスト項目", value: candidate.mandatoryInterviewItems, input: "textarea", path: "mandatoryInterviewItems" },
-    { label: "希望エリア", value: candidate.desiredLocation, path: "desiredLocation" },
-    { label: "希望職種", value: candidate.desiredJobType, path: "desiredJobType" },
-    { label: "現年収", value: candidate.currentIncome, path: "currentIncome" },
-    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome" },
-    { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus" },
-    { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason" },
-    { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation" },
-    { label: "転職時期", value: candidate.transferTiming, path: "transferTiming" },
-    { label: "資格・スキル", value: candidate.skills, input: "textarea", path: "skills" },
-    { label: "人物像・性格", value: candidate.personality, input: "textarea", path: "personality" },
-    { label: "実務経験", value: candidate.workExperience, input: "textarea", path: "workExperience" },
-    { label: "推薦文", value: candidate.recommendationText || "-", editable: false },
-    { label: "他社選考状態", value: candidate.otherSelectionStatus, input: "textarea", path: "otherSelectionStatus" },
+    { label: "新規面談マスト項目", value: candidate.mandatoryInterviewItems, input: "textarea", path: "mandatoryInterviewItems", span: "full" },
+    { label: "希望エリア", value: candidate.desiredLocation, path: "desiredLocation", span: 2 },
+    { label: "希望職種", value: candidate.desiredJobType, path: "desiredJobType", span: 2 },
+    { label: "現年収", value: candidate.currentIncome, path: "currentIncome", span: 1 },
+    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome", span: 1 },
+    { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus", span: 2 },
+    { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason", span: "full" },
+    { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation", span: "full" },
+    { label: "転職時期", value: candidate.transferTiming, path: "transferTiming", span: 2 },
+    { label: "資格・スキル", value: candidate.skills, input: "textarea", path: "skills", span: "full" },
+    { label: "人物像・性格", value: candidate.personality, input: "textarea", path: "personality", span: "full" },
+    { label: "実務経験", value: candidate.workExperience, input: "textarea", path: "workExperience", span: "full" },
+    { label: "推薦文", value: candidate.recommendationText || "-", editable: false, span: "full" },
+    { label: "他社選考状態", value: candidate.otherSelectionStatus, input: "textarea", path: "otherSelectionStatus", span: "full" },
     {
       label: "面談メモ",
       value: candidate.firstInterviewNote || candidate.memo || "",
       input: "textarea",
       path: "firstInterviewNote",
+      span: "full",
     },
-    { label: "面接希望日", value: candidate.interviewPreferredDate, type: "date", path: "interviewPreferredDate", displayFormatter: formatDateJP },
+    { label: "面接希望日", value: candidate.interviewPreferredDate, type: "date", path: "interviewPreferredDate", displayFormatter: formatDateJP, span: 1 },
   ];
 
   return [
     renderDetailSubsection("面談実施確認", renderDetailGridFields(confirmationFields, "hearing")),
-    renderDetailSubsection("ヒアリング項目", renderDetailGridFields(hearingFields, "hearing", { gridClass: "detail-textarea-grid" })),
+    renderDetailSubsection("ヒアリング項目", renderDetailGridFields(hearingFields, "hearing")),
   ].join("");
 }
 
@@ -1694,8 +1686,8 @@ function renderMoneySection(candidate) {
 function renderAfterAcceptanceSection(candidate) {
   const data = candidate.afterAcceptance || {};
   const fields = [
-    { label: "受注金額（税抜）", value: data.amount },
-    { label: "職種", value: data.jobCategory },
+    { label: "受注金額（税抜）", value: data.amount, span: 3 },
+    { label: "職種", value: data.jobCategory, span: 3 },
   ];
   const reportStatuses =
     (data.reportStatuses || [])
@@ -1715,7 +1707,7 @@ function renderRefundSection(candidate) {
   const fallbackInfo = candidate.refundInfo || {};
   const fallbackList =
     !listFromCandidate &&
-    (fallbackInfo.resignationDate || fallbackInfo.refundAmount || fallbackInfo.reportStatus)
+      (fallbackInfo.resignationDate || fallbackInfo.refundAmount || fallbackInfo.reportStatus)
       ? [
         {
           companyName: "",
@@ -1806,21 +1798,20 @@ function renderCsSection(candidate) {
   return `
     <div class="cs-summary-grid">
       ${items
-        .map(
-          (item) => `
+      .map(
+        (item) => `
             <div class="cs-summary-item">
               <span class="cs-summary-label">${escapeHtml(item.label)}</span>
               <div class="cs-summary-value">
-                ${
-                  editing && item.path
-                    ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
-                    : item.html || escapeHtml(formatDisplayValue(item.value))
-                }
+                ${editing && item.path
+            ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
+            : item.html || escapeHtml(formatDisplayValue(item.value))
+          }
               </div>
             </div>
           `
-        )
-        .join("")}
+      )
+      .join("")}
     </div>
   `;
 }
@@ -1883,35 +1874,57 @@ function renderMemoSection(candidate) {
   `;
 }
 
+function resolveDetailGridSpanClass(field) {
+  const span = field.span || (field.input === "textarea" ? "full" : null);
+  if (span === "full") return "col-span-full";
+  if (typeof span === "number") {
+    const smSpan = Math.min(span, 2);
+    return `col-span-full sm:col-span-${smSpan} lg:col-span-${span}`;
+  }
+  return "col-span-full sm:col-span-2 lg:col-span-2";
+}
+
 function renderDetailGridFields(fields, sectionKey, options = {}) {
   const editing = Boolean(detailEditState[sectionKey]);
-  const gridClass = options.gridClass || "detail-grid";
+  const gridClass = [
+    "detail-grid",
+    "grid",
+    "grid-cols-1",
+    "sm:grid-cols-2",
+    "lg:grid-cols-6",
+    "gap-x-6",
+    "gap-y-4",
+    options.gridClass,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return `
     <dl class="${gridClass}">
       ${fields
-        .map((field) => {
-          const value = field.value;
-          if (editing && field.editable !== false && field.path) {
-            return `
-              <div class="detail-grid-item">
+      .map((field) => {
+        const value = field.value;
+        const spanClass = resolveDetailGridSpanClass(field);
+        if (editing && field.editable !== false && field.path) {
+          return `
+              <div class="detail-grid-item ${spanClass}">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
             `;
-          }
-          const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
-          const inner =
-            field.link && value
-              ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
-              : escapeHtml(displayValue);
-          return `
-            <div class="detail-grid-item">
+        }
+        const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
+        const inner =
+          field.link && value
+            ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
+            : escapeHtml(displayValue);
+        return `
+            <div class="detail-grid-item ${spanClass}">
               <dt>${field.label}</dt>
               <dd><span class="detail-value">${inner}</span></dd>
             </div>
           `;
-        })
-        .join("")}
+      })
+      .join("")}
     </dl>
   `;
 }
@@ -1926,16 +1939,16 @@ function renderDetailFieldInput(field, value, sectionKey) {
     return `
       <select class="detail-inline-input" ${dataset}${valueType}>
         ${(field.options || [])
-          .map((option) => {
-            const isObject = option && typeof option === "object";
-            const optValue = isObject ? option.value : option;
-            const optLabel = isObject ? option.label : option;
-            const isSelected = isObject && "selected" in option
-              ? option.selected
-              : String(optValue ?? "") === String(value ?? "");
-            return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
-          })
-          .join("")}
+        .map((option) => {
+          const isObject = option && typeof option === "object";
+          const optValue = isObject ? option.value : option;
+          const optLabel = isObject ? option.label : option;
+          const isSelected = isObject && "selected" in option
+            ? option.selected
+            : String(optValue ?? "") === String(value ?? "");
+          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+        })
+        .join("")}
       </select>
     `;
   }

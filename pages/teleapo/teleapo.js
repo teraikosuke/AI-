@@ -9,14 +9,17 @@ const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
 // Candidate detail URL (hash router + query)
 const CANDIDATE_ID_PARAM = 'candidateId';
+const TARGET_CANDIDATE_STORAGE_KEY = 'target_candidate_id';
 // ...既存の定数の下に追加...
 
 // Candidates API URL (no trailing slash)
 const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/candidates";
 
 let candidateNameMap = new Map(); // Name -> ID
+let candidateIdMap = new Map(); // ID -> Name
 let candidateNameList = [];
 let teleapoCsTaskCandidates = [];
+let teleapoCandidateAbort = null;
 
 function buildCandidateDetailUrl(candidateId) {
   const id = String(candidateId ?? '').trim();
@@ -27,6 +30,25 @@ function buildCandidateDetailUrl(candidateId) {
   url.searchParams.set(CANDIDATE_ID_PARAM, id);
   url.hash = '/candidates';
   return url.toString();
+}
+
+function navigateToCandidateDetail(candidateId, candidateName) {
+  const resolvedId = candidateId || findCandidateIdFromTarget(candidateName);
+  if (!resolvedId) {
+    console.warn('candidate not found:', candidateName);
+    return;
+  }
+  if (typeof window === 'undefined' || !window.location) return;
+  const resolvedIdText = String(resolvedId);
+  try {
+    sessionStorage.setItem(TARGET_CANDIDATE_STORAGE_KEY, resolvedIdText);
+  } catch {
+    // ignore storage errors
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set(CANDIDATE_ID_PARAM, resolvedIdText);
+  history.replaceState({}, '', url.toString());
+  window.location.hash = '/candidates';
 }
 
 
@@ -129,6 +151,272 @@ function formatCandidateDateTime(value) {
   return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
 }
 
+function formatCandidateDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd}`;
+}
+
+function formatCandidateValue(value, fallback = "-") {
+  const text = String(value ?? "").trim();
+  return text ? escapeHtml(text) : fallback;
+}
+
+function getCandidateDetailApiUrl(candidateId) {
+  const id = String(candidateId ?? "").trim();
+  if (!id) return "";
+  return `${CANDIDATES_API_URL}/${encodeURIComponent(id)}`;
+}
+
+function normalizeCandidateDetail(raw) {
+  if (!raw) return raw;
+  return {
+    ...raw,
+    candidateName: raw.candidateName ?? raw.candidate_name ?? raw.name ?? "",
+    advisorName: raw.advisorName ?? raw.advisor_name ?? "",
+    partnerName: raw.partnerName ?? raw.partner_name ?? "",
+    registeredAt: raw.registeredAt ?? raw.createdAt ?? raw.created_at ?? raw.registered_at ?? null,
+    validApplication: raw.validApplication ?? raw.valid_application ?? raw.is_effective_application ?? raw.active_flag ?? null,
+    phone: raw.phone ?? raw.phone_number ?? raw.tel ?? "",
+    email: raw.email ?? raw.email_address ?? "",
+    applyCompanyName: raw.applyCompanyName ?? raw.apply_company_name ?? raw.companyName ?? raw.company_name ?? "",
+    applyJobName: raw.applyJobName ?? raw.apply_job_name ?? raw.jobName ?? raw.job_name ?? "",
+    applyRouteText: raw.applyRouteText ?? raw.apply_route_text ?? raw.source ?? "",
+    contactPreferredTime: raw.contactPreferredTime ?? raw.contact_preferred_time ?? "",
+    address: raw.address ?? "",
+    selectionProgress: Array.isArray(raw.selectionProgress ?? raw.selection_progress)
+      ? (raw.selectionProgress ?? raw.selection_progress)
+      : [],
+    teleapoLogs: Array.isArray(raw.teleapoLogs ?? raw.teleapo_logs)
+      ? (raw.teleapoLogs ?? raw.teleapo_logs)
+      : [],
+    csSummary: raw.csSummary ?? raw.cs_summary ?? {},
+    phases: raw.phases ?? raw.phaseList ?? raw.phase ?? ""
+  };
+}
+
+function buildCandidatePhaseBadges(candidate) {
+  const list = normalizePhaseList(candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "");
+  const display = list.length ? list : [resolveCandidatePhaseDisplay(candidate)];
+  return display.map(value => `
+    <span class="teleapo-candidate-pill teleapo-candidate-pill--info">${escapeHtml(value || "-")}</span>
+  `).join("");
+}
+
+function buildValidApplicationPill(validApplication) {
+  if (validApplication === null || validApplication === undefined) {
+    return '<span class="teleapo-candidate-pill teleapo-candidate-pill--muted">応募不明</span>';
+  }
+  return validApplication
+    ? '<span class="teleapo-candidate-pill teleapo-candidate-pill--success">有効応募</span>'
+    : '<span class="teleapo-candidate-pill teleapo-candidate-pill--muted">無効応募</span>';
+}
+
+function setCandidateQuickViewTitle(text) {
+  const titleEl = document.getElementById("teleapoCandidateModalTitle");
+  if (titleEl) titleEl.textContent = text || "候補者詳細";
+}
+
+function setCandidateQuickViewContent(html) {
+  const container = document.getElementById("teleapoCandidateDetailContent");
+  if (!container) return;
+  container.innerHTML = html;
+}
+
+function renderCandidateQuickView(detail) {
+  const candidate = normalizeCandidateDetail(detail || {});
+  const name = candidate.candidateName || "-";
+  setCandidateQuickViewTitle(name ? `${name} の詳細` : "候補者詳細");
+
+  const phaseBadges = buildCandidatePhaseBadges(candidate);
+  const validBadge = buildValidApplicationPill(candidate.validApplication);
+
+  const csSummary = candidate.csSummary || {};
+  const csConnected = csSummary.hasConnected ?? candidate.phoneConnected ?? false;
+  const csSms = csSummary.hasSms ?? candidate.smsSent ?? candidate.smsConfirmed ?? false;
+  const csCallCount = csSummary.callCount ?? csSummary.max_call_no ?? 0;
+  const csLastConnected = csSummary.lastConnectedAt ?? candidate.callDate ?? null;
+
+  const selection = (candidate.selectionProgress || [])[0] || null;
+  const selectionCompany = selection?.companyName ?? selection?.company_name ?? candidate.applyCompanyName ?? "";
+  const selectionJob = selection?.jobTitle ?? selection?.job_title ?? candidate.applyJobName ?? "";
+  const selectionStatus = selection?.status ?? selection?.stage_current ?? "";
+  const selectionInterview = selection?.interviewDate ?? selection?.firstInterviewAt ?? selection?.first_interview_at ?? null;
+
+  const logs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs.slice(0, 5) : [];
+  const logsHtml = logs.length
+    ? logs.map((log) => {
+      const calledAt = log.calledAt ?? log.called_at ?? log.callDate ?? log.datetime ?? "";
+      const callerName = log.callerName ?? log.caller_name ?? "";
+      const memo = log.memo ?? "";
+      const callNo = log.callNo ?? log.call_no ?? "";
+      return `
+        <div class="teleapo-candidate-log-item">
+          <div class="teleapo-candidate-log-meta">${escapeHtml(formatCandidateDateTime(calledAt))}</div>
+          <div class="teleapo-candidate-log-body">
+            <div class="teleapo-candidate-log-title">${formatCandidateValue(callerName, "担当者不明")}</div>
+            <div class="teleapo-candidate-log-memo">${formatCandidateValue(memo, "-")}</div>
+          </div>
+          ${callNo ? `<span class="teleapo-candidate-log-tag">#${escapeHtml(String(callNo))}</span>` : ""}
+        </div>
+      `;
+    }).join("")
+    : '<p class="teleapo-candidate-muted">テレアポログはまだありません。</p>';
+
+  const selectionHtml = selection
+    ? `
+      <dl class="teleapo-candidate-kv">
+        <div><dt>企業名</dt><dd>${formatCandidateValue(selectionCompany)}</dd></div>
+        <div><dt>職種</dt><dd>${formatCandidateValue(selectionJob)}</dd></div>
+        <div><dt>ステータス</dt><dd>${formatCandidateValue(selectionStatus)}</dd></div>
+        <div><dt>次回面談</dt><dd>${escapeHtml(formatCandidateDate(selectionInterview))}</dd></div>
+      </dl>
+    `
+    : '<p class="teleapo-candidate-muted">選考情報はありません。</p>';
+
+  setCandidateQuickViewContent(`
+    <div class="teleapo-candidate-meta">
+      <div class="teleapo-candidate-name">${escapeHtml(name)}</div>
+      <div class="teleapo-candidate-tags">
+        ${phaseBadges}
+        ${validBadge}
+      </div>
+    </div>
+
+    <div class="teleapo-candidate-grid">
+      <div class="teleapo-candidate-card">
+        <div class="teleapo-candidate-card-title">基本情報</div>
+        <dl class="teleapo-candidate-kv">
+          <div><dt>登録日</dt><dd>${escapeHtml(formatCandidateDate(candidate.registeredAt))}</dd></div>
+          <div><dt>応募経路</dt><dd>${formatCandidateValue(candidate.applyRouteText)}</dd></div>
+          <div><dt>応募企業</dt><dd>${formatCandidateValue(candidate.applyCompanyName)}</dd></div>
+          <div><dt>応募職種</dt><dd>${formatCandidateValue(candidate.applyJobName)}</dd></div>
+          <div><dt>担当CS</dt><dd>${formatCandidateValue(candidate.advisorName)}</dd></div>
+          <div><dt>担当パートナー</dt><dd>${formatCandidateValue(candidate.partnerName)}</dd></div>
+        </dl>
+      </div>
+      <div class="teleapo-candidate-card">
+        <div class="teleapo-candidate-card-title">連絡先</div>
+        <dl class="teleapo-candidate-kv">
+          <div><dt>電話</dt><dd>${formatCandidateValue(candidate.phone)}</dd></div>
+          <div><dt>メール</dt><dd>${formatCandidateValue(candidate.email)}</dd></div>
+          <div><dt>希望時間</dt><dd>${formatCandidateValue(candidate.contactPreferredTime)}</dd></div>
+          <div><dt>現住所</dt><dd>${formatCandidateValue(candidate.address)}</dd></div>
+        </dl>
+      </div>
+      <div class="teleapo-candidate-card">
+        <div class="teleapo-candidate-card-title">CSサマリー</div>
+        <dl class="teleapo-candidate-kv">
+          <div><dt>通電</dt><dd>${csConnected ? "通電済" : "未通電"}</dd></div>
+          <div><dt>SMS</dt><dd>${csSms ? "送信済" : "未送信"}</dd></div>
+          <div><dt>架電回数</dt><dd>${escapeHtml(String(csCallCount || 0))}回</dd></div>
+          <div><dt>最終通電</dt><dd>${escapeHtml(formatCandidateDateTime(csLastConnected))}</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="teleapo-candidate-section">
+      <div class="teleapo-candidate-card">
+        <div class="teleapo-candidate-card-title">最新の選考状況</div>
+        ${selectionHtml}
+      </div>
+    </div>
+
+    <div class="teleapo-candidate-section">
+      <div class="teleapo-candidate-card">
+        <div class="teleapo-candidate-card-title">最近のテレアポログ（直近5件）</div>
+        <div class="teleapo-candidate-log-list">${logsHtml}</div>
+      </div>
+    </div>
+  `);
+}
+
+function openCandidateQuickView(candidateId, candidateName) {
+  const resolvedId = candidateId || findCandidateIdFromTarget(candidateName);
+  const fallbackName = candidateName || candidateIdMap.get(String(candidateId)) || "候補者詳細";
+  setCandidateQuickViewTitle(fallbackName);
+  setCandidateQuickViewContent(`
+    <div class="teleapo-candidate-empty">
+      <p class="text-sm text-slate-500">候補者詳細を取得しています...</p>
+    </div>
+  `);
+  openTeleapoCandidateModal();
+
+  if (!resolvedId) {
+    setCandidateQuickViewContent(`
+      <div class="teleapo-candidate-empty">
+        <p class="text-sm text-rose-600">候補者IDが取得できないため詳細を表示できません。</p>
+      </div>
+    `);
+    return;
+  }
+
+  if (teleapoCandidateAbort) {
+    teleapoCandidateAbort.abort();
+  }
+  teleapoCandidateAbort = new AbortController();
+
+  fetch(getCandidateDetailApiUrl(resolvedId), {
+    headers: { Accept: "application/json" },
+    signal: teleapoCandidateAbort.signal
+  })
+    .then(res => {
+      if (!res.ok) {
+        return res.text().then(text => {
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        });
+      }
+      return res.json();
+    })
+    .then(data => {
+      renderCandidateQuickView(data);
+    })
+    .catch(err => {
+      if (err?.name === "AbortError") return;
+      console.error("candidate quick view error:", err);
+      setCandidateQuickViewContent(`
+        <div class="teleapo-candidate-empty">
+          <p class="text-sm text-rose-600">候補者詳細の取得に失敗しました。</p>
+        </div>
+      `);
+    });
+}
+
+function openTeleapoCandidateModal() {
+  const modal = document.getElementById("teleapoCandidateModal");
+  if (!modal) return;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("teleapo-candidate-open");
+}
+
+function closeTeleapoCandidateModal() {
+  const modal = document.getElementById("teleapoCandidateModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("teleapo-candidate-open");
+  if (teleapoCandidateAbort) {
+    teleapoCandidateAbort.abort();
+    teleapoCandidateAbort = null;
+  }
+}
+
+function initCandidateQuickView() {
+  const modal = document.getElementById("teleapoCandidateModal");
+  const closeBtn = document.getElementById("teleapoCandidateClose");
+  if (closeBtn) closeBtn.addEventListener("click", closeTeleapoCandidateModal);
+  if (modal) {
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closeTeleapoCandidateModal();
+    });
+  }
+}
+
 function renderValidApplicationBadge(isValid) {
   const label = isValid ? "有効応募" : "無効応募";
   const classes = isValid
@@ -222,8 +510,12 @@ function renderCsTaskTable(list, state = {}) {
   body.innerHTML = list.map((row) => {
     const nameLabel = row.candidateName || "-";
     const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
-    const nameCell = candidateId
-      ? `<a class="text-indigo-600 hover:text-indigo-800 underline" href="${escapeHtml(buildCandidateDetailUrl(candidateId))}">${escapeHtml(nameLabel)}</a>`
+    const nameCell = nameLabel !== "-"
+      ? `<button type="button"
+           class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
+           data-action="open-candidate"
+           data-candidate-id="${escapeHtml(candidateId || '')}"
+           data-candidate-name="${escapeHtml(row.candidateName || '')}">${escapeHtml(nameLabel)}</button>`
       : escapeHtml(nameLabel);
     return `
       <tr>
@@ -250,7 +542,7 @@ let teleapoLogData = [];
 let teleapoFilteredLogs = [];
 let teleapoEmployeeMetrics = [];
 let teleapoSummaryScope = { type: 'company', name: '全体' };
-let teleapoAnalysisRange = '1m';
+let teleapoAnalysisRange = 'all';
 let teleapoLogSort = { key: 'datetime', dir: 'desc' };
 let teleapoEmployeeSortState = { key: 'connectRate', dir: 'desc' };
 let teleapoHighlightLogId = null;
@@ -767,19 +1059,28 @@ function renderHeatmap(logs) {
     const cells = TELEAPO_HEATMAP_DAYS.map(day => {
       const c = buckets[day][slot];
       const rate = c.dials ? (c.connects / c.dials) * 100 : null;
-      const intensity = rate == null ? 'bg-white' : rate >= 70 ? 'bg-green-100' : rate >= 40 ? 'bg-amber-50' : 'bg-rose-50';
+      const level = rate == null ? 0
+        : rate >= 70 ? 4
+          : rate >= 55 ? 3
+            : rate >= 40 ? 2
+              : rate >= 20 ? 1
+                : 0;
       const rateText = rate == null ? '-' : `${rate.toFixed(0)}%`;
       const countText = rate == null ? '' : `(${c.dials}-${c.connects})`;
+      const titleText = rate == null
+        ? '通電データなし'
+        : `通電率: ${rate.toFixed(0)}% / 架電: ${c.dials}件 / 通電: ${c.connects}件`;
+      const lowSample = c.dials > 0 && c.dials < 3 ? 'is-low-sample' : '';
       return `
-        <td class="px-2 py-2 border border-slate-200 text-center ${intensity}">
-          <div class="teleapo-heatmap-cell">
+        <td class="teleapo-heatmap-td">
+          <div class="teleapo-heatmap-cell teleapo-heatmap-level-${level} ${lowSample}" title="${escapeHtml(titleText)}">
             <span class="teleapo-heatmap-rate">${rateText}</span>
             <span class="teleapo-heatmap-count">${countText}</span>
           </div>
         </td>
       `;
     }).join('');
-    return `<tr><th class="px-3 py-2 border border-slate-200 text-left bg-slate-50">${slot}帯</th>${cells}</tr>`;
+    return `<tr><th class="teleapo-heatmap-row">${slot}帯</th>${cells}</tr>`;
   }).join('');
 }
 
@@ -929,8 +1230,9 @@ function getAnalysisScope(logs) {
   const minDate = dates[0];
   const from = new Date(maxDate);
   if (teleapoAnalysisRange === '1w') from.setDate(maxDate.getDate() - 7);
+  else if (teleapoAnalysisRange === '1m') from.setDate(maxDate.getDate() - 30);
   else if (teleapoAnalysisRange === '6m') from.setDate(maxDate.getDate() - 182);
-  else from.setDate(maxDate.getDate() - 30);
+  else from.setTime(minDate.getTime());
   if (from < minDate) from.setTime(minDate.getTime());
 
   scopedLogs = scopedLogs.filter(log => {
@@ -973,14 +1275,15 @@ function renderLogTable() {
     const routeLabel = row.route === ROUTE_OTHER ? 'その他' : `架電${attemptLabel}`;
 
     // ★ 相手（候補者名）をクリックで候補者詳細へ
-    const targetText = escapeHtml(row.target || '');
-    const targetCandidateId = row.candidateId ?? findCandidateIdFromTarget(row.target);
-    const targetCell = targetCandidateId
-      ? `<a
-           href="${escapeHtml(buildCandidateDetailUrl(targetCandidateId))}"
-           class="text-indigo-600 hover:underline"
-           data-candidate-id="${targetCandidateId}"
-         >${targetText}</a>`
+    const targetLabel = row.target || '';
+    const targetText = escapeHtml(targetLabel);
+    const targetCandidateId = row.candidateId ?? findCandidateIdFromTarget(targetLabel);
+    const targetCell = targetLabel
+      ? `<button type="button"
+           class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
+           data-action="open-candidate"
+           data-candidate-id="${escapeHtml(targetCandidateId || '')}"
+           data-candidate-name="${escapeHtml(targetLabel)}">${targetText}</button>`
       : targetText;
 
     // ★ 電話・メールは mapApiLog で candidates 由来が tel/email に入るので表示できる
@@ -1181,33 +1484,39 @@ function renderAttemptChart(logs) {
   wrapper.classList.remove('hidden');
   if (note) note.textContent = `平均 ${average.toFixed(1)} 回目で通電（架電 ${sampleDials}件 / 通電 ${sampleConnects}件）`;
 
-  const padding = { top: 12, right: 12, bottom: 44, left: 56 };
-  // さらにコンパクトに
-  const height = 170;
-  // 横幅は棒数に合わせて可変（余白を最小化）
-  const desiredBar = 20;
-  const gap = 10;
-  const minBar = 10;
-  const maxBar = 24;
-  const minWidth = 200;
-  const maxWidth = 420;
-  const desiredWidth = padding.left + padding.right + (desiredBar * buckets.length) + (Math.max(buckets.length - 1, 0) * gap);
-  const width = Math.min(maxWidth, Math.max(minWidth, desiredWidth));
-  const available = width - padding.left - padding.right - Math.max(buckets.length - 1, 0) * gap;
-  const barWidth = Math.min(maxBar, Math.max(minBar, available / Math.max(buckets.length, 1)));
+  const rect = svg.getBoundingClientRect();
+  const maxWidth = 300;
+  const width = Math.min(maxWidth, Math.round(rect.width || 0) || maxWidth);
+  const height = 240;
+  const padding = { top: 16, right: 20, bottom: 40, left: 56 };
+  const count = Math.max(buckets.length, 1);
+  const available = width - padding.left - padding.right;
+  const fixedBarWidth = 36;
+  let barWidth = fixedBarWidth;
+  let gap = count > 1 ? (available - barWidth * count) / (count - 1) : 0;
+  const minGap = 4;
+  if (gap < minGap) {
+    gap = minGap;
+    const maxBarWidth = (available - gap * (count - 1)) / count;
+    if (maxBarWidth < barWidth) {
+      barWidth = Math.max(8, maxBarWidth);
+    }
+  }
   const maxRate = Math.max(...buckets.map(b => b.rate ?? 0), 100);
   const yTicks = [0, 20, 40, 60, 80, 100].filter(v => v <= maxRate);
 
   const bars = buckets.map((b, i) => {
     const rateVal = b.rate == null ? 0 : b.rate;
-    const x = padding.left + i * (barWidth + 10);
+    const x = count === 1
+      ? padding.left + (available - barWidth) / 2
+      : padding.left + i * (barWidth + gap);
     const h = (rateVal / maxRate) * (height - padding.top - padding.bottom);
     const y = height - padding.bottom - h;
     const label = b.rate == null ? '-' : `${rateVal.toFixed(0)}%`;
     return `
-      <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="6" class="fill-indigo-400 opacity-90" />
-      <text x="${x + barWidth / 2}" y="${height - padding.bottom + 8}" text-anchor="middle" class="text-[8px] fill-slate-700">${b.attempt}回目</text>
-      <text x="${x + barWidth / 2}" y="${y - 3}" text-anchor="middle" class="text-[8px] fill-slate-800 font-semibold">${label}</text>
+      <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="8" class="fill-indigo-400 opacity-90" />
+      <text x="${x + barWidth / 2}" y="${height - padding.bottom + 12}" text-anchor="middle" class="text-[10px] fill-slate-700">${b.attempt}回目</text>
+      <text x="${x + barWidth / 2}" y="${y - 6}" text-anchor="middle" class="text-[10px] fill-slate-800 font-semibold">${label}</text>
     `;
   }).join('');
 
@@ -1215,7 +1524,7 @@ function renderAttemptChart(logs) {
     const y = height - padding.bottom - (t / maxRate) * (height - padding.top - padding.bottom);
     return `
       <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgb(226 232 240)" stroke-width="1" />
-      <text x="${padding.left - 10}" y="${y + 2.5}" text-anchor="end" class="text-[8px] fill-slate-600">${t}%</text>
+      <text x="${padding.left - 10}" y="${y + 4}" text-anchor="end" class="text-[10px] fill-slate-600">${t}%</text>
     `;
   }).join('');
 
@@ -1228,8 +1537,8 @@ function renderAttemptChart(logs) {
   const yLabelX = padding.left - 32;
   const yLabelY = (height - padding.bottom + padding.top) / 2;
   const axisLabels = `
-    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 4}" text-anchor="middle" class="text-[8px] fill-slate-700 font-semibold">架電回数</text>
-    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="text-[8px] fill-slate-700 font-semibold" transform="rotate(-90 ${yLabelX} ${yLabelY})">通電率</text>
+    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 6}" text-anchor="middle" class="text-[10px] fill-slate-600">架電回数</text>
+    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="text-[10px] fill-slate-600" transform="rotate(-90 ${yLabelX} ${yLabelY})">通電率</text>
   `;
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -1258,9 +1567,30 @@ function renderEmployeeTrendChart(empName, logs) {
   const toX = (i) => padding.left + (i / Math.max(points.length - 1, 1)) * (width - padding.left - padding.right);
   const toY = (v) => height - padding.bottom - (v / Math.max(maxY, 1)) * (height - padding.top - padding.bottom);
 
+  const buildSmoothPath = (values) => {
+    const pts = values.map((v, i) => ({ x: toX(i), y: toY(v) }));
+    if (!pts.length) return '';
+    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+    const tension = 0.35;
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const cp1x = p1.x + (p2.x - p0.x) / 6 * tension;
+      const cp1y = p1.y + (p2.y - p0.y) / 6 * tension;
+      const cp2x = p2.x - (p3.x - p1.x) / 6 * tension;
+      const cp2y = p2.y - (p3.y - p1.y) / 6 * tension;
+      d += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
+    }
+    return d;
+  };
+
   const line = (vals, color) => {
-    const d = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(v)}`).join(' ');
-    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" />`;
+    const d = buildSmoothPath(vals);
+    if (!d) return '';
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`;
   };
 
   const connectPath = line(points.map(p => p.connectRate), '#2563eb');
@@ -1275,15 +1605,11 @@ function renderEmployeeTrendChart(empName, logs) {
     `;
   }).join('');
 
-  const legend = `
-    <g transform="translate(${width - padding.right - 180}, ${padding.top})">
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#2563eb" />
-      <text x="16" y="9" class="text-[10px] fill-slate-700">通電率</text>
-      <rect x="70" y="0" width="10" height="10" rx="2" fill="#f59e0b" />
-      <text x="86" y="9" class="text-[10px] fill-slate-700">設定率</text>
-      <rect x="140" y="0" width="10" height="10" rx="2" fill="#10b981" />
-      <text x="156" y="9" class="text-[10px] fill-slate-700">着座率</text>
-    </g>
+  const yLabelX = padding.left - 32;
+  const yLabelY = (height - padding.bottom + padding.top) / 2;
+  const axisLabels = `
+    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 6}" text-anchor="middle" class="text-[10px] fill-slate-600">月</text>
+    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="text-[10px] fill-slate-600" transform="rotate(-90 ${yLabelX} ${yLabelY})">率（%）</text>
   `;
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -1300,7 +1626,7 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="3" fill="#2563eb"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
     const tip = `${p.label}
@@ -1308,7 +1634,7 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="3" fill="#f59e0b"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
     const tip = `${p.label}
@@ -1316,9 +1642,10 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="3" fill="#10b981"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => `<text x="${toX(i)}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${p.label}</text>`).join('')}
+    ${axisLabels}
   `;
 
   wrapper.classList.remove('hidden');
@@ -1427,12 +1754,17 @@ function initFilters() {
 }
 
 function initHeatmapControls() {
-  const rangeButtons = document.querySelectorAll('[data-analysis-range]');
+  const rangeButtons = Array.from(document.querySelectorAll('[data-analysis-range]'));
+  const syncButtons = () => {
+    rangeButtons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
+    const active = rangeButtons.find(b => b.dataset.analysisRange === teleapoAnalysisRange);
+    if (active) active.classList.add('kpi-v2-range-btn-active');
+  };
+  syncButtons();
   rangeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      teleapoAnalysisRange = btn.dataset.analysisRange || '1m';
-      rangeButtons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
-      btn.classList.add('kpi-v2-range-btn-active');
+      teleapoAnalysisRange = btn.dataset.analysisRange || 'all';
+      syncButtons();
       applyFilters();
     });
   });
@@ -1510,6 +1842,15 @@ function initLogTableActions() {
   if (!tbody) return;
 
   tbody.addEventListener('click', async (event) => {
+    const candidateBtn = event.target.closest('[data-action="open-candidate"]');
+    if (candidateBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const candidateId = candidateBtn.dataset.candidateId;
+      const candidateName = candidateBtn.dataset.candidateName;
+      navigateToCandidateDetail(candidateId, candidateName);
+      return;
+    }
     const btn = event.target.closest('[data-action="delete-log"]');
     if (!btn) return;
     const logId = btn.dataset.logId;
@@ -1538,6 +1879,20 @@ function initLogTableActions() {
       btn.disabled = false;
       btn.textContent = originalText;
     }
+  });
+}
+
+function initCsTaskTableActions() {
+  const tbody = document.getElementById('teleapoCsTaskTableBody');
+  if (!tbody) return;
+  tbody.addEventListener('click', (event) => {
+    const candidateBtn = event.target.closest('[data-action="open-candidate"]');
+    if (!candidateBtn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const candidateId = candidateBtn.dataset.candidateId;
+    const candidateName = candidateBtn.dataset.candidateName;
+    navigateToCandidateDetail(candidateId, candidateName);
   });
 }
 
@@ -1641,12 +1996,14 @@ async function loadCandidates() {
     const items = data.items || [];
 
     candidateNameMap.clear();
+    candidateIdMap.clear();
     items.forEach(c => {
       // 名前を一意のキーにする（同姓同名対策が必要なら "名前(ID)" 等にするが、一旦名前で実装）
       const fullName = String(c.candidateName ?? c.candidate_name ?? c.name ?? '').trim();
       const candidateId = Number(c.candidate_id ?? c.id ?? c.candidateId ?? c.candidateID);
       if (fullName && Number.isFinite(candidateId) && candidateId > 0) {
         candidateNameMap.set(fullName, candidateId);
+        candidateIdMap.set(String(candidateId), fullName);
       }
     });
     candidateNameList = Array.from(candidateNameMap.keys()).sort((a, b) => b.length - a.length);
@@ -1698,6 +2055,8 @@ export function mount() {
   initEmployeeSortHeaders();
   initLogTableSort();
   initLogTableActions();
+  initCsTaskTableActions();
+  initCandidateQuickView();
 
   // initLogForm(); // ← ★削除またはコメントアウト（モック用フォームはもう不要）
 

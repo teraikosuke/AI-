@@ -464,7 +464,6 @@ function normalizeCompanyName(value) {
 }
 
 function normalizeListToken(token) {
-
   let value = String(token ?? '').trim();
 
   if (!value) return '';
@@ -692,6 +691,7 @@ function normalizeCandidates(list) {
     const stageKey = normalizeCandidateStageKey(rawStage);
     const stageLabel = rawStage ? String(rawStage).trim() : '';
     return {
+      id: c.id || c.candidateId || c.candidate_id || '',
       name: c.name || c.candidateName || c.candidate_name || '-',
       stage: stageKey || stageLabel || '-',
       stageKey,
@@ -701,6 +701,38 @@ function normalizeCandidates(list) {
     };
   });
 }
+
+const PHASE_FLOW_ORDER = [
+  '提案',
+  '書類',
+  '一次',
+  '二次',
+  '内定',
+  '入社'
+];
+
+const PHASE_FLOW_COLORS = [
+  'bg-slate-400',
+  'bg-sky-500',
+  'bg-blue-500',
+  'bg-emerald-500',
+  'bg-indigo-500',
+  'bg-violet-500',
+  'bg-amber-500',
+  'bg-orange-500',
+  'bg-rose-500',
+  'bg-fuchsia-500',
+  'bg-pink-500',
+  'bg-teal-500',
+  'bg-green-600',
+  'bg-red-500',
+  'bg-slate-500'
+];
+
+const PHASE_FLOW_INDEX = PHASE_FLOW_ORDER.reduce((acc, key, idx) => {
+  acc[key] = idx;
+  return acc;
+}, {});
 
 function normalizeCandidateStageKey(stage) {
   if (!stage && stage !== 0) return '';
@@ -712,21 +744,17 @@ function normalizeCandidateStageKey(stage) {
     return lower.includes(target.toLowerCase()) || text.includes(target);
   });
 
-  if (includesAny(['入社', '入社済', '入社予定', '入社準備', '採用', '就業', 'joined', 'hire', 'hired'])) return 'joined';
-  if (includesAny(['内定承諾', '内定承諾待ち', '内定', '内諾', 'オファー', 'offer'])) return 'offer';
-  if (includesAny(['最終', 'final', '三次', '3次', '二次', '2次', 'second', 'interview2', '二次面接', '二次面談'])) return 'interview2';
-  if (includesAny(['面接設定', '初回面談設定', '一次面接調整', '面談', '面接', '一次', '1次', 'first', 'interview1', '一次面接', '一次面談'])) return 'interview1';
-  if (includesAny(['書類選考', '書類通過', '書類', 'document', 'doc', 'docscreen', 'doc_screen', 'document_screening'])) return 'docScreen';
-  if (includesAny(['未接触', '架電中', 'sms送信', 'sms', '通電', '提案', '推薦', '紹介', '応募', 'エントリー', 'proposal', 'recommend', 'entry', 'apply'])) return 'proposal';
+  if (PHASE_FLOW_INDEX[text] !== undefined) return text;
+
+  if (includesAny(['入社', '入社済', '入社予定', '採用', '就業', 'joined', 'hire', 'hired'])) return '入社';
+  if (includesAny(['内定', '内諾', '内定承諾', '内定承諾待ち', 'オファー', 'offer', '承諾', 'accept'])) return '内定';
+  if (includesAny(['二次', '2次', 'second', '2nd'])) return '二次';
+  if (includesAny(['一次', '1次', 'first', '1st', '面接', '面談', '初回', '面接設定', '一次面接調整', '初回面談設定', 'interview'])) return '一次';
+  if (includesAny(['書類選考', '書類通過', '書類', 'document', 'doc', 'docscreen', 'doc_screen', 'document_screening'])) return '書類';
+  if (includesAny(['提案', '提案済', '推薦', '推薦済', '応募', '応募済', 'エントリー', 'proposal', 'recommend', 'entry', 'apply', 'application', 'new', '未接触', '架電', 'sms', '通電'])) return '提案';
 
   return '';
 }
-
-const FLOW_STAGE_ORDER = ['proposal', 'docScreen', 'interview1', 'interview2', 'offer', 'joined'];
-const FLOW_STAGE_INDEX = FLOW_STAGE_ORDER.reduce((acc, key, idx) => {
-  acc[key] = idx;
-  return acc;
-}, {});
 
 function resolveCandidatePhaseForFlow(candidate) {
   const tokens = [];
@@ -754,7 +782,7 @@ function resolveCandidatePhaseForFlow(candidate) {
   tokens.forEach((token) => {
     const key = normalizeCandidateStageKey(token);
     if (!key) return;
-    const idx = FLOW_STAGE_INDEX[key] ?? -1;
+    const idx = PHASE_FLOW_INDEX[key] ?? -1;
     if (idx > bestIndex) {
       bestIndex = idx;
       bestKey = key;
@@ -791,6 +819,7 @@ function buildFlowCandidatesFromSummaries(company) {
       const phaseInfo = resolveCandidatePhaseForFlow(candidate);
       const stageLabel = phaseInfo.stageLabel || candidate?.phase || '';
       return {
+        id: candidate?.id || '',
         name: candidate?.name || '-',
         stage: phaseInfo.stageKey || stageLabel || '-',
         stageKey: phaseInfo.stageKey,
@@ -828,6 +857,13 @@ function uniqueList(...lists) {
 
 function parseSalaryValue(value) {
   if (value === null || value === undefined) return 0;
+  const normalizeToMan = (num, raw) => {
+    if (!Number.isFinite(num) || num <= 0) return 0;
+    const rawText = String(raw ?? '');
+    if (rawText.includes('万')) return Math.round(num);
+    if (num >= 10000) return Math.floor(num / 10000);
+    return Math.round(num);
+  };
   if (Array.isArray(value)) {
     const nums = value
       .map(v => String(v).match(/\d+/g))
@@ -836,12 +872,15 @@ function parseSalaryValue(value) {
       .map(n => Number(n))
       .filter(Number.isFinite);
     if (!nums.length) return 0;
-    return Math.round(nums.reduce((sum, num) => sum + num, 0) / nums.length);
+    const avg = Math.round(nums.reduce((sum, num) => sum + num, 0) / nums.length);
+    return normalizeToMan(avg, value);
   }
   const nums = String(value).match(/\d+/g);
   if (!nums || !nums.length) return 0;
-  if (nums.length >= 2) return Math.round((Number(nums[0]) + Number(nums[1])) / 2);
-  return Number(nums[0]);
+  const base = nums.length >= 2
+    ? Math.round((Number(nums[0]) + Number(nums[1])) / 2)
+    : Number(nums[0]);
+  return normalizeToMan(base, value);
 }
 
 function calculateAgeFromDate(value) {
@@ -1017,7 +1056,7 @@ function buildRecommendedCandidatesHtml(recommended) {
   }
   return recommended.map(c => {
     const ageText = Number.isFinite(Number(c.age)) ? c.age : '-';
-    const salaryText = c.salary ? `${c.salary}万` : '-';
+    const salaryText = c.salary ? `${c.salary}万円` : '-';
     const skills = Array.isArray(c.skills) ? c.skills : splitCandidateList(c.skills);
     const skillText = skills.length ? skills.join(', ') : '-';
     return `
@@ -1258,7 +1297,7 @@ function buildAIInsight(company) {
 
   const exp = expList.length ? expList.join(' / ') : '';
 
-  const salary = dt.salaryRange ? `${dt.salaryRange[0]}\u301c${dt.salaryRange[1]}万` : '年収レンジ未設定';
+  const salary = dt.salaryRange ? `${dt.salaryRange[0]}\u301c${dt.salaryRange[1]}万円` : '年収レンジ未設定';
   const pos = company.highlightPosition || company.jobTitle || 'ポジション未設定';
 
   const parts = [must ? `必須「${must}」` : '', nice ? `歓迎「${nice}」` : '', exp ? `経験「${exp}」` : ''].filter(Boolean).join('・');
@@ -1748,23 +1787,36 @@ function renderCompanyDetail() {
 
 
   const flowCandidates = getFlowCandidates(company);
-
-  const stages = [
-
-
-    { key: 'proposal', label: '提案', value: company.proposal, color: 'bg-indigo-500' },
-
-    { key: 'docScreen', label: '書類', value: company.docScreen, color: 'bg-sky-500' },
-
-    { key: 'interview1', label: '一次', value: company.interview1, color: 'bg-amber-500' },
-
-    { key: 'interview2', label: '二次', value: company.interview2, color: 'bg-orange-500' },
-
-    { key: 'offer', label: '内定', value: company.offer, color: 'bg-emerald-500' },
-
-    { key: 'joined', label: '入社', value: company.joined, color: 'bg-teal-500' }
-
-  ];
+  const normalizedFlowCandidates = (flowCandidates || []).map(candidate => {
+    if (!candidate) return null;
+    const phaseInfo = resolveCandidatePhaseForFlow(candidate);
+    const stageKey = candidate.stageKey || phaseInfo.stageKey || '';
+    const stageLabel = candidate.stageLabel || phaseInfo.stageLabel || candidate.stage || candidate.phase || '';
+    return {
+      ...candidate,
+      stageKey,
+      stageLabel,
+      stage: stageKey || stageLabel || candidate.stage || '-'
+    };
+  }).filter(Boolean);
+  const toCount = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+  const stageValueMap = {
+    '提案': company.proposal,
+    '書類': company.docScreen,
+    '一次': company.interview1,
+    '二次': company.interview2,
+    '内定': company.offer,
+    '入社': company.joined
+  };
+  const stages = PHASE_FLOW_ORDER.map((label, idx) => ({
+    key: label,
+    label,
+    value: toCount(stageValueMap[label]),
+    color: PHASE_FLOW_COLORS[idx % PHASE_FLOW_COLORS.length]
+  }));
 
 
 
@@ -1789,32 +1841,25 @@ function renderCompanyDetail() {
 
 
   const flow = stages.map((s, idx) => {
-    // 1. このステージに該当する候補者を抽出
-    const stageCands = (flowCandidates || []).filter(c => (c.stageKey || c.stage) === s.key);
-
-    // 2. 表示する名前（最大2名まで）と残り人数を計算
-    const displayNames = stageCands.slice(0, 2).map(c => c.name);
+    const stageCands = normalizedFlowCandidates.filter(c => (c.stageKey || c.stage) === s.key);
     const remaining = stageCands.length - 2;
-
-    // 3. 名前部分のHTML生成 (クリック時に navigateToCandidate を呼ぶ)
+    const displayCount = Number.isFinite(s.value) ? s.value : 0;
     const namesHtml = stageCands.length > 0
       ? `<div class="flex flex-col items-center w-full mt-0.5 overflow-hidden">
            ${stageCands.slice(0, 2).map(c =>
-             `<button onclick="event.stopPropagation(); window.navigateToCandidate('${c.id}')"
+        `<button onclick="event.stopPropagation(); window.navigateToCandidate('${c.id}')"
                       class="text-[9px] sm:text-[10px] leading-tight text-white hover:underline truncate w-full text-center px-1 block mb-0.5">
                 ${c.name}
               </button>`
-           ).join('')}
+      ).join('')}
            ${remaining > 0 ? `<span class="text-[8px] sm:text-[9px] text-white/80 leading-none">+${remaining}名</span>` : ''}
          </div>`
       : '';
-
-    // 4. バブルのHTML生成 (サイズを大きくし、namesHtmlを埋め込み)
     return `
       <div class="flex flex-col items-center min-w-[70px] sm:min-w-[100px] lg:min-w-[120px] flex-shrink-0">
         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full ${s.color} text-white flex flex-col items-center justify-center p-1 shadow-md transition-transform hover:scale-105">
            <div class="flex items-baseline gap-0.5 ${stageCands.length > 0 ? 'mb-0' : ''}">
-             <span class="text-lg sm:text-xl font-bold leading-none">${s.value ?? 0}</span>
+             <span class="text-lg sm:text-xl font-bold leading-none">${displayCount}</span>
              <span class="text-[10px] sm:text-xs opacity-90">件</span>
            </div>
            ${namesHtml}

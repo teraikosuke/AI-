@@ -90,8 +90,7 @@ function initializeAdFilters() {
       const metricLabels = {
         decisionRate: '決定率',
         initialInterviewRate: '初回面談設定率',
-        retention30: '定着率',
-        costPerHire: '費用/入社'
+        retention30: '定着率'
       };
       const titleLabel = metricLabels[lineMetric] || '決定率';
       metricTitle.textContent = `${titleLabel} 月別推移・媒体別`;
@@ -280,13 +279,19 @@ async function fetchAdsKpi(fromYmd, toYmd) {
 }
 
 async function loadAdPerformanceData() {
-  const startYm = document.getElementById('adStartDate')?.value || '2025-11';
-  const endYm = document.getElementById('adEndDate')?.value || '2025-12';
+  const startEl = document.getElementById('adStartDate');
+  const endEl = document.getElementById('adEndDate');
+  const startYm = (startEl?.value || '').trim();
+  const endYm = (endEl?.value || '').trim();
+  const isAutoRange = !startYm && !endYm;
+  const nowYm = ymFromDate(new Date());
+  const requestStart = startYm || '2000-01';
+  const requestEnd = endYm || nowYm;
 
   const url = new URL('https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/ads');
   url.searchParams.set('mode', 'performance');
-  url.searchParams.set('startMonth', startYm);
-  url.searchParams.set('endMonth', endYm);
+  url.searchParams.set('startMonth', requestStart);
+  url.searchParams.set('endMonth', requestEnd);
   url.searchParams.set('groupBy', 'route');
 
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
@@ -294,6 +299,13 @@ async function loadAdPerformanceData() {
 
   const data = await res.json();
   const items = Array.isArray(data?.items) ? data.items : [];
+  if (isAutoRange && items.length) {
+    const periods = items.map(item => item.period).filter(Boolean).sort();
+    const minPeriod = periods[0];
+    const maxPeriod = periods[periods.length - 1];
+    if (startEl && minPeriod) startEl.value = minPeriod;
+    if (endEl && maxPeriod) endEl.value = maxPeriod;
+  }
 
   adState.summary = data?.summary ?? null;
   adState.data = items.map(calcDerivedRates);
@@ -614,24 +626,18 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   });
 
   const values = aggregatedData.map(d => d[lineMetric]).filter(v => Number.isFinite(v));
-  const isCostMetric = lineMetric === 'costPerHire';
-  const formatValue = (val) => isCostMetric ? formatCurrency(val || 0) : formatPercent(val || 0);
-  let yMin = 0, yMax = isCostMetric ? 0 : 100;
+  const formatValue = (val) => formatPercent(val || 0);
+  let yMin = 0, yMax = 100;
 
   if (values.length) {
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
-    if (isCostMetric) {
-      yMin = Math.max(0, Math.floor(minVal * 0.9));
-      yMax = Math.max(1, Math.ceil(maxVal * 1.1));
-    } else {
-      const mean = values.reduce((s, v) => s + v, 0) / values.length;
-      const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
-      const std = Math.sqrt(variance) || 0;
-      const pad = std || 0;
-      yMin = Math.max(0, minVal - pad);
-      yMax = Math.max(minVal + 1, maxVal + pad);
-    }
+    const mean = values.reduce((s, v) => s + v, 0) / values.length;
+    const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
+    const std = Math.sqrt(variance) || 0;
+    const pad = std || 0;
+    yMin = Math.max(0, minVal - pad);
+    yMax = Math.max(minVal + 1, maxVal + pad);
   }
 
   if (decisionLineChart) decisionLineChart.destroy();
@@ -642,8 +648,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   const metricLabels = {
     decisionRate: '決定率',
     initialInterviewRate: '初回面談設定率',
-    retention30: '定着率',
-    costPerHire: '費用/入社'
+    retention30: '定着率'
   };
   const metricLabel = metricLabels[lineMetric] || '決定率';
 
@@ -671,7 +676,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
         applyFilters(isSame ? '' : mediaName);
       },
       scales: {
-        y: { ticks: { callback: v => isCostMetric ? formatCurrency(v) : `${v}%` }, suggestedMin: yMin, suggestedMax: yMax }
+        y: { ticks: { callback: v => `${v}%` }, suggestedMin: yMin, suggestedMax: yMax }
       }
     }
   });
@@ -690,9 +695,7 @@ function renderMetricTable(labels, mediaMap) {
   const header = ['<th class="sticky left-0 bg-white z-10 text-left px-3 py-2 text-sm font-semibold text-slate-700">媒体名</th>']
     .concat(labels.map(l => `<th class="px-3 py-2 text-right text-sm font-semibold text-slate-700 whitespace-nowrap">${l}</th>`));
 
-  const valueFormatter = lineMetric === 'costPerHire'
-    ? (v) => formatCurrency(v || 0)
-    : (v) => formatPercent(v || 0);
+  const valueFormatter = (v) => formatPercent(v || 0);
 
   const rows = Object.keys(mediaMap).sort().map(name => {
     const cells = labels.map(lbl => {
