@@ -29,81 +29,19 @@
 
     <div class="candidates-filter-grid">
       <label class="filter-field">
-        <span>登録年</span>
-        <select id="candidatesFilterYear" class="filter-input">
-          <option value="" selected>すべて</option>
-          <option value="2023">2023</option>
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-        </select>
+        <span>登録期間（開始）</span>
+        <input id="candidatesFilterStartDate" type="date" class="filter-input" />
       </label>
 
       <label class="filter-field">
-        <span>登録月</span>
-        <select id="candidatesFilterMonth" class="filter-input">
-          <option value="">すべて</option>
-          <option value="01">1月</option>
-          <option value="02">2月</option>
-          <option value="03">3月</option>
-          <option value="04">4月</option>
-          <option value="05">5月</option>
-          <option value="06">6月</option>
-          <option value="07">7月</option>
-          <option value="08">8月</option>
-          <option value="09">9月</option>
-          <option value="10">10月</option>
-          <option value="11">11月</option>
-          <option value="12">12月</option>
-        </select>
-      </label>
-
-      <label class="filter-field">
-        <span>登録日</span>
-        <select id="candidatesFilterDay" class="filter-input">
-          <option value="">すべて</option>
-          <option value="01">1日</option>
-          <option value="02">2日</option>
-          <option value="03">3日</option>
-          <option value="04">4日</option>
-          <option value="05">5日</option>
-          <option value="06">6日</option>
-          <option value="07">7日</option>
-          <option value="08">8日</option>
-          <option value="09">9日</option>
-          <option value="10">10日</option>
-          <option value="11">11日</option>
-          <option value="12">12日</option>
-          <option value="13">13日</option>
-          <option value="14">14日</option>
-          <option value="15">15日</option>
-          <option value="16">16日</option>
-          <option value="17">17日</option>
-          <option value="18">18日</option>
-          <option value="19">19日</option>
-          <option value="20">20日</option>
-          <option value="21">21日</option>
-          <option value="22">22日</option>
-          <option value="23">23日</option>
-          <option value="24">24日</option>
-          <option value="25">25日</option>
-          <option value="26">26日</option>
-          <option value="27">27日</option>
-          <option value="28">28日</option>
-          <option value="29">29日</option>
-          <option value="30">30日</option>
-          <option value="31">31日</option>
-        </select>
+        <span>登録期間（終了）</span>
+        <input id="candidatesFilterEndDate" type="date" class="filter-input" />
       </label>
 
       <label class="filter-field">
         <span>応募媒体</span>
         <select id="candidatesFilterSource" class="filter-input">
           <option value="">すべて</option>
-          <option value="Indeed">Indeed</option>
-          <option value="求人ボックス">求人ボックス</option>
-          <option value="リクナビ">リクナビ</option>
-          <option value="マイナビ">マイナビ</option>
-          <option value="doda">doda</option>
         </select>
       </label>
 
@@ -114,12 +52,16 @@
 
       <label class="filter-field">
         <span>応募企業名</span>
-        <input id="candidatesFilterCompany" type="search" class="filter-input" placeholder="例：ABC株式会社" />
+        <select id="candidatesFilterCompany" class="filter-input">
+          <option value="">すべて</option>
+        </select>
       </label>
 
       <label class="filter-field">
         <span>担当アドバイザー名</span>
-        <input id="candidatesFilterAdvisor" type="search" class="filter-input" placeholder="例：佐藤" />
+        <select id="candidatesFilterAdvisor" class="filter-input">
+          <option value="">すべて</option>
+        </select>
       </label>
 
       <label class="filter-field">
@@ -135,21 +77,6 @@
         <span>フェーズ</span>
         <select id="candidatesFilterPhase" class="filter-input">
           <option value="">すべて</option>
-          <option value="未接触">未接触</option>
-          <option value="架電中">架電中</option>
-          <option value="SMS送信">SMS送信</option>
-          <option value="通電">通電</option>
-          <option value="面接設定">面接設定</option>
-          <option value="面接">面接</option>
-          <option value="内定">内定</option>
-          <option value="内定承諾">内定承諾</option>
-          <option value="入社">入社</option>
-          <option value="辞退">辞退</option>
-          <option value="初回面談設定">初回面談設定</option>
-          <option value="一次面接調整">一次面接調整</option>
-          <option value="内定承諾待ち">内定承諾待ち</option>
-          <option value="入社準備">入社準備</option>
-          <option value="クローズ">クローズ</option>
         </select>
       </label>
     </div>
