@@ -674,22 +674,20 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   );
 
   const header = `
-    <div class="candidate-detail-header bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      <div class="candidate-detail-header-left space-y-2">
-        <div class="candidate-header-title-row flex flex-wrap items-center gap-3">
-          <h3 class="candidate-detail-title text-2xl font-bold text-slate-900">${escapeHtml(candidate.candidateName || "-")}</h3>
-          <div class="candidate-header-badges flex flex-wrap items-center gap-2">
-            ${renderPhasePills(candidate)}
-            ${validBadge}
-          </div>
+    <div class="candidate-detail-header">
+      <div class="candidate-detail-header-left">
+        <div class="candidate-header-badges">
+          ${renderPhasePills(candidate)}
+          ${validBadge}
         </div>
-        <div class="candidate-header-meta text-xs text-slate-500">
+        <h3 class="candidate-detail-title">${escapeHtml(candidate.candidateName || "-")}</h3>
+        <div class="candidate-header-meta">
           <span>登録日</span>
-          <strong class="text-slate-900">${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</strong>
+          <strong>${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</strong>
         </div>
       </div>
-      <div class="candidate-detail-header-right flex items-start gap-3">
-        <div class="candidate-header-card bg-slate-50 border border-slate-100 shadow-sm rounded-lg px-4 py-3 text-xs">
+      <div class="candidate-detail-header-right">
+        <div class="candidate-header-card">
           <div><span>担当CS</span><strong>${escapeHtml(candidate.advisorName || "-")}</strong></div>
           <div><span>担当パートナー</span><strong>${escapeHtml(candidate.partnerName || "-")}</strong></div>
         </div>
@@ -743,8 +741,8 @@ function renderDetailSection(title, body, key, options = {}) {
     `
     : "";
   return `
-    <section class="candidate-detail-section bg-white rounded-xl shadow-sm border border-slate-100" data-section="${key}">
-      <header class="candidate-detail-section-header bg-slate-50">
+    <section class="candidate-detail-section" data-section="${key}">
+      <header class="candidate-detail-section-header">
         <h4>${title}</h4>
         <div class="detail-section-actions">
           ${actions}
@@ -759,7 +757,7 @@ function renderDetailSection(title, body, key, options = {}) {
 
 function renderDetailSubsection(title, body) {
   return `
-    <div class="detail-subsection bg-slate-50 rounded-lg p-4">
+    <div class="detail-subsection">
       <div class="detail-subsection-header">
         <h5>${escapeHtml(title)}</h5>
       </div>
@@ -1364,7 +1362,6 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.advisorUserId),
       path: "advisorUserId",
       displayFormatter: () => candidate.advisorName || "-",
-      span: 3,
     },
     {
       label: "担当パートナー",
@@ -1373,7 +1370,6 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.partnerUserId),
       path: "partnerUserId",
       displayFormatter: () => candidate.partnerName || "-",
-      span: 3,
     },
   ];
   return renderDetailGridFields(fields, "assignees");
@@ -1384,25 +1380,25 @@ function renderApplicantInfoSection(candidate) {
   const ageDisplay = age !== null ? `${age}歳` : candidate.age ? `${candidate.age}歳` : "-";
   const address = candidate.address || [candidate.addressPref, candidate.addressCity, candidate.addressDetail].filter(Boolean).join("");
   const basicFields = [
-    { label: "求職者名", value: candidate.candidateName, editable: false, span: 3 },
-    { label: "ヨミガナ", value: candidate.candidateKana, editable: false, span: 3 },
-    { label: "性別", value: candidate.gender, editable: false, span: 1 },
-    { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP, span: 1 },
-    { label: "年齢", value: ageDisplay, editable: false, span: 1 },
-    { label: "郵便番号", value: candidate.postalCode, path: "postalCode", span: 1 },
-    { label: "最終学歴", value: candidate.education, editable: false, span: 2 },
-    { label: "現住所", value: address, editable: false, span: "full" },
+    { label: "求職者名", value: candidate.candidateName, editable: false },
+    { label: "ヨミガナ", value: candidate.candidateKana, editable: false },
+    { label: "性別", value: candidate.gender, editable: false },
+    { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP },
+    { label: "年齢", value: ageDisplay, editable: false },
+    { label: "郵便番号", value: candidate.postalCode, path: "postalCode" },
+    { label: "現住所", value: address, editable: false },
+    { label: "最終学歴", value: candidate.education, editable: false },
   ];
   const contactFields = [
-    { label: "電話番号", value: candidate.phone, type: "tel", path: "phone", span: 2 },
-    { label: "メール", value: candidate.email, type: "email", path: "email", span: 2 },
-    { label: "連絡希望時間帯", value: candidate.contactPreferredTime, path: "contactPreferredTime", span: 2 },
+    { label: "電話番号", value: candidate.phone, type: "tel", path: "phone" },
+    { label: "メール", value: candidate.email, type: "email", path: "email" },
+    { label: "連絡希望時間帯", value: candidate.contactPreferredTime, path: "contactPreferredTime" },
   ];
   const applicationFields = [
-    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName", span: 2 },
-    { label: "応募求人名", value: candidate.applyJobName, path: "applyJobName", span: 2 },
-    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText", span: 2 },
-    { label: "備考", value: candidate.applicationNote, input: "textarea", path: "applicationNote", span: "full" },
+    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName" },
+    { label: "応募求人名", value: candidate.applyJobName, path: "applyJobName" },
+    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText" },
+    { label: "備考", value: candidate.applicationNote, input: "textarea", path: "applicationNote" },
   ];
   return [
     renderDetailSubsection("基本情報", renderDetailGridFields(basicFields, "profile")),
@@ -1420,7 +1416,6 @@ function renderHearingSection(candidate) {
       type: "date",
       path: "firstInterviewDate",
       displayFormatter: formatDateJP,
-      span: 1,
     },
     {
       label: "着座確認",
@@ -1429,38 +1424,36 @@ function renderHearingSection(candidate) {
       checkboxLabel: "確認済",
       path: "attendanceConfirmed",
       displayFormatter: (v) => (v ? "確認済" : "未"),
-      span: 1,
     },
   ];
 
   const hearingFields = [
-    { label: "新規面談マスト項目", value: candidate.mandatoryInterviewItems, input: "textarea", path: "mandatoryInterviewItems", span: "full" },
-    { label: "希望エリア", value: candidate.desiredLocation, path: "desiredLocation", span: 2 },
-    { label: "希望職種", value: candidate.desiredJobType, path: "desiredJobType", span: 2 },
-    { label: "現年収", value: candidate.currentIncome, path: "currentIncome", span: 1 },
-    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome", span: 1 },
-    { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus", span: 2 },
-    { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason", span: "full" },
-    { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation", span: "full" },
-    { label: "転職時期", value: candidate.transferTiming, path: "transferTiming", span: 2 },
-    { label: "資格・スキル", value: candidate.skills, input: "textarea", path: "skills", span: "full" },
-    { label: "人物像・性格", value: candidate.personality, input: "textarea", path: "personality", span: "full" },
-    { label: "実務経験", value: candidate.workExperience, input: "textarea", path: "workExperience", span: "full" },
-    { label: "推薦文", value: candidate.recommendationText || "-", editable: false, span: "full" },
-    { label: "他社選考状態", value: candidate.otherSelectionStatus, input: "textarea", path: "otherSelectionStatus", span: "full" },
+    { label: "新規面談マスト項目", value: candidate.mandatoryInterviewItems, input: "textarea", path: "mandatoryInterviewItems" },
+    { label: "希望エリア", value: candidate.desiredLocation, path: "desiredLocation" },
+    { label: "希望職種", value: candidate.desiredJobType, path: "desiredJobType" },
+    { label: "現年収", value: candidate.currentIncome, path: "currentIncome" },
+    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome" },
+    { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus" },
+    { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason" },
+    { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation" },
+    { label: "転職時期", value: candidate.transferTiming, path: "transferTiming" },
+    { label: "資格・スキル", value: candidate.skills, input: "textarea", path: "skills" },
+    { label: "人物像・性格", value: candidate.personality, input: "textarea", path: "personality" },
+    { label: "実務経験", value: candidate.workExperience, input: "textarea", path: "workExperience" },
+    { label: "推薦文", value: candidate.recommendationText || "-", editable: false },
+    { label: "他社選考状態", value: candidate.otherSelectionStatus, input: "textarea", path: "otherSelectionStatus" },
     {
       label: "面談メモ",
       value: candidate.firstInterviewNote || candidate.memo || "",
       input: "textarea",
       path: "firstInterviewNote",
-      span: "full",
     },
-    { label: "面接希望日", value: candidate.interviewPreferredDate, type: "date", path: "interviewPreferredDate", displayFormatter: formatDateJP, span: 1 },
+    { label: "面接希望日", value: candidate.interviewPreferredDate, type: "date", path: "interviewPreferredDate", displayFormatter: formatDateJP },
   ];
 
   return [
     renderDetailSubsection("面談実施確認", renderDetailGridFields(confirmationFields, "hearing")),
-    renderDetailSubsection("ヒアリング項目", renderDetailGridFields(hearingFields, "hearing")),
+    renderDetailSubsection("ヒアリング項目", renderDetailGridFields(hearingFields, "hearing", { gridClass: "detail-textarea-grid" })),
   ].join("");
 }
 
@@ -1686,8 +1679,8 @@ function renderMoneySection(candidate) {
 function renderAfterAcceptanceSection(candidate) {
   const data = candidate.afterAcceptance || {};
   const fields = [
-    { label: "受注金額（税抜）", value: data.amount, span: 3 },
-    { label: "職種", value: data.jobCategory, span: 3 },
+    { label: "受注金額（税抜）", value: data.amount },
+    { label: "職種", value: data.jobCategory },
   ];
   const reportStatuses =
     (data.reportStatuses || [])
@@ -1875,39 +1868,17 @@ function renderMemoSection(candidate) {
   `;
 }
 
-function resolveDetailGridSpanClass(field) {
-  const span = field.span || (field.input === "textarea" ? "full" : null);
-  if (span === "full") return "col-span-full";
-  if (typeof span === "number") {
-    const smSpan = Math.min(span, 2);
-    return `col-span-full sm:col-span-${smSpan} lg:col-span-${span}`;
-  }
-  return "col-span-full sm:col-span-2 lg:col-span-2";
-}
-
 function renderDetailGridFields(fields, sectionKey, options = {}) {
   const editing = Boolean(detailEditState[sectionKey]);
-  const gridClass = [
-    "detail-grid",
-    "grid",
-    "grid-cols-1",
-    "sm:grid-cols-2",
-    "lg:grid-cols-6",
-    "gap-x-6",
-    "gap-y-4",
-    options.gridClass,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const gridClass = options.gridClass || "detail-grid";
   return `
     <dl class="${gridClass}">
       ${fields
         .map((field) => {
           const value = field.value;
-          const spanClass = resolveDetailGridSpanClass(field);
           if (editing && field.editable !== false && field.path) {
             return `
-              <div class="detail-grid-item ${spanClass}">
+              <div class="detail-grid-item">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
@@ -1919,7 +1890,7 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
               ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
               : escapeHtml(displayValue);
           return `
-            <div class="detail-grid-item ${spanClass}">
+            <div class="detail-grid-item">
               <dt>${field.label}</dt>
               <dd><span class="detail-value">${inner}</span></dd>
             </div>
