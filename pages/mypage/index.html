@@ -1,0 +1,68 @@
+<div class="section-shell space-y-6" id="mypagePage" data-page="mypage">
+  <section class="mypage-card" id="mypageTasksSection">
+    <div class="mypage-card-header">
+      <div>
+        <h3 class="mypage-card-title">今日のタスク</h3>
+        <p class="mypage-card-subtitle">次回アクションが近い候補者</p>
+      </div>
+      <span class="mypage-role-badge" id="mypageRoleBadge">advisor</span>
+    </div>
+    <div class="mypage-table-wrapper" id="mypageTasksTableWrapper">
+      <table class="mypage-table">
+        <thead>
+          <tr>
+            <th>求職者名</th>
+            <th>フェーズ</th>
+            <th>次回アクション</th>
+          </tr>
+        </thead>
+        <tbody id="mypageTasksBody"></tbody>
+      </table>
+    </div>
+    <div class="mypage-empty" id="mypageTasksEmpty">タスクはありません。</div>
+  </section>
+
+  <section class="mypage-card">
+    <div id="mypageYieldSummary" class="mypage-yield-slot"></div>
+  </section>
+
+  <section class="mypage-card">
+    <div class="mypage-card-header">
+      <div>
+        <h3 class="mypage-card-title">お知らせ</h3>
+        <p class="mypage-card-subtitle">直近の更新をまとめて表示しています。</p>
+      </div>
+    </div>
+    <ul class="mypage-list" id="mypageNotificationsList"></ul>
+    <div class="mypage-empty" id="mypageNotificationsEmpty">お知らせはありません。</div>
+  </section>
+
+  <section class="mypage-card" id="mypageCandidatesSection">
+    <div class="mypage-card-header">
+      <div>
+        <h3 class="mypage-card-title">候補者リスト</h3>
+        <p class="mypage-card-subtitle" id="mypageCandidatesSubtitle"></p>
+      </div>
+      <div class="mypage-card-actions">
+        <button type="button" class="mypage-ghost-btn" id="mypageCandidatesToggleClosed">クローズを表示</button>
+      </div>
+    </div>
+    <div class="mypage-table-wrapper" id="mypageCandidatesTableWrapper">
+      <table class="mypage-table">
+        <thead id="mypageCandidatesHead"></thead>
+        <tbody id="mypageCandidatesBody"></tbody>
+      </table>
+    </div>
+    <div class="mypage-empty" id="mypageCandidatesEmpty">候補者が見つかりません。</div>
+  </section>
+
+  <section class="mypage-card">
+    <div class="mypage-card-header">
+      <div>
+        <h3 class="mypage-card-title">評価・目標設定</h3>
+        <p class="mypage-card-subtitle">後で移動する想定のため、今はここに表示します。</p>
+      </div>
+    </div>
+    <div id="mypageGoalSettings" class="mypage-goal-slot"></div>
+  </section>
+</div>

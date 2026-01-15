@@ -10,6 +10,7 @@ const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
 const routes = {
   login: () => import("../pages/login/login.js"),
+  mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
   candidates: () => import("../pages/candidates/candidates.js?v=20260170"),
@@ -23,6 +24,7 @@ const routes = {
 
 const routeMeta = {
   login: { public: true },
+  mypage: { roles: ['admin', 'member'] },
   yield: { roles: ['admin', 'member'] },
   candidates: { roles: ['admin', 'member'] },
   'ad-performance': { roles: ['admin', 'member'] },
@@ -37,6 +39,7 @@ const routeMeta = {
 // CSS files for specific pages
 const pageCSS = {
   yield: "pages/yield/yield.css?v=20260127",
+  mypage: "pages/mypage/mypage.css",
   candidates: "pages/candidates/candidates.css",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
   teleapo: "pages/teleapo/teleapo.css?v=20260136",
