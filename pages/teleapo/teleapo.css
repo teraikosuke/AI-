@@ -267,14 +267,27 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+[data-page="teleapo"] #teleapoEmployeeTable th[data-sort]::before,
 [data-page="teleapo"] #teleapoEmployeeTable th[data-sort]::after {
-  content: "↕";
+  content: "";
   position: absolute;
   right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.7rem;
-  color: #94a3b8;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.45;
+}
+
+[data-page="teleapo"] #teleapoEmployeeTable th[data-sort]::before {
+  border-bottom: 6px solid #94a3b8;
+  top: 45%;
+  transform: translateY(-100%);
+}
+
+[data-page="teleapo"] #teleapoEmployeeTable th[data-sort]::after {
+  border-top: 6px solid #94a3b8;
+  top: 55%;
 }
 
 [data-page="teleapo"] #teleapoEmployeeTable th[data-sort].is-sorted {
@@ -282,14 +295,22 @@
   color: #4338ca;
 }
 
+[data-page="teleapo"] #teleapoEmployeeTable th[data-sort][data-sort-dir="asc"]::before {
+  border-bottom-color: #4338ca;
+  opacity: 1;
+}
+
 [data-page="teleapo"] #teleapoEmployeeTable th[data-sort][data-sort-dir="asc"]::after {
-  content: "▲";
-  color: #4338ca;
+  opacity: 0.2;
 }
 
 [data-page="teleapo"] #teleapoEmployeeTable th[data-sort][data-sort-dir="desc"]::after {
-  content: "▼";
-  color: #4338ca;
+  border-top-color: #4338ca;
+  opacity: 1;
+}
+
+[data-page="teleapo"] #teleapoEmployeeTable th[data-sort][data-sort-dir="desc"]::before {
+  opacity: 0.2;
 }
 
 /* ===========================
@@ -607,6 +628,90 @@
   margin-top: 0.75rem;
 }
 
+[data-page="teleapo"] .dashboard-card {
+  background: #fff;
+  border-radius: 6px;
+  border: none;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+[data-page="teleapo"] .dashboard-card:hover {
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+[data-page="teleapo"] .dashboard-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+[data-page="teleapo"] .dashboard-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+[data-page="teleapo"] .dashboard-card-subtext {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+[data-page="teleapo"] .dashboard-card-note {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+[data-page="teleapo"] .teleapo-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+[data-page="teleapo"] .teleapo-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+[data-page="teleapo"] .teleapo-legend-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+[data-page="teleapo"] .teleapo-legend-dot--connect {
+  background: #2563eb;
+}
+
+[data-page="teleapo"] .teleapo-legend-dot--set {
+  background: #f59e0b;
+}
+
+[data-page="teleapo"] .teleapo-legend-dot--show {
+  background: #10b981;
+}
+
+[data-page="teleapo"] .dashboard-chart {
+  position: relative;
+  height: 260px;
+}
+
+[data-page="teleapo"] .dashboard-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
 [data-page="teleapo"] .kpi-v2-chart-container {
   max-width: 880px;
   margin: 0.75rem auto 0;
@@ -651,10 +756,11 @@
 
 /* カードを「タイトル/本体/フッタ」の3行に揃える */
 [data-page="teleapo"] .teleapo-analysis-card {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
   min-height: 200px;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 /* タイトルとサブヘッダの余白 */
@@ -691,7 +797,7 @@
 
 /* ヒートマップ列は「タイトル/フィルタ/本体」の3行 */
 [data-page="teleapo"] .teleapo-heatmap-col {
-  grid-template-rows: auto auto 1fr;
+  gap: 0.5rem;
 }
 
 /* ヒートマップラッパーをカラム高さいっぱいに */
@@ -703,6 +809,10 @@
 [data-page="teleapo"] .teleapo-analysis-body svg {
   width: 100%;
   height: 100%;
+}
+
+[data-page="teleapo"] .teleapo-analysis-card .dashboard-chart {
+  height: 260px;
 }
 
 /* ===========================
@@ -839,4 +949,264 @@
   margin-top: 0.5rem;
   min-height: 1.5rem;
   color: #0f172a;
+}
+
+body.teleapo-candidate-open {
+  overflow: hidden;
+}
+
+[data-page="teleapo"] .teleapo-candidate-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+[data-page="teleapo"] .teleapo-candidate-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+[data-page="teleapo"] .teleapo-candidate-panel {
+  width: min(560px, 94vw);
+  height: 100%;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  box-shadow: -18px 0 32px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+[data-page="teleapo"] .teleapo-candidate-modal.is-open .teleapo-candidate-panel {
+  transform: translateX(0);
+}
+
+[data-page="teleapo"] .teleapo-candidate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 70%);
+}
+
+[data-page="teleapo"] .teleapo-candidate-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+[data-page="teleapo"] .teleapo-candidate-eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #6366f1;
+  text-transform: uppercase;
+}
+
+[data-page="teleapo"] .teleapo-candidate-close {
+  border: none;
+  background: #ffffff;
+  color: #475569;
+  font-size: 1.1rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+[data-page="teleapo"] .teleapo-candidate-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-page="teleapo"] .teleapo-candidate-body {
+  padding: 1rem 1.25rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-empty {
+  padding: 1.2rem 0.5rem;
+  text-align: center;
+}
+
+[data-page="teleapo"] .teleapo-candidate-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+[data-page="teleapo"] .teleapo-candidate-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+[data-page="teleapo"] .teleapo-candidate-pill--info {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+[data-page="teleapo"] .teleapo-candidate-pill--success {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+[data-page="teleapo"] .teleapo-candidate-pill--muted {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+[data-page="teleapo"] .teleapo-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-section {
+  margin-top: 0.2rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.45rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-kv {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-kv>div {
+  display: contents;
+}
+
+[data-page="teleapo"] .teleapo-candidate-kv dt {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+[data-page="teleapo"] .teleapo-candidate-kv dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+[data-page="teleapo"] .teleapo-candidate-muted {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-meta {
+  min-width: 96px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-memo {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+[data-page="teleapo"] .teleapo-candidate-log-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  border-radius: 9999px;
+  padding: 0.15rem 0.45rem;
+  height: fit-content;
+}
+
+@media (max-width: 640px) {
+  [data-page="teleapo"] .teleapo-candidate-header {
+    padding: 0.85rem 1rem;
+  }
+
+  [data-page="teleapo"] .teleapo-candidate-body {
+    padding: 0.85rem 1rem 1.25rem;
+  }
+
+  [data-page="teleapo"] .teleapo-candidate-kv {
+    grid-template-columns: 80px 1fr;
+  }
+
+  [data-page="teleapo"] .teleapo-candidate-log-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

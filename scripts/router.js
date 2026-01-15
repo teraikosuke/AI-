@@ -9,40 +9,40 @@ import { authRepo } from './api/repositories/auth.js';
 const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
 const routes = {
-  login:        () => import("../pages/login/login.js"),
-  members:      () => import("../pages/members/members.js"),
+  login: () => import("../pages/login/login.js"),
+  members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
-  candidates: () => import("../pages/candidates/candidates.js"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260119"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260124"),
-  referral: () => import("../pages/referral/referral.js?v=20260114"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260170"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260134"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260145"),
+  referral: () => import("../pages/referral/referral.js?v=20260154"),
   settings: () => import("../pages/settings/settings.js"),
-  "goal-settings":     () => import("../pages/goal-settings/goal-settings.js"),
+  "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
 };
 
 const routeMeta = {
-  login:          { public: true },
-  yield:          { roles: ['admin', 'member'] },
-  candidates:     { roles: ['admin', 'member'] },
+  login: { public: true },
+  yield: { roles: ['admin', 'member'] },
+  candidates: { roles: ['admin', 'member'] },
   'ad-performance': { roles: ['admin', 'member'] },
-  teleapo:        { roles: ['admin', 'member'] },
-  referral:       { roles: ['admin', 'member'] },
-  settings:       { roles: ['admin', 'member'] },
-  members:        { roles: ['admin', 'member'] },
-  'goal-settings':       { roles: ['admin', 'member'] },
+  teleapo: { roles: ['admin', 'member'] },
+  referral: { roles: ['admin', 'member'] },
+  settings: { roles: ['admin', 'member'] },
+  members: { roles: ['admin', 'member'] },
+  'goal-settings': { roles: ['admin', 'member'] },
   'kpi-summery-test': { roles: ['admin', 'member'] }
 };
 
 // CSS files for specific pages
 const pageCSS = {
-  yield: "pages/yield/yield.css?v=20260126",
+  yield: "pages/yield/yield.css?v=20260127",
   candidates: "pages/candidates/candidates.css",
-  "ad-performance": "pages/ad-performance/ad-performance.css",
-  teleapo: "pages/teleapo/teleapo.css?v=20260126",
-  referral: "pages/referral/referral.css",
+  "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
+  teleapo: "pages/teleapo/teleapo.css?v=20260136",
+  referral: "pages/referral/referral.css?v=20260138",
   settings: "pages/settings/settings.css",
-  "goal-settings": "pages/goal-settings/goal-settings.css?v=20260126",
+  "goal-settings": "pages/goal-settings/goal-settings.css?v=20260127",
   members: "pages/members/members.css",
   "kpi-summery-test": "pages/kpi-summery-test/kpi-summery-test.css",
   login: null, // Uses global styles

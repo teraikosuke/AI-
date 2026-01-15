@@ -119,11 +119,9 @@
   justify-content: space-between;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(
-    90deg,
-    rgba(129, 140, 248, 0.08),
-    rgba(236, 233, 252, 0.6)
-  );
+  background: linear-gradient(90deg,
+      rgba(129, 140, 248, 0.08),
+      rgba(236, 233, 252, 0.6));
 }
 
 .table-action-btn {

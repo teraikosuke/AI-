@@ -138,9 +138,24 @@
     </div>
 
     <div id="teleapoEmployeeChartWrapper" class="kpi-v2-subsection hidden">
-      <h5 id="teleapoEmployeeChartTitle" class="text-sm font-semibold text-slate-800 mb-2">社員別 成長KPI（架電・設定・着座）</h5>
-      <div class="kpi-v2-chart-container">
-        <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" class="w-full h-auto"></svg>
+      <div class="dashboard-card teleapo-employee-chart-card">
+        <div class="dashboard-card-header">
+          <div>
+            <p id="teleapoEmployeeChartTitle" class="dashboard-card-title">社員別 成長KPI（架電・設定・着座）</p>
+            <p class="dashboard-card-subtext">通電率・設定率・着座率の推移（架電ルートのみ）</p>
+          </div>
+        </div>
+        <div class="dashboard-chart">
+          <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" class="w-full h-full"></svg>
+        </div>
+        <div class="teleapo-chart-legend">
+          <span class="teleapo-legend-item"><span
+              class="teleapo-legend-dot teleapo-legend-dot--connect"></span>通電率</span>
+          <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--set"></span>設定率</span>
+          <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--show"></span>着座率</span>
+        </div>
+        <p class="dashboard-card-note">通電率=通電数/架電数・設定率=設定数/通電数・着座率=着座数/設定数</p>
+        <p class="dashboard-card-note">各点にカーソルを合わせると詳細が表示されます。</p>
       </div>
     </div>
 
@@ -150,7 +165,9 @@
         <div class="flex items-center gap-2 flex-wrap">
           <span class="kpi-v2-filter-label">集計期間（通電率分析）</span>
           <div id="teleapoAnalysisRangeButtons" class="flex flex-wrap gap-1">
-            <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active" data-analysis-range="1w">直近1週</button>
+            <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active"
+              data-analysis-range="all">全期間</button>
+            <button type="button" class="kpi-v2-range-btn" data-analysis-range="1w">直近1週</button>
             <button type="button" class="kpi-v2-range-btn" data-analysis-range="1m">直近1ヶ月</button>
             <button type="button" class="kpi-v2-range-btn" data-analysis-range="6m">直近半年</button>
           </div>
@@ -169,17 +186,26 @@
         <span class="text-[10px] text-slate-400">※左のグラフ/右のヒートマップに反映</span>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch teleapo-analysis-row">
-        <div id="teleapoAttemptChartWrapper" class="space-y-2 teleapo-analysis-card">
-          <div class="flex items-center justify-between">
-            <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">架電回数と通電率</h5>
+        <div id="teleapoAttemptChartWrapper" class="dashboard-card teleapo-analysis-card">
+          <div class="dashboard-card-header">
+            <div>
+              <p class="dashboard-card-title">架電回数と通電率</p>
+              <p class="dashboard-card-subtext">架電回数ごとの平均通電率（%）</p>
+            </div>
           </div>
-          <p id="teleapoAttemptChartNote" class="text-[10px] text-slate-500 teleapo-analysis-footnote"></p>
-          <div class="kpi-v2-chart-container teleapo-analysis-body">
+          <div class="dashboard-chart teleapo-analysis-body">
             <svg id="teleapoAttemptChart" viewBox="0 0 800 220" class="w-full h-full"></svg>
           </div>
+          <p class="dashboard-card-note">横軸: 架電回数 / 縦軸: 通電率（%）</p>
+          <p id="teleapoAttemptChartNote" class="dashboard-card-note"></p>
         </div>
-        <div class="space-y-2 teleapo-analysis-card teleapo-heatmap-col">
-          <h5 class="text-sm font-semibold text-slate-800 teleapo-analysis-title">通電率ヒートマップ（曜日×時間帯）</h5>
+        <div class="dashboard-card teleapo-analysis-card teleapo-heatmap-col">
+          <div class="dashboard-card-header">
+            <div>
+              <p class="dashboard-card-title">通電率ヒートマップ</p>
+              <p class="dashboard-card-subtext">曜日×時間帯の通電率分布（%）</p>
+            </div>
+          </div>
           <div
             class="overflow-auto rounded-lg border border-slate-200 bg-white teleapo-heatmap-wrapper teleapo-analysis-body">
             <table class="min-w-[520px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
@@ -196,6 +222,7 @@
               <tbody id="teleapoHeatmapTableBody"></tbody>
             </table>
           </div>
+          <p class="dashboard-card-note">セル内の数値は通電率（%）。色が濃いほど高い時間帯です。</p>
         </div>
       </div>
       <div class="teleapo-insight-card mt-3">
@@ -212,7 +239,6 @@
         <p class="teleapo-form-eyebrow">新規架電ログを登録</p>
         <h4 class="teleapo-form-title">架電ログ入力</h4>
       </div>
-      <span class="teleapo-form-badge">RDS保存</span>
     </div>
     <div class="teleapo-form-grid teleapo-form-grid-6">
       <label class="teleapo-form-field">
@@ -261,6 +287,30 @@
       <button id="dialFormSubmit" type="button" class="teleapo-form-submit">保存</button>
     </div>
     <p id="dialFormMessage" class="teleapo-form-message text-sm"></p>
+  </section>
+
+  <section class="kpi-v2-section" id="teleapoCsTaskSection">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h4 class="text-base font-semibold text-slate-800">CSタスク管理</h4>
+        <p class="text-xs text-slate-500">未接触かつ有効応募の候補者</p>
+      </div>
+      <div class="text-xs text-slate-500"><span id="teleapoCsTaskCount">0件</span></div>
+    </div>
+    <div class="table-surface overflow-auto mt-3">
+      <table class="table-grid min-w-[780px]" id="teleapoCsTaskTable">
+        <thead>
+          <tr>
+            <th class="whitespace-nowrap">フェーズ</th>
+            <th class="whitespace-nowrap">有効応募</th>
+            <th class="whitespace-nowrap">求職者名</th>
+            <th class="whitespace-nowrap">登録日時</th>
+            <th class="whitespace-nowrap">電話番号</th>
+          </tr>
+        </thead>
+        <tbody id="teleapoCsTaskTableBody"></tbody>
+      </table>
+    </div>
   </section>
 
   <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3" id="teleapoSectionLogs">
@@ -315,7 +365,7 @@
   </div>
 
   <!-- ログテーブル -->
-  <div class="overflow-auto rounded-lg border border-slate-200 bg-white">
+  <div class="overflow-auto table-surface table-teleapo">
     <table class="table-grid min-w-[1200px]" id="teleapoLogTable">
       <thead>
         <tr>
@@ -348,5 +398,22 @@
   </div>
   </div>
 
-  <script type="module" src="./teleapo.js?v=20260124"></script>
+  <div class="teleapo-candidate-modal" id="teleapoCandidateModal" aria-hidden="true">
+    <div class="teleapo-candidate-panel" role="dialog" aria-modal="true" aria-labelledby="teleapoCandidateModalTitle">
+      <div class="teleapo-candidate-header">
+        <div>
+          <p class="teleapo-candidate-eyebrow">候補者クイック詳細</p>
+          <h3 id="teleapoCandidateModalTitle" class="teleapo-candidate-title">候補者詳細</h3>
+        </div>
+        <button type="button" class="teleapo-candidate-close" id="teleapoCandidateClose" aria-label="閉じる">×</button>
+      </div>
+      <div id="teleapoCandidateDetailContent" class="teleapo-candidate-body">
+        <div class="teleapo-candidate-empty">
+          <p class="text-sm text-slate-500">候補者を選択すると詳細が表示されます。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./teleapo.js?v=20260144"></script>
 </section>
