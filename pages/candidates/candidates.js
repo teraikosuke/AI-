@@ -74,10 +74,28 @@ let masterUsers = [];
 // 正規化
 // =========================
 function normalizeCandidate(candidate) {
+  // ★デバッグ用ログ
+  if (candidate && candidate.candidateName && candidate.candidateName.includes("上本")) {
+    console.log("【デバッグ】上本さんのデータ:", candidate);
+    console.log("isConnected:", candidate.isConnected);
+    console.log("callCount:", candidate.callCount);
+  }
+
   if (!candidate) return candidate;
+
+  // --- 既存のプロパティマッピング ---
+  // ★追加: 媒体情報のマッピング
+  candidate.source = candidate.source ?? candidate.applyRouteText ?? "";
   candidate.createdAt = candidate.createdAt ?? candidate.created_at ?? null;
   candidate.registeredAt = candidate.createdAt ?? candidate.registeredAt ?? candidate.registered_at ?? null;
   candidate.candidateName = candidate.candidateName ?? candidate.candidate_name ?? candidate.name ?? "";
+  candidate.validApplication =
+    candidate.validApplication ??
+    candidate.valid_application ??
+    candidate.is_effective_application ??
+    candidate.active_flag ??
+    candidate.valid ??
+    null;
   candidate.candidateKana = candidate.candidateKana ?? candidate.name_kana ?? "";
   candidate.gender = candidate.gender ?? "";
   candidate.education = candidate.education ?? candidate.final_education ?? "";
@@ -113,8 +131,10 @@ function normalizeCandidate(candidate) {
   candidate.attendanceConfirmed = candidate.attendanceConfirmed ?? candidate.first_interview_attended ?? null;
   candidate.advisorUserId = candidate.advisorUserId ?? candidate.advisor_user_id ?? null;
   candidate.partnerUserId = candidate.partnerUserId ?? candidate.partner_user_id ?? null;
+
   candidate.meetingPlans = Array.isArray(candidate.meetingPlans) ? candidate.meetingPlans : [];
   candidate.resumeDocuments = Array.isArray(candidate.resumeDocuments) ? candidate.resumeDocuments : [];
+
   candidate.selectionProgress = Array.isArray(candidate.selectionProgress) ? candidate.selectionProgress : [];
   candidate.selectionProgress = candidate.selectionProgress.map((row = {}) => ({
     ...row,
@@ -139,7 +159,9 @@ function normalizeCandidate(candidate) {
     selectionNote: row.selectionNote ?? row.selection_note ?? "",
     status: row.status ?? row.stage_current ?? "",
   }));
+
   candidate.teleapoLogs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs : [];
+
   candidate.moneyInfo = Array.isArray(candidate.moneyInfo) ? candidate.moneyInfo : [];
   candidate.moneyInfo = candidate.moneyInfo.map((row = {}) => ({
     ...row,
@@ -154,11 +176,28 @@ function normalizeCandidate(candidate) {
     orderReported: row.orderReported ?? row.order_reported ?? null,
     refundReported: row.refundReported ?? row.refund_reported ?? null,
   }));
+
   candidate.hearing = candidate.hearing || {};
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
   candidate.csChecklist = candidate.csChecklist || {};
+
+  // --- ★ここから追加したロジック（returnの前に行うこと！） ---
+
+  // API (isConnected, smsSentFlag, callCount) -> UI (phoneConnected, smsSent, callCount)
+  candidate.phoneConnected = candidate.phoneConnected ?? candidate.isConnected ?? false;
+  candidate.smsSent = candidate.smsSent ?? candidate.smsSentFlag ?? false;
+  candidate.callCount = candidate.callCount ?? 0;
+
+  // フェーズ自動判定ロジック(resolvePhaseDisplay)が参照する csSummary を補完
+  candidate.csSummary = candidate.csSummary || {};
+  candidate.csSummary.hasConnected = candidate.csSummary.hasConnected ?? candidate.phoneConnected;
+  candidate.csSummary.hasSms = candidate.csSummary.hasSms ?? candidate.smsSent;
+  candidate.csSummary.callCount = candidate.csSummary.callCount ?? candidate.callCount;
+
+  // --- ★ここまで ---
+
   return candidate;
 }
 
@@ -289,11 +328,12 @@ async function loadCandidatesData(filtersOverride = {}) {
       ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }))
       : [];
 
-    filteredCandidates = [...allCandidates];
+    filteredCandidates = applyLocalFilters(allCandidates, filters);
+    filteredCandidates = sortCandidatesByDate(filteredCandidates, filters.sortOrder);
     pendingInlineUpdates = {};
 
     renderCandidatesTable(filteredCandidates);
-    updateCandidatesCount(result.total ?? filteredCandidates.length);
+    updateCandidatesCount(filteredCandidates.length);
 
     lastSyncedAt = result.lastSyncedAt || null;
     updateLastSyncedDisplay(lastSyncedAt);
@@ -336,6 +376,145 @@ function collectFilters() {
     phase: getElementValue("candidatesFilterPhase"),
     sortOrder: getElementValue("candidatesSortOrder") || "desc",
   };
+}
+
+function normalizeFilterText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function resolveCandidateDateValue(candidate) {
+  return (
+    candidate.registeredAt ??
+    candidate.createdAt ??
+    candidate.registeredDate ??
+    candidate.created_date ??
+    candidate.created_at ??
+    null
+  );
+}
+
+function parseCandidateDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) return direct;
+  const match = String(value).match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const parsed = new Date(year, month, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function resolveValidApplication(candidate) {
+  const raw =
+    candidate.validApplication ??
+    candidate.valid_application ??
+    candidate.is_effective_application ??
+    candidate.active_flag ??
+    candidate.valid;
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+    if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
+    if (["false", "0", "no", "無効", "無効応募"].includes(normalized)) return false;
+  }
+  if (raw === null || raw === undefined || raw === "") return null;
+  return Boolean(raw);
+}
+
+function resolvePhaseValues(candidate) {
+  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
+  if (Array.isArray(raw)) return raw.map((value) => String(value).trim()).filter(Boolean);
+  const text = String(raw || "");
+  const split = text.split(/[,/、|]/).map((value) => value.trim()).filter(Boolean);
+  return split.length ? split : [resolvePhaseDisplay(candidate)];
+}
+
+function applyLocalFilters(list, filters) {
+  const year = normalizeFilterText(filters.year);
+  const month = normalizeFilterText(filters.month);
+  const day = normalizeFilterText(filters.day);
+  const source = normalizeFilterText(filters.source);
+  const name = normalizeFilterText(filters.name);
+  const company = normalizeFilterText(filters.company);
+  const advisor = normalizeFilterText(filters.advisor);
+  const phase = normalizeFilterText(filters.phase);
+  const valid = normalizeFilterText(filters.valid);
+
+  return list.filter((candidate) => {
+    const registeredDate = parseCandidateDate(resolveCandidateDateValue(candidate));
+    if (year || month || day) {
+      if (!registeredDate) return false;
+      const yearValue = String(registeredDate.getFullYear());
+      const monthValue = String(registeredDate.getMonth() + 1).padStart(2, "0");
+      const dayValue = String(registeredDate.getDate()).padStart(2, "0");
+      if (year && yearValue !== year) return false;
+      if (month && monthValue !== month) return false;
+      if (day && dayValue !== day) return false;
+    }
+
+    if (source) {
+      const sourceValue = normalizeFilterText(
+        candidate.applyRouteText ??
+        candidate.apply_route_text ??
+        candidate.source ??
+        candidate.route ??
+        ""
+      );
+      if (!sourceValue.includes(source)) return false;
+    }
+
+    if (name) {
+      const nameValue = normalizeFilterText(
+        candidate.candidateName ?? candidate.candidate_name ?? candidate.name ?? ""
+      );
+      if (!nameValue.includes(name)) return false;
+    }
+
+    if (company) {
+      const companyValue = normalizeFilterText(
+        candidate.applyCompanyName ??
+        candidate.apply_company_name ??
+        candidate.companyName ??
+        candidate.company_name ??
+        ""
+      );
+      if (!companyValue.includes(company)) return false;
+    }
+
+    if (advisor) {
+      const advisorValue = normalizeFilterText(
+        candidate.advisorName ?? candidate.advisor_name ?? ""
+      );
+      if (!advisorValue.includes(advisor)) return false;
+    }
+
+    if (phase) {
+      const phaseValues = resolvePhaseValues(candidate).map((value) => normalizeFilterText(value));
+      if (!phaseValues.some((value) => value.includes(phase))) return false;
+    }
+
+    if (valid) {
+      const validValue = resolveValidApplication(candidate);
+      if (valid === "true" && validValue !== true) return false;
+      if (valid === "false" && validValue !== false) return false;
+    }
+
+    return true;
+  });
+}
+
+function sortCandidatesByDate(list, sortOrder) {
+  const direction = sortOrder === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const aDate = parseCandidateDate(resolveCandidateDateValue(a));
+    const bDate = parseCandidateDate(resolveCandidateDateValue(b));
+    const aTime = aDate ? aDate.getTime() : 0;
+    const bTime = bDate ? bDate.getTime() : 0;
+    if (aTime === bTime) return 0;
+    return direction * (aTime - bTime);
+  });
 }
 
 function buildCandidatesQuery(filters) {
@@ -391,6 +570,9 @@ function buildTableRow(candidate) {
     format: (_, row) => renderPhasePills(row),
     readOnly: true,
   })}
+      
+      ${renderTextCell(candidate, "source", { readOnly: true })}
+
       ${renderCheckboxCell(candidate, "validApplication", "有効応募")}
       ${renderTextCell(candidate, "candidateName", { strong: true, readOnly: true })}
       ${renderTextCell(candidate, "advisorName", { readOnly: true })}
@@ -799,6 +981,8 @@ function resolveSelectionStageValue(row = {}) {
   if (row.secondInterviewSetupDate) return "二次面接調整";
   if (row.interviewDate) return "一次面接";
   if (row.interviewSetupDate) return "一次面接調整";
+  // ★追加: 推薦日が入っていたら「書類選考」にする
+  if (row.recommendationDate) return "書類選考";
   return "";
 }
 
@@ -974,6 +1158,35 @@ function formatDateTimeJP(dateTimeLike) {
 function formatDisplayValue(value) {
   if (value === null || value === undefined || value === "") return "-";
   return value;
+}
+
+function formatMoneyToMan(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const text = String(value).trim();
+  if (!text) return "-";
+  const hasMan = text.includes("万");
+  const nums = text.match(/-?\d[\d,]*/g);
+  if (!nums || !nums.length) return text;
+
+  const toMan = (raw) => {
+    const cleaned = String(raw).replace(/,/g, "");
+    const num = Number(cleaned);
+    if (!Number.isFinite(num)) return null;
+    if (hasMan) return Math.round(num);
+    if (num >= 10000) return Math.floor(num / 10000);
+    return Math.round(num);
+  };
+
+  if (nums.length >= 2 && /[~\\-ー]/.test(text)) {
+    const min = toMan(nums[0]);
+    const max = toMan(nums[1]);
+    if (min === null || max === null) return text;
+    return `${min}-${max}万円`;
+  }
+
+  const single = toMan(nums[0]);
+  if (single === null) return text;
+  return `${single}万円`;
 }
 function calculateAge(birthday) {
   if (!birthday) return null;
@@ -1437,8 +1650,8 @@ function renderHearingSection(candidate) {
     { label: "新規面談マスト項目", value: candidate.mandatoryInterviewItems, input: "textarea", path: "mandatoryInterviewItems", span: "full" },
     { label: "希望エリア", value: candidate.desiredLocation, path: "desiredLocation", span: 2 },
     { label: "希望職種", value: candidate.desiredJobType, path: "desiredJobType", span: 2 },
-    { label: "現年収", value: candidate.currentIncome, path: "currentIncome", span: 1 },
-    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome", span: 1 },
+    { label: "現年収", value: candidate.currentIncome, path: "currentIncome", span: 1, displayFormatter: formatMoneyToMan },
+    { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome", span: 1, displayFormatter: formatMoneyToMan },
     { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus", span: 2 },
     { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason", span: "full" },
     { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation", span: "full" },
@@ -1499,7 +1712,7 @@ function renderSelectionProgressSection(candidate) {
             `<td>${renderTableInput(row.postJoinQuitDate, `${pathPrefix}.postJoinQuitDate`, "date", "selection")}</td>`,
             `<td>${renderTableInput(row.postJoinQuitReason, `${pathPrefix}.postJoinQuitReason`, "text", "selection")}</td>`,
             `<td>${renderTableInput(row.closeExpectedDate, `${pathPrefix}.closeExpectedDate`, "date", "selection")}</td>`,
-            `<td><span class="detail-value">${escapeHtml(formatDisplayValue(row.feeAmount))}</span></td>`,
+            `<td><span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span></td>`,
             `<td>${renderTableTextarea(row.selectionNote, `${pathPrefix}.selectionNote`, "selection")}</td>`,
           ].join("");
           const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
@@ -1522,7 +1735,7 @@ function renderSelectionProgressSection(candidate) {
           { value: formatDateJP(row.postJoinQuitDate) },
           { value: row.postJoinQuitReason },
           { value: formatDateJP(row.closeExpectedDate) },
-          { value: row.feeAmount },
+          { value: formatMoneyToMan(row.feeAmount) },
           { value: row.selectionNote },
         ]
           .map((cell) => {
@@ -1609,7 +1822,7 @@ function renderMoneySection(candidate) {
         const canEdit = editing && row.joinDate;
         const feeCell = canEdit
           ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
-          : `<span class="detail-value">${escapeHtml(formatDisplayValue(row.feeAmount))}</span>`;
+          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span>`;
         const reportCell = canEdit
           ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
           : renderBooleanPill(row.orderReported);
@@ -1638,7 +1851,7 @@ function renderMoneySection(candidate) {
         const canEdit = editing && (row.preJoinWithdrawDate || row.postJoinQuitDate);
         const refundAmountCell = canEdit
           ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
-          : `<span class="detail-value">${escapeHtml(formatDisplayValue(row.refundAmount))}</span>`;
+          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.refundAmount))}</span>`;
         const refundReportCell = canEdit
           ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
           : renderBooleanPill(row.refundReported);
@@ -1686,7 +1899,7 @@ function renderMoneySection(candidate) {
 function renderAfterAcceptanceSection(candidate) {
   const data = candidate.afterAcceptance || {};
   const fields = [
-    { label: "受注金額（税抜）", value: data.amount, span: 3 },
+    { label: "受注金額（税抜）", value: data.amount, span: 3, displayFormatter: formatMoneyToMan },
     { label: "職種", value: data.jobCategory, span: 3 },
   ];
   const reportStatuses =
@@ -1739,7 +1952,7 @@ function renderRefundSection(candidate) {
       const cells = [
         item.companyName || "-",
         formatDateJP(item.resignationDate),
-        item.refundAmount || "-",
+        formatMoneyToMan(item.refundAmount),
         item.reportStatus || "-",
       ]
         .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
@@ -1901,23 +2114,23 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
   return `
     <dl class="${gridClass}">
       ${fields
-        .map((field) => {
-          const value = field.value;
-          const spanClass = resolveDetailGridSpanClass(field);
-          if (editing && field.editable !== false && field.path) {
-            return `
+      .map((field) => {
+        const value = field.value;
+        const spanClass = resolveDetailGridSpanClass(field);
+        if (editing && field.editable !== false && field.path) {
+          return `
               <div class="detail-grid-item ${spanClass}">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
             `;
-          }
-          const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
-          const inner =
-            field.link && value
-              ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
-              : escapeHtml(displayValue);
-          return `
+        }
+        const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
+        const inner =
+          field.link && value
+            ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
+            : escapeHtml(displayValue);
+        return `
             <div class="detail-grid-item ${spanClass}">
               <dt>${field.label}</dt>
               <dd><span class="detail-value">${inner}</span></dd>

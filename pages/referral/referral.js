@@ -33,6 +33,10 @@ let candidateSummaryError = null;
 const candidateDetailCache = new Map();
 const candidateDetailInFlight = new Map();
 let recommendedRequestId = 0;
+let referralRecommendedCandidates = [];
+let selectedRecommendedCandidateId = '';
+const flowCandidateCache = new Map();
+const flowCandidateInFlight = new Map();
 
 
 // ★追加: 候補者詳細ページへの遷移用関数（グローバルに公開）
@@ -80,6 +84,8 @@ export function mount() {
   initializeMatching();
 
   initializeCreateForm();
+
+  initReferralCandidateModal();
 
   loadCandidateSummaries().then(() => {
     if (selectedCompanyId) renderCompanyDetail();
@@ -132,7 +138,7 @@ export function unmount() {
 
     'referralCreateLocation', 'referralCreateFee', 'referralCreateSelectionNote', 'referralCreateToggle', 'referralCreateSubmit',
 
-    'referralCreateReset'
+    'referralCreateReset', 'referralCandidateModal', 'referralCandidateClose'
 
   ];
 
@@ -169,6 +175,11 @@ export function unmount() {
   candidateDetailInFlight.clear();
 
   recommendedRequestId = 0;
+  referralRecommendedCandidates = [];
+  selectedRecommendedCandidateId = '';
+  flowCandidateCache.clear();
+  flowCandidateInFlight.clear();
+  closeReferralCandidateModal();
 
 }
 
@@ -798,14 +809,41 @@ function resolveCandidatePhaseForFlow(candidate) {
   return { stageKey: bestKey, stageLabel: bestLabel };
 }
 
-function buildFlowCandidatesFromSummaries(company) {
-  if (!Array.isArray(candidateSummaries) || !candidateSummaries.length) return [];
+function resolveCandidatePhaseForCompany(candidate, companyName) {
+  if (!candidate) return { stageKey: '', stageLabel: '' };
+  const base = resolveCandidatePhaseForFlow(candidate);
+  const selectionProgress = Array.isArray(candidate?.selectionProgress) ? candidate.selectionProgress : [];
+  if (!selectionProgress.length || !companyName) return base;
+
+  const targetRaw = normalizeText(companyName);
+  const targetKey = normalizeCompanyName(companyName);
+  if (!targetRaw && !targetKey) return base;
+
+  const tokens = [];
+  selectionProgress.forEach((row) => {
+    const rowName = row?.companyName ?? row?.clientName ?? row?.company_name ?? row?.client_name ?? '';
+    if (!rowName) return;
+    const rowRaw = normalizeText(rowName);
+    const rowKey = normalizeCompanyName(rowName);
+    const match = (targetKey && rowKey && (rowKey === targetKey || rowKey.includes(targetKey) || targetKey.includes(rowKey)))
+      || (targetRaw && rowRaw && (rowRaw === targetRaw || rowRaw.includes(targetRaw) || targetRaw.includes(rowRaw)));
+    if (!match) return;
+    const status = row?.status ?? row?.stage_current ?? row?.stage ?? '';
+    if (status) tokens.push(status);
+  });
+
+  if (!tokens.length) return base;
+  return resolveCandidatePhaseForFlow({ phases: tokens });
+}
+
+function buildFlowCandidatesFromSummaries(company, summaries = candidateSummaries) {
+  if (!Array.isArray(summaries) || !summaries.length) return [];
   const companyName = company?.company || company?.companyName || '';
   const targetRaw = normalizeText(companyName);
   const targetKey = normalizeCompanyName(companyName);
   if (!targetRaw && !targetKey) return [];
 
-  return candidateSummaries
+  return summaries
     .filter((candidate) => {
       const candName = candidate?.companyName || '';
       const candRaw = normalizeText(candName);
@@ -816,7 +854,7 @@ function buildFlowCandidatesFromSummaries(company) {
       return false;
     })
     .map((candidate) => {
-      const phaseInfo = resolveCandidatePhaseForFlow(candidate);
+      const phaseInfo = resolveCandidatePhaseForCompany(candidate, companyName);
       const stageLabel = phaseInfo.stageLabel || candidate?.phase || '';
       return {
         id: candidate?.id || '',
@@ -831,10 +869,66 @@ function buildFlowCandidatesFromSummaries(company) {
     .filter((candidate) => candidate.stageKey || candidate.stageLabel);
 }
 
+async function fetchFlowCandidatesForCompany(company) {
+  const rawName = company?.company || company?.companyName || '';
+  const companyName = rawName && String(rawName).trim() !== '-' ? String(rawName).trim() : '';
+  if (!companyName) return [];
+  const key = normalizeCompanyName(companyName) || normalizeText(companyName);
+  if (!key) return [];
+  if (flowCandidateCache.has(key)) return flowCandidateCache.get(key);
+  if (flowCandidateInFlight.has(key)) return flowCandidateInFlight.get(key);
+
+  const request = (async () => {
+    try {
+      const url = new URL(candidatesApi(CANDIDATES_LIST_PATH));
+      if (companyName) url.searchParams.set('company', companyName);
+      url.searchParams.set('limit', String(CANDIDATES_LIST_LIMIT));
+      const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const items = Array.isArray(json?.items) ? json.items : [];
+      const normalized = items.map(normalizeCandidateSummaryForMatch);
+      flowCandidateCache.set(key, normalized);
+      return normalized;
+    } catch (err) {
+      console.error('company flow candidate fetch failed:', err);
+      flowCandidateCache.set(key, []);
+      return [];
+    } finally {
+      flowCandidateInFlight.delete(key);
+    }
+  })();
+
+  flowCandidateInFlight.set(key, request);
+  request.then(() => {
+    const companyId = company?.id ?? company?.companyId ?? '';
+    if (companyId && String(selectedCompanyId) === String(companyId)) {
+      renderCompanyDetail();
+    }
+  });
+  return request;
+}
+
 function getFlowCandidates(company) {
   const direct = Array.isArray(company?.currentCandidates) ? company.currentCandidates : [];
   if (direct.length) return direct;
-  return buildFlowCandidatesFromSummaries(company);
+
+  const fromSummaries = buildFlowCandidatesFromSummaries(company);
+  if (fromSummaries.length) return fromSummaries;
+
+  const rawName = company?.company || company?.companyName || '';
+  const companyName = rawName && String(rawName).trim() !== '-' ? String(rawName).trim() : '';
+  const key = normalizeCompanyName(companyName) || normalizeText(companyName);
+  if (!key) return fromSummaries;
+
+  if (flowCandidateCache.has(key)) {
+    return buildFlowCandidatesFromSummaries(company, flowCandidateCache.get(key));
+  }
+
+  if (!flowCandidateInFlight.has(key)) {
+    fetchFlowCandidatesForCompany(company);
+  }
+  return fromSummaries;
 }
 
 // ==========================================
@@ -894,16 +988,48 @@ function calculateAgeFromDate(value) {
   return age;
 }
 
+function formatCandidateField(value, fallback = '-') {
+  const text = String(value ?? '').trim();
+  return text ? text : fallback;
+}
+
+function formatCandidateAgeText(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? `${num}\u6b73` : '-';
+}
+
+function formatCandidateSalaryText(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return '-';
+  return `${num.toLocaleString('ja-JP')}\u4e07\u5186`;
+}
+
+function formatCandidateListText(list) {
+  const items = Array.isArray(list) ? sanitizeList(list) : splitCandidateList(list);
+  return items.length ? items.join(' / ') : '-';
+}
+
+function resolveCandidatePhaseText(candidate) {
+  const phases = Array.isArray(candidate?.phases) ? candidate.phases : splitCandidateList(candidate?.phases ?? candidate?.phase ?? candidate?.status ?? '');
+  if (phases.length) return phases.join(' / ');
+  const phaseInfo = resolveCandidatePhaseForFlow(candidate || {});
+  return phaseInfo.stageLabel || candidate?.phase || '-';
+}
+
 function normalizeCandidateSummaryForMatch(candidate) {
   const id = candidate?.id ?? candidate?.candidate_id ?? candidate?.candidateId ?? '';
   const name = candidate?.candidateName ?? candidate?.candidate_name ?? candidate?.name ?? '-';
   const title = candidate?.jobName ?? candidate?.job_name ?? candidate?.applyJobName ?? candidate?.apply_job_name ?? '-';
   const address = candidate?.address ?? [candidate?.addressPref, candidate?.addressCity, candidate?.addressDetail].filter(Boolean).join('');
   const note = candidate?.memo ?? candidate?.note ?? '';
-  const companyName = candidate?.companyName ?? candidate?.company_name ?? candidate?.applyCompanyName ?? candidate?.apply_company_name ?? '';
-  const phase = candidate?.phase ?? candidate?.phase_current ?? candidate?.status ?? '';
-  const phases = Array.isArray(candidate?.phases) ? candidate.phases : [];
+  const companyName = candidate?.companyName ?? candidate?.company_name ?? candidate?.applyCompanyName ?? candidate?.apply_company_name ?? candidate?.clientName ?? candidate?.client_name ?? '';
+  const phase = candidate?.phase ?? candidate?.phase_current ?? candidate?.status ?? candidate?.stage_current ?? candidate?.stageCurrent ?? candidate?.new_status ?? '';
+  const phasesRaw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase_list ?? '';
+  const phases = Array.isArray(phasesRaw) ? phasesRaw : splitCandidateList(phasesRaw);
   const registeredAt = candidate?.registeredAt ?? candidate?.created_at ?? candidate?.createdAt ?? '';
+  const selectionProgress = Array.isArray(candidate?.selectionProgress ?? candidate?.selection_progress)
+    ? (candidate?.selectionProgress ?? candidate?.selection_progress)
+    : [];
 
   return {
     id: id ? String(id) : '',
@@ -919,7 +1045,8 @@ function normalizeCandidateSummaryForMatch(candidate) {
     companyName,
     phase,
     phases,
-    registeredAt
+    registeredAt,
+    selectionProgress
   };
 }
 
@@ -936,6 +1063,18 @@ function normalizeCandidateDetailForMatch(candidate) {
   const experiences = splitCandidateList(candidate?.workExperience ?? candidate?.work_experience ?? candidate?.work_experience_text ?? '');
   const qualifications = splitCandidateList(candidate?.mandatoryInterviewItems ?? candidate?.mandatory_interview_items ?? '');
   const note = candidate?.applicationNote ?? candidate?.application_note ?? candidate?.memo ?? candidate?.note ?? summary.note;
+  const phase = candidate?.phase ?? candidate?.phase_current ?? candidate?.status ?? summary.phase ?? '';
+  const phases = Array.isArray(candidate?.phases) ? candidate.phases : summary.phases ?? [];
+  const registeredAt = candidate?.registeredAt ?? candidate?.created_at ?? candidate?.createdAt ?? candidate?.registered_at ?? summary.registeredAt ?? '';
+  const applyCompanyName = candidate?.applyCompanyName ?? candidate?.apply_company_name ?? candidate?.companyName ?? candidate?.company_name ?? summary.companyName ?? '';
+  const applyJobName = candidate?.applyJobName ?? candidate?.apply_job_name ?? candidate?.jobName ?? candidate?.job_name ?? summary.title ?? '';
+  const applyRouteText = candidate?.applyRouteText ?? candidate?.apply_route_text ?? candidate?.source ?? '';
+  const validApplication = candidate?.validApplication ?? candidate?.valid_application ?? candidate?.is_effective_application ?? candidate?.active_flag ?? null;
+  const phone = candidate?.phone ?? candidate?.phone_number ?? candidate?.tel ?? '';
+  const email = candidate?.email ?? candidate?.email_address ?? '';
+  const selectionProgress = Array.isArray(candidate?.selectionProgress ?? candidate?.selection_progress)
+    ? (candidate?.selectionProgress ?? candidate?.selection_progress)
+    : [];
 
   return {
     id: summary.id,
@@ -947,7 +1086,17 @@ function normalizeCandidateDetailForMatch(candidate) {
     qualifications,
     skills: uniqueList(skills, experiences),
     personality,
-    note: note || ''
+    note: note || '',
+    phase,
+    phases,
+    registeredAt,
+    applyCompanyName,
+    applyJobName,
+    applyRouteText,
+    validApplication,
+    phone,
+    email,
+    selectionProgress
   };
 }
 
@@ -1052,40 +1201,41 @@ function computeRoughCandidateScore(company, candidate) {
 
 function buildRecommendedCandidatesHtml(recommended) {
   if (!recommended.length) {
-    return '<div class="text-xs text-slate-400">マッチする候補者が見つかりませんでした</div>';
+    return '<div class="text-xs text-slate-400">\u30de\u30c3\u30c1\u3059\u308b\u5019\u88dc\u8005\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f</div>';
   }
   return recommended.map(c => {
-    const ageText = Number.isFinite(Number(c.age)) ? c.age : '-';
-    const salaryText = c.salary ? `${c.salary}万円` : '-';
-    const skills = Array.isArray(c.skills) ? c.skills : splitCandidateList(c.skills);
-    const skillText = skills.length ? skills.join(', ') : '-';
+    const ageText = formatCandidateAgeText(c.age);
+    const salaryText = formatCandidateSalaryText(c.salary);
+    const skillText = formatCandidateListText(c.skills);
+    const isActive = selectedRecommendedCandidateId && String(c.id) === String(selectedRecommendedCandidateId);
+    const activeClass = isActive ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-indigo-100';
     return `
-      <div class="border border-indigo-100 rounded-lg p-3 bg-white shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors">
+      <div class="border ${activeClass} rounded-lg p-3 bg-white shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors cursor-pointer"
+           data-action="select-recommended-candidate"
+           data-candidate-id="${c.id}"
+           data-candidate-card="true">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <button class="font-bold text-slate-800 hover:text-indigo-600 hover:underline text-left"
-                    onclick="window.navigateToCandidate('${c.id}')">
-              ${c.name}
-            </button>
-            <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${c.matchScore}点</span>
+            <div class="font-bold text-slate-800 text-left">${c.name}</div>
+            <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${c.matchScore}\u70b9</span>
           </div>
-          <div class="text-xs text-slate-500 mb-2">${c.title} / ${ageText}歳</div>
+          <div class="text-xs text-slate-500 mb-2">${c.title} / ${ageText}</div>
           <div class="text-xs text-slate-600 space-y-1">
             <div>
-              <span class="text-[10px] text-slate-400 font-semibold">勤務地</span>
-              <span class="ml-1">${c.location || '-'}</span>
+              <span class="text-[10px] text-slate-400 font-semibold">\u52e4\u52d9\u5730</span>
+              <span class="ml-1">${formatCandidateField(c.location)}</span>
               <span class="mx-1 text-slate-300">/</span>
-              <span class="text-[10px] text-slate-400 font-semibold">年収</span>
+              <span class="text-[10px] text-slate-400 font-semibold">\u5e74\u53ce</span>
               <span class="ml-1">${salaryText}</span>
             </div>
             <div class="truncate text-slate-500" title="${skillText}">
-              <span class="text-[10px] text-slate-400 font-semibold">スキル</span>
+              <span class="text-[10px] text-slate-400 font-semibold">\u30b9\u30ad\u30eb</span>
               <span class="ml-1">${skillText}</span>
             </div>
           </div>
           ${c.matchReasons && c.matchReasons.length
         ? `<div class="mt-2 flex flex-wrap gap-1 text-[10px]">${c.matchReasons.map(reason => `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full">${reason}</span>`).join('')}</div>`
-        : '<div class="mt-2 text-[10px] text-slate-400">一致ポイントなし</div>'}
+        : '<div class="mt-2 text-[10px] text-slate-400">\u4e00\u81f4\u30dd\u30a4\u30f3\u30c8\u306a\u3057</div>'}
         </div>
         <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400">
           ${c.note || ''}
@@ -1093,6 +1243,159 @@ function buildRecommendedCandidatesHtml(recommended) {
       </div>
     `;
   }).join('');
+}
+
+function buildReferralCandidateQuickViewHtml(candidate, state = {}) {
+  if (state.loading) {
+    return `<div class="text-xs text-slate-500">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>`;
+  }
+  if (state.error) {
+    return `<div class="text-xs text-rose-600">\u5019\u88dc\u8005\u60c5\u5831\u306e\u53d6\u5f97\u306b\u5931\u6557\u3057\u307e\u3057\u305f</div>`;
+  }
+  if (!candidate) {
+    return `<div class="text-xs text-slate-500">\u5019\u88dc\u8005\u3092\u9078\u629e\u3059\u308b\u3068\u8a73\u7d30\u304c\u8868\u793a\u3055\u308c\u307e\u3059</div>`;
+  }
+
+  const phaseText = resolveCandidatePhaseText(candidate);
+  const ageText = formatCandidateAgeText(candidate.age);
+  const salaryText = formatCandidateSalaryText(candidate.salary);
+  const locationText = formatCandidateField(candidate.location);
+  const titleText = formatCandidateField(candidate.title);
+  const registeredAtText = formatDateString(candidate.registeredAt);
+  const skills = formatCandidateListText(candidate.skills);
+  const qualifications = formatCandidateListText(candidate.qualifications);
+  const personality = formatCandidateListText(candidate.personality);
+  const noteText = formatCandidateField(candidate.note);
+  const selection = Array.isArray(candidate.selectionProgress) && candidate.selectionProgress.length
+    ? candidate.selectionProgress[0]
+    : null;
+  const selectionCompany = formatCandidateField(selection?.companyName ?? candidate.applyCompanyName);
+  const selectionJob = formatCandidateField(selection?.jobTitle ?? candidate.applyJobName);
+  const selectionRoute = formatCandidateField(selection?.route ?? candidate.applyRouteText);
+  const selectionStatus = formatCandidateField(selection?.status ?? candidate.phase);
+  const selectionDate = selection?.recommendationDate ?? selection?.recommendedAt ?? selection?.recommendation_date ?? selection?.createdAt ?? selection?.created_at ?? '';
+  const selectionDateText = selectionDate ? formatDateString(selectionDate) : '-';
+
+  return `
+    <div class="border border-indigo-100 bg-white rounded-lg p-4">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="space-y-1">
+          <div class="text-sm font-semibold text-slate-900">${formatCandidateField(candidate.name)}</div>
+          <div class="text-xs text-slate-500">${titleText} / ${ageText}</div>
+        </div>
+        <button type="button"
+          class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+          onclick="window.navigateToCandidate('${candidate.id}')">
+          \u5019\u88dc\u8005\u8a73\u7d30\u3092\u958b\u304f
+        </button>
+      </div>
+      <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
+        <div><span class="text-slate-400">\u30d5\u30a7\u30fc\u30ba</span><span class="ml-2">${phaseText}</span></div>
+        <div><span class="text-slate-400">\u767b\u9332\u65e5</span><span class="ml-2">${registeredAtText}</span></div>
+        <div><span class="text-slate-400">\u5e0c\u671b\u5e74\u53ce</span><span class="ml-2">${salaryText}</span></div>
+        <div><span class="text-slate-400">\u52e4\u52d9\u5730</span><span class="ml-2">${locationText}</span></div>
+        <div><span class="text-slate-400">\u5fdc\u52df\u4f01\u696d</span><span class="ml-2">${selectionCompany}</span></div>
+        <div><span class="text-slate-400">\u5fdc\u52df\u8077\u7a2e</span><span class="ml-2">${selectionJob}</span></div>
+        <div><span class="text-slate-400">\u5fdc\u52df\u7d4c\u8def</span><span class="ml-2">${selectionRoute}</span></div>
+        <div><span class="text-slate-400">\u9078\u8003\u30b9\u30c6\u30fc\u30bf\u30b9</span><span class="ml-2">${selectionStatus}</span></div>
+        <div><span class="text-slate-400">\u9078\u8003\u958b\u59cb</span><span class="ml-2">${selectionDateText}</span></div>
+      </div>
+      <div class="mt-3 border-t border-slate-100 pt-3 space-y-2 text-xs text-slate-700">
+        <div><span class="text-slate-400">\u30b9\u30ad\u30eb</span><span class="ml-2">${skills}</span></div>
+        <div><span class="text-slate-400">\u8cc7\u683c</span><span class="ml-2">${qualifications}</span></div>
+        <div><span class="text-slate-400">\u6027\u683c</span><span class="ml-2">${personality}</span></div>
+        <div><span class="text-slate-400">\u30e1\u30e2</span><span class="ml-2">${noteText}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function openReferralCandidateModal() {
+  const modal = document.getElementById('referralCandidateModal');
+  if (!modal) return;
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('referral-candidate-open');
+}
+
+function closeReferralCandidateModal() {
+  const modal = document.getElementById('referralCandidateModal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('referral-candidate-open');
+}
+
+function initReferralCandidateModal() {
+  const modal = document.getElementById('referralCandidateModal');
+  const closeBtn = document.getElementById('referralCandidateClose');
+  if (!modal || modal.dataset.bound === 'true') return;
+  modal.dataset.bound = 'true';
+  closeBtn?.addEventListener('click', () => closeReferralCandidateModal());
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeReferralCandidateModal();
+  });
+}
+
+function renderReferralCandidateQuickView(candidate, state = {}) {
+  const container = document.getElementById('referralCandidateModalBody');
+  if (!container) return;
+  container.innerHTML = buildReferralCandidateQuickViewHtml(candidate, state);
+  const titleEl = document.getElementById('referralCandidateModalTitle');
+  if (titleEl) {
+    const name = candidate?.name ? String(candidate.name).trim() : '';
+    titleEl.textContent = name ? `${name}\u306e\u8a73\u7d30` : '\u5019\u88dc\u8005\u8a73\u7d30';
+  }
+}
+
+function selectReferralCandidate(candidateId) {
+  const id = String(candidateId ?? '').trim();
+  if (!id) {
+    selectedRecommendedCandidateId = '';
+    renderReferralCandidateQuickView(null);
+    closeReferralCandidateModal();
+    return;
+  }
+  selectedRecommendedCandidateId = id;
+  const matched = referralRecommendedCandidates.find(item => String(item.id) === id);
+  if (matched) {
+    renderReferralCandidateQuickView(matched);
+    openReferralCandidateModal();
+    return;
+  }
+  renderReferralCandidateQuickView(null, { loading: true });
+  openReferralCandidateModal();
+  fetchCandidateDetailForMatch(id)
+    .then(candidate => {
+      if (String(selectedRecommendedCandidateId) !== id) return;
+      renderReferralCandidateQuickView(candidate);
+    })
+    .catch(() => {
+      if (String(selectedRecommendedCandidateId) !== id) return;
+      renderReferralCandidateQuickView(null, { error: true });
+    });
+}
+
+function bindRecommendedCandidateActions() {
+  const container = document.getElementById('referralRecommendedCandidates');
+  if (!container || container.dataset.bound === 'true') return;
+  container.dataset.bound = 'true';
+  container.addEventListener('click', (event) => {
+    const card = event.target.closest('[data-action="select-recommended-candidate"]');
+    if (!card) return;
+    event.preventDefault();
+    const candidateId = card.dataset.candidateId;
+    if (!candidateId) return;
+    selectReferralCandidate(candidateId);
+    const cards = container.querySelectorAll('[data-candidate-card]');
+    cards.forEach((node) => {
+      node.classList.remove('border-indigo-400', 'ring-2', 'ring-indigo-200');
+      if (!node.classList.contains('border-indigo-100')) {
+        node.classList.add('border-indigo-100');
+      }
+    });
+    card.classList.add('border-indigo-400', 'ring-2', 'ring-indigo-200');
+  });
 }
 
 function scoreCandidatesForCompany(company, candidates) {
@@ -1204,17 +1507,31 @@ async function renderRecommendedCandidates(company) {
   const container = document.getElementById('referralRecommendedCandidates');
   if (!container) return;
   const requestId = ++recommendedRequestId;
-  container.innerHTML = '<div class="text-xs text-slate-400">候補者情報を取得中...</div>';
+  referralRecommendedCandidates = [];
+  container.innerHTML = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
+  renderReferralCandidateQuickView(null, { loading: true });
 
   const recommended = await getRecommendedCandidatesAsync(company);
   if (requestId !== recommendedRequestId) return;
 
   if (candidateSummaryError) {
-    container.innerHTML = '<div class="text-xs text-rose-600">候補者データの取得に失敗しました</div>';
+    container.innerHTML = '<div class="text-xs text-rose-600">\u5019\u88dc\u8005\u30c7\u30fc\u30bf\u306e\u53d6\u5f97\u306b\u5931\u6557\u3057\u307e\u3057\u305f</div>';
+    referralRecommendedCandidates = [];
+    renderReferralCandidateQuickView(null, { error: true });
     return;
   }
 
+  referralRecommendedCandidates = recommended;
   container.innerHTML = buildRecommendedCandidatesHtml(recommended);
+  bindRecommendedCandidateActions();
+  const selected = selectedRecommendedCandidateId
+    ? recommended.find(c => String(c.id) === String(selectedRecommendedCandidateId))
+    : null;
+  if (selected) {
+    renderReferralCandidateQuickView(selected);
+  } else {
+    renderReferralCandidateQuickView(null);
+  }
 }
 
 function listToInputValue(list) {
@@ -1872,9 +2189,7 @@ function renderCompanyDetail() {
 
 
 
-  const recommendedHtml = '<div class="text-xs text-slate-400">候補者情報を取得中...</div>';
-
-
+  const recommendedHtml = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
 
   container.innerHTML = `
 

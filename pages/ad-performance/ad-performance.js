@@ -6,10 +6,11 @@ const ADS_KPI_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws
 const ADS_GROUP_BY = 'route';
 
 // 既存のUIは「初回面談設定数」だが、APIは firstInterviewDone（first_interview_at）を返している想定。
-// ひとまず initialInterviews = firstInterviewDone として接続（後でAPIを firstInterviewSet に拡張するとより正確）
+// ひとまず initialInterviews = firstInterviewDone として接続
 const MAP_INITIAL_INTERVIEWS_FIELD = 'firstInterviewDone';
-// TODO: API Gatewayの媒体契約情報エンドポイントに差し替えてください
+// API Gatewayの媒体契約情報エンドポイント
 const AD_CONTRACT_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/ads/detail';
+
 const DEFAULT_CONTRACT_INFO = {
   contractStartDate: '',
   contractEndDate: '',
@@ -17,7 +18,8 @@ const DEFAULT_CONTRACT_INFO = {
   amountPeriod: '',
   contractMethod: '',
   renewalTerms: '',
-  memo: ''
+  memo: '',
+  totalSales: 0 // ★追加: 売上高初期値
 };
 
 const adState = {
@@ -32,7 +34,6 @@ const adState = {
 
 const formatNumber = (num) => Number(num || 0).toLocaleString();
 const formatPercent = (num) => `${(Number(num) || 0).toFixed(1)}%`;
-// cost/refund は現状DBに無いので 0 表示が紛らわしければ '-' にしたいが、既存UIを崩さないため一旦0で表示
 const formatCurrency = (num) => `¥${Number(num || 0).toLocaleString()}`;
 const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -55,7 +56,7 @@ export function mount() {
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
-  loadAdPerformanceData(); // ★ここがRDS取得
+  loadAdPerformanceData();
 }
 
 export function unmount() {
@@ -98,7 +99,6 @@ function initializeAdFilters() {
     renderAdCharts(lastAggregated, adState.filtered);
   });
 
-  // ★月フィルタ変更時は再取得（RDSから該当期間だけ取り直す）
   ['adStartDate', 'adEndDate'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => loadAdPerformanceData());
   });
@@ -127,68 +127,33 @@ function initializePagination() {
   [nextBtn, nextBtn2].forEach(btn => btn?.addEventListener('click', () => changePage(1)));
 }
 
-// ===== 追加：月レンジ生成（type="month" 用）=====
 function ymFromDate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
 }
 
-function monthListInclusive(startYm, endYm) {
-  const [sy, sm] = startYm.split('-').map(Number);
-  const [ey, em] = endYm.split('-').map(Number);
-  const start = new Date(sy, sm - 1, 1);
-  const end = new Date(ey, em - 1, 1);
-
-  const list = [];
-  const cur = new Date(start);
-  while (cur.getTime() <= end.getTime()) {
-    list.push(ymFromDate(cur));
-    cur.setMonth(cur.getMonth() + 1);
+function resolveMediaId(item) {
+  const candidates = [
+    item?.mediaId, item?.media_id, item?.mediaID, item?.adMediaId, item?.ad_media_id
+  ];
+  for (const value of candidates) {
+    const trimmed = String(value ?? '').trim();
+    if (trimmed) return trimmed;
   }
-  return list;
+  const rawId = String(item?.id ?? '').trim();
+  if (rawId) {
+    const composite = item?.period && item?.mediaName && rawId === `${item.period}-${item.mediaName}`;
+    if (!composite) return rawId;
+  }
+  return '';
 }
 
-function monthToFromTo(ym) {
-  const [y, m] = ym.split('-').map(Number);
-  const lastDay = new Date(y, m, 0).getDate(); // mは1-12、Dateは月+1で末日が出る
-  const mm = String(m).padStart(2, '0');
-  const dd = String(lastDay).padStart(2, '0');
-  return {
-    period: ym,                 // "YYYY-MM"
-    from: `${y}-${mm}-01`,      // "YYYY-MM-01"
-    to: `${y}-${mm}-${dd}`      // "YYYY-MM-lastDay"
-  };
-}
-
-function ensureDefaultMonthRange() {
-  const startEl = document.getElementById('adStartDate');
-  const endEl = document.getElementById('adEndDate');
-
-  const startVal = (startEl?.value || '').trim(); // "YYYY-MM"
-  const endVal = (endEl?.value || '').trim();
-
-  // 未入力なら直近6ヶ月をデフォルト
-  if (!startVal || !endVal) {
-    const now = new Date();
-    const end = ymFromDate(now);
-    const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const start = ymFromDate(startDate);
-
-    if (startEl && !startEl.value) startEl.value = start;
-    if (endEl && !endEl.value) endEl.value = end;
-
-    return { startYm: start, endYm: end };
-  }
-
-  // start > end の場合は入れ替え
-  if (startVal > endVal) {
-    if (startEl) startEl.value = endVal;
-    if (endEl) endEl.value = startVal;
-    return { startYm: endVal, endYm: startVal };
-  }
-
-  return { startYm: startVal, endYm: endVal };
+function getContractCacheKey(mediaName, mediaId) {
+  const name = String(mediaName ?? '').trim();
+  if (name) return name;
+  const id = String(mediaId ?? '').trim();
+  return id;
 }
 
 function normalizeContractInfo(payload) {
@@ -200,82 +165,80 @@ function normalizeContractInfo(payload) {
     amountPeriod: payload?.amountPeriod || '',
     contractMethod: payload?.contractMethod || '',
     renewalTerms: payload?.renewalTerms || '',
-    memo: payload?.memo || ''
+    memo: payload?.memo || '',
+    totalSales: Number(payload?.totalSales || 0) // ★追加: APIからの売上高を受け取る
   };
 }
 
-function getContractInfo(mediaName) {
-  const stored = contractInfoCache.get(mediaName);
+function getContractInfo(cacheKey) {
+  const stored = contractInfoCache.get(cacheKey);
   return { ...DEFAULT_CONTRACT_INFO, ...(stored || {}) };
 }
 
-function setContractInfoCache(mediaName, payload) {
-  if (!mediaName) return;
-  contractInfoCache.set(mediaName, normalizeContractInfo(payload));
+function setContractInfoCache(cacheKey, payload) {
+  if (!cacheKey) return;
+  contractInfoCache.set(cacheKey, normalizeContractInfo(payload));
 }
 
-async function fetchContractInfo(mediaName) {
+async function fetchContractInfo(mediaName, mediaId) {
   const url = new URL(AD_CONTRACT_API_URL);
-  url.searchParams.set('mediaName', mediaName);
+  const idValue = String(mediaId ?? '').trim();
+  const nameValue = String(mediaName ?? '').trim();
+  if (idValue) url.searchParams.set('id', idValue);
+  if (nameValue) url.searchParams.set('mediaName', nameValue);
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Ad contract API HTTP ${res.status}: ${text}`);
   }
   const json = await res.json().catch(() => ({}));
-  if (!json?.data) return normalizeContractInfo(DEFAULT_CONTRACT_INFO);
-  return normalizeContractInfo(json.data);
+  // リスト形式で返ってくる場合と単一オブジェクトの場合を考慮
+  const data = json.contract || (Array.isArray(json.items) ? json.items[0] : null) || {};
+  return normalizeContractInfo(data);
 }
 
-function ensureContractInfo(mediaName) {
-  if (!mediaName) return Promise.reject(new Error('mediaName is required'));
-  if (contractInfoCache.has(mediaName)) {
-    return Promise.resolve(getContractInfo(mediaName));
+function ensureContractInfo(mediaName, mediaId) {
+  const cacheKey = getContractCacheKey(mediaName, mediaId);
+  if (!cacheKey) return Promise.reject(new Error('mediaName or id is required'));
+  if (contractInfoCache.has(cacheKey)) {
+    return Promise.resolve(getContractInfo(cacheKey));
   }
-  if (contractFetchInFlight.has(mediaName)) {
-    return contractFetchInFlight.get(mediaName);
+  if (contractFetchInFlight.has(cacheKey)) {
+    return contractFetchInFlight.get(cacheKey);
   }
-  const request = fetchContractInfo(mediaName)
+  const request = fetchContractInfo(mediaName, mediaId)
     .then((info) => {
-      setContractInfoCache(mediaName, info);
+      setContractInfoCache(cacheKey, info);
       return info;
     })
     .finally(() => {
-      contractFetchInFlight.delete(mediaName);
+      contractFetchInFlight.delete(cacheKey);
     });
-  contractFetchInFlight.set(mediaName, request);
+  contractFetchInFlight.set(cacheKey, request);
   return request;
 }
 
-async function saveContractInfo(mediaName, payload) {
+async function saveContractInfo(mediaName, payload, mediaId) {
+  const body = { ...payload };
+  const nameValue = String(mediaName ?? '').trim();
+  const idValue = String(mediaId ?? '').trim();
+  if (nameValue) body.mediaName = nameValue;
+  if (idValue) body.id = idValue;
   const res = await fetch(AD_CONTRACT_API_URL, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mediaName, ...payload })
+    body: JSON.stringify(body)
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Ad contract API HTTP ${res.status}: ${text}`);
   }
-  await res.json().catch(() => null);
-  setContractInfoCache(mediaName, payload);
-  return getContractInfo(mediaName);
-}
-
-// ===== 追加：RDS API 呼び出し =====
-async function fetchAdsKpi(fromYmd, toYmd) {
-  const url = new URL(ADS_KPI_API_URL);
-  url.searchParams.set('from', fromYmd);
-  url.searchParams.set('to', toYmd);
-  url.searchParams.set('groupBy', ADS_GROUP_BY);
-
-  // GETはpreflight回避のためContent-Typeは付けない
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Ads KPI API HTTP ${res.status}: ${text}`);
-  }
-  return res.json();
+  const json = await res.json().catch(() => null);
+  // 更新後のデータをキャッシュに反映
+  const updatedData = json?.contract || payload;
+  const cacheKey = getContractCacheKey(nameValue, idValue);
+  setContractInfoCache(cacheKey, updatedData);
+  return getContractInfo(cacheKey);
 }
 
 async function loadAdPerformanceData() {
@@ -288,7 +251,7 @@ async function loadAdPerformanceData() {
   const requestStart = startYm || '2000-01';
   const requestEnd = endYm || nowYm;
 
-  const url = new URL('https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/ads');
+  const url = new URL(ADS_KPI_API_URL);
   url.searchParams.set('mode', 'performance');
   url.searchParams.set('startMonth', requestStart);
   url.searchParams.set('endMonth', requestEnd);
@@ -316,10 +279,16 @@ function calcDerivedRates(item) {
   const rate = (num, den) => (den ? (num / den) * 100 : 0);
   const cost = Number(item.cost) || 0;
   const hired = Number(item.hired) || 0;
+  const refund = Number(item.refund) || 0;
+  // ★追加: totalSales（売上高）の取り込み
+  // KPI APIが totalSales を返すようになれば、ここに値が入ります
+  const totalSales = Number(item.totalSales) || 0;
+
   return {
     ...item,
-    refund: Number(item.refund) || 0,
+    refund,
     cost,
+    totalSales, // ★追加
     costPerHire: hired ? cost / hired : 0,
     validApplicationRate: rate(item.validApplications, item.applications),
     initialInterviewRate: rate(item.initialInterviews, item.validApplications || item.applications),
@@ -340,8 +309,8 @@ function applyFilters(text) {
   const rawValue = (text ?? document.getElementById('adMediaFilter')?.value ?? '').trim();
   const filterText = rawValue.toLowerCase();
   selectedMediaFilter = rawValue || null;
-  const start = document.getElementById('adStartDate')?.value; // YYYY-MM
-  const end = document.getElementById('adEndDate')?.value;     // YYYY-MM
+  const start = document.getElementById('adStartDate')?.value;
+  const end = document.getElementById('adEndDate')?.value;
 
   adState.filtered = adState.data.filter(item => {
     const matchesMedia = !filterText || item.mediaName.toLowerCase() === filterText;
@@ -425,9 +394,11 @@ function aggregateByMedia(items) {
   const map = new Map();
   items.forEach(item => {
     const key = item.mediaName;
+    const mediaId = resolveMediaId(item);
     if (!map.has(key)) {
       map.set(key, {
         mediaName: key,
+        mediaId: mediaId || '',
         applications: 0,
         validApplications: 0,
         initialInterviews: 0,
@@ -435,29 +406,26 @@ function aggregateByMedia(items) {
         hired: 0,
         refund: 0,
         cost: 0,
+        totalSales: 0, // ★追加
         retentionNumer: 0,
         retentionDenom: 0
       });
     }
     const agg = map.get(key);
-    const apps = Number(item.applications) || 0;
-    const valApps = Number(item.validApplications) || 0;
-    const initIv = Number(item.initialInterviews) || 0;
-    const offers = Number(item.offers) || 0;
-    const hired = Number(item.hired) || 0;
-    const refund = Number(item.refund) || 0;
-    const cost = Number(item.cost) || 0;
-    const retention = Number(item.retention30) || 0;
+    if (!agg.mediaId && mediaId) agg.mediaId = mediaId;
 
-    agg.applications += apps;
-    agg.validApplications += valApps;
-    agg.initialInterviews += initIv;
-    agg.offers += offers;
-    agg.hired += hired;
-    agg.refund += refund;
-    agg.cost += cost;
-    agg.retentionNumer += retention * hired;
-    agg.retentionDenom += hired;
+    agg.applications += (Number(item.applications) || 0);
+    agg.validApplications += (Number(item.validApplications) || 0);
+    agg.initialInterviews += (Number(item.initialInterviews) || 0);
+    agg.offers += (Number(item.offers) || 0);
+    agg.hired += (Number(item.hired) || 0);
+    agg.refund += (Number(item.refund) || 0);
+    agg.cost += (Number(item.cost) || 0);
+    agg.totalSales += (Number(item.totalSales) || 0); // ★追加: 売上高を集計
+
+    const retention = Number(item.retention30) || 0;
+    agg.retentionNumer += retention * (Number(item.hired) || 0);
+    agg.retentionDenom += (Number(item.hired) || 0);
   });
 
   const result = [];
@@ -472,7 +440,8 @@ function aggregateByMedia(items) {
       hired: agg.hired,
       retention30: retention,
       refund: agg.refund,
-      cost: agg.cost
+      cost: agg.cost,
+      totalSales: agg.totalSales // ★追加
     }));
   });
   return result;
@@ -500,7 +469,8 @@ function renderAdTable(data) {
   const pageItems = data.slice(start, end);
 
   if (!pageItems.length) {
-    tableBody.innerHTML = `<tr><td colspan="13" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    // colspan を 14 に修正
+    tableBody.innerHTML = `<tr><td colspan="14" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
     return;
   }
 
@@ -510,26 +480,31 @@ function renderAdTable(data) {
     return 'bg-red-100 text-red-700';
   };
 
+  // ★修正: すべてのセルに whitespace-nowrap を追加し、ズレを防止
   tableBody.innerHTML = pageItems.map(ad => `
       <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id ?? ''}">
-        <td class="sticky left-0 bg-white font-medium text-slate-900 z-30">${ad.mediaName}</td>
-        <td class="text-right font-semibold">${formatNumber(ad.applications)}</td>
-        <td class="text-right">${formatNumber(ad.validApplications)}</td>
-        <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
-        <td class="text-right">${formatNumber(ad.initialInterviews)}</td>
-        <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.initialInterviewRate)}">${formatPercent(ad.initialInterviewRate)}</span></td>
-        <td class="text-right">${formatNumber(ad.offers)}</td>
-        <td class="text-right">${formatPercent(ad.offerRate)}</td>
-        <td class="text-right">${formatNumber(ad.hired)}</td>
-        <td class="text-right">${formatPercent(ad.hireRate)}</td>
-        <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
-        <td class="text-right"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
-        <td class="text-right font-semibold">${formatCurrency(ad.refund)}</td>
+        <td class="sticky left-0 bg-white font-medium text-slate-900 z-30 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+          ${ad.mediaName}
+        </td>
+        <td class="text-right font-semibold whitespace-nowrap px-2">${formatNumber(ad.applications)}</td>
+        <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.validApplications)}</td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.initialInterviews)}</td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.initialInterviewRate)}">${formatPercent(ad.initialInterviewRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.offers)}</td>
+        <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.offerRate)}</td>
+        <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
+        <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.hireRate)}</td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
+        <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
+        <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.refund)}</td>
       </tr>
   `).join('');
 }
 
 function updateAdSummary(data, summary) {
+  // 省略（ロジック変更なし）
   const useSummary = summary && typeof summary === 'object' && !selectedMediaFilter;
   const rate = (num, den) => (den ? (num / den) * 100 : 0);
   const totalApps = useSummary
@@ -562,12 +537,8 @@ function updateAdSummary(data, summary) {
   setText('adSummaryRetentionRate', totalHired ? formatPercent(retentionRate) : '-');
 }
 
-
-
-// renderAdCharts 以降はあなたの既存コードをそのまま使用
-// （以下、あなたが貼った renderAdCharts / renderMetricTable / updateContractInfo / ensureChartJs / pagination / export / cleanup などは無変更でOK）
-
 function renderAdCharts(aggregatedData, rawData = adState.filtered) {
+  // チャート描画部分（変更なし）
   const appsContainer = document.getElementById('adChartApplications');
   const lineCanvas = document.getElementById('adDecisionLine');
   if (!appsContainer || !lineCanvas) return;
@@ -686,6 +657,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
 }
 
 function renderMetricTable(labels, mediaMap) {
+  // 省略（変更なし）
   const wrapper = document.getElementById('adMetricTable');
   if (!wrapper) return;
   if (!labels.length || !Object.keys(mediaMap).length) {
@@ -758,10 +730,12 @@ function buildAmountPeriodOptions(current) {
   }).join('');
 }
 
-function buildContractSummary(target) {
+function buildContractSummary(target, contractInfo) {
+  // ★変更: ここに totalSales を表示
+  const sales = contractInfo?.totalSales || 0;
   return `
     <div class="text-sm text-slate-600 mt-1">決定率: ${formatPercent(target.decisionRate || 0)}</div>
-    <div class="text-sm text-slate-600">返金額: ${formatCurrency(target.refund || 0)}</div>
+    <div class="text-sm text-slate-600">売上高: ${formatCurrency(sales)}</div> <div class="text-sm text-slate-600">返金額: ${formatCurrency(target.refund || 0)}</div>
     <div class="text-sm text-slate-600">応募: ${formatNumber(target.applications)} / 有効: ${formatNumber(target.validApplications)}</div>
   `;
 }
@@ -789,7 +763,8 @@ function renderContractError(box, target, message) {
 
   const retryBtn = box.querySelector('#adContractRetryBtn');
   retryBtn?.addEventListener('click', () => {
-    contractInfoCache.delete(target.mediaName);
+    const cacheKey = getContractCacheKey(target.mediaName, target.mediaId);
+    if (cacheKey) contractInfoCache.delete(cacheKey);
     updateContractInfo(lastAggregated);
   });
 }
@@ -799,6 +774,7 @@ function renderContractView(box, target, contractInfo) {
   const notesDisplay = notes ? escapeHtml(notes) : '（なし）';
   const rangeText = formatContractRange(contractInfo.contractStartDate, contractInfo.contractEndDate);
   const amountText = formatContractAmount(contractInfo.contractAmount, contractInfo.amountPeriod);
+  const cacheKey = getContractCacheKey(target.mediaName, target.mediaId);
 
   box.innerHTML = `
     <div class="flex items-start justify-between gap-3">
@@ -809,8 +785,7 @@ function renderContractView(box, target, contractInfo) {
       <button type="button" id="adContractEditBtn"
         class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">編集</button>
     </div>
-    ${buildContractSummary(target)}
-    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+    ${buildContractSummary(target, contractInfo)} <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
       <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
         <div class="text-[11px] text-slate-500">契約期間</div>
         <div class="text-sm font-semibold text-slate-900">${formatContractField(rangeText)}</div>
@@ -837,13 +812,14 @@ function renderContractView(box, target, contractInfo) {
 
   const editBtn = box.querySelector('#adContractEditBtn');
   editBtn?.addEventListener('click', () => {
-    contractEditTarget = target.mediaName;
+    contractEditTarget = cacheKey;
     updateContractInfo(lastAggregated);
   });
 }
 
 function renderContractEditor(box, target, contractInfo) {
   const amountOptions = buildAmountPeriodOptions(contractInfo.amountPeriod);
+  const cacheKey = getContractCacheKey(target.mediaName, target.mediaId);
   box.innerHTML = `
     <div class="flex items-start justify-between gap-3">
       <div class="space-y-1">
@@ -853,8 +829,7 @@ function renderContractEditor(box, target, contractInfo) {
       <button type="button" id="adContractCancelBtn"
         class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">キャンセル</button>
     </div>
-    ${buildContractSummary(target)}
-    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    ${buildContractSummary(target, contractInfo)} <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
       <label class="text-xs text-slate-600 sm:col-span-2">
         契約期間
         <div class="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -903,7 +878,7 @@ function renderContractEditor(box, target, contractInfo) {
 
   cancelBtn?.addEventListener('click', () => {
     contractEditTarget = null;
-    renderContractView(box, target, getContractInfo(target.mediaName));
+    renderContractView(box, target, getContractInfo(cacheKey));
   });
 
   saveBtn?.addEventListener('click', async () => {
@@ -927,9 +902,9 @@ function renderContractEditor(box, target, contractInfo) {
     };
 
     try {
-      await saveContractInfo(target.mediaName, payload);
+      await saveContractInfo(target.mediaName, payload, target.mediaId);
       contractEditTarget = null;
-      renderContractView(box, target, getContractInfo(target.mediaName));
+      renderContractView(box, target, getContractInfo(cacheKey));
     } catch (err) {
       const message = err?.message || '保存に失敗しました';
       if (statusEl) statusEl.textContent = message;
@@ -949,24 +924,27 @@ function updateContractInfo(data) {
     box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
     return;
   }
-  if (contractEditTarget && contractEditTarget !== target.mediaName) {
+  const mediaId = resolveMediaId(target);
+  const targetWithId = mediaId && !target.mediaId ? { ...target, mediaId } : target;
+  const cacheKey = getContractCacheKey(targetWithId.mediaName, targetWithId.mediaId);
+  if (contractEditTarget && contractEditTarget !== cacheKey) {
     contractEditTarget = null;
   }
 
-  const cached = contractInfoCache.get(target.mediaName);
+  const cached = contractInfoCache.get(cacheKey);
   if (!cached) {
-    renderContractLoading(box, target);
-    ensureContractInfo(target.mediaName)
+    renderContractLoading(box, targetWithId);
+    ensureContractInfo(targetWithId.mediaName, targetWithId.mediaId)
       .then(() => updateContractInfo(lastAggregated))
-      .catch((err) => renderContractError(box, target, err?.message || '読み込みに失敗しました'));
+      .catch((err) => renderContractError(box, targetWithId, err?.message || '読み込みに失敗しました'));
     return;
   }
 
-  if (contractEditTarget === target.mediaName) {
-    renderContractEditor(box, target, getContractInfo(target.mediaName));
+  if (contractEditTarget === cacheKey) {
+    renderContractEditor(box, targetWithId, getContractInfo(cacheKey));
     return;
   }
-  renderContractView(box, target, getContractInfo(target.mediaName));
+  renderContractView(box, targetWithId, getContractInfo(cacheKey));
 }
 
 function ensureChartJs() {
@@ -1015,7 +993,7 @@ function changePage(direction) {
 
 function handleExportCSV() {
   const sortedData = getAggregatedSorted();
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '返金額（税込）'];
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '売上高（税込）', '返金額（税込）'];
   const csvContent = [
     headers.join(','),
     ...sortedData.map(ad => [
@@ -1030,6 +1008,7 @@ function handleExportCSV() {
       `${ad.hireRate.toFixed(1)}%`,
       `${ad.decisionRate.toFixed(1)}%`,
       `${ad.retention30.toFixed(1)}%`,
+      ad.totalSales, // ★追加: 売上高
       ad.refund
     ].join(','))
   ].join('\n');
@@ -1044,7 +1023,7 @@ function handleExportCSV() {
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="13" class="text-center text-red-500 py-6">${message}</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="14" class="text-center text-red-500 py-6">${message}</td></tr>`;
   }
 }
 
