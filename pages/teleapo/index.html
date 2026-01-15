@@ -144,15 +144,52 @@
             <p id="teleapoEmployeeChartTitle" class="dashboard-card-title">社員別 成長KPI（架電・設定・着座）</p>
             <p class="dashboard-card-subtext">通電率・設定率・着座率の推移（架電ルートのみ）</p>
           </div>
+          <div class="teleapo-employee-mode-toggle" id="teleapoEmployeeTrendMode" role="group" aria-label="集計軸">
+            <span class="teleapo-employee-mode-label">集計軸</span>
+            <button type="button" class="teleapo-employee-mode-btn" data-employee-trend-mode="week"
+              aria-pressed="false">週</button>
+            <button type="button" class="teleapo-employee-mode-btn is-active" data-employee-trend-mode="month"
+              aria-pressed="true">月</button>
+            <button type="button" class="teleapo-employee-mode-btn" data-employee-trend-mode="year"
+              aria-pressed="false">年</button>
+          </div>
         </div>
-        <div class="dashboard-chart">
-          <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" class="w-full h-full"></svg>
-        </div>
-        <div class="teleapo-chart-legend">
-          <span class="teleapo-legend-item"><span
-              class="teleapo-legend-dot teleapo-legend-dot--connect"></span>通電率</span>
-          <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--set"></span>設定率</span>
-          <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--show"></span>着座率</span>
+        <div class="teleapo-employee-layout">
+          <div class="teleapo-employee-chart-block">
+            <div class="dashboard-chart">
+              <div class="teleapo-employee-chart-surface">
+                <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" class="w-full h-full"></svg>
+              </div>
+            </div>
+            <div class="teleapo-chart-legend">
+              <span class="teleapo-legend-item"><span
+                  class="teleapo-legend-dot teleapo-legend-dot--connect"></span>通電率</span>
+              <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--set"></span>設定率</span>
+              <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--show"></span>着座率</span>
+            </div>
+          </div>
+          <div class="teleapo-employee-table-block">
+            <div class="teleapo-employee-table-header">
+              <div>
+                <p class="teleapo-employee-table-title">期間別KPI</p>
+                <p class="teleapo-employee-table-subtext">集計軸: <span id="teleapoEmployeeTrendModeLabel">-</span></p>
+              </div>
+            </div>
+            <div class="teleapo-employee-table-wrap">
+              <table class="teleapo-employee-table">
+                <thead>
+                  <tr>
+                    <th>期間</th>
+                    <th class="text-right">架電数</th>
+                    <th class="text-right">通電率</th>
+                    <th class="text-right">設定率</th>
+                    <th class="text-right">着座率</th>
+                  </tr>
+                </thead>
+                <tbody id="teleapoEmployeeTrendTableBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <p class="dashboard-card-note">通電率=通電数/架電数・設定率=設定数/通電数・着座率=着座数/設定数</p>
         <p class="dashboard-card-note">各点にカーソルを合わせると詳細が表示されます。</p>
