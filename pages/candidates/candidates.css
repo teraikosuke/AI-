@@ -119,9 +119,11 @@
   justify-content: space-between;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(90deg,
-      rgba(129, 140, 248, 0.08),
-      rgba(236, 233, 252, 0.6));
+  background: linear-gradient(
+    90deg,
+    rgba(129, 140, 248, 0.08),
+    rgba(236, 233, 252, 0.6)
+  );
 }
 
 .table-action-btn {
@@ -570,20 +572,26 @@ body.has-modal-open {
   font-size: 0.95rem;
   color: #0f172a;
   font-weight: 500;
-  min-height: 1.5rem;
+  min-height: 2.5rem;
 }
+
+/* =========================================
+   FIX: View Mode & Edit Mode Consistency
+   ========================================= */
 
 .detail-value {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2e8f0;
+  /* 境界線と背景色を明確に白にして、グレー背景から浮かせる */
+  border: 1px solid #cbd5f5;
   border-radius: 0.5rem;
   padding: 0.5rem;
-  background-color: #f8fafc;
+  background-color: #ffffff; 
   color: #0f172a;
   line-height: 1.5;
-  min-height: 2.5rem;
+  /* 入力フォームと同じ高さを確保 */
+  min-height: 2.6rem;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -635,8 +643,8 @@ body.has-modal-open {
   border-radius: 0.5rem;
   padding: 0.5rem;
   font-size: 0.85rem;
-  min-height: 60px;
-  background-color: #eef2f7;
+  min-height: 90px;
+  background-color: #ffffff;
   line-height: 1.5;
 }
 
@@ -654,7 +662,9 @@ body.has-modal-open {
 }
 
 .detail-table--wide {
-  min-width: 1100px;
+  width: 2200px;
+  min-width: 2200px;
+  table-layout: fixed;
 }
 
 .detail-table th,
@@ -682,41 +692,89 @@ body.has-modal-open {
   min-width: 90px;
 }
 
+/* FIX: Table Wrapping */
 .detail-table th {
   background-color: #f8fafc;
   font-weight: 600;
   color: #475569;
+  white-space: nowrap; /* Header should not wrap */
+}
+
+/* FIX: Ensure status/date columns don't wrap */
+.detail-table td.nowrap-cell {
   white-space: nowrap;
 }
 
-.detail-table-input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  font-size: 0.75rem;
-  background-color: #f8fafc;
-  line-height: 1.5;
-  min-height: 2.5rem;
+/* FIX: 固定幅（推薦日〜内定後辞退日） */
+.detail-table--wide th:nth-child(4),
+.detail-table--wide th:nth-child(5),
+.detail-table--wide th:nth-child(6),
+.detail-table--wide th:nth-child(7),
+.detail-table--wide th:nth-child(8),
+.detail-table--wide th:nth-child(9),
+.detail-table--wide th:nth-child(10),
+.detail-table--wide th:nth-child(11),
+.detail-table--wide th:nth-child(12),
+.detail-table--wide td:nth-child(4),
+.detail-table--wide td:nth-child(5),
+.detail-table--wide td:nth-child(6),
+.detail-table--wide td:nth-child(7),
+.detail-table--wide td:nth-child(8),
+.detail-table--wide td:nth-child(9),
+.detail-table--wide td:nth-child(10),
+.detail-table--wide td:nth-child(11),
+.detail-table--wide td:nth-child(12) {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  white-space: nowrap;
 }
 
+.detail-table--wide td:nth-child(4) .detail-value,
+.detail-table--wide td:nth-child(5) .detail-value,
+.detail-table--wide td:nth-child(6) .detail-value,
+.detail-table--wide td:nth-child(7) .detail-value,
+.detail-table--wide td:nth-child(8) .detail-value,
+.detail-table--wide td:nth-child(9) .detail-value,
+.detail-table--wide td:nth-child(10) .detail-value,
+.detail-table--wide td:nth-child(11) .detail-value,
+.detail-table--wide td:nth-child(12) .detail-value {
+  white-space: nowrap;
+}
+
+/* 編集用INPUT - 表示用(.detail-value)と見た目を一致させる */
 .detail-inline-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5f5;
   border-radius: 0.5rem;
   padding: 0.5rem;
-  font-size: 0.85rem;
-  background-color: #f8fafc;
+  font-size: 0.9rem; /* detail-value の font-size(継承) に近づける */
+  background-color: #ffffff;
   line-height: 1.5;
-  min-height: 2.5rem;
+  min-height: 2.6rem;
+}
+
+.detail-inline-input:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25);
 }
 
 .detail-inline-input.detail-inline-textarea {
-  border-color: #cbd5f5;
-  background-color: #eef2f7;
   min-height: 90px;
+}
+
+/* Table Input */
+.detail-table-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5f5;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  background-color: #ffffff;
+  line-height: 1.4;
 }
 
 .repeatable-block {
@@ -786,6 +844,7 @@ body.has-modal-open {
   border-radius: 0.45rem;
   padding: 0.45rem 0.6rem;
   font-size: 0.85rem;
+  background-color: #ffffff;
 }
 
 .repeatable-remove-btn {
