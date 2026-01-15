@@ -19,13 +19,12 @@ const candidateIdFromUrl = params.get("candidateId");
 // フィルタ定義
 // =========================
 const filterConfig = [
-  { id: "candidatesFilterYear", event: "change" },
-  { id: "candidatesFilterMonth", event: "change" },
-  { id: "candidatesFilterDay", event: "change" },
+  { id: "candidatesFilterStartDate", event: "change" },
+  { id: "candidatesFilterEndDate", event: "change" },
   { id: "candidatesFilterSource", event: "change" },
   { id: "candidatesFilterName", event: "input" },
-  { id: "candidatesFilterCompany", event: "input" },
-  { id: "candidatesFilterAdvisor", event: "input" },
+  { id: "candidatesFilterCompany", event: "change" },
+  { id: "candidatesFilterAdvisor", event: "change" },
   { id: "candidatesFilterValid", event: "change" },
   { id: "candidatesFilterPhase", event: "change" },
 ];
@@ -289,11 +288,14 @@ async function loadCandidatesData(filtersOverride = {}) {
       ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }))
       : [];
 
-    filteredCandidates = [...allCandidates];
+    updateFilterSelectOptions(allCandidates);
+
+    const filtered = applyCandidatesFilters(allCandidates, filters);
+    filteredCandidates = sortCandidatesByDate(filtered, filters.sortOrder);
     pendingInlineUpdates = {};
 
     renderCandidatesTable(filteredCandidates);
-    updateCandidatesCount(result.total ?? filteredCandidates.length);
+    updateCandidatesCount(hasActiveFilters(filters) ? filteredCandidates.length : (result.total ?? filteredCandidates.length));
 
     lastSyncedAt = result.lastSyncedAt || null;
     updateLastSyncedDisplay(lastSyncedAt);
@@ -325,9 +327,8 @@ function handleFilterChange() {
 
 function collectFilters() {
   return {
-    year: getElementValue("candidatesFilterYear"),
-    month: getElementValue("candidatesFilterMonth"),
-    day: getElementValue("candidatesFilterDay"),
+    startDate: getElementValue("candidatesFilterStartDate"),
+    endDate: getElementValue("candidatesFilterEndDate"),
     source: getElementValue("candidatesFilterSource"),
     name: getElementValue("candidatesFilterName"),
     company: getElementValue("candidatesFilterCompany"),
@@ -340,9 +341,6 @@ function collectFilters() {
 
 function buildCandidatesQuery(filters) {
   const p = new URLSearchParams();
-  if (filters.year) p.set("year", filters.year);
-  if (filters.month) p.set("month", filters.month);
-  if (filters.day) p.set("day", filters.day);
   if (filters.source) p.set("source", filters.source);
   if (filters.phase) p.set("phase", filters.phase);
   if (filters.advisor) p.set("advisor", filters.advisor);
@@ -352,6 +350,173 @@ function buildCandidatesQuery(filters) {
   p.set("sort", filters.sortOrder || "desc");
   p.set("limit", "200");
   return p.toString();
+}
+
+function hasActiveFilters(filters) {
+  return Boolean(
+    filters.startDate
+    || filters.endDate
+    || filters.source
+    || filters.phase
+    || filters.advisor
+    || filters.name
+    || filters.company
+    || filters.valid
+  );
+}
+
+function normalizeFilterText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function includesFilterText(value, query) {
+  const normalizedQuery = normalizeFilterText(query);
+  if (!normalizedQuery) return true;
+  return normalizeFilterText(value).includes(normalizedQuery);
+}
+
+function matchesSelectValue(value, selectedValue) {
+  if (!selectedValue) return true;
+  return normalizeFilterText(value) === normalizeFilterText(selectedValue);
+}
+
+function getCandidateCompanyName(candidate) {
+  return candidate?.applyCompanyName || candidate?.companyName || "";
+}
+
+function getCandidateAdvisorName(candidate) {
+  return candidate?.advisorName || resolveUserName(candidate?.advisorUserId) || "";
+}
+
+function getCandidateSourceName(candidate) {
+  return candidate?.applyRouteText || candidate?.applyRoute || candidate?.source || candidate?.mediaName || "";
+}
+
+function getCandidateRegisteredDate(candidate) {
+  const value = candidate?.createdAt || candidate?.registeredAt || candidate?.registeredDate || null;
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function parseFilterDate(value, { isEnd } = {}) {
+  if (!value) return null;
+  const suffix = isEnd ? "T23:59:59.999" : "T00:00:00";
+  const date = new Date(`${value}${suffix}`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function getCandidatePhaseList(candidate) {
+  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
+  const list = Array.isArray(raw)
+    ? raw
+    : String(raw || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value) => value);
+  const unique = Array.from(new Set(list));
+  if (unique.length > 0) return unique;
+  return [resolvePhaseDisplay(candidate)];
+}
+
+function applyCandidatesFilters(list, filters) {
+  const startDate = parseFilterDate(filters.startDate, { isEnd: false });
+  const endDate = parseFilterDate(filters.endDate, { isEnd: true });
+  const validTarget = String(filters.valid || "");
+
+  return list.filter((candidate) => {
+    if (filters.name && !includesFilterText(candidate.candidateName, filters.name)) return false;
+    if (filters.company && !matchesSelectValue(getCandidateCompanyName(candidate), filters.company)) return false;
+    if (filters.advisor && !matchesSelectValue(getCandidateAdvisorName(candidate), filters.advisor)) return false;
+    if (filters.source && !matchesSelectValue(getCandidateSourceName(candidate), filters.source)) return false;
+
+    if (validTarget) {
+      const value = String(candidate.validApplication ?? "").toLowerCase();
+      const isValid = value === "true" || value === "1";
+      if (validTarget === "true" && !isValid) return false;
+      if (validTarget === "false" && isValid) return false;
+    }
+
+    if (filters.phase) {
+      const phases = getCandidatePhaseList(candidate);
+      if (!phases.some((phase) => String(phase) === String(filters.phase))) return false;
+    }
+
+    if (startDate || endDate) {
+      const date = getCandidateRegisteredDate(candidate);
+      if (!date) return false;
+      if (startDate && date < startDate) return false;
+      if (endDate && date > endDate) return false;
+    }
+
+    return true;
+  });
+}
+
+function sortCandidatesByDate(list, sortOrder = "desc") {
+  const direction = sortOrder === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const aDate = getCandidateRegisteredDate(a);
+    const bDate = getCandidateRegisteredDate(b);
+    const aTime = aDate ? aDate.getTime() : 0;
+    const bTime = bDate ? bDate.getTime() : 0;
+    return (aTime - bTime) * direction;
+  });
+}
+
+function buildUniqueValues(values) {
+  const map = new Map();
+  values.forEach((value) => {
+    const label = String(value ?? "").trim();
+    if (!label) return;
+    const key = normalizeFilterText(label);
+    if (!map.has(key)) map.set(key, label);
+  });
+  return Array.from(map.values()).sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function setFilterSelectOptions(selectId, values, { blankLabel = "すべて" } = {}) {
+  const element = document.getElementById(selectId);
+  if (!element) return;
+  const currentValue = element.value;
+  const options = [`<option value="">${blankLabel}</option>`]
+    .concat(values.map((value) => `<option value="${escapeHtmlAttr(value)}">${escapeHtml(value)}</option>`))
+    .join("");
+  element.innerHTML = options;
+  if (currentValue && values.includes(currentValue)) {
+    element.value = currentValue;
+  } else {
+    element.value = "";
+  }
+}
+
+function updateFilterSelectOptions(list) {
+  const sources = [];
+  const companies = [];
+  const advisors = [];
+  const phases = [];
+
+  list.forEach((candidate) => {
+    const source = getCandidateSourceName(candidate);
+    const company = getCandidateCompanyName(candidate);
+    const advisor = getCandidateAdvisorName(candidate);
+    const phaseList = getCandidatePhaseList(candidate);
+
+    if (source) sources.push(source);
+    if (company) companies.push(company);
+    if (advisor) advisors.push(advisor);
+    if (Array.isArray(phaseList)) phases.push(...phaseList);
+  });
+
+  setFilterSelectOptions("candidatesFilterSource", buildUniqueValues(sources));
+  setFilterSelectOptions("candidatesFilterCompany", buildUniqueValues(companies));
+  setFilterSelectOptions("candidatesFilterAdvisor", buildUniqueValues(advisors));
+  setFilterSelectOptions("candidatesFilterPhase", buildUniqueValues(phases));
 }
 
 function getElementValue(id) {
@@ -650,7 +815,7 @@ function highlightSelectedRow() {
 }
 
 // =========================
-// 詳細モーダル描画（以下はあなたの既存ロジックを維持）
+// 詳細モーダル描画
 // =========================
 function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   const container = document.getElementById("candidateDetailContent");
@@ -810,15 +975,6 @@ function updateSelectionStatusCell(index, status) {
   cell.innerHTML = renderStatusPill(status || "-", resolveSelectionStatusVariant(status));
 }
 
-// --- 以下、あなたの既存の詳細セクション群はそのまま使えます ---
-// ここから下は「あなたが貼ってくれた既存コード」を変更せずに残せばOKです。
-// ただし、saveCandidateRecord のURLだけは下で candidatesApi を使うように修正しています。
-
-// ========== 以降は既存関数（renderRegistrationSection〜等） ==========
-// （この回答では長すぎるため全部は再掲しませんが、
-//  あなたの既存 candidates.js のまま残してOKです。
-//  下の saveCandidateRecord だけは必ず置き換えてください。）
-
 // -----------------------
 // 必須：保存APIのURLを統一
 // -----------------------
@@ -850,8 +1006,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
 }
 
 // -----------------------
-// applyCandidateUpdate は既存のままでOK
-// （ここも既存のまま残してください）
+// applyCandidateUpdate
 // -----------------------
 function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
   if (!updated || !updated.id) return;
@@ -876,7 +1031,7 @@ function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
 }
 
 // =========================
-// 以降：モーダル制御、detailのイベントなど（あなたの既存をそのまま残す）
+// イベントハンドラ等
 // =========================
 function initializeDetailContentListeners() {
   const container = document.getElementById("candidateDetailContent");
@@ -890,26 +1045,6 @@ function initializeDetailContentListeners() {
   container.addEventListener("change", detailContentHandlers.input);
 }
 
-// （ここから下も、あなたの既存の関数群をそのまま残してください）
-// - handleDetailContentClick
-// - toggleDetailSectionEdit
-// - renderRegistrationSection / renderMeetingSection / ...（全セクション）
-// - initializeDetailModal / openCandidateModal / closeCandidateModal / ...
-// - escapeHtml / escapeHtmlAttr / formatDateJP / formatDateTimeJP / calculateAge
-// - cleanupCandidatesEventListeners など
-//
-// ※この回答では「RDS反映に必要な差分」を中心に、上部を完全実装しています。
-//   あなたの既存 candidates.js に対して、
-//   1) API base を導入
-//   2) loadCandidatesData を candidatesApi に変更
-//   3) handleTableClick を openCandidateById に変更
-//   4) openCandidateById/詳細取得を追加
-//   5) saveCandidateRecord を candidatesApi に変更
-//   を行えば、全体が動きます。
-
-// -----------------------
-// 最低限のユーティリティ（既存にあるならそのまま）
-// -----------------------
 function resolvePhaseDisplay(candidate) {
   const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
   const list = Array.isArray(raw)
@@ -987,7 +1122,7 @@ function calculateAge(birthday) {
 }
 
 // -----------------------
-// モーダル（既存があるならそのまま）
+// モーダル
 // -----------------------
 function initializeDetailModal() {
   const modal = document.getElementById("candidateDetailModal");
@@ -1038,7 +1173,7 @@ function resetDetailEditState() {
 }
 
 // -----------------------
-// 後片付け（既存にあるならそのまま）
+// 後片付け
 // -----------------------
 function cleanupCandidatesEventListeners() {
   closeCandidateModal({ clearSelection: false });
@@ -1091,7 +1226,8 @@ function cleanupCandidatesEventListeners() {
   detailContentHandlers.click = null;
   detailContentHandlers.input = null;
 }
-// ====== Detail Content Handlers (復旧ブロック) ======
+
+// ====== Detail Content Handlers ======
 
 function handleDetailContentClick(event) {
   const editBtn = event.target.closest("[data-section-edit]");
@@ -1129,7 +1265,6 @@ async function toggleDetailSectionEdit(sectionKey) {
   if (!detailEditState[sectionKey]) {
     try {
       await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
-      // 保存結果を一覧にも反映（applyCandidateUpdate内でテーブル再描画される想定）
       renderCandidatesTable(filteredCandidates);
       highlightSelectedRow();
     } catch (error) {
@@ -1339,7 +1474,7 @@ function getSelectedCandidate() {
 // ====== /Detail Content Handlers ======
 
 // -----------------------
-// 詳細セクション（簡易）
+// 詳細セクション
 // -----------------------
 function renderRegistrationSection(candidate) {
   const fields = [
@@ -1485,7 +1620,8 @@ function renderSelectionProgressSection(candidate) {
           const cells = [
             `<td>${renderTableSelect(buildClientOptions(row.clientId, row.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
             `<td>${renderTableInput(row.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
-            `<td class="text-center" data-selection-status>${renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue))}</td>`,
+            // status-pill cell: add nowrap-cell class
+            `<td class="text-center nowrap-cell" data-selection-status>${renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue))}</td>`,
             `<td>${renderTableInput(row.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td>`,
             `<td>${renderTableInput(row.interviewSetupDate, `${pathPrefix}.interviewSetupDate`, "date", "selection")}</td>`,
             `<td>${renderTableInput(row.interviewDate, `${pathPrefix}.interviewDate`, "date", "selection")}</td>`,
@@ -1526,7 +1662,9 @@ function renderSelectionProgressSection(candidate) {
           { value: row.selectionNote },
         ]
           .map((cell) => {
-            if (cell.html) return `<td class="text-center">${cell.html}</td>`;
+            // Apply nowrap-cell class to date/status columns if needed. 
+            // Here, we just rely on standard table wrap. Status pill is centered.
+            if (cell.html) return `<td class="text-center nowrap-cell">${cell.html}</td>`;
             return `<td><span class="detail-value">${escapeHtml(formatDisplayValue(cell.value))}</span></td>`;
           })
           .join("");
@@ -1901,23 +2039,24 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
   return `
     <dl class="${gridClass}">
       ${fields
-        .map((field) => {
-          const value = field.value;
-          if (editing && field.editable !== false && field.path) {
-            return `
-              <div class="detail-grid-item">
+      .map((field) => {
+        const value = field.value;
+        const spanClass = resolveDetailGridSpanClass(field);
+        if (editing && field.editable !== false && field.path) {
+          return `
+              <div class="detail-grid-item ${spanClass}">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
             `;
-          }
-          const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
-          const inner =
-            field.link && value
-              ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
-              : escapeHtml(displayValue);
-          return `
-            <div class="detail-grid-item">
+        }
+        const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
+        const inner =
+          field.link && value
+            ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
+            : escapeHtml(displayValue);
+        return `
+            <div class="detail-grid-item ${spanClass}">
               <dt>${field.label}</dt>
               <dd><span class="detail-value">${inner}</span></dd>
             </div>
