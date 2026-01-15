@@ -1903,10 +1903,9 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
       ${fields
         .map((field) => {
           const value = field.value;
-          const spanClass = resolveDetailGridSpanClass(field);
           if (editing && field.editable !== false && field.path) {
             return `
-              <div class="detail-grid-item ${spanClass}">
+              <div class="detail-grid-item">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
@@ -1918,7 +1917,7 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
               ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
               : escapeHtml(displayValue);
           return `
-            <div class="detail-grid-item ${spanClass}">
+            <div class="detail-grid-item">
               <dt>${field.label}</dt>
               <dd><span class="detail-value">${inner}</span></dd>
             </div>
