@@ -829,7 +829,7 @@ body {
   color: #374151;
 }
 
-/* テレアポ管理ページ用スタイル */
+/* 架電管理ページ用スタイル */
 [data-page="teleapo"] .kpi-v2-heatmap-cell {
   font-size: 0.75rem;
   font-weight: 500;

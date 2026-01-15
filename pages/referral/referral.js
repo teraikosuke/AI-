@@ -42,23 +42,18 @@ const flowCandidateInFlight = new Map();
 // ★追加: 候補者詳細ページへの遷移用関数（グローバルに公開）
 
 window.navigateToCandidate = function (candidateId) {
-
-  // 遷移先のページで開くべきIDをストレージに保存（簡易的なデータ渡し）
-
-  sessionStorage.setItem('target_candidate_id', candidateId);
-
-
-
-  // ルーターの仕様に合わせてハッシュを変更して遷移 (例: #candidates)
-
-  // ※実際のルーターのパスに合わせて変更してください
-
-  window.location.hash = 'candidates';
-
-
-
-  console.log(`Navigating to candidate: ${candidateId}`);
-
+  const resolvedId = String(candidateId ?? '').trim();
+  if (!resolvedId) return;
+  try {
+    sessionStorage.setItem('target_candidate_id', resolvedId);
+  } catch {
+    // ignore storage errors
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('candidateId', resolvedId);
+  history.replaceState({}, '', url.toString());
+  window.location.hash = '/candidates';
+  console.log(`Navigating to candidate: ${resolvedId}`);
 };
 
 
@@ -1277,34 +1272,71 @@ function buildReferralCandidateQuickViewHtml(candidate, state = {}) {
   const selectionDateText = selectionDate ? formatDateString(selectionDate) : '-';
 
   return `
-    <div class="border border-indigo-100 bg-white rounded-lg p-4">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <div class="space-y-1">
-          <div class="text-sm font-semibold text-slate-900">${formatCandidateField(candidate.name)}</div>
-          <div class="text-xs text-slate-500">${titleText} / ${ageText}</div>
+    <div class="referral-candidate-detail">
+      <div class="referral-candidate-top">
+        <div>
+          <div class="referral-candidate-name">${formatCandidateField(candidate.name)}</div>
+          <div class="referral-candidate-sub">${titleText} / ${ageText}</div>
         </div>
-        <button type="button"
-          class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
-          onclick="window.navigateToCandidate('${candidate.id}')">
-          \u5019\u88dc\u8005\u8a73\u7d30\u3092\u958b\u304f
-        </button>
       </div>
-      <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
-        <div><span class="text-slate-400">\u30d5\u30a7\u30fc\u30ba</span><span class="ml-2">${phaseText}</span></div>
-        <div><span class="text-slate-400">\u767b\u9332\u65e5</span><span class="ml-2">${registeredAtText}</span></div>
-        <div><span class="text-slate-400">\u5e0c\u671b\u5e74\u53ce</span><span class="ml-2">${salaryText}</span></div>
-        <div><span class="text-slate-400">\u52e4\u52d9\u5730</span><span class="ml-2">${locationText}</span></div>
-        <div><span class="text-slate-400">\u5fdc\u52df\u4f01\u696d</span><span class="ml-2">${selectionCompany}</span></div>
-        <div><span class="text-slate-400">\u5fdc\u52df\u8077\u7a2e</span><span class="ml-2">${selectionJob}</span></div>
-        <div><span class="text-slate-400">\u5fdc\u52df\u7d4c\u8def</span><span class="ml-2">${selectionRoute}</span></div>
-        <div><span class="text-slate-400">\u9078\u8003\u30b9\u30c6\u30fc\u30bf\u30b9</span><span class="ml-2">${selectionStatus}</span></div>
-        <div><span class="text-slate-400">\u9078\u8003\u958b\u59cb</span><span class="ml-2">${selectionDateText}</span></div>
+      <div class="referral-candidate-grid">
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u30d5\u30a7\u30fc\u30ba</span>
+          <span class="referral-candidate-value">${phaseText}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u767b\u9332\u65e5</span>
+          <span class="referral-candidate-value">${registeredAtText}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u5e0c\u671b\u5e74\u53ce</span>
+          <span class="referral-candidate-value">${salaryText}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u52e4\u52d9\u5730</span>
+          <span class="referral-candidate-value">${locationText}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u5fdc\u52df\u4f01\u696d</span>
+          <span class="referral-candidate-value">${selectionCompany}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u5fdc\u52df\u8077\u7a2e</span>
+          <span class="referral-candidate-value">${selectionJob}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u5fdc\u52df\u7d4c\u8def</span>
+          <span class="referral-candidate-value">${selectionRoute}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u9078\u8003\u30b9\u30c6\u30fc\u30bf\u30b9</span>
+          <span class="referral-candidate-value">${selectionStatus}</span>
+        </div>
+        <div class="referral-candidate-item">
+          <span class="referral-candidate-label">\u9078\u8003\u958b\u59cb</span>
+          <span class="referral-candidate-value">${selectionDateText}</span>
+        </div>
       </div>
-      <div class="mt-3 border-t border-slate-100 pt-3 space-y-2 text-xs text-slate-700">
-        <div><span class="text-slate-400">\u30b9\u30ad\u30eb</span><span class="ml-2">${skills}</span></div>
-        <div><span class="text-slate-400">\u8cc7\u683c</span><span class="ml-2">${qualifications}</span></div>
-        <div><span class="text-slate-400">\u6027\u683c</span><span class="ml-2">${personality}</span></div>
-        <div><span class="text-slate-400">\u30e1\u30e2</span><span class="ml-2">${noteText}</span></div>
+      <div class="referral-candidate-section">
+        <div class="referral-candidate-section-title">\u30b9\u30ad\u30eb\u30fb\u9069\u6027</div>
+        <div class="referral-candidate-stack">
+          <div class="referral-candidate-item">
+            <span class="referral-candidate-label">\u30b9\u30ad\u30eb</span>
+            <span class="referral-candidate-value">${skills}</span>
+          </div>
+          <div class="referral-candidate-item">
+            <span class="referral-candidate-label">\u8cc7\u683c</span>
+            <span class="referral-candidate-value">${qualifications}</span>
+          </div>
+          <div class="referral-candidate-item">
+            <span class="referral-candidate-label">\u6027\u683c</span>
+            <span class="referral-candidate-value">${personality}</span>
+          </div>
+          <div class="referral-candidate-item is-wide">
+            <span class="referral-candidate-label">\u30e1\u30e2</span>
+            <span class="referral-candidate-value">${noteText}</span>
+          </div>
+        </div>
       </div>
     </div>
   `;

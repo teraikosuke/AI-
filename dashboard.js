@@ -47,11 +47,11 @@ const pageMeta = {
     subtitle: "媒体・求人別の主要指標と突合状況をモニタリングし、CSV取込を実行",
   },
   "tele-log": {
-    title: "テレアポ管理",
+    title: "架電管理",
     subtitle: "架電ログと指標カードを一元管理し、CSV取込や手入力で更新",
   },
   teleapo: {
-    title: "テレアポ管理",
+    title: "架電管理",
     subtitle: "架電ログと指標カードを一元管理し、CSV取込や手入力で更新",
   },
 };
@@ -3149,7 +3149,7 @@ navLinks.forEach((link) => {
     }
     
     if (target === 'tele-log' || target === 'teleapo') {
-      // テレアポ管理ページがアクティブになった時に初期化
+      // 架電管理ページがアクティブになった時に初期化
       setTimeout(() => {
         initializeTeleapoManagement();
       }, 0);
@@ -3158,10 +3158,10 @@ navLinks.forEach((link) => {
 });
 
 // =============================================================================
-// テレアポ管理機能
+// 架電管理機能
 // =============================================================================
 
-// テレアポ管理のデータ構造
+// 架電管理のデータ構造
 let teleapoData = {
   callLogs: [
     {
@@ -3230,7 +3230,7 @@ let teleapoData = {
   }
 };
 
-// テレアポ管理のフィルタ状態
+// 架電管理のフィルタ状態
 let teleapoFilters = {
   dateStart: '2024-11-01',
   dateEnd: '2024-11-13',
@@ -3243,7 +3243,7 @@ let teleapoFilters = {
   pageSize: 50
 };
 
-// テレアポ管理の初期化
+// 架電管理の初期化
 const initializeTeleapoManagement = () => {
   console.log('initializeTeleapoManagement called'); // デバッグログ
   console.log('teleapoData:', teleapoData); // デバッグログ

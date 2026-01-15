@@ -45,12 +45,32 @@ const escapeAttr = (value) => escapeHtml(value);
 
 let selectedMediaFilter = null;
 let decisionLineChart = null;
+let mainBarChart = null;
 let chartJsLoading = null;
 let lastAggregated = [];
 let lineMetric = 'decisionRate';
+let currentGraphMetric = 'roas';
 let contractInfoCache = new Map();
 let contractFetchInFlight = new Map();
 let contractEditTarget = null;
+
+function formatContractDateValue(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const match = text.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (match) {
+    const y = match[1];
+    const m = String(match[2]).padStart(2, '0');
+    const d = String(match[3]).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export function mount() {
   initializeAdFilters();
@@ -66,6 +86,10 @@ export function unmount() {
     decisionLineChart.destroy();
     decisionLineChart = null;
   }
+  if (mainBarChart) {
+    mainBarChart.destroy();
+    mainBarChart = null;
+  }
 }
 
 function initializeAdFilters() {
@@ -74,6 +98,7 @@ function initializeAdFilters() {
   const resetBtn = document.getElementById('adResetFilter');
   const metricSelect = document.getElementById('adMetricSelect');
   const metricTitle = document.getElementById('adMetricTitle');
+  const graphMetricSelect = document.getElementById('adGraphMetricSelect');
 
   mediaFilter?.addEventListener('change', handleMediaFilter);
   exportBtn?.addEventListener('click', handleExportCSV);
@@ -98,6 +123,14 @@ function initializeAdFilters() {
     }
     renderAdCharts(lastAggregated, adState.filtered);
   });
+
+  if (graphMetricSelect) {
+    currentGraphMetric = graphMetricSelect.value || 'roas';
+    graphMetricSelect.addEventListener('change', (e) => {
+      currentGraphMetric = e.target.value || 'roas';
+      renderAdCharts(lastAggregated, adState.filtered);
+    });
+  }
 
   ['adStartDate', 'adEndDate'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => loadAdPerformanceData());
@@ -159,6 +192,9 @@ function getContractCacheKey(mediaName, mediaId) {
 function normalizeContractInfo(payload) {
   const amount = payload?.contractAmount;
   return {
+    // ★重要: IDをここで確保する
+    id: payload?.id || '',
+
     contractStartDate: payload?.contractStartDate || '',
     contractEndDate: payload?.contractEndDate || '',
     contractAmount: amount === null || amount === undefined ? '' : String(amount),
@@ -166,10 +202,29 @@ function normalizeContractInfo(payload) {
     contractMethod: payload?.contractMethod || '',
     renewalTerms: payload?.renewalTerms || '',
     memo: payload?.memo || '',
-    totalSales: Number(payload?.totalSales || 0) // ★追加: APIからの売上高を受け取る
+    totalSales: Number(payload?.totalSales || 0)
   };
 }
 
+// 日付入力用 (YYYY-MM-DD)
+function formatDateForInput(dateStr) {
+  if (!dateStr) return '';
+  // 文字列の場合、T以降をカット (例: 2025-01-01T00:00... -> 2025-01-01)
+  if (typeof dateStr === 'string') return dateStr.split('T')[0];
+  // Dateオブジェクトの場合
+  try {
+    return new Date(dateStr).toISOString().split('T')[0];
+  } catch (e) {
+    return '';
+  }
+}
+
+// 日付表示用 (YYYY/MM/DD)
+function formatDateForDisplay(dateStr) {
+  const ymd = formatDateForInput(dateStr);
+  if (!ymd) return '';
+  return ymd.replace(/-/g, '/');
+}
 function getContractInfo(cacheKey) {
   const stored = contractInfoCache.get(cacheKey);
   return { ...DEFAULT_CONTRACT_INFO, ...(stored || {}) };
@@ -280,15 +335,17 @@ function calcDerivedRates(item) {
   const cost = Number(item.cost) || 0;
   const hired = Number(item.hired) || 0;
   const refund = Number(item.refund) || 0;
-  // ★追加: totalSales（売上高）の取り込み
-  // KPI APIが totalSales を返すようになれば、ここに値が入ります
   const totalSales = Number(item.totalSales) || 0;
+
+  // ★追加: ROAS計算 (売上 ÷ 費用 * 100)
+  const roas = cost > 0 ? (totalSales / cost) * 100 : 0;
 
   return {
     ...item,
     refund,
     cost,
-    totalSales, // ★追加
+    totalSales,
+    roas, // ★追加
     costPerHire: hired ? cost / hired : 0,
     validApplicationRate: rate(item.validApplications, item.applications),
     initialInterviewRate: rate(item.initialInterviews, item.validApplications || item.applications),
@@ -469,8 +526,8 @@ function renderAdTable(data) {
   const pageItems = data.slice(start, end);
 
   if (!pageItems.length) {
-    // colspan を 14 に修正
-    tableBody.innerHTML = `<tr><td colspan="14" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    // ★修正: 列数が16になったため colspan を 16 に設定
+    tableBody.innerHTML = `<tr><td colspan="16" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
     return;
   }
 
@@ -480,12 +537,15 @@ function renderAdTable(data) {
     return 'bg-red-100 text-red-700';
   };
 
-  // ★修正: すべてのセルに whitespace-nowrap を追加し、ズレを防止
+  // ROAS用のバッジスタイル (例: 100%以上なら緑、などの基準があればここで調整可能)
+  // 今回は単純に数値表示とします
+
   tableBody.innerHTML = pageItems.map(ad => `
       <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id ?? ''}">
         <td class="sticky left-0 bg-white font-medium text-slate-900 z-30 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
           ${ad.mediaName}
         </td>
+        <td class="text-right font-semibold whitespace-nowrap px-2 text-slate-700">${formatCurrency(ad.cost)}</td>
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatNumber(ad.applications)}</td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.validApplications)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
@@ -497,16 +557,20 @@ function renderAdTable(data) {
         <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.hireRate)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
+        
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
+        
+        <td class="text-right font-semibold whitespace-nowrap px-2 text-indigo-700">${formatPercent(ad.roas)}</td>
+        
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.refund)}</td>
       </tr>
   `).join('');
 }
 
 function updateAdSummary(data, summary) {
-  // 省略（ロジック変更なし）
   const useSummary = summary && typeof summary === 'object' && !selectedMediaFilter;
   const rate = (num, den) => (den ? (num / den) * 100 : 0);
+
   const totalApps = useSummary
     ? Number(summary.totalApplications || 0)
     : data.reduce((sum, d) => sum + (d.applications || 0), 0);
@@ -516,14 +580,21 @@ function updateAdSummary(data, summary) {
   const totalHired = useSummary
     ? Number(summary.totalHired || 0)
     : data.reduce((sum, d) => sum + (d.hired || 0), 0);
+
+  // ★ROAS計算用: 現在の表示データ(data)から合計を算出
+  // (APIサマリーにはSalesがないため、フィルタ有無に関わらずdataから集計するのが確実)
+  const totalSales = data.reduce((sum, d) => sum + (Number(d.totalSales) || 0), 0);
+  const totalCost = data.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
+
   const totalInitialInterviews = data.reduce((sum, d) => sum + (d.initialInterviews || 0), 0);
-  const retentionWeighted = data.reduce((sum, d) => sum + (Number(d.retention30) || 0) * (Number(d.hired) || 0), 0);
 
   const decisionRate = rate(totalHired, totalApps);
   const validRate = rate(totalValid, totalApps);
   const interviewDenom = totalValid || totalApps;
   const initialInterviewRate = rate(totalInitialInterviews, interviewDenom);
-  const retentionRate = totalHired ? retentionWeighted / totalHired : 0;
+
+  // ★ROAS計算
+  const totalRoas = totalCost > 0 ? (totalSales / totalCost) * 100 : 0;
 
   const setText = (id, value) => {
     const el = document.getElementById(id);
@@ -534,48 +605,162 @@ function updateAdSummary(data, summary) {
   setText('adSummaryValidWithRate', validText);
   setText('adSummaryInitialInterviewRate', interviewDenom ? formatPercent(initialInterviewRate) : '-');
   setText('adSummaryDecisionRate', totalApps ? formatPercent(decisionRate) : '-');
-  setText('adSummaryRetentionRate', totalHired ? formatPercent(retentionRate) : '-');
+
+  // ★変更: 定着率 → ROAS
+  setText('adSummaryRoas', formatPercent(totalRoas));
+}
+
+function setMainBarChartPlaceholder(message) {
+  const canvas = document.getElementById('adMainBarChartCanvas');
+  const wrapper = canvas?.parentElement;
+  if (!canvas || !wrapper) return;
+  const placeholderId = 'adMainBarChartPlaceholder';
+  let placeholder = wrapper.querySelector(`#${placeholderId}`);
+  if (message) {
+    canvas.style.display = 'none';
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.id = placeholderId;
+      placeholder.className = 'absolute inset-0 flex items-center justify-center text-sm text-slate-500';
+      wrapper.appendChild(placeholder);
+    }
+    placeholder.textContent = message;
+    return;
+  }
+  canvas.style.display = '';
+  if (placeholder) placeholder.remove();
+}
+
+function renderAdMainChart(data) {
+  const canvas = document.getElementById('adMainBarChartCanvas');
+  if (!canvas) return;
+
+  if (mainBarChart) {
+    mainBarChart.destroy();
+    mainBarChart = null;
+  }
+
+  if (!data.length) {
+    setMainBarChartPlaceholder('データがありません');
+    return;
+  }
+
+  setMainBarChartPlaceholder('');
+
+  const normalized = data.map(d => ({
+    mediaName: d.mediaName,
+    applications: Number(d.applications) || 0,
+    validApplications: Number(d.validApplications) || 0,
+    totalSales: Number(d.totalSales) || 0,
+    cost: Number(d.cost) || 0,
+    roas: Number(d.roas) || 0
+  }));
+
+  let sorted = normalized;
+  let datasets = [];
+  let xTickFormatter = (v) => formatNumber(v);
+  let tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.raw)}`;
+
+  if (currentGraphMetric === 'roas') {
+    sorted = [...normalized].sort((a, b) => b.roas - a.roas);
+    datasets = [{
+      label: 'ROAS',
+      data: sorted.map(d => d.roas),
+      backgroundColor: '#6366f1'
+    }];
+    xTickFormatter = (v) => formatPercent(v);
+    tooltipFormatter = (ctx) => `ROAS: ${formatPercent(ctx.raw)}`;
+  } else if (currentGraphMetric === 'sales_cost') {
+    sorted = [...normalized].sort((a, b) => b.totalSales - a.totalSales);
+    datasets = [
+      {
+        label: '売上額',
+        data: sorted.map(d => d.totalSales),
+        backgroundColor: '#6366f1'
+      },
+      {
+        label: '契約費用',
+        data: sorted.map(d => d.cost),
+        backgroundColor: '#f97316'
+      }
+    ];
+    xTickFormatter = (v) => formatCurrency(v);
+    tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`;
+  } else {
+    sorted = [...normalized].sort((a, b) => b.applications - a.applications);
+    datasets = [
+      {
+        label: '応募数',
+        data: sorted.map(d => d.applications),
+        backgroundColor: '#94a3b8'
+      },
+      {
+        label: '有効応募数',
+        data: sorted.map(d => d.validApplications),
+        backgroundColor: '#6366f1'
+      }
+    ];
+    xTickFormatter = (v) => formatNumber(v);
+    tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.raw)}`;
+  }
+
+  const labels = sorted.map(d => d.mediaName);
+  const handleClick = (evt, elements, chart) => {
+    if (!elements.length) return;
+    const index = elements[0].index;
+    const mediaName = chart.data.labels[index];
+    const input = document.getElementById('adMediaFilter');
+    const isSame = selectedMediaFilter && selectedMediaFilter.toLowerCase() === String(mediaName).toLowerCase();
+    selectedMediaFilter = isSame ? null : mediaName;
+    if (input) input.value = isSame ? '' : mediaName;
+    applyFilters(isSame ? '' : mediaName);
+  };
+
+  mainBarChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', display: datasets.length > 1 },
+        tooltip: { callbacks: { label: tooltipFormatter } }
+      },
+      interaction: { mode: 'nearest', intersect: true },
+      onClick: handleClick,
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
+          ticks: { callback: xTickFormatter }
+        },
+        y: { grid: { display: false } }
+      }
+    }
+  });
 }
 
 function renderAdCharts(aggregatedData, rawData = adState.filtered) {
-  // チャート描画部分（変更なし）
-  const appsContainer = document.getElementById('adChartApplications');
   const lineCanvas = document.getElementById('adDecisionLine');
-  if (!appsContainer || !lineCanvas) return;
+  const barCanvas = document.getElementById('adMainBarChartCanvas');
+  if (!lineCanvas || !barCanvas) return;
 
   if (typeof Chart === 'undefined') {
     ensureChartJs().then(() => renderAdCharts(aggregatedData, rawData));
     return;
   }
 
+  renderAdMainChart(aggregatedData);
+
   if (!aggregatedData.length) {
-    appsContainer.innerHTML = `<div class="text-sm text-slate-500">データがありません</div>`;
     if (decisionLineChart) {
       decisionLineChart.destroy();
       decisionLineChart = null;
     }
+    updateContractInfo(aggregatedData);
     return;
   }
-
-  const maxApps = Math.max(...aggregatedData.map(d => d.applications), 0);
-  appsContainer.innerHTML = aggregatedData.map(d => {
-    const appsWidth = maxApps ? (d.applications / maxApps) * 100 : 0;
-    const validWidth = maxApps ? (d.validApplications / maxApps) * 100 : 0;
-    return `
-      <div class="relative">
-        <div class="flex items-center justify-between text-sm font-medium text-slate-700">
-          <span class="truncate">${d.mediaName}</span>
-          <span class="text-slate-500 text-xs">${formatNumber(d.validApplications)} / ${formatNumber(d.applications)}</span>
-        </div>
-        <div class="mt-1 h-3 bg-slate-100 rounded relative overflow-hidden">
-          <div class="absolute top-0 left-0 h-3 bg-indigo-200" style="width:${appsWidth}%"></div>
-          <div class="absolute top-0 left-0 h-3 bg-indigo-500" style="width:${validWidth}%"></div>
-        </div>
-        <div class="flex justify-between text-[11px] text-slate-500 mt-1">
-          <span>応募</span><span>有効応募</span>
-        </div>
-      </div>`;
-  }).join('');
 
   const labels = Array.from(new Set(rawData.map(d => d.period))).sort();
   const palette = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6', '#38bdf8', '#ef4444', '#10b981'];
@@ -702,12 +887,13 @@ function formatContractField(value, emptyLabel = '-') {
 function formatContractRange(startDate, endDate) {
   const start = String(startDate ?? '').trim();
   const end = String(endDate ?? '').trim();
+
   if (!start && !end) return '-';
   if (start && end) return `${start} ～ ${end}`;
-  if (start) return `${start} ～`;
+  // ★追加: 終了日がない場合は継続中と表示
+  if (start) return `${start} ～ (継続中)`;
   return `～ ${end}`;
 }
-
 function formatContractAmount(amount, period) {
   const raw = String(amount ?? '').trim();
   const numeric = raw ? Number(raw.replace(/,/g, '')) : null;
@@ -772,7 +958,17 @@ function renderContractError(box, target, message) {
 function renderContractView(box, target, contractInfo) {
   const notes = String(contractInfo.memo ?? '').trim();
   const notesDisplay = notes ? escapeHtml(notes) : '（なし）';
-  const rangeText = formatContractRange(contractInfo.contractStartDate, contractInfo.contractEndDate);
+
+  // ★修正: 表示用に日付を整形 (YYYY/MM/DD)
+  const startDisp = formatDateForDisplay(contractInfo.contractStartDate);
+  const endDisp = formatDateForDisplay(contractInfo.contractEndDate);
+
+  // 期間表示の作成
+  let rangeText = '-';
+  if (startDisp) {
+    rangeText = endDisp ? `${startDisp} ～ ${endDisp}` : `${startDisp} ～ (継続中)`;
+  }
+
   const amountText = formatContractAmount(contractInfo.contractAmount, contractInfo.amountPeriod);
   const cacheKey = getContractCacheKey(target.mediaName, target.mediaId);
 
@@ -785,10 +981,11 @@ function renderContractView(box, target, contractInfo) {
       <button type="button" id="adContractEditBtn"
         class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">編集</button>
     </div>
-    ${buildContractSummary(target, contractInfo)} <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+    ${buildContractSummary(target, contractInfo)}
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
       <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
         <div class="text-[11px] text-slate-500">契約期間</div>
-        <div class="text-sm font-semibold text-slate-900">${formatContractField(rangeText)}</div>
+        <div class="text-sm font-semibold text-slate-900">${escapeHtml(rangeText)}</div>
       </div>
       <div class="rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
         <div class="text-[11px] text-slate-500">契約金額</div>
@@ -813,6 +1010,7 @@ function renderContractView(box, target, contractInfo) {
   const editBtn = box.querySelector('#adContractEditBtn');
   editBtn?.addEventListener('click', () => {
     contractEditTarget = cacheKey;
+    // 最新のデータを再取得してから編集モードにする（念のため）
     updateContractInfo(lastAggregated);
   });
 }
@@ -820,6 +1018,14 @@ function renderContractView(box, target, contractInfo) {
 function renderContractEditor(box, target, contractInfo) {
   const amountOptions = buildAmountPeriodOptions(contractInfo.amountPeriod);
   const cacheKey = getContractCacheKey(target.mediaName, target.mediaId);
+
+  // 終了日が空なら「未定」扱いとする
+  const isIndefinite = !contractInfo.contractEndDate;
+
+  // ★修正: input type="date" 用に値を整形 (YYYY-MM-DD)
+  const startDateValue = formatDateForInput(contractInfo.contractStartDate);
+  const endDateValue = formatDateForInput(contractInfo.contractEndDate);
+
   box.innerHTML = `
     <div class="flex items-start justify-between gap-3">
       <div class="space-y-1">
@@ -829,14 +1035,23 @@ function renderContractEditor(box, target, contractInfo) {
       <button type="button" id="adContractCancelBtn"
         class="px-3 py-1 rounded border border-slate-300 text-xs text-slate-700 hover:bg-slate-100">キャンセル</button>
     </div>
-    ${buildContractSummary(target, contractInfo)} <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    ${buildContractSummary(target, contractInfo)}
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
       <label class="text-xs text-slate-600 sm:col-span-2">
         契約期間
-        <div class="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input id="adContractStartDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
-            value="${escapeAttr(contractInfo.contractStartDate)}" />
-          <input id="adContractEndDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
-            value="${escapeAttr(contractInfo.contractEndDate)}" />
+        <div class="mt-1 flex items-start gap-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-grow">
+            <input id="adContractStartDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200"
+              value="${escapeAttr(startDateValue)}" />
+            <input id="adContractEndDate" type="date" class="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-400"
+              value="${escapeAttr(endDateValue)}" ${isIndefinite ? 'disabled' : ''} />
+          </div>
+          <div class="pt-1">
+            <label class="flex items-center gap-1 cursor-pointer select-none">
+              <input type="checkbox" id="adContractIndefinite" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" ${isIndefinite ? 'checked' : ''}>
+              <span class="text-xs whitespace-nowrap text-slate-700">終了日未定</span>
+            </label>
+          </div>
         </div>
       </label>
       <label class="text-xs text-slate-600">
@@ -875,14 +1090,44 @@ function renderContractEditor(box, target, contractInfo) {
   const saveBtn = box.querySelector('#adContractSaveBtn');
   const cancelBtn = box.querySelector('#adContractCancelBtn');
   const statusEl = box.querySelector('#adContractSaveStatus');
+  const indefiniteCheckbox = box.querySelector('#adContractIndefinite');
+  const endDateInput = box.querySelector('#adContractEndDate');
 
+  // キャンセルボタン
   cancelBtn?.addEventListener('click', () => {
     contractEditTarget = null;
     renderContractView(box, target, getContractInfo(cacheKey));
   });
 
+  // 「終了日未定」チェックボックスの制御
+  indefiniteCheckbox?.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      endDateInput.value = '';
+      endDateInput.disabled = true;
+    } else {
+      endDateInput.disabled = false;
+    }
+  });
+
+  // 保存ボタン
   saveBtn?.addEventListener('click', async () => {
     if (!saveBtn) return;
+
+    const startDateVal = box.querySelector('#adContractStartDate')?.value?.trim();
+    const endDateVal = box.querySelector('#adContractEndDate')?.value?.trim();
+    const isIndefiniteChecked = indefiniteCheckbox?.checked;
+
+    // バリデーション: 開始日は必須
+    if (!startDateVal) {
+      alert("「契約開始日」は必須項目です。");
+      return;
+    }
+    // バリデーション: 終了日は「未定」が未チェックなら必須
+    if (!isIndefiniteChecked && !endDateVal) {
+      alert("「契約終了日」を入力するか、「終了日未定」にチェックを入れてください。");
+      return;
+    }
+
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中...';
     if (statusEl) statusEl.textContent = '';
@@ -892,8 +1137,11 @@ function renderContractEditor(box, target, contractInfo) {
     const contractAmount = Number.isFinite(amountValue) ? amountValue : null;
 
     const payload = {
-      contractStartDate: box.querySelector('#adContractStartDate')?.value?.trim() || null,
-      contractEndDate: box.querySelector('#adContractEndDate')?.value?.trim() || null,
+      // IDを忘れずに送る
+      id: contractInfo.id,
+
+      contractStartDate: startDateVal,
+      contractEndDate: isIndefiniteChecked ? null : endDateVal,
       contractAmount,
       amountPeriod: box.querySelector('#adContractAmountPeriod')?.value?.trim() || null,
       contractMethod: box.querySelector('#adContractMethod')?.value?.trim() || null,
@@ -905,6 +1153,8 @@ function renderContractEditor(box, target, contractInfo) {
       await saveContractInfo(target.mediaName, payload, target.mediaId);
       contractEditTarget = null;
       renderContractView(box, target, getContractInfo(cacheKey));
+      // 一覧テーブルの再計算のためにリロード
+      loadAdPerformanceData();
     } catch (err) {
       const message = err?.message || '保存に失敗しました';
       if (statusEl) statusEl.textContent = message;
@@ -914,14 +1164,30 @@ function renderContractEditor(box, target, contractInfo) {
   });
 }
 
+function setContractVisibility(showContract) {
+  const contractBox = document.getElementById('adContractInfo');
+  const chartSection = document.getElementById('adMainBarChartSection');
+  if (chartSection) chartSection.classList.toggle('hidden', showContract);
+  if (contractBox) contractBox.classList.toggle('hidden', !showContract);
+}
+
 function updateContractInfo(data) {
   const box = document.getElementById('adContractInfo');
   if (!box) return;
-  const filterText = (document.getElementById('adMediaFilter')?.value || '').trim().toLowerCase();
+  const rawFilter = (document.getElementById('adMediaFilter')?.value || selectedMediaFilter || '').trim();
+  const filterText = rawFilter.toLowerCase();
+  const hasFilter = Boolean(rawFilter);
+  if (!hasFilter) {
+    contractEditTarget = null;
+    setContractVisibility(false);
+    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
+    return;
+  }
+  setContractVisibility(true);
   const target = data.find(d => d.mediaName.toLowerCase() === filterText) || null;
   if (!target) {
     contractEditTarget = null;
-    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>`;
+    box.innerHTML = `<div class="text-sm text-slate-500 mb-1">媒体契約情報</div><div class="text-base text-slate-700">選択された媒体が見つかりません。</div>`;
     return;
   }
   const mediaId = resolveMediaId(target);
@@ -993,7 +1259,10 @@ function changePage(direction) {
 
 function handleExportCSV() {
   const sortedData = getAggregatedSorted();
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '売上高（税込）', '返金額（税込）'];
+
+  // ★列順変更: 売上高 -> 契約費用 -> ROAS
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '売上高（税込）', '契約費用', 'ROAS', '返金額（税込）'];
+
   const csvContent = [
     headers.join(','),
     ...sortedData.map(ad => [
@@ -1008,10 +1277,13 @@ function handleExportCSV() {
       `${ad.hireRate.toFixed(1)}%`,
       `${ad.decisionRate.toFixed(1)}%`,
       `${ad.retention30.toFixed(1)}%`,
-      ad.totalSales, // ★追加: 売上高
+      ad.totalSales,
+      ad.cost, // ★ここへ移動
+      `${ad.roas.toFixed(1)}%`,
       ad.refund
     ].join(','))
   ].join('\n');
+
   const bom = '\uFEFF';
   const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
@@ -1023,7 +1295,8 @@ function handleExportCSV() {
 function showAdError(message) {
   const tableBody = document.getElementById('adManagementTableBody');
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="14" class="text-center text-red-500 py-6">${message}</td></tr>`;
+    // ★修正: colspanを16に変更
+    tableBody.innerHTML = `<tr><td colspan="16" class="text-center text-red-500 py-6">${message}</td></tr>`;
   }
 }
 

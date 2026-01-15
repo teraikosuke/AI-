@@ -173,6 +173,21 @@ function getCandidateDetailApiUrl(candidateId) {
   return `${CANDIDATES_API_URL}/${encodeURIComponent(id)}`;
 }
 
+async function updateCandidateFirstInterview(candidateId, interviewAt) {
+  const url = getCandidateDetailApiUrl(candidateId);
+  if (!url) throw new Error("candidateId is required");
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ firstInterviewDate: interviewAt }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
 function normalizeCandidateDetail(raw) {
   if (!raw) return raw;
   return {
@@ -623,6 +638,7 @@ const RESULT_LABELS = {
 };
 
 let teleapoLogData = [];
+let teleapoPendingLogs = [];
 let teleapoFilteredLogs = [];
 let teleapoEmployeeMetrics = [];
 let teleapoSummaryScope = { type: 'company', name: '全体' };
@@ -725,6 +741,93 @@ function normalizeLog(log) {
     resultCode,
     result: RESULT_LABELS[resultCode] || rawResult || ''
   };
+}
+
+function isSameTeleapoLog(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id && String(a.id) === String(b.id)) return true;
+  if (!a.datetime || !b.datetime) return false;
+  if (a.employee && b.employee && a.employee !== b.employee) return false;
+  if (a.datetime !== b.datetime) return false;
+  if (a.candidateId && b.candidateId && Number(a.candidateId) === Number(b.candidateId)) return true;
+  const aKey = normalizeNameKey(a.target || "");
+  const bKey = normalizeNameKey(b.target || "");
+  return aKey && bKey && aKey === bKey;
+}
+
+function resolveCandidateContact(candidateId, candidateName) {
+  if (!teleapoCandidateMaster.length) return { tel: "", email: "" };
+  const idText = candidateId ? String(candidateId) : "";
+  const nameKey = normalizeNameKey(candidateName || "");
+  let candidate = null;
+  if (idText) {
+    candidate = teleapoCandidateMaster.find(c => String(c.id ?? c.candidate_id ?? c.candidateId ?? c.candidateID) === idText) || null;
+  }
+  if (!candidate && nameKey) {
+    candidate = teleapoCandidateMaster.find(c => normalizeNameKey(c.candidateName ?? c.candidate_name ?? c.name ?? "") === nameKey) || null;
+  }
+  const tel =
+    candidate?.phone ??
+    candidate?.phone_number ??
+    candidate?.phoneNumber ??
+    candidate?.tel ??
+    candidate?.mobile ??
+    candidate?.candidate_phone ??
+    "";
+  const email =
+    candidate?.email ??
+    candidate?.candidate_email ??
+    candidate?.mail ??
+    "";
+  return { tel, email };
+}
+
+function buildPendingTeleapoLog({
+  id,
+  candidateId,
+  candidateName,
+  calledAt,
+  employee,
+  route,
+  result,
+  memo,
+  callerUserId
+}) {
+  const contact = resolveCandidateContact(candidateId, candidateName);
+  return normalizeLog({
+    id: id != null && id !== "" ? String(id) : undefined,
+    datetime: toDateTimeString(calledAt) || "",
+    employee: employee || "",
+    route,
+    target: candidateName || "",
+    tel: contact.tel || "",
+    email: contact.email || "",
+    resultRaw: result || "",
+    memo: memo || "",
+    candidateId: Number.isFinite(candidateId) && candidateId > 0 ? candidateId : undefined,
+    callerUserId: Number.isFinite(callerUserId) && callerUserId > 0 ? callerUserId : undefined
+  });
+}
+
+function addPendingTeleapoLog(log) {
+  if (!log || !log.datetime) return;
+  const exists = teleapoPendingLogs.some(p => isSameTeleapoLog(p, log));
+  if (!exists) teleapoPendingLogs.unshift(log);
+}
+
+function mergePendingLogs(baseLogs) {
+  if (!teleapoPendingLogs.length) return baseLogs;
+  const merged = [...baseLogs];
+  const stillPending = [];
+  for (const pending of teleapoPendingLogs) {
+    const exists = merged.some(l => isSameTeleapoLog(l, pending));
+    if (!exists) {
+      merged.unshift(pending);
+      stillPending.push(pending);
+    }
+  }
+  teleapoPendingLogs = stillPending;
+  return merged;
 }
 
 function classifyTeleapoResult(log) {
@@ -2221,6 +2324,7 @@ async function loadTeleapoData() {
     if (!teleapoLogData.length && mappedLogs.length) {
       teleapoLogData = mappedLogs;
     }
+    teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     rebuildEmployeeMap();
     refreshCandidateDatalist();
@@ -2229,6 +2333,7 @@ async function loadTeleapoData() {
   } catch (err) {
     console.error('[teleapo] API取得に失敗したためモックを使用します', err);
     teleapoLogData = teleapoInitialMockLogs.map(normalizeLog);
+    teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     refreshCandidateDatalist();
     applyFilters();
@@ -2369,6 +2474,20 @@ function updateCallNoAndRoute(candidateName) {
   if (candidateIdHidden && latest?.candidateId) candidateIdHidden.value = String(latest.candidateId);
 }
 
+function shouldRequireInterview(resultValue) {
+  return normalizeResultCode(resultValue) === "set";
+}
+
+function updateInterviewFieldVisibility(resultValue) {
+  const field = document.getElementById("dialFormInterviewField");
+  const input = document.getElementById("dialFormInterviewAt");
+  if (!field || !input) return;
+  const shouldShow = shouldRequireInterview(resultValue ?? document.getElementById("dialFormResult")?.value);
+  field.classList.toggle("is-hidden", !shouldShow);
+  input.required = shouldShow;
+  if (!shouldShow) input.value = "";
+}
+
 function resetDialFormDefaults(clearMessage = true) {
   const dt = document.getElementById("dialFormCalledAt");
   if (dt) dt.value = nowLocalDateTime();
@@ -2378,6 +2497,9 @@ function resetDialFormDefaults(clearMessage = true) {
   if (route) route.value = "電話";
   const callNo = document.getElementById("dialFormCallNo");
   if (callNo) callNo.value = "1";
+  const result = document.getElementById("dialFormResult");
+  if (result) result.value = "通電";
+  updateInterviewFieldVisibility(result?.value);
   const memo = document.getElementById("dialFormMemo");
   if (memo) memo.value = "";
   const msg = document.getElementById("dialFormMessage");
@@ -2387,6 +2509,7 @@ function resetDialFormDefaults(clearMessage = true) {
 // 既存の bindDialForm をこれで上書き
 function bindDialForm() {
   const candidateInput = document.getElementById("dialFormCandidateName");
+  const resultSelect = document.getElementById("dialFormResult");
 
   // 名前入力時の自動補完ロジック
   if (candidateInput) {
@@ -2403,6 +2526,11 @@ function bindDialForm() {
         }
       })
     );
+  }
+
+  if (resultSelect) {
+    resultSelect.addEventListener("change", () => updateInterviewFieldVisibility(resultSelect.value));
+    updateInterviewFieldVisibility(resultSelect.value);
   }
 
   const submitBtn = document.getElementById("dialFormSubmit");
@@ -2425,6 +2553,8 @@ function bindDialForm() {
     const calledAt = localDateTimeToRfc3339(calledAtLocal);
     const route = document.getElementById("dialFormRoute")?.value || "電話";
     const result = document.getElementById("dialFormResult")?.value || "通電";
+    const interviewAtLocal = document.getElementById("dialFormInterviewAt")?.value || "";
+    const needsInterview = shouldRequireInterview(result);
     const employee = document.getElementById("dialFormEmployee")?.value || "";
     const memo = document.getElementById("dialFormMemo")?.value || "";
     const callNo = Number(document.getElementById("dialFormCallNo")?.value);
@@ -2436,6 +2566,14 @@ function bindDialForm() {
     }
     if (!employee || !calledAt) {
       if (msg) msg.textContent = "担当者と日時は必須です";
+      return;
+    }
+    if (needsInterview && !interviewAtLocal) {
+      if (msg) msg.textContent = "アポ結果が設定の場合は初回面談日時を入力してください";
+      return;
+    }
+    if (needsInterview && !candidateIdValue) {
+      if (msg) msg.textContent = "初回面談日時の登録には候補者を一覧から選択してください";
       return;
     }
 
@@ -2479,16 +2617,50 @@ function bindDialForm() {
       } catch (e) {
         responseJson = null;
       }
+      const responseId =
+        responseJson?.id ??
+        responseJson?.log_id ??
+        responseJson?.logId ??
+        responseJson?.item?.id ??
+        responseJson?.data?.id ??
+        null;
       setLogHighlightTarget({
-        id: responseJson?.id,
+        id: responseId,
         candidateId: candidateIdValue,
         calledAt,
         callerUserId,
         candidateName
       });
+      const pendingLog = buildPendingTeleapoLog({
+        id: responseId,
+        candidateId: candidateIdValue,
+        candidateName,
+        calledAt,
+        employee,
+        route,
+        result,
+        memo,
+        callerUserId
+      });
+      addPendingTeleapoLog(pendingLog);
+      teleapoLogData = mergePendingLogs(teleapoLogData);
+      annotateCallAttempts(teleapoLogData);
+      applyFilters();
+      let interviewUpdateError = "";
+      if (needsInterview && candidateIdValue) {
+        const interviewAt = localDateTimeToRfc3339(interviewAtLocal);
+        try {
+          await updateCandidateFirstInterview(candidateIdValue, interviewAt);
+        } catch (err) {
+          interviewUpdateError = "（初回面談日時の保存に失敗しました）";
+          console.error("candidate interview update error:", err);
+        }
+      }
       if (msg) {
-        msg.className = "teleapo-form-message text-sm text-emerald-600 font-semibold";
-        msg.textContent = "架電ログに追加しました";
+        msg.className = `teleapo-form-message text-sm ${interviewUpdateError ? "text-amber-600" : "text-emerald-600"} font-semibold`;
+        msg.textContent = interviewUpdateError
+          ? `架電ログに追加しました${interviewUpdateError}`
+          : "架電ログに追加しました";
         setTimeout(() => msg.textContent = "", 3000);
       }
 

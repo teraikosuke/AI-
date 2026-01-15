@@ -376,10 +376,6 @@ function collectFilters() {
   };
 }
 
-function normalizeFilterText(value) {
-  return String(value ?? "").trim().toLowerCase();
-}
-
 function resolveCandidateDateValue(candidate) {
   return (
     candidate.registeredAt ??
@@ -631,17 +627,6 @@ function applyCandidatesFilters(list, filters) {
     }
 
     return true;
-  });
-}
-
-function sortCandidatesByDate(list, sortOrder = "desc") {
-  const direction = sortOrder === "asc" ? 1 : -1;
-  return [...list].sort((a, b) => {
-    const aDate = getCandidateRegisteredDate(a);
-    const bDate = getCandidateRegisteredDate(b);
-    const aTime = aDate ? aDate.getTime() : 0;
-    const bTime = bDate ? bDate.getTime() : 0;
-    return (aTime - bTime) * direction;
   });
 }
 

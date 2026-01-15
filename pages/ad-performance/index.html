@@ -48,21 +48,30 @@
       <div class="text-xs text-slate-500 mt-1">応募全体に対する入社割合</div>
     </div>
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div class="text-sm text-slate-500">定着率</div>
-      <div id="adSummaryRetentionRate" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-      <div class="text-xs text-slate-500 mt-1">入社後30日の定着率</div>
+      <div class="text-sm text-slate-500">ROAS</div>
+      <div id="adSummaryRoas" class="text-2xl font-bold text-slate-800 mt-1">-</div>
+      <div class="text-xs text-slate-500 mt-1">売上額 ÷ 契約費用</div>
     </div>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-2">
-    <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div class="flex items-center justify-between">
-        <h4 class="text-base font-semibold text-slate-800">媒体別応募/有効応募件数</h4>
-        <span class="text-xs text-slate-500">有効応募 / 応募</span>
+    <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm flex flex-col">
+      <div id="adMainBarChartSection" class="flex flex-col flex-1">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-base font-semibold text-slate-800">媒体別指標比較</h4>
+          <select id="adGraphMetricSelect"
+            class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="roas" selected>ROAS (売上/費用)</option>
+            <option value="sales_cost">売上額・契約費用</option>
+            <option value="applications">応募数・有効応募数</option>
+          </select>
+        </div>
+        <div class="flex-grow relative min-h-[300px]">
+          <canvas id="adMainBarChartCanvas"></canvas>
+        </div>
       </div>
-      <div id="adChartApplications" class="mt-3 space-y-3"></div>
       <div id="adContractInfo"
-        class="mt-4 p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 shadow-sm">
+        class="mt-4 p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 shadow-sm hidden">
         <div class="text-sm text-slate-500 mb-1">媒体契約情報</div>
         <div class="text-base text-slate-700">媒体を選択すると契約条件を表示します。</div>
       </div>
@@ -88,76 +97,84 @@
       <div id="adMetricTable" class="mt-4 overflow-auto rounded border border-slate-200 bg-white"></div>
     </div>
   </div>
+</div>
 
-  <div class="flex items-center justify-between text-sm text-slate-600">
-    <div id="adManagementInfo" class="text-slate-500">0件 0-0表示</div>
-    <div class="flex items-center gap-2">
-      <button id="adManagementPrevBtn"
-        class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled>前のページ</button>
-      <span id="adManagementPageInfo" class="px-2">1 / 1</span>
-      <button id="adManagementNextBtn"
-        class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled>次のページ</button>
-    </div>
+<div class="flex items-center justify-between text-sm text-slate-600">
+  <div id="adManagementInfo" class="text-slate-500">0件 0-0表示</div>
+  <div class="flex items-center gap-2">
+    <button id="adManagementPrevBtn"
+      class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled>前のページ</button>
+    <span id="adManagementPageInfo" class="px-2">1 / 1</span>
+    <button id="adManagementNextBtn"
+      class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled>次のページ</button>
   </div>
+</div>
 
-  <div class="overflow-auto table-surface table-teleapo">
-    <table class="table-grid min-w-[1800px]" id="adTable">
-      <thead>
-        <tr>
-          <th class="sticky top-0 left-0 bg-slate-50 z-40 whitespace-nowrap">媒体名</th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="applications">応募者数 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplications">有効応募者数
-            <span class="sort-indicator ml-1">▼</span>
-          </th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplicationRate">
-            有効応募率
-            <span class="sort-indicator ml-1">▼</span>
-          </th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
-            <span class="sort-indicator ml-1">▼</span>
-          </th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviewRate">
-            初回面談設定率 <span class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offers">内定数 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hired">入社数 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retention30">定着率（30日）
-            <span class="sort-indicator ml-1">▼</span>
-          </th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalSales">売上高 <span
-              class="sort-indicator ml-1">▼</span></th>
-          <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">返金額（税込） <span
-              class="sort-indicator ml-1">▼</span></th>
-        </tr>
-      </thead>
-      <tbody id="adManagementTableBody">
-        <tr>
-          <td colspan="14" class="text-center text-slate-500 py-6">読み込み中...</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+<div class="overflow-auto table-surface table-teleapo">
+  <table class="table-grid min-w-[2000px]" id="adTable">
+    <thead>
+      <tr>
+        <th class="sticky top-0 left-0 bg-slate-50 z-40 whitespace-nowrap">媒体名</th>
 
-  <div class="flex items-center justify-between text-sm text-slate-600">
-    <div class="text-slate-500">50件/ページ</div>
-    <div class="flex items-center gap-2">
-      <button id="adManagementPrevBtn2"
-        class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled>前のページ</button>
-      <span id="adManagementPageInfo2" class="px-2">1 / 1</span>
-      <button id="adManagementNextBtn2"
-        class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled>次のページ</button>
-    </div>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="applications">応募者数 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplications">有効応募者数
+          <span class="sort-indicator ml-1">▼</span>
+        </th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplicationRate">
+          有効応募率
+          <span class="sort-indicator ml-1">▼</span>
+        </th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
+          <span class="sort-indicator ml-1">▼</span>
+        </th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviewRate">
+          初回面談設定率 <span class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offers">内定数 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hired">入社数 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率 <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retention30">定着率（30日）
+          <span class="sort-indicator ml-1">▼</span>
+        </th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalSales">売上高 <span
+            class="sort-indicator ml-1">▼</span></th>
+
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="cost">契約費用 <span
+            class="sort-indicator ml-1">▼</span></th>
+
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="roas">ROAS <span
+            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">返金額（税込） <span
+            class="sort-indicator ml-1">▼</span></th>
+      </tr>
+    </thead>
+    <tbody id="adManagementTableBody">
+      <tr>
+        <td colspan="16" class="text-center text-slate-500 py-6">読み込み中...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="flex items-center justify-between text-sm text-slate-600">
+  <div class="text-slate-500">50件/ページ</div>
+  <div class="flex items-center gap-2">
+    <button id="adManagementPrevBtn2"
+      class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled>前のページ</button>
+    <span id="adManagementPageInfo2" class="px-2">1 / 1</span>
+    <button id="adManagementNextBtn2"
+      class="px-3 py-1 border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled>次のページ</button>
   </div>
+</div>
 </div>

@@ -1179,6 +1179,10 @@
   color: #334155;
 }
 
+[data-page="teleapo"] .teleapo-form-field.is-hidden {
+  display: none;
+}
+
 [data-page="teleapo"] .teleapo-form-field span {
   font-weight: 600;
   font-size: 0.8rem;
