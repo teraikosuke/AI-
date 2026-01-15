@@ -1059,28 +1059,19 @@ function renderHeatmap(logs) {
     const cells = TELEAPO_HEATMAP_DAYS.map(day => {
       const c = buckets[day][slot];
       const rate = c.dials ? (c.connects / c.dials) * 100 : null;
-      const level = rate == null ? 0
-        : rate >= 70 ? 4
-          : rate >= 55 ? 3
-            : rate >= 40 ? 2
-              : rate >= 20 ? 1
-                : 0;
+      const intensity = rate == null ? 'bg-white' : rate >= 70 ? 'bg-green-100' : rate >= 40 ? 'bg-amber-50' : 'bg-rose-50';
       const rateText = rate == null ? '-' : `${rate.toFixed(0)}%`;
       const countText = rate == null ? '' : `(${c.dials}-${c.connects})`;
-      const titleText = rate == null
-        ? '通電データなし'
-        : `通電率: ${rate.toFixed(0)}% / 架電: ${c.dials}件 / 通電: ${c.connects}件`;
-      const lowSample = c.dials > 0 && c.dials < 3 ? 'is-low-sample' : '';
       return `
-        <td class="teleapo-heatmap-td">
-          <div class="teleapo-heatmap-cell teleapo-heatmap-level-${level} ${lowSample}" title="${escapeHtml(titleText)}">
+        <td class="px-2 py-2 border border-slate-200 text-center ${intensity}">
+          <div class="teleapo-heatmap-cell">
             <span class="teleapo-heatmap-rate">${rateText}</span>
             <span class="teleapo-heatmap-count">${countText}</span>
           </div>
         </td>
       `;
     }).join('');
-    return `<tr><th class="teleapo-heatmap-row">${slot}帯</th>${cells}</tr>`;
+    return `<tr><th class="px-3 py-2 border border-slate-200 text-left bg-slate-50">${slot}帯</th>${cells}</tr>`;
   }).join('');
 }
 
@@ -1848,7 +1839,7 @@ function initLogTableActions() {
       event.stopPropagation();
       const candidateId = candidateBtn.dataset.candidateId;
       const candidateName = candidateBtn.dataset.candidateName;
-      navigateToCandidateDetail(candidateId, candidateName);
+      openCandidateQuickView(candidateId, candidateName);
       return;
     }
     const btn = event.target.closest('[data-action="delete-log"]');
@@ -1892,7 +1883,7 @@ function initCsTaskTableActions() {
     event.stopPropagation();
     const candidateId = candidateBtn.dataset.candidateId;
     const candidateName = candidateBtn.dataset.candidateName;
-    navigateToCandidateDetail(candidateId, candidateName);
+    openCandidateQuickView(candidateId, candidateName);
   });
 }
 
