@@ -856,6 +856,7 @@ const mockDashboardData = {
 };
 
 const state = {
+  yieldScope: 'all',
   isAdmin: false,
   calcMode: DEFAULT_CALC_MODE,
   kpi: {
@@ -933,6 +934,15 @@ const state = {
 };
 
 let chartJsPromise = null;
+
+function resolveYieldScope(root) {
+  const host = root?.querySelector?.('[data-yield-scope]') || document.querySelector('[data-yield-scope]');
+  return host?.dataset?.yieldScope || 'all';
+}
+
+function isYieldScope(scope) {
+  return state.yieldScope === 'all' || state.yieldScope === scope;
+}
 
 function getCurrentMonthRange() {
   const end = new Date();
@@ -1115,7 +1125,8 @@ function initializeCalcModeControls() {
   });
 }
 
-export async function mount() {
+export async function mount(root) {
+  state.yieldScope = resolveYieldScope(root);
   syncAccessRole();
   try {
     await goalSettingsService.load({ force: true });
@@ -1590,38 +1601,65 @@ function renderCompanyGoalCards(target = {}, actuals = {}) {
 
 async function loadYieldData() {
   try {
-    await Promise.all([
-      goalSettingsService.loadCompanyPeriodTarget(state.companyEvaluationPeriodId, { force: true }),
-      goalSettingsService.loadPersonalPeriodTarget(state.personalEvaluationPeriodId, getAdvisorName(), { force: true }),
-      goalSettingsService.loadPersonalDailyTargets(state.personalDailyPeriodId, getAdvisorName(), { force: true })
-    ]);
-    const [todayData, personalSummary, personalRange] = await Promise.all([
-      loadTodayPersonalKPIData(),
-      loadPersonalSummaryKPIData(),
-      loadPersonalKPIData()
-    ]);
-    if (todayData || personalSummary || personalRange) {
-      renderPersonalKpis(todayData || {}, personalSummary || {}, personalRange || {});
+    const wantsPersonal = isYieldScope('personal');
+    const wantsCompany = isYieldScope('company');
+    const wantsAdmin = isYieldScope('admin');
+
+    const preloadTasks = [];
+    if (wantsCompany) {
+      preloadTasks.push(
+        goalSettingsService.loadCompanyPeriodTarget(state.companyEvaluationPeriodId, { force: true })
+      );
+    }
+    if (wantsPersonal) {
+      preloadTasks.push(
+        goalSettingsService.loadPersonalPeriodTarget(state.personalEvaluationPeriodId, getAdvisorName(), { force: true }),
+        goalSettingsService.loadPersonalDailyTargets(state.personalDailyPeriodId, getAdvisorName(), { force: true })
+      );
+    }
+    if (preloadTasks.length) {
+      await Promise.all(preloadTasks);
     }
 
-    const companyMonthly = await loadCompanyKPIData();
-    if (companyMonthly) renderCompanyMonthly(companyMonthly);
+    if (wantsPersonal) {
+      const [todayData, personalSummary, personalRange] = await Promise.all([
+        loadTodayPersonalKPIData(),
+        loadPersonalSummaryKPIData(),
+        loadPersonalKPIData()
+      ]);
+      if (todayData || personalSummary || personalRange) {
+        renderPersonalKpis(todayData || {}, personalSummary || {}, personalRange || {});
+      }
+    }
 
-    const companyPeriod = await loadCompanyPeriodKPIData();
-    if (companyPeriod) renderCompanyPeriod(companyPeriod);
+    if (wantsCompany) {
+      const companyMonthly = await loadCompanyKPIData();
+      if (companyMonthly) renderCompanyMonthly(companyMonthly);
 
-    // 本日の活動状況は非表示
-    // const todayEmployeeRows = await loadCompanyTodayEmployeeKpi();
-    // if (todayEmployeeRows?.length) renderCompanyTodayTable();
+      const companyPeriod = await loadCompanyPeriodKPIData();
+      if (companyPeriod) renderCompanyPeriod(companyPeriod);
+    }
 
-    const companyTermRows = await loadCompanyTermEmployeeKpi();
-    if (companyTermRows?.length) renderCompanyTermTables();
+    if (wantsAdmin) {
+      // 本日の活動状況は非表示
+      // const todayEmployeeRows = await loadCompanyTodayEmployeeKpi();
+      // if (todayEmployeeRows?.length) renderCompanyTodayTable();
 
-    await loadAndRenderPersonalDaily();
-    await loadAndRenderCompanyDaily();
-    await loadAndRenderCompanyMs();
+      const companyTermRows = await loadCompanyTermEmployeeKpi();
+      if (companyTermRows?.length) renderCompanyTermTables();
+    }
 
-    await loadEmployeeData(state.ranges.employee.startDate ? state.ranges.employee : {});
+    if (wantsPersonal) {
+      await loadAndRenderPersonalDaily();
+    }
+    if (wantsCompany) {
+      await loadAndRenderCompanyDaily();
+    }
+    if (wantsAdmin) {
+      await loadAndRenderCompanyMs();
+      await loadAndRenderCompanyDaily();
+      await loadEmployeeData(state.ranges.employee.startDate ? state.ranges.employee : {});
+    }
   } catch (error) {
     console.error('Failed to load yield data:', error);
   }

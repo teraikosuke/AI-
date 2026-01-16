@@ -45,16 +45,37 @@
               <span class="nav-label">マイページ</span>
             </button>
           </li>
-          <li>
-            <button type="button" data-target="yield" class="nav-link w-full text-left whitespace-nowrap transition"
-              aria-current="page">
+          <li class="nav-group" data-nav-group="yield">
+            <button type="button" class="nav-link nav-group-toggle w-full text-left whitespace-nowrap transition"
+              data-submenu-toggle="yield" aria-expanded="false">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                   <path d="M10 2.5 2.5 8v9h5v-4h5v4h5v-9L10 2.5z" />
                 </svg>
               </span>
               <span class="nav-label">歩留まり管理・総合</span>
+              <span class="nav-caret" aria-hidden="true">▾</span>
             </button>
+            <ul class="nav-submenu" data-submenu="yield">
+              <li>
+                <button type="button" data-target="yield-personal"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">自分の実績</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="yield-company"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">社内の成績</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="yield-admin"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">管理者画面</span>
+                </button>
+              </li>
+            </ul>
           </li>
           <li>
             <button type="button" data-target="candidates"
