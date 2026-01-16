@@ -882,6 +882,23 @@
   width: 90px;
 }
 
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table td.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table th.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table td.kpi-v2-ms-metric {
+  position: sticky;
+  left: 90px;
+  background: #fff;
+  z-index: 2;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table td.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table td.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table th.daily-type {
+  left: 180px;
+}
+
 [data-kpi="v2"] .kpi-v2-daily-table .kpi-v2-sticky-label {
   text-align: left;
   font-weight: 600;
@@ -1248,4 +1265,12 @@
   padding: 0.35rem 0.6rem;
   background: #ffffff;
   font-size: 0.9rem;
+}
+
+.yield-page {
+  padding-bottom: 2rem;
+}
+
+.yield-page-host {
+  width: 100%;
 }

@@ -98,6 +98,8 @@ function buildDefaultPeriods(ruleInput) {
   switch (rule.type) {
     case 'half-month':
       return buildHalfMonthPeriods();
+    case 'master-month':
+      return buildMasterMonthPeriods();
     case 'weekly':
       return buildWeeklyPeriods(rule.options?.startWeekday || 'monday');
     case 'quarterly':
@@ -126,6 +128,28 @@ function buildMonthlyPeriods() {
       label,
       startDate: isoDate(startOfMonth),
       endDate: isoDate(endOfMonth)
+    });
+  }
+  return periods;
+}
+
+function buildMasterMonthPeriods() {
+  const now = new Date();
+  const periods = [];
+  for (let offset = -12; offset <= 12; offset += 1) {
+    const base = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const year = base.getFullYear();
+    const month = base.getMonth();
+    const endDate = safeDay(year, month, 15);
+    const previous = new Date(year, month - 1, 1);
+    const startDate = safeDay(previous.getFullYear(), previous.getMonth(), 16);
+    const id = `${year}-${padMonth(month + 1)}-M`;
+    const label = `${year}年${padMonth(month + 1)}月評価`;
+    periods.push({
+      id,
+      label,
+      startDate: isoDate(startDate),
+      endDate: isoDate(endDate)
     });
   }
   return periods;
@@ -282,6 +306,8 @@ function normalizeRule(raw) {
       ? 'half-month'
       : legacy === 'custom'
         ? 'custom-month'
+        : legacy === 'master-monthly'
+          ? 'master-month'
         : legacy;
   return { type: mapped || 'monthly', options: {} };
 }

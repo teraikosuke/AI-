@@ -97,6 +97,7 @@ function bindEvents() {
   document.getElementById('copyCompanyTargetButton')?.addEventListener('click', handleCopyCompanyTarget);
   document.getElementById('savePersonalTargetButton')?.addEventListener('click', handleSavePersonalTarget);
   document.getElementById('distributeDailyButton')?.addEventListener('click', handleDistributeDailyTargets);
+  document.getElementById('copyPreviousDailyButton')?.addEventListener('click', handleCopyPreviousDailyTargets);
   document.getElementById('saveDailyTargetsButton')?.addEventListener('click', handleSaveDailyTargets);
   document.getElementById('personalDailyPeriodSelect')?.addEventListener('change', handlePersonalDailyPeriodChange);
   document.getElementById('customStartDayInput')?.addEventListener('input', event => {
@@ -370,17 +371,42 @@ async function handleDistributeDailyTargets() {
   if (!dates.length) return;
   await goalSettingsService.loadPersonalPeriodTarget(state.selectedPersonalDailyPeriodId);
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(state.selectedPersonalDailyPeriodId) || {};
-  const distributed = {};
-  DAILY_FIELDS.forEach(field => {
-    const raw = Number(periodTarget[field.key]);
-    const perDay = Number.isFinite(raw) && raw > 0 ? Math.round(raw / dates.length) : 0;
-    distributed[field.key] = perDay;
-  });
   const body = document.getElementById('personalDailyTableBody');
-  body?.querySelectorAll('tr').forEach(row => {
+  const totals = DAILY_FIELDS.reduce((acc, field) => {
+    const raw = Number(periodTarget[field.key]);
+    acc[field.key] = Number.isFinite(raw) && raw >= 0 ? raw : 0;
+    return acc;
+  }, {});
+  body?.querySelectorAll('tr').forEach((row, index) => {
     row.querySelectorAll('input[data-field]').forEach(input => {
       const key = input.dataset.field;
-      input.value = distributed[key] ?? '';
+      const total = totals[key] ?? 0;
+      input.value = calcCumulativeValue(total, index, dates.length);
+    });
+  });
+}
+
+async function handleCopyPreviousDailyTargets() {
+  const periodId = state.selectedPersonalDailyPeriodId;
+  if (!periodId) return;
+  const currentIndex = state.evaluationPeriods.findIndex(item => item.id === periodId);
+  if (currentIndex <= 0) return;
+  const previous = state.evaluationPeriods[currentIndex - 1];
+  if (!previous) return;
+  const body = document.getElementById('personalDailyTableBody');
+  if (!body) return;
+
+  await goalSettingsService.loadPersonalDailyTargets(previous.id);
+  const previousTargets = goalSettingsService.getPersonalDailyTargets(previous.id) || {};
+  const previousDates = enumerateDates(previous.startDate, previous.endDate);
+
+  body.querySelectorAll('tr[data-date]').forEach((row, index) => {
+    const previousDate = previousDates[index];
+    const values = previousDate ? previousTargets[previousDate] || {} : {};
+    row.querySelectorAll('input[data-field]').forEach(input => {
+      const key = input.dataset.field;
+      const value = Number(values[key]);
+      input.value = Number.isFinite(value) ? value : '';
     });
   });
 }
@@ -465,6 +491,8 @@ function normalizeRule(raw) {
       ? 'half-month'
       : legacy === 'custom'
         ? 'custom-month'
+        : legacy === 'master-monthly'
+          ? 'master-month'
         : legacy;
   return { type: mapped || 'monthly', options: {} };
 }
@@ -528,4 +556,11 @@ function showSaveStatus(id, message) {
   setTimeout(() => {
     el.textContent = '';
   }, 2000);
+}
+
+function calcCumulativeValue(total, index, length) {
+  const totalNumber = Number(total);
+  if (!Number.isFinite(totalNumber) || totalNumber <= 0 || length <= 0) return 0;
+  if (index >= length - 1) return totalNumber;
+  return Math.round((totalNumber * (index + 1)) / length);
 }

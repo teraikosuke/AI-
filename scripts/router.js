@@ -13,11 +13,28 @@ const routes = {
   mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260301"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260218"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260306"),
-  referral: () => import("../pages/referral/referral.js?v=20260217"),
-  settings: () => import("../pages/settings/settings.js?v=20260230"),
+const routes = {
+    login: () => import("../pages/login/login.js"),
+    mypage: () => import("../pages/mypage/mypage.js"),
+    members: () => import("../pages/members/members.js"),
+    yield: () => import("../pages/yield/yield.js"),
+
+    // --- mainブランチで追加された新しいページ ---
+    "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
+    "yield-company": () => import("../pages/yield-company/yield-company.js"),
+    "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
+
+    // --- origin/kato (あなたの変更) の最新バージョンを採用 ---
+    candidates: () => import("../pages/candidates/candidates.js?v=20260301"),
+    "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260218"),
+    teleapo: () => import("../pages/teleapo/teleapo.js?v=20260306"),
+    referral: () => import("../pages/referral/referral.js?v=20260217"),
+    settings: () => import("../pages/settings/settings.js?v=20260230"),
+
+    // --- mainブランチで追加されたその他の新しいページ ---
+    "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
+    "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
+};
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
 };
@@ -26,6 +43,9 @@ const routeMeta = {
   login: { public: true },
   mypage: { roles: ['admin', 'member'] },
   yield: { roles: ['admin', 'member'] },
+  "yield-personal": { roles: ['admin', 'member'] },
+  "yield-company": { roles: ['admin', 'member'] },
+  "yield-admin": { roles: ['admin'] },
   candidates: { roles: ['admin', 'member'] },
   'ad-performance': { roles: ['admin', 'member'] },
   teleapo: { roles: ['admin', 'member'] },
@@ -39,6 +59,9 @@ const routeMeta = {
 // CSS files for specific pages
 const pageCSS = {
   yield: "pages/yield/yield.css?v=20260127",
+  "yield-personal": "pages/yield/yield.css?v=20260127",
+  "yield-company": "pages/yield/yield.css?v=20260127",
+  "yield-admin": "pages/yield/yield.css?v=20260127",
   mypage: "pages/mypage/mypage.css",
   candidates: "pages/candidates/candidates.css",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
@@ -88,6 +111,7 @@ function loadPageCSS(page) {
  * @returns {string} 実際に遷移すべきページID
  */
 export function beforeNavigate(page) {
+  if (page === "yield") return "yield-personal";
   const session = getSession();
   const meta = routeMeta[page];
 
@@ -217,6 +241,21 @@ function updateNavigation(page) {
       dot.classList.toggle("bg-slate-500", !isActive);
     }
   });
+
+  const yieldGroup = document.querySelector('[data-nav-group="yield"]');
+  if (yieldGroup) {
+    const isYieldPage = ["yield-personal", "yield-company", "yield-admin"].includes(page);
+    yieldGroup.classList.toggle("is-open", isYieldPage);
+    const toggle = yieldGroup.querySelector("[data-submenu-toggle]");
+    if (toggle) {
+      toggle.classList.toggle("is-active", isYieldPage);
+      toggle.setAttribute("aria-expanded", isYieldPage ? "true" : "false");
+    }
+    const hasVisibleChild = Array.from(yieldGroup.querySelectorAll("[data-target]")).some(
+      (button) => !button.hidden
+    );
+    yieldGroup.hidden = !session || !hasVisibleChild;
+  }
 }
 
 function updatePageTitle(page) {
@@ -287,6 +326,18 @@ export function boot() {
 
   // Handle navigation clicks
   document.addEventListener("click", (event) => {
+    const submenuToggle = event.target.closest("[data-submenu-toggle]");
+    if (submenuToggle) {
+      event.preventDefault();
+      const key = submenuToggle.dataset.submenuToggle;
+      const group = document.querySelector(`[data-nav-group=\"${key}\"]`);
+      if (group) {
+        const next = !group.classList.contains("is-open");
+        group.classList.toggle("is-open", next);
+        submenuToggle.setAttribute("aria-expanded", next ? "true" : "false");
+      }
+      return;
+    }
     const target = event.target.closest("[data-target]");
     if (target) {
       event.preventDefault();
