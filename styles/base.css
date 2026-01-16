@@ -76,6 +76,42 @@ body {
   color: #ffffff;
 }
 
+#sidebar .nav-group {
+  position: relative;
+}
+
+#sidebar .nav-group-toggle {
+  justify-content: flex-start;
+}
+
+#sidebar .nav-caret {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+#sidebar .nav-group.is-open > .nav-group-toggle .nav-caret {
+  transform: rotate(180deg);
+  color: #e2e8f0;
+}
+
+#sidebar .nav-submenu {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.25rem;
+}
+
+#sidebar .nav-group.is-open > .nav-submenu {
+  display: block;
+}
+
+#sidebar .nav-sub-link {
+  padding-left: 2.6rem;
+  font-size: 0.95rem;
+}
+
 #sidebar .nav-link[data-action="logout"] {
   color: #fca5a5;
 }
@@ -103,6 +139,14 @@ body {
 #sidebar.sidebar-collapsed .nav-icon {
   margin: 0 auto;
   justify-content: center;
+}
+
+#sidebar.sidebar-collapsed .nav-submenu {
+  display: none;
+}
+
+#sidebar.sidebar-collapsed .nav-caret {
+  display: none;
 }
 
 #sidebar .sidebar-title-text {
