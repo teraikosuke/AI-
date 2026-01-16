@@ -1,5 +1,7 @@
 ﻿// teleapo と同じAPI Gatewayの base
 const CANDIDATES_API_BASE = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev";
+const SETTINGS_API_BASE = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev";
+const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
 
 // 一覧は「/candidates」（末尾スラッシュなし）
 const CANDIDATES_LIST_PATH = "/candidates";
@@ -47,6 +49,12 @@ const detailSectionKeys = [
 ];
 
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
+const japaneseLevelOptions = [
+  { value: "", label: "未設定" },
+  "N1",
+  "N2",
+  "N3以下",
+];
 
 const detailEditState = detailSectionKeys.reduce((state, key) => {
   state[key] = false;
@@ -68,6 +76,10 @@ let pendingInlineUpdates = {};
 let openedFromUrlOnce = false;
 let masterClients = [];
 let masterUsers = [];
+let screeningRules = null;
+let screeningRulesLoaded = false;
+let screeningRulesLoading = false;
+let detailAutoSaveTimer = null;
 
 // =========================
 // 正規化
@@ -96,7 +108,11 @@ function normalizeCandidate(candidate) {
     candidate.valid ??
     null;
   candidate.candidateKana = candidate.candidateKana ?? candidate.name_kana ?? "";
+  candidate.birthday = candidate.birthday ?? candidate.birth_date ?? candidate.birthDate ?? null;
+  candidate.age = candidate.age ?? candidate.ageText ?? candidate.age_value ?? null;
   candidate.gender = candidate.gender ?? "";
+  candidate.nationality = candidate.nationality ?? candidate.nationality_text ?? candidate.nationality_code ?? "";
+  candidate.japaneseLevel = candidate.japaneseLevel ?? candidate.japanese_level ?? candidate.jlpt_level ?? candidate.jlptLevel ?? "";
   candidate.education = candidate.education ?? candidate.final_education ?? "";
   candidate.employmentStatus = candidate.employmentStatus ?? candidate.employment_status ?? "";
   candidate.currentIncome = candidate.currentIncome ?? candidate.current_income ?? "";
@@ -268,6 +284,7 @@ export function mount() {
   initializeDetailModal();
   initializeDetailContentListeners();
 
+  loadScreeningRulesForCandidates();
   // まず一覧ロード
   loadCandidatesData();
 }
@@ -327,6 +344,11 @@ async function loadCandidatesData(filtersOverride = {}) {
       ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }))
       : [];
 
+    if (screeningRules) {
+      allCandidates.forEach((candidate) => {
+        candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+      });
+    }
     filteredCandidates = applyLocalFilters(allCandidates, filters);
     filteredCandidates = sortCandidatesByDate(filteredCandidates, filters.sortOrder);
     pendingInlineUpdates = {};
@@ -402,6 +424,8 @@ function parseCandidateDate(value) {
 }
 
 function resolveValidApplication(candidate) {
+  const computed = candidate?.validApplicationComputed;
+  if (computed === true || computed === false) return computed;
   const raw =
     candidate.validApplication ??
     candidate.valid_application ??
@@ -415,6 +439,149 @@ function resolveValidApplication(candidate) {
   }
   if (raw === null || raw === undefined || raw === "") return null;
   return Boolean(raw);
+}
+
+function normalizeScreeningRulesPayload(payload) {
+  const source = payload?.rules || payload?.item || payload?.data || payload || {};
+  const minAge = parseRuleNumber(source.minAge ?? source.min_age);
+  const maxAge = parseRuleNumber(source.maxAge ?? source.max_age);
+  const nationalitiesRaw =
+    source.targetNationalities ??
+    source.target_nationalities ??
+    source.allowedNationalities ??
+    source.allowed_nationalities ??
+    source.nationalities ??
+    "";
+  const allowedJlptRaw =
+    source.allowedJlptLevels ??
+    source.allowed_jlpt_levels ??
+    source.allowed_japanese_levels ??
+    [];
+  return {
+    minAge,
+    maxAge,
+    targetNationalities: normalizeCommaText(nationalitiesRaw),
+    targetNationalitiesList: parseListValue(nationalitiesRaw),
+    allowedJlptLevels: parseListValue(allowedJlptRaw),
+  };
+}
+
+function parseRuleNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseListValue(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (value === null || value === undefined) return [];
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeCommaText(value) {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function isUnlimitedMinAge(value) {
+  if (value === null || value === undefined || value === "") return true;
+  return Number(value) <= 0;
+}
+
+function isUnlimitedMaxAge(value) {
+  if (value === null || value === undefined || value === "") return true;
+  return Number(value) >= 100;
+}
+
+function resolveCandidateAgeValue(candidate) {
+  const direct = candidate.age ?? candidate.ageText ?? candidate.age_value;
+  if (direct !== null && direct !== undefined && direct !== "") {
+    const parsed = Number(direct);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const computed = calculateAge(candidate.birthday);
+  return computed !== null ? computed : null;
+}
+
+function normalizeNationality(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const normalized = text.toLowerCase();
+  if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
+    return "日本";
+  }
+  if (text === "日本国") return "日本";
+  return text;
+}
+
+function isJapaneseNationality(value) {
+  return normalizeNationality(value) === "日本";
+}
+
+function computeValidApplication(candidate, rules) {
+  if (!candidate || !rules) return null;
+  const age = resolveCandidateAgeValue(candidate);
+  if (age === null) return false;
+  if (!isUnlimitedMinAge(rules.minAge) && rules.minAge !== null && age < rules.minAge) return false;
+  if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
+
+  const nationality = normalizeNationality(candidate.nationality);
+  const allowedNationalities = (rules.targetNationalitiesList || []).map((value) => normalizeNationality(value));
+  if (allowedNationalities.length > 0) {
+    if (!nationality) return false;
+    const matched = allowedNationalities.some((value) => value === nationality);
+    if (!matched) return false;
+  }
+
+  if (isJapaneseNationality(nationality)) return true;
+
+  const jlpt = String(candidate.japaneseLevel || "").trim();
+  if (!jlpt) return false;
+  const allowedJlptLevels = rules.allowedJlptLevels || [];
+  if (!allowedJlptLevels.length) return false;
+  return allowedJlptLevels.includes(jlpt);
+}
+
+function applyScreeningRulesToCandidates() {
+  if (!screeningRules || !allCandidates.length) return;
+  allCandidates.forEach((candidate) => {
+    candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+  });
+  const filters = collectFilters();
+  filteredCandidates = applyLocalFilters(allCandidates, filters);
+  filteredCandidates = sortCandidatesByDate(filteredCandidates, filters.sortOrder);
+  renderCandidatesTable(filteredCandidates);
+  updateCandidatesCount(filteredCandidates.length);
+}
+
+async function loadScreeningRulesForCandidates() {
+  if (screeningRulesLoading || screeningRulesLoaded) return;
+  screeningRulesLoading = true;
+  try {
+    const response = await fetch(SCREENING_RULES_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    screeningRules = normalizeScreeningRulesPayload(data);
+    screeningRulesLoaded = true;
+  } catch (error) {
+    console.error("有効応募判定ルールの取得に失敗しました。", error);
+    screeningRules = null;
+  } finally {
+    screeningRulesLoading = false;
+    applyScreeningRulesToCandidates();
+  }
 }
 
 function resolvePhaseValues(candidate) {
@@ -608,8 +775,8 @@ function applyCandidatesFilters(list, filters) {
     if (filters.source && !matchesSelectValue(getCandidateSourceName(candidate), filters.source)) return false;
 
     if (validTarget) {
-      const value = String(candidate.validApplication ?? "").toLowerCase();
-      const isValid = value === "true" || value === "1";
+      const resolved = resolveValidApplication(candidate);
+      const isValid = resolved === true;
       if (validTarget === "true" && !isValid) return false;
       if (validTarget === "false" && isValid) return false;
     }
@@ -729,7 +896,9 @@ function buildTableRow(candidate) {
 }
 
 function renderCheckboxCell(candidate, field, label) {
-  const checked = Boolean(candidate[field]);
+  const checked = field === "validApplication"
+    ? resolveValidApplication(candidate) === true
+    : Boolean(candidate[field]);
   if (!candidatesEditMode) {
     const badgeLabel = checked
       ? label
@@ -802,6 +971,10 @@ function handleInlineEdit(event) {
 
   const field = control.dataset.field;
   candidate[field] = control.type === "checkbox" ? control.checked : control.value;
+
+  if (field === "validApplication") {
+    candidate.validApplicationComputed = candidate.validApplication;
+  }
 
   markCandidateDirty(candidate.id);
 
@@ -997,9 +1170,10 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   }
   currentDetailCandidateId = String(candidate.id);
 
+  const resolvedValid = resolveValidApplication(candidate);
   const validBadge = renderStatusPill(
-    candidate.validApplication ? "有効応募" : "無効応募",
-    candidate.validApplication ? "success" : "muted"
+    resolvedValid ? "有効応募" : "無効応募",
+    resolvedValid ? "success" : "muted"
   );
 
   const header = `
@@ -1027,7 +1201,7 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   `;
 
   const sections = [
-    renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile", { editable: false }),
+    renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile"),
     renderDetailSection("担当者", renderAssigneeSection(candidate), "assignees"),
     renderDetailSection("共有面談", renderHearingSection(candidate), "hearing"),
     renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection"),
@@ -1150,8 +1324,8 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   normalizeCandidate(candidate);
 
   const payload = includeDetail
-    ? { ...candidate, detailMode: true }
-    : { id: candidate.id, validApplication: candidate.validApplication };
+    ? buildCandidateDetailPayload(candidate)
+    : { id: candidate.id, validApplication: resolveValidApplication(candidate) };
   if (payload?.masters) delete payload.masters;
 
   const response = await fetch(candidatesApi(candidateDetailPath(candidate.id)), {
@@ -1169,6 +1343,53 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   delete pendingInlineUpdates[String(candidate.id)];
   applyCandidateUpdate(updated, { preserveDetailState });
   return updated;
+}
+
+function buildCandidateDetailPayload(candidate) {
+  const payload = {
+    id: candidate.id,
+    detailMode: true,
+    validApplication: resolveValidApplication(candidate),
+    phone: candidate.phone,
+    email: candidate.email,
+    birthday: candidate.birthday,
+    postalCode: candidate.postalCode,
+    contactPreferredTime: candidate.contactPreferredTime,
+    firstContactPlannedAt: candidate.firstContactPlannedAt,
+    scheduleConfirmedAt: candidate.scheduleConfirmedAt,
+    firstInterviewDate: candidate.firstInterviewDate,
+    attendanceConfirmed: candidate.attendanceConfirmed,
+    desiredLocation: candidate.desiredLocation,
+    desiredJobType: candidate.desiredJobType,
+    skills: candidate.skills,
+    personality: candidate.personality,
+    workExperience: candidate.workExperience,
+    employmentStatus: candidate.employmentStatus,
+    currentIncome: candidate.currentIncome,
+    desiredIncome: candidate.desiredIncome,
+    careerMotivation: candidate.careerMotivation,
+    careerReason: candidate.careerReason,
+    transferTiming: candidate.transferTiming,
+    otherSelectionStatus: candidate.otherSelectionStatus,
+    interviewPreferredDate: candidate.interviewPreferredDate,
+    mandatoryInterviewItems: candidate.mandatoryInterviewItems,
+    applyCompanyName: candidate.applyCompanyName,
+    applyJobName: candidate.applyJobName,
+    applyRouteText: candidate.applyRouteText,
+    applicationNote: candidate.applicationNote,
+    firstInterviewNote: candidate.firstInterviewNote,
+    recommendationText: candidate.recommendationText,
+    nationality: candidate.nationality,
+    japaneseLevel: candidate.japaneseLevel,
+    advisorUserId: candidate.advisorUserId,
+    partnerUserId: candidate.partnerUserId,
+  };
+
+  payload.advisor_user_id = candidate.advisorUserId;
+  payload.partner_user_id = candidate.partnerUserId;
+  payload.japanese_level = candidate.japaneseLevel;
+
+  return payload;
 }
 
 // -----------------------
@@ -1446,18 +1667,33 @@ function handleDetailContentClick(event) {
   }
 }
 
+function syncDetailSectionInputs(sectionKey) {
+  if (!sectionKey) return;
+  const section = document.querySelector(`.candidate-detail-section[data-section="${sectionKey}"]`);
+  if (!section) return;
+  const inputs = section.querySelectorAll("[data-detail-field], [data-array-field]");
+  inputs.forEach((input) => {
+    handleDetailFieldChange({ target: input });
+  });
+}
+
 async function toggleDetailSectionEdit(sectionKey) {
   if (!sectionKey || !(sectionKey in detailEditState)) return;
 
+  const wasEditing = detailEditState[sectionKey];
   detailEditState[sectionKey] = !detailEditState[sectionKey];
 
   const candidate = getSelectedCandidate();
   if (!candidate) return;
 
+  if (wasEditing) {
+    syncDetailSectionInputs(sectionKey);
+  }
+
   renderCandidateDetail(candidate, { preserveEditState: true });
 
   // 編集完了時（OFFに戻ったタイミング）で保存
-  if (!detailEditState[sectionKey]) {
+  if (wasEditing && !detailEditState[sectionKey]) {
     try {
       await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
       renderCandidatesTable(filteredCandidates);
@@ -1580,6 +1816,10 @@ function handleDetailFieldChange(event) {
 
   updateCandidateFieldValue(candidate, fieldPath, value);
 
+  if (fieldPath === "attendanceConfirmed") {
+    scheduleDetailAutoSave(candidate);
+  }
+
   if (fieldPath === "birthday") {
     candidate.age = calculateAge(candidate.birthday);
   }
@@ -1604,6 +1844,20 @@ function handleDetailFieldChange(event) {
       updateSelectionStatusCell(index, status);
     }
   }
+}
+
+function scheduleDetailAutoSave(candidate) {
+  if (!candidate) return;
+  if (detailAutoSaveTimer) window.clearTimeout(detailAutoSaveTimer);
+  detailAutoSaveTimer = window.setTimeout(async () => {
+    try {
+      await saveCandidateRecord(candidate, { preserveDetailState: true, includeDetail: true });
+      renderCandidatesTable(filteredCandidates);
+      highlightSelectedRow();
+    } catch (error) {
+      console.error("詳細の保存に失敗しました。", error);
+    }
+  }, 200);
 }
 
 function updateCandidateArrayField(candidate, fieldPath, optionValue, checked) {
@@ -1672,11 +1926,12 @@ function getSelectedCandidate() {
 // 詳細セクション
 // -----------------------
 function renderRegistrationSection(candidate) {
+  const resolvedValid = resolveValidApplication(candidate);
   const fields = [
     { label: "登録日時", value: candidate.createdAt || candidate.registeredAt || candidate.registeredDate, type: "datetime", displayFormatter: formatDateTimeJP },
     { label: "担当者", value: candidate.advisorName },
     { label: "担当パートナー", value: candidate.partnerName },
-    { label: "有効応募", value: candidate.validApplication, displayFormatter: (v) => (v ? "有効" : "無効") },
+    { label: "有効応募", value: resolvedValid, displayFormatter: (v) => (v ? "有効" : "無効") },
   ];
   return renderDetailGridFields(fields, "registration");
 }
@@ -1717,6 +1972,8 @@ function renderApplicantInfoSection(candidate) {
     { label: "求職者名", value: candidate.candidateName, editable: false, span: 3 },
     { label: "ヨミガナ", value: candidate.candidateKana, editable: false, span: 3 },
     { label: "性別", value: candidate.gender, editable: false, span: 1 },
+    { label: "国籍", value: candidate.nationality, path: "nationality", span: 1 },
+    { label: "言語レベル", value: candidate.japaneseLevel, input: "select", options: japaneseLevelOptions, path: "japaneseLevel", span: 1 },
     { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP, span: 1 },
     { label: "年齢", value: ageDisplay, editable: false, span: 1 },
     { label: "郵便番号", value: candidate.postalCode, path: "postalCode", span: 1 },

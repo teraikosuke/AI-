@@ -13,14 +13,28 @@ const routes = {
   mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js"),
-  "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
-  "yield-company": () => import("../pages/yield-company/yield-company.js"),
-  "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260170"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260134"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260145"),
-  referral: () => import("../pages/referral/referral.js?v=20260154"),
-  settings: () => import("../pages/settings/settings.js"),
+const routes = {
+    login: () => import("../pages/login/login.js"),
+    mypage: () => import("../pages/mypage/mypage.js"),
+    members: () => import("../pages/members/members.js"),
+    yield: () => import("../pages/yield/yield.js"),
+
+    // --- mainブランチで追加された新しいページ ---
+    "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
+    "yield-company": () => import("../pages/yield-company/yield-company.js"),
+    "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
+
+    // --- origin/kato (あなたの変更) の最新バージョンを採用 ---
+    candidates: () => import("../pages/candidates/candidates.js?v=20260301"),
+    "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260218"),
+    teleapo: () => import("../pages/teleapo/teleapo.js?v=20260306"),
+    referral: () => import("../pages/referral/referral.js?v=20260217"),
+    settings: () => import("../pages/settings/settings.js?v=20260230"),
+
+    // --- mainブランチで追加されたその他の新しいページ ---
+    "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
+    "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
+};
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
 };
@@ -53,7 +67,7 @@ const pageCSS = {
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
   teleapo: "pages/teleapo/teleapo.css?v=20260206",
   referral: "pages/referral/referral.css?v=20260196",
-  settings: "pages/settings/settings.css",
+  settings: "pages/settings/settings.css?v=20260229",
   "goal-settings": "pages/goal-settings/goal-settings.css?v=20260127",
   members: "pages/members/members.css",
   "kpi-summery-test": "pages/kpi-summery-test/kpi-summery-test.css",

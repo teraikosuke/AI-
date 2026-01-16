@@ -300,6 +300,8 @@ function normalizeReferralItem(item = {}, index = 0) {
 
   const retention = formatRetention(retentionRaw);
 
+  const warrantyPeriod = num(['warrantyPeriod', 'warranty_period'], null);
+
 
 
   const refundAmount = num(['refundAmount', 'refund_amount']);
@@ -375,7 +377,7 @@ function normalizeReferralItem(item = {}, index = 0) {
 
     planHeadcount, joined, remaining,
 
-    retention, refundAmount, leadTime, feeDisplay, feeValue,
+    retention, warrantyPeriod, refundAmount, leadTime, feeDisplay, feeValue,
 
     proposal, docScreen, interview1, interview2, offer,
 
@@ -1699,11 +1701,21 @@ function remainingBadge(remaining) {
 
 
 
-function retentionBadge(ret) {
+function retentionBadge(ret, warrantyPeriod) {
 
   const num = parseFloat(ret);
 
-  if (isNaN(num)) return `<span class="px-2 py-1 rounded-md text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-100">${ret || '-'}</span>`;
+  const period = Number.isFinite(Number(warrantyPeriod)) && Number(warrantyPeriod) > 0
+    ? Number(warrantyPeriod)
+    : null;
+  const periodTitle = period ? ` title="保証期間: ${period}日"` : '';
+  const periodText = period
+    ? `<span class="ml-1 text-[10px] text-slate-400">(期間:${period}日)</span>`
+    : '';
+
+  if (isNaN(num)) {
+    return `<span class="px-2 py-1 rounded-md text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-100"${periodTitle}>${ret || '-'}</span>${periodText}`;
+  }
 
   let cls = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
 
@@ -1711,7 +1723,7 @@ function retentionBadge(ret) {
 
   else if (num < 90) cls = 'bg-amber-50 text-amber-700 border border-amber-100';
 
-  return `<span class="px-2 py-1 rounded-md text-xs font-semibold ${cls}">${ret}</span>`;
+  return `<span class="px-2 py-1 rounded-md text-xs font-semibold ${cls}"${periodTitle}>${ret}</span>${periodText}`;
 
 }
 
@@ -1875,7 +1887,7 @@ function renderTable() {
 
         <td class="text-left">${remainingBadge(item.remaining)}</td>
 
-        <td class="text-left">${retentionBadge(item.retention)}</td>
+        <td class="text-left">${retentionBadge(item.retention, item.warrantyPeriod)}</td>
 
         <td>${item.jobTitle}</td>
 

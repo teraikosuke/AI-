@@ -116,7 +116,8 @@ function initializeAdFilters() {
       const metricLabels = {
         decisionRate: '決定率',
         initialInterviewRate: '初回面談設定率',
-        retention30: '定着率'
+        retentionWarranty: '定着率（保障期間）',
+        retention30: '定着率（保障期間）'
       };
       const titleLabel = metricLabels[lineMetric] || '決定率';
       metricTitle.textContent = `${titleLabel} 月別推移・媒体別`;
@@ -329,15 +330,15 @@ async function loadAdPerformanceData() {
   adState.data = items.map(calcDerivedRates);
   applyFilters();
 }
-
 function calcDerivedRates(item) {
   const rate = (num, den) => (den ? (num / den) * 100 : 0);
   const cost = Number(item.cost) || 0;
   const hired = Number(item.hired) || 0;
   const refund = Number(item.refund) || 0;
   const totalSales = Number(item.totalSales) || 0;
+  const retentionWarranty = resolveRetentionValue(item);
 
-  // ★追加: ROAS計算 (売上 ÷ 費用 * 100)
+  // ROAS計算
   const roas = cost > 0 ? (totalSales / cost) * 100 : 0;
 
   return {
@@ -345,15 +346,43 @@ function calcDerivedRates(item) {
     refund,
     cost,
     totalSales,
-    roas, // ★追加
+    roas,
     costPerHire: hired ? cost / hired : 0,
+
+    // 有効応募率 = 有効応募 / 応募
     validApplicationRate: rate(item.validApplications, item.applications),
-    initialInterviewRate: rate(item.initialInterviews, item.validApplications || item.applications),
-    offerRate: rate(item.offers, item.initialInterviews || item.validApplications || item.applications),
-    hireRate: rate(item.hired, item.offers || item.initialInterviews || item.validApplications || item.applications),
-    decisionRate: rate(item.hired, item.applications),
-    retention30: Number(item.retention30) || 0
+
+    // 初回面談設定率 = 初回面談 / 有効応募
+    initialInterviewRate: rate(item.initialInterviews, item.validApplications),
+
+    // 内定率 = 内定 / 有効応募
+    offerRate: rate(item.offers, item.validApplications),
+
+    // 入社率 = 入社 / 内定
+    hireRate: rate(item.hired, item.offers),
+
+    // ★修正: 決定率 = 入社数 / 有効応募数 (これまでは item.applications で割っていました)
+    decisionRate: rate(item.hired, item.validApplications),
+
+    retentionWarranty
   };
+}
+
+function resolveRetentionValue(item) {
+  const candidates = [
+    item?.retentionWarranty,
+    item?.retention_warranty,
+    item?.retention,
+    item?.retention_rate,
+    item?.retentionRate,
+    item?.retention30,
+    item?.retention_30
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+  }
+  return 0;
 }
 
 function handleMediaFilter(event) {
@@ -480,7 +509,7 @@ function aggregateByMedia(items) {
     agg.cost += (Number(item.cost) || 0);
     agg.totalSales += (Number(item.totalSales) || 0); // ★追加: 売上高を集計
 
-    const retention = Number(item.retention30) || 0;
+    const retention = resolveRetentionValue(item);
     agg.retentionNumer += retention * (Number(item.hired) || 0);
     agg.retentionDenom += (Number(item.hired) || 0);
   });
@@ -495,7 +524,7 @@ function aggregateByMedia(items) {
       initialInterviews: agg.initialInterviews,
       offers: agg.offers,
       hired: agg.hired,
-      retention30: retention,
+      retentionWarranty: retention,
       refund: agg.refund,
       cost: agg.cost,
       totalSales: agg.totalSales // ★追加
@@ -545,7 +574,6 @@ function renderAdTable(data) {
         <td class="sticky left-0 bg-white font-medium text-slate-900 z-30 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
           ${ad.mediaName}
         </td>
-        <td class="text-right font-semibold whitespace-nowrap px-2 text-slate-700">${formatCurrency(ad.cost)}</td>
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatNumber(ad.applications)}</td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.validApplications)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
@@ -556,9 +584,11 @@ function renderAdTable(data) {
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
         <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.hireRate)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retention30)}">${formatPercent(ad.retention30)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retentionWarranty)}">${formatPercent(ad.retentionWarranty)}</span></td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
+        
+        <td class="text-right font-semibold whitespace-nowrap px-2 text-slate-700">${formatCurrency(ad.cost)}</td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2 text-indigo-700">${formatPercent(ad.roas)}</td>
         
@@ -574,26 +604,27 @@ function updateAdSummary(data, summary) {
   const totalApps = useSummary
     ? Number(summary.totalApplications || 0)
     : data.reduce((sum, d) => sum + (d.applications || 0), 0);
+
   const totalValid = useSummary
     ? Number(summary.totalValid || 0)
     : data.reduce((sum, d) => sum + (d.validApplications || 0), 0);
+
   const totalHired = useSummary
     ? Number(summary.totalHired || 0)
     : data.reduce((sum, d) => sum + (d.hired || 0), 0);
 
-  // ★ROAS計算用: 現在の表示データ(data)から合計を算出
-  // (APIサマリーにはSalesがないため、フィルタ有無に関わらずdataから集計するのが確実)
   const totalSales = data.reduce((sum, d) => sum + (Number(d.totalSales) || 0), 0);
   const totalCost = data.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
-
   const totalInitialInterviews = data.reduce((sum, d) => sum + (d.initialInterviews || 0), 0);
 
-  const decisionRate = rate(totalHired, totalApps);
+  // ★修正: 決定率 = 入社数 / 有効応募数 (totalValid)
+  // (もし有効応募が0の場合は0%)
+  const decisionRate = rate(totalHired, totalValid);
+
   const validRate = rate(totalValid, totalApps);
-  const interviewDenom = totalValid || totalApps;
+  const interviewDenom = totalValid;
   const initialInterviewRate = rate(totalInitialInterviews, interviewDenom);
 
-  // ★ROAS計算
   const totalRoas = totalCost > 0 ? (totalSales / totalCost) * 100 : 0;
 
   const setText = (id, value) => {
@@ -604,9 +635,10 @@ function updateAdSummary(data, summary) {
   const validText = totalValid ? `${formatNumber(totalValid)} (${formatPercent(validRate)})` : '-';
   setText('adSummaryValidWithRate', validText);
   setText('adSummaryInitialInterviewRate', interviewDenom ? formatPercent(initialInterviewRate) : '-');
-  setText('adSummaryDecisionRate', totalApps ? formatPercent(decisionRate) : '-');
 
-  // ★変更: 定着率 → ROAS
+  // 決定率の表示更新
+  setText('adSummaryDecisionRate', totalValid ? formatPercent(decisionRate) : '-');
+
   setText('adSummaryRoas', formatPercent(totalRoas));
 }
 
@@ -660,6 +692,14 @@ function renderAdMainChart(data) {
   let datasets = [];
   let xTickFormatter = (v) => formatNumber(v);
   let tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.raw)}`;
+  let scales = {
+    x: {
+      beginAtZero: true,
+      grid: { color: '#f1f5f9' },
+      ticks: { callback: xTickFormatter }
+    },
+    y: { grid: { display: false } }
+  };
 
   if (currentGraphMetric === 'roas') {
     sorted = [...normalized].sort((a, b) => b.roas - a.roas);
@@ -670,38 +710,74 @@ function renderAdMainChart(data) {
     }];
     xTickFormatter = (v) => formatPercent(v);
     tooltipFormatter = (ctx) => `ROAS: ${formatPercent(ctx.raw)}`;
-  } else if (currentGraphMetric === 'sales_cost') {
-    sorted = [...normalized].sort((a, b) => b.totalSales - a.totalSales);
-    datasets = [
-      {
-        label: '売上額',
-        data: sorted.map(d => d.totalSales),
-        backgroundColor: '#6366f1'
+    scales = {
+      x: {
+        beginAtZero: true,
+        grid: { color: '#f1f5f9' },
+        ticks: { callback: xTickFormatter }
       },
-      {
-        label: '契約費用',
-        data: sorted.map(d => d.cost),
-        backgroundColor: '#f97316'
-      }
-    ];
-    xTickFormatter = (v) => formatCurrency(v);
-    tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`;
+      y: { grid: { display: false } }
+    };
   } else {
     sorted = [...normalized].sort((a, b) => b.applications - a.applications);
+    const rates = sorted.map(d => {
+      const total = Number(d.applications) || 0;
+      const valid = Number(d.validApplications) || 0;
+      return total ? (valid / total) * 100 : 0;
+    });
     datasets = [
       {
         label: '応募数',
         data: sorted.map(d => d.applications),
-        backgroundColor: '#94a3b8'
+        backgroundColor: '#94a3b8',
+        xAxisID: 'x'
       },
       {
         label: '有効応募数',
         data: sorted.map(d => d.validApplications),
-        backgroundColor: '#6366f1'
+        backgroundColor: '#6366f1',
+        xAxisID: 'x'
+      },
+      {
+        label: '有効応募率',
+        type: 'line',
+        data: rates,
+        borderColor: '#f97316',
+        backgroundColor: '#f97316',
+        xAxisID: 'x1',
+        pointRadius: 3,
+        pointHoverRadius: 4,
+        tension: 0.2
       }
     ];
     xTickFormatter = (v) => formatNumber(v);
-    tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.raw)}`;
+    tooltipFormatter = (ctx) => {
+      const row = sorted[ctx.dataIndex] || {};
+      const total = Number(row.applications) || 0;
+      const valid = Number(row.validApplications) || 0;
+      if (ctx.dataset.label === '有効応募率') {
+        const rate = total ? (valid / total) * 100 : 0;
+        return `有効応募率: ${formatPercent(rate)}`;
+      }
+      if (ctx.dataset.label === '有効応募数') {
+        return `有効応募数: ${formatNumber(valid)}`;
+      }
+      return `応募数: ${formatNumber(total)}`;
+    };
+    scales = {
+      x: {
+        beginAtZero: true,
+        grid: { color: '#f1f5f9' },
+        ticks: { callback: xTickFormatter }
+      },
+      x1: {
+        beginAtZero: true,
+        position: 'top',
+        grid: { drawOnChartArea: false },
+        ticks: { callback: (v) => formatPercent(v) }
+      },
+      y: { grid: { display: false } }
+    };
   }
 
   const labels = sorted.map(d => d.mediaName);
@@ -729,14 +805,7 @@ function renderAdMainChart(data) {
       },
       interaction: { mode: 'nearest', intersect: true },
       onClick: handleClick,
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: '#f1f5f9' },
-          ticks: { callback: xTickFormatter }
-        },
-        y: { grid: { display: false } }
-      }
+      scales
     }
   });
 }
@@ -804,7 +873,8 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   const metricLabels = {
     decisionRate: '決定率',
     initialInterviewRate: '初回面談設定率',
-    retention30: '定着率'
+    retentionWarranty: '定着率（保障期間）',
+    retention30: '定着率（保障期間）'
   };
   const metricLabel = metricLabels[lineMetric] || '決定率';
 
@@ -1261,7 +1331,7 @@ function handleExportCSV() {
   const sortedData = getAggregatedSorted();
 
   // ★列順変更: 売上高 -> 契約費用 -> ROAS
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（30日）', '売上高（税込）', '契約費用', 'ROAS', '返金額（税込）'];
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（保障期間）', '売上高（税込）', '契約費用', 'ROAS', '返金額（税込）'];
 
   const csvContent = [
     headers.join(','),
@@ -1276,7 +1346,7 @@ function handleExportCSV() {
       ad.hired,
       `${ad.hireRate.toFixed(1)}%`,
       `${ad.decisionRate.toFixed(1)}%`,
-      `${ad.retention30.toFixed(1)}%`,
+      `${ad.retentionWarranty.toFixed(1)}%`,
       ad.totalSales,
       ad.cost, // ★ここへ移動
       `${ad.roas.toFixed(1)}%`,

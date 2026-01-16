@@ -3,6 +3,8 @@ console.log('teleapo.js loaded');
 
 const ROUTE_TEL = 'tel';
 const ROUTE_OTHER = 'other';
+const TELEAPO_RATE_MODE_CONTACT = 'contact';
+const TELEAPO_RATE_MODE_STEP = 'step';
 const TELEAPO_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/teleapo/logs';
 const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
@@ -17,10 +19,140 @@ const CANDIDATES_API_URL = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazon
 
 let candidateNameMap = new Map(); // Name -> ID
 let candidateIdMap = new Map(); // ID -> Name
+let candidateAttendanceMap = new Map(); // ID -> Boolean
+let candidateAttendanceByName = new Map(); // normalized name -> Boolean
 let candidateNameList = [];
 let teleapoCsTaskCandidates = [];
 let teleapoCandidateMaster = [];
 let teleapoCandidateAbort = null;
+let candidatePhoneCache = new Map();
+let candidateDetailCache = new Map();
+let candidateDetailRequests = new Map();
+let missingInfoQueue = [];
+let missingInfoQueueSet = new Set();
+let missingInfoQueueActive = false;
+const MISSING_INFO_FETCH_BATCH = 20;
+const MISSING_INFO_FETCH_DELAY_MS = 200;
+const MISSING_INFO_RENDER_LIMIT = 200;
+let missingInfoExpanded = false;
+let teleapoSummaryByCandidateId = new Map();
+let teleapoSummaryByName = new Map();
+let csTaskExpanded = false;
+let attendanceQueue = [];
+let attendanceQueueSet = new Set();
+let attendanceQueueActive = false;
+let attendanceRefreshTimer = null;
+let teleapoRateMode = TELEAPO_RATE_MODE_CONTACT;
+const ATTENDANCE_FETCH_BATCH = 10;
+const ATTENDANCE_FETCH_DELAY_MS = 200;
+
+function normalizeAttendanceValue(value) {
+  if (value === true || value === false) return value;
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "済", "確認済"].includes(normalized)) return true;
+    if (["false", "0", "no", "未", "未確認"].includes(normalized)) return false;
+  }
+  return Boolean(value);
+}
+
+function registerCandidateAttendance(candidateId, candidateName, attendanceRaw) {
+  const attendance = normalizeAttendanceValue(attendanceRaw);
+  if (attendance === null) return;
+  const idNum = Number(candidateId);
+  if (Number.isFinite(idNum) && idNum > 0) {
+    candidateAttendanceMap.set(idNum, attendance);
+  }
+  const nameKey = normalizeNameKey(candidateName);
+  if (nameKey) {
+    candidateAttendanceByName.set(nameKey, attendance);
+  }
+}
+
+function scheduleAttendanceRefresh() {
+  if (attendanceRefreshTimer) return;
+  attendanceRefreshTimer = window.setTimeout(() => {
+    attendanceRefreshTimer = null;
+    if (teleapoLogData.length) {
+      applyFilters();
+    }
+  }, 200);
+}
+
+function enqueueAttendanceFetch(candidateId) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return;
+  if (candidateAttendanceMap.has(idNum)) return;
+  if (candidateDetailRequests.has(idNum)) return;
+  const cached = candidateDetailCache.get(idNum);
+  if (cached && typeof cached.attendanceConfirmed === "boolean") return;
+  if (attendanceQueueSet.has(idNum)) return;
+  attendanceQueueSet.add(idNum);
+  attendanceQueue.push(idNum);
+  if (!attendanceQueueActive) processAttendanceQueue();
+}
+
+function processAttendanceQueue() {
+  if (!attendanceQueue.length) {
+    attendanceQueueActive = false;
+    return;
+  }
+  attendanceQueueActive = true;
+  const batch = attendanceQueue.splice(0, ATTENDANCE_FETCH_BATCH);
+  batch.forEach((idNum) => attendanceQueueSet.delete(idNum));
+  Promise.all(batch.map((idNum) => fetchCandidateDetailInfo(idNum)))
+    .catch(() => {})
+    .finally(() => {
+      setTimeout(processAttendanceQueue, ATTENDANCE_FETCH_DELAY_MS);
+    });
+}
+
+function scheduleAttendanceFetchFromLogs(logs) {
+  if (!Array.isArray(logs) || !logs.length) return;
+  logs.forEach((log) => {
+    const code = normalizeResultCode(log.resultCode || log.result);
+    if (code !== "set") return;
+    let idNum = Number(log.candidateId);
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      const resolved = findCandidateIdFromTarget(log.target);
+      idNum = Number(resolved);
+    }
+    if (!Number.isFinite(idNum) || idNum <= 0) return;
+    enqueueAttendanceFetch(idNum);
+  });
+}
+
+function resolveAttendanceConfirmed(log) {
+  const idNum = Number(log?.candidateId ?? log?.candidate_id);
+  if (Number.isFinite(idNum) && idNum > 0 && candidateAttendanceMap.has(idNum)) {
+    return candidateAttendanceMap.get(idNum) === true;
+  }
+  if (Number.isFinite(idNum) && idNum > 0) {
+    const cached = candidateDetailCache.get(idNum);
+    if (cached && typeof cached.attendanceConfirmed === "boolean") {
+      return cached.attendanceConfirmed;
+    }
+  }
+  const nameKey = normalizeNameKey(log?.target || "");
+  if (nameKey && candidateAttendanceByName.has(nameKey)) {
+    return candidateAttendanceByName.get(nameKey) === true;
+  }
+  return false;
+}
+
+function resolveCandidateInterviewDate(log) {
+  let idNum = Number(log?.candidateId ?? log?.candidate_id);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const resolved = findCandidateIdFromTarget(log?.target || "");
+    idNum = Number(resolved);
+  }
+  if (Number.isFinite(idNum) && idNum > 0) {
+    const cached = candidateDetailCache.get(idNum);
+    if (cached?.firstInterviewDate) return cached.firstInterviewDate;
+  }
+  return null;
+}
 
 function buildCandidateDetailUrl(candidateId) {
   const id = String(candidateId ?? '').trim();
@@ -162,6 +294,13 @@ function formatCandidateDate(value) {
   return `${yyyy}/${mm}/${dd}`;
 }
 
+function formatShortMonthDay(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 function formatCandidateValue(value, fallback = "-") {
   const text = String(value ?? "").trim();
   return text ? escapeHtml(text) : fallback;
@@ -171,6 +310,90 @@ function getCandidateDetailApiUrl(candidateId) {
   const id = String(candidateId ?? "").trim();
   if (!id) return "";
   return `${CANDIDATES_API_URL}/${encodeURIComponent(id)}`;
+}
+
+function fetchCandidateDetailInfo(candidateId) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return Promise.resolve(null);
+  if (candidateDetailCache.has(idNum)) return Promise.resolve(candidateDetailCache.get(idNum));
+  if (candidateDetailRequests.has(idNum)) return candidateDetailRequests.get(idNum);
+
+  const url = getCandidateDetailApiUrl(idNum);
+  if (!url) return Promise.resolve(null);
+
+  const req = fetch(url, { headers: { Accept: "application/json" } })
+    .then(res => {
+      if (!res.ok) {
+        return res.text().then(text => {
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        });
+      }
+      return res.json();
+    })
+    .then(data => {
+      const phone =
+        data?.phone ??
+        data?.phone_number ??
+        data?.phoneNumber ??
+        data?.tel ??
+        data?.mobile ??
+        data?.candidate_phone ??
+        "";
+      const attendanceRaw =
+        data?.attendanceConfirmed ??
+        data?.first_interview_attended ??
+        data?.attendance_confirmed ??
+        null;
+      const firstInterviewDate =
+        data?.firstInterviewDate ??
+        data?.first_interview_date ??
+        data?.firstInterviewAt ??
+        data?.first_interview_at ??
+        null;
+      const birthday =
+        data?.birthday ??
+        data?.birth_date ??
+        data?.birthDate ??
+        data?.birthdate ??
+        "";
+      const ageRaw = data?.age ?? data?.age_years ?? data?.ageYears ?? null;
+      const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : null;
+
+      const detail = {
+        phone: String(phone ?? "").trim(),
+        birthday: String(birthday ?? "").trim(),
+        age,
+        attendanceConfirmed: normalizeAttendanceValue(attendanceRaw),
+        firstInterviewDate: firstInterviewDate
+      };
+      candidateDetailCache.set(idNum, detail);
+      registerCandidateAttendance(idNum, data?.candidateName ?? data?.candidate_name ?? data?.name ?? "", detail.attendanceConfirmed);
+      if (typeof detail.attendanceConfirmed === "boolean") {
+        scheduleAttendanceRefresh();
+      }
+      if (detail.phone) candidatePhoneCache.set(idNum, detail.phone);
+      return detail;
+    })
+    .catch(err => {
+      console.error("candidate detail fetch error:", err);
+      if (!candidateDetailCache.has(idNum)) {
+        candidateDetailCache.set(idNum, { phone: "", birthday: "", age: null, failed: true });
+      }
+      return candidateDetailCache.get(idNum);
+    })
+    .finally(() => {
+      candidateDetailRequests.delete(idNum);
+    });
+
+  candidateDetailRequests.set(idNum, req);
+  return req;
+}
+
+function fetchCandidatePhone(candidateId) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return Promise.resolve(null);
+  if (candidatePhoneCache.has(idNum)) return Promise.resolve(candidatePhoneCache.get(idNum));
+  return fetchCandidateDetailInfo(idNum).then(detail => detail?.phone || null);
 }
 
 async function updateCandidateFirstInterview(candidateId, interviewAt) {
@@ -442,43 +665,28 @@ function renderValidApplicationBadge(isValid) {
 }
 
 function buildTeleapoSummaryForCandidate(candidateId, candidateName) {
-  if (!teleapoLogData.length) return null;
   const idNum = Number(candidateId);
   const hasId = Number.isFinite(idNum) && idNum > 0;
   const normalizedName = normalizeNameKey(candidateName);
-  if (!hasId && !normalizedName) return null;
-
-  let callCount = 0;
-  let hasConnected = false;
-  let hasSms = false;
-  let lastConnectedAt = null;
-  let lastConnectedTs = -Infinity;
-
-  for (const log of teleapoLogData) {
-    if (hasId) {
-      if (Number(log.candidateId) !== idNum) continue;
-    } else {
-      const targetKey = normalizeNameKey(log.target || "");
-      if (!targetKey || !targetKey.includes(normalizedName)) continue;
-    }
-
-    if (log.route === ROUTE_TEL) {
-      callCount += 1;
-    }
-    const flags = classifyTeleapoResult(log);
-    if (flags.code === "sms_sent") hasSms = true;
-    if (flags.isConnect) {
-      hasConnected = true;
-      const ts = parseDateTime(log.datetime)?.getTime() || 0;
-      if (ts >= lastConnectedTs) {
-        lastConnectedTs = ts;
-        lastConnectedAt = log.datetime;
-      }
-    }
+  if (hasId) {
+    const cached = teleapoSummaryByCandidateId.get(idNum);
+    if (!cached) return null;
+    return {
+      hasConnected: cached.hasConnected,
+      hasSms: cached.hasSms,
+      callCount: cached.callCount,
+      lastConnectedAt: cached.lastConnectedAt
+    };
   }
-
-  if (!callCount && !hasConnected && !hasSms) return null;
-  return { hasConnected, hasSms, callCount, lastConnectedAt };
+  if (!normalizedName) return null;
+  const cached = teleapoSummaryByName.get(normalizedName);
+  if (!cached) return null;
+  return {
+    hasConnected: cached.hasConnected,
+    hasSms: cached.hasSms,
+    callCount: cached.callCount,
+    lastConnectedAt: cached.lastConnectedAt
+  };
 }
 
 function normalizeCandidateTask(candidate) {
@@ -535,8 +743,11 @@ function normalizeCandidateTask(candidate) {
 }
 
 function resolveCandidatePhone(candidateId, candidateName) {
-  if (!teleapoLogData.length) return "";
   const idNum = Number(candidateId);
+  if (Number.isFinite(idNum) && candidatePhoneCache.has(idNum)) {
+    return candidatePhoneCache.get(idNum) || "";
+  }
+  if (!teleapoLogData.length) return "";
   const normalizedName = normalizeNameKey(candidateName);
   let bestTel = "";
   let bestTs = -Infinity;
@@ -568,20 +779,27 @@ function rebuildCsTaskCandidates() {
     .map(normalizeCandidateTask)
     .filter((c) => c && c.validApplication && c.isUncontacted);
   renderCsTaskTable(teleapoCsTaskCandidates);
+  rebuildMissingInfoCandidates();
+}
+
+function scheduleCandidatePhoneFetch(list) {
+  return;
 }
 
 function renderCsTaskTable(list, state = {}) {
   const body = document.getElementById("teleapoCsTaskTableBody");
   const countEl = document.getElementById("teleapoCsTaskCount");
+  const wrapper = document.getElementById("teleapoCsTaskTableWrapper");
   if (countEl) {
     countEl.textContent = state.loading ? "読み込み中..." : `${list.length}件`;
   }
   if (!body) return;
+  if (wrapper) wrapper.classList.toggle('hidden', !csTaskExpanded);
 
   if (state.loading) {
     body.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center text-slate-500 py-6">読み込み中...</td>
+        <td colspan="6" class="text-center text-slate-500 py-6">読み込み中...</td>
       </tr>
     `;
     return;
@@ -590,7 +808,16 @@ function renderCsTaskTable(list, state = {}) {
   if (state.error) {
     body.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center text-rose-600 py-6">候補者の取得に失敗しました</td>
+        <td colspan="6" class="text-center text-rose-600 py-6">候補者の取得に失敗しました</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!csTaskExpanded) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
       </tr>
     `;
     return;
@@ -599,7 +826,7 @@ function renderCsTaskTable(list, state = {}) {
   if (!list.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
+        <td colspan="6" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
       </tr>
     `;
     return;
@@ -609,6 +836,15 @@ function renderCsTaskTable(list, state = {}) {
     const nameLabel = row.candidateName || "-";
     const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
     const phoneValue = row.phone || resolveCandidatePhone(candidateId, row.candidateName);
+    const dialBtn = candidateId || nameLabel !== "-"
+      ? `<button type="button"
+           class="text-xs px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+           data-action="prefill-dial"
+           data-candidate-id="${escapeHtml(candidateId || '')}"
+           data-candidate-name="${escapeHtml(row.candidateName || '')}">
+           架電登録
+         </button>`
+      : `<span class="text-xs text-slate-400">-</span>`;
     const nameCell = nameLabel !== "-"
       ? `<button type="button"
            class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
@@ -623,9 +859,228 @@ function renderCsTaskTable(list, state = {}) {
         <td class="whitespace-nowrap">${nameCell}</td>
         <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
         <td class="whitespace-nowrap">${escapeHtml(phoneValue || "-")}</td>
+        <td class="whitespace-nowrap">${dialBtn}</td>
       </tr>
     `;
   }).join("");
+
+  scheduleCandidatePhoneFetch(list);
+}
+
+function calculateAgeFromBirthday(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age -= 1;
+  return age;
+}
+
+function normalizeMissingInfoCandidate(candidate) {
+  if (!candidate) return null;
+  const candidateId =
+    candidate.id ??
+    candidate.candidate_id ??
+    candidate.candidateId ??
+    candidate.candidateID ??
+    null;
+  const idNum = Number(candidateId);
+  const cached = Number.isFinite(idNum) && idNum > 0 ? candidateDetailCache.get(idNum) : null;
+
+  const name = String(
+    candidate.candidateName ??
+    candidate.candidate_name ??
+    candidate.name ??
+    ""
+  ).trim();
+  const registeredAt =
+    candidate.registeredAt ??
+    candidate.registered_at ??
+    candidate.createdAt ??
+    candidate.created_at ??
+    candidate.createdDate ??
+    candidate.created_date ??
+    null;
+
+  const birthday =
+    cached?.birthday ??
+    candidate.birthday ??
+    candidate.birth_date ??
+    candidate.birthDate ??
+    candidate.birthdate ??
+    "";
+  const ageRaw =
+    cached?.age ??
+    candidate.age ??
+    candidate.age_years ??
+    candidate.ageYears ??
+    null;
+  const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : calculateAgeFromBirthday(birthday);
+
+  const phone =
+    cached?.phone ??
+    candidate.phone ??
+    candidate.phone_number ??
+    candidate.phoneNumber ??
+    candidate.tel ??
+    candidate.mobile ??
+    candidate.candidate_phone ??
+    candidatePhoneCache.get(idNum) ??
+    "";
+
+  const missingBirth = !birthday || !(Number.isFinite(age) && age > 0);
+  const missingPhone = !String(phone ?? "").trim();
+  const needsDetail = (missingBirth || missingPhone) && Number.isFinite(idNum) && idNum > 0 && !candidateDetailCache.has(idNum);
+
+  if (!missingBirth && !missingPhone) return null;
+
+  return {
+    candidateId: Number.isFinite(idNum) && idNum > 0 ? idNum : null,
+    candidateName: name,
+    registeredAt,
+    birthday,
+    age,
+    phone,
+    missingBirth,
+    missingPhone,
+    needsDetail
+  };
+}
+
+function rebuildMissingInfoCandidates() {
+  if (!teleapoCandidateMaster.length) {
+    renderMissingInfoTable([], { loading: true });
+    return;
+  }
+  teleapoMissingInfoCandidates = teleapoCandidateMaster
+    .map(normalizeMissingInfoCandidate)
+    .filter(Boolean);
+  renderMissingInfoTable(teleapoMissingInfoCandidates);
+}
+
+function renderMissingInfoTable(list, state = {}) {
+  const body = document.getElementById("teleapoMissingInfoTableBody");
+  const countEl = document.getElementById("teleapoMissingInfoCount");
+  const wrapper = document.getElementById("teleapoMissingInfoTableWrapper");
+  if (countEl) {
+    countEl.textContent = state.loading ? "読み込み中..." : `${list.length}件`;
+  }
+  if (!body) return;
+  if (wrapper) wrapper.classList.toggle('hidden', !missingInfoExpanded);
+
+  if (state.loading) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-slate-500 py-6">読み込み中...</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!list.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!missingInfoExpanded) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!missingInfoExpanded && list.length > MISSING_INFO_RENDER_LIMIT) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-slate-500 py-6">
+          対象が多いため一覧を一時的に非表示にしています（${list.length}件）。
+          右上の「一覧を開く」を押してください。
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const visible = list;
+
+  body.innerHTML = visible.map(row => {
+    const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
+    const nameLabel = row.candidateName || "-";
+    const nameCell = nameLabel !== "-"
+      ? `<button type="button"
+           class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
+           data-action="open-candidate"
+           data-candidate-id="${escapeHtml(candidateId || '')}"
+           data-candidate-name="${escapeHtml(row.candidateName || '')}">${escapeHtml(nameLabel)}</button>`
+      : escapeHtml(nameLabel);
+    const missingTags = [
+      row.missingBirth ? "生年月日/年齢" : null,
+      row.missingPhone ? "電話番号" : null
+    ].filter(Boolean);
+    const missingHtml = missingTags.map(tag => `
+      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">
+        ${escapeHtml(tag)}
+      </span>
+    `).join(" ");
+
+    const birthdayText = row.birthday ? formatCandidateDate(row.birthday) : "-";
+    const ageText = Number.isFinite(row.age) && row.age > 0 ? `${row.age}歳` : "-";
+    const phoneText = String(row.phone ?? "").trim() || "-";
+
+    return `
+      <tr>
+        <td class="whitespace-nowrap">${missingHtml || "-"}</td>
+        <td class="whitespace-nowrap">${nameCell}</td>
+        <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
+        <td class="whitespace-nowrap">${escapeHtml(birthdayText)}</td>
+        <td class="whitespace-nowrap">${escapeHtml(ageText)}</td>
+        <td class="whitespace-nowrap">${escapeHtml(phoneText)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  scheduleMissingInfoFetch(list);
+}
+
+function scheduleMissingInfoFetch(list) {
+  if (!Array.isArray(list) || !list.length) return;
+  list.forEach(row => {
+    if (!row.needsDetail) return;
+    const idNum = Number(row.candidateId);
+    if (!Number.isFinite(idNum) || idNum <= 0) return;
+    if (candidateDetailCache.has(idNum)) return;
+    if (candidateDetailRequests.has(idNum)) return;
+    if (missingInfoQueueSet.has(idNum)) return;
+    missingInfoQueue.push(idNum);
+    missingInfoQueueSet.add(idNum);
+  });
+  if (!missingInfoQueue.length || missingInfoQueueActive) return;
+  processMissingInfoQueue();
+}
+
+function processMissingInfoQueue() {
+  if (!missingInfoQueue.length) {
+    missingInfoQueueActive = false;
+    return;
+  }
+  missingInfoQueueActive = true;
+  const batch = missingInfoQueue.splice(0, MISSING_INFO_FETCH_BATCH);
+  batch.forEach(idNum => missingInfoQueueSet.delete(idNum));
+  Promise.all(batch.map(idNum => fetchCandidateDetailInfo(idNum)))
+    .then(() => {
+      rebuildMissingInfoCandidates();
+    })
+    .finally(() => {
+      setTimeout(processMissingInfoQueue, MISSING_INFO_FETCH_DELAY_MS);
+    });
 }
 
 const RESULT_LABELS = {
@@ -639,6 +1094,7 @@ const RESULT_LABELS = {
 
 let teleapoLogData = [];
 let teleapoPendingLogs = [];
+let teleapoMissingInfoCandidates = [];
 let teleapoFilteredLogs = [];
 let teleapoEmployeeMetrics = [];
 let teleapoSummaryScope = { type: 'company', name: '全体' };
@@ -832,12 +1288,28 @@ function mergePendingLogs(baseLogs) {
 
 function classifyTeleapoResult(log) {
   const code = normalizeResultCode(log.resultCode || log.result);
+  const attendanceConfirmed = resolveAttendanceConfirmed(log);
+  const interviewDate = resolveCandidateInterviewDate(log);
+  const isShow = code === 'show' || (code === 'set' && attendanceConfirmed);
+  const meetingLabel = interviewDate
+    ? `面談(${formatShortMonthDay(interviewDate)})`
+    : '面談';
+  const flowLabels = (code === 'set' || code === 'show')
+    ? ['通電', meetingLabel].concat(isShow ? ['着座'] : [])
+    : null;
+  const displayLabel = flowLabels
+    ? flowLabels.join('→')
+    : (RESULT_LABELS[code] || log.result || '');
   return {
     isConnect: ['connect', 'set', 'show', 'callback'].includes(code), // 既存の通電判定（後方互換）
     isConnectPlusSet: ['connect', 'callback', 'set', 'show'].includes(code), // 通電率定義用: 通電＋設定
     isSet: ['set', 'show'].includes(code),
-    isShow: code === 'show',
-    code
+    isShow,
+    code,
+    attendanceConfirmed,
+    interviewDate,
+    flowLabels,
+    displayLabel
   };
 }
 
@@ -985,6 +1457,41 @@ function annotateCallAttempts(logs) {
   logs.filter(l => l.route !== ROUTE_TEL).forEach(log => {
     if ('callAttempt' in log) delete log.callAttempt;
   });
+  rebuildTeleapoSummaryCache(logs);
+}
+
+function rebuildTeleapoSummaryCache(logs) {
+  teleapoSummaryByCandidateId = new Map();
+  teleapoSummaryByName = new Map();
+  if (!Array.isArray(logs) || !logs.length) return;
+
+  const updateSummary = (map, key, log, flags, ts) => {
+    if (!key && key !== 0) return;
+    const current = map.get(key) || { callCount: 0, hasConnected: false, hasSms: false, lastConnectedAt: null, lastConnectedTs: -Infinity };
+    if (log.route === ROUTE_TEL) current.callCount += 1;
+    if (flags.code === "sms_sent") current.hasSms = true;
+    if (flags.isConnect) {
+      current.hasConnected = true;
+      if (ts >= current.lastConnectedTs) {
+        current.lastConnectedTs = ts;
+        current.lastConnectedAt = log.datetime;
+      }
+    }
+    map.set(key, current);
+  };
+
+  logs.forEach(log => {
+    const flags = classifyTeleapoResult(log);
+    const ts = parseDateTime(log.datetime)?.getTime() || 0;
+    const idNum = Number(log.candidateId);
+    if (Number.isFinite(idNum) && idNum > 0) {
+      updateSummary(teleapoSummaryByCandidateId, idNum, log, flags, ts);
+    }
+    const targetKey = normalizeNameKey(log.target || "");
+    if (targetKey) {
+      updateSummary(teleapoSummaryByName, targetKey, log, flags, ts);
+    }
+  });
 }
 
 function setText(id, value) {
@@ -1041,6 +1548,62 @@ function rateClass(rate) {
   return 'text-red-600';
 }
 
+function getShowDenominator(sets, contacts) {
+  return teleapoRateMode === TELEAPO_RATE_MODE_STEP ? sets : contacts;
+}
+
+function calcShowRate(shows, sets, contacts, nullIfZero = false) {
+  const denom = getShowDenominator(sets, contacts);
+  if (!denom) return nullIfZero ? null : 0;
+  return (shows / denom) * 100;
+}
+
+function buildSummaryKpiDesc() {
+  const denomLabel = teleapoRateMode === TELEAPO_RATE_MODE_STEP ? '設定数' : '接触数';
+  return `設定率=設定数/接触数・着座率=着座数/${denomLabel}`;
+}
+
+function buildEmployeeKpiDesc() {
+  const denomLabel = teleapoRateMode === TELEAPO_RATE_MODE_STEP ? '設定数' : '通電数';
+  return `通電率=通電数/架電数・設定率=設定数/通電数・着座率=着座数/${denomLabel}`;
+}
+
+function updateRateModeUI() {
+  const toggle = document.getElementById('teleapoRateModeToggle');
+  if (toggle) {
+    toggle.querySelectorAll('[data-rate-mode]').forEach(btn => {
+      const mode = btn.dataset.rateMode;
+      const isActive = mode === teleapoRateMode;
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      btn.classList.toggle('bg-indigo-600', isActive);
+      btn.classList.toggle('text-white', isActive);
+      btn.classList.toggle('shadow-sm', isActive);
+      btn.classList.toggle('text-slate-600', !isActive);
+    });
+  }
+  const desc = document.getElementById('teleapoKpiCalcDesc');
+  if (desc) desc.textContent = buildSummaryKpiDesc();
+  const empDesc = document.getElementById('teleapoEmployeeCalcDesc');
+  if (empDesc) empDesc.textContent = buildEmployeeKpiDesc();
+}
+
+function initRateModeToggle() {
+  const toggle = document.getElementById('teleapoRateModeToggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-rate-mode]');
+    if (!btn) return;
+    const nextMode = btn.dataset.rateMode === TELEAPO_RATE_MODE_STEP
+      ? TELEAPO_RATE_MODE_STEP
+      : TELEAPO_RATE_MODE_CONTACT;
+    if (nextMode === teleapoRateMode) return;
+    teleapoRateMode = nextMode;
+    updateRateModeUI();
+    applyFilters();
+  });
+  updateRateModeUI();
+}
+
 function computeKpi(logs) {
   const tel = { attempts: 0, contacts: 0, contactsPlusSets: 0, sets: 0, shows: 0 };
   const other = { attempts: 0, contacts: 0, contactsPlusSets: 0, sets: 0, shows: 0 };
@@ -1069,7 +1632,7 @@ function computeKpi(logs) {
 function computeRates(counts) {
   const contactRate = counts.attempts > 0 ? ((counts.contactsPlusSets ?? counts.contacts) / counts.attempts) * 100 : null;
   const setRate = counts.contacts > 0 ? (counts.sets / counts.contacts) * 100 : null;
-  const showRate = counts.sets > 0 ? (counts.shows / counts.sets) * 100 : null;
+  const showRate = calcShowRate(counts.shows, counts.sets, counts.contacts, true);
   return { contactRate, setRate, showRate };
 }
 
@@ -1081,6 +1644,7 @@ function renderSummary(logs, titleText, scopeLabelText) {
 
   setText('teleapoSummaryTitle', titleText || '全体KPI');
   setText('teleapoSummaryScopeLabel', scopeLabelText || '全体');
+  updateRateModeUI();
 
   setText('teleapoKpiContactRateTel', formatRate(telRates.contactRate));
   setText('teleapoKpiContactRateOther', formatRate(otherRates.contactRate));
@@ -1123,7 +1687,7 @@ function computeEmployeeMetrics(logs) {
   return Array.from(map.entries()).map(([name, rec]) => {
     const connectRate = rec.dials > 0 ? (rec.connects / rec.dials) * 100 : 0;
     const setRate = rec.connects > 0 ? (rec.sets / rec.connects) * 100 : 0;
-    const showRate = rec.sets > 0 ? (rec.shows / rec.sets) * 100 : 0;
+    const showRate = calcShowRate(rec.shows, rec.sets, rec.connects);
     return { name, ...rec, connectRate, setRate, showRate };
   });
 }
@@ -1517,9 +2081,29 @@ function renderLogTable() {
         <td>${targetCell}</td>
         <td>${telText}</td>
         <td>${emailText}</td>
-        <td><span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">
-          ${escapeHtml(RESULT_LABELS[flags.code] || row.result || '')}
-        </span></td>
+        <td>
+          ${flags.flowLabels
+    ? `
+            <div class="flex flex-wrap items-center gap-1">
+              ${flags.flowLabels.map((label, index) => {
+      const variantClass = label.startsWith('通電')
+        ? 'bg-blue-100 text-blue-700'
+        : label.startsWith('面談')
+          ? 'bg-emerald-100 text-emerald-700'
+          : label === '着座'
+            ? 'bg-green-100 text-green-700'
+            : 'bg-slate-100 text-slate-700';
+      const arrow = index < flags.flowLabels.length - 1
+        ? '<span class="text-slate-400 text-xs">→</span>'
+        : '';
+      return `<span class="px-2 py-0.5 rounded text-[10px] font-semibold ${variantClass}">${escapeHtml(label)}</span>${arrow}`;
+    }).join('')}
+            </div>
+          `
+    : `<span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">
+              ${escapeHtml(flags.displayLabel || RESULT_LABELS[flags.code] || row.result || '')}
+            </span>`}
+        </td>
         <td>${memoText}</td>
         <td class="text-center">${deleteCell}</td>
       </tr>
@@ -1680,7 +2264,7 @@ function buildEmployeeTrendPoints(empLogs, modeOverride) {
     .map(b => {
       const connectRate = b.dials ? (b.connects / b.dials) * 100 : 0;
       const setRate = b.connects ? (b.sets / b.connects) * 100 : 0;
-      const showRate = b.sets ? (b.shows / b.sets) * 100 : 0;
+      const showRate = calcShowRate(b.shows, b.sets, b.connects);
       return { label: b.label, connectRate, setRate, showRate, dials: b.dials, connects: b.connects, sets: b.sets, shows: b.shows };
     });
 
@@ -1707,7 +2291,7 @@ function renderEmployeeSummary(empName, empLogs, trend) {
 
   const connectRate = summary.dials ? (summary.connects / summary.dials) * 100 : 0;
   const setRate = summary.connects ? (summary.sets / summary.connects) * 100 : 0;
-  const showRate = summary.sets ? (summary.shows / summary.sets) * 100 : 0;
+  const showRate = calcShowRate(summary.shows, summary.sets, summary.connects);
 
   setText('teleapoEmployeeKpiDials', summary.dials.toLocaleString());
   setText('teleapoEmployeeKpiConnects', summary.connects.toLocaleString());
@@ -1738,7 +2322,8 @@ function renderEmployeeTrendTable(points, mode) {
   body.innerHTML = points.map((p) => {
     const connectDetail = p.dials ? `${p.connects}/${p.dials}` : '-';
     const setDetail = p.connects ? `${p.sets}/${p.connects}` : '-';
-    const showDetail = p.sets ? `${p.shows}/${p.sets}` : '-';
+    const showDenom = getShowDenominator(p.sets, p.connects);
+    const showDetail = showDenom ? `${p.shows}/${showDenom}` : '-';
     return `
       <tr>
         <td>${escapeHtml(p.label)}</td>
@@ -1918,7 +2503,7 @@ function renderEmployeeTrendChart(empName, logs) {
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(getShowDenominator(p.sets, p.connects), 1)})`;
     return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
@@ -1926,7 +2511,7 @@ function renderEmployeeTrendChart(empName, logs) {
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(getShowDenominator(p.sets, p.connects), 1)})`;
     return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
@@ -1934,7 +2519,7 @@ function renderEmployeeTrendChart(empName, logs) {
 架電: ${p.dials}件
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
-着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
+着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(getShowDenominator(p.sets, p.connects), 1)})`;
     return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => `<text x="${toX(i)}" y="${height - padding.bottom + 18}" text-anchor="middle" class="teleapo-chart-axis-tick">${p.label}</text>`).join('')}
@@ -1945,8 +2530,6 @@ function renderEmployeeTrendChart(empName, logs) {
 }
 
 function applyFilters() {
-  annotateCallAttempts(teleapoLogData);
-
   const empFilter = document.getElementById('teleapoLogEmployeeFilter')?.value || '';
   const resultFilter = document.getElementById('teleapoLogResultFilter')?.value || '';
   const routeFilter = document.getElementById('teleapoLogRouteFilter')?.value || '';
@@ -1962,7 +2545,15 @@ function applyFilters() {
     if (start && dt && dt < start) return false;
     if (end && dt && dt > end) return false;
     if (empFilter && log.employee !== empFilter) return false;
-    if (resultFilter && !(log.result || '').includes(resultFilter) && !(log.resultCode || '').includes(resultFilter)) return false;
+    if (resultFilter) {
+      const flags = classifyTeleapoResult(log);
+      if (resultFilter === '着座' && !flags.isShow) return false;
+      if (resultFilter === '設定' && !flags.isSet) return false;
+      if (resultFilter !== '着座' && resultFilter !== '設定') {
+        const resultText = `${flags.displayLabel || ''}${log.result || ''}${log.resultCode || ''}`;
+        if (!resultText.includes(resultFilter)) return false;
+      }
+    }
     if (routeFilter === 'tel' && log.route !== ROUTE_TEL) return false;
     if (routeFilter === 'other' && log.route !== ROUTE_OTHER) return false;
     if (targetSearch && !(`${log.target || ''}`.toLowerCase().includes(targetSearch))) return false;
@@ -2180,6 +2771,15 @@ function initCsTaskTableActions() {
   const tbody = document.getElementById('teleapoCsTaskTableBody');
   if (!tbody) return;
   tbody.addEventListener('click', (event) => {
+    const dialBtn = event.target.closest('[data-action="prefill-dial"]');
+    if (dialBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const candidateId = dialBtn.dataset.candidateId;
+      const candidateName = dialBtn.dataset.candidateName;
+      prefillDialFormFromCandidate(candidateId, candidateName);
+      return;
+    }
     const candidateBtn = event.target.closest('[data-action="open-candidate"]');
     if (!candidateBtn) return;
     event.preventDefault();
@@ -2187,6 +2787,69 @@ function initCsTaskTableActions() {
     const candidateId = candidateBtn.dataset.candidateId;
     const candidateName = candidateBtn.dataset.candidateName;
     openCandidateQuickView(candidateId, candidateName);
+  });
+}
+
+function setToggleButtonState(button, isOpen) {
+  if (!button) return;
+  button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  button.classList.toggle('bg-indigo-600', isOpen);
+  button.classList.toggle('text-white', isOpen);
+  button.classList.toggle('border-indigo-600', isOpen);
+  button.classList.toggle('bg-white', !isOpen);
+  button.classList.toggle('text-indigo-700', !isOpen);
+  button.classList.toggle('border-indigo-200', !isOpen);
+}
+
+function initCsTaskToggle() {
+  const toggleBtn = document.getElementById('teleapoCsTaskToggle');
+  const wrapper = document.getElementById('teleapoCsTaskTableWrapper');
+  if (!toggleBtn) return;
+  const updateLabel = () => {
+    toggleBtn.textContent = csTaskExpanded ? '一覧を閉じる' : '一覧を開く';
+    setToggleButtonState(toggleBtn, csTaskExpanded);
+  };
+  updateLabel();
+  if (wrapper) wrapper.classList.toggle('hidden', !csTaskExpanded);
+  toggleBtn.addEventListener('click', () => {
+    csTaskExpanded = !csTaskExpanded;
+    updateLabel();
+    if (wrapper) wrapper.classList.toggle('hidden', !csTaskExpanded);
+    if (csTaskExpanded) {
+      renderCsTaskTable(teleapoCsTaskCandidates);
+    }
+  });
+}
+
+function initMissingInfoTableActions() {
+  const tbody = document.getElementById('teleapoMissingInfoTableBody');
+  if (!tbody) return;
+  tbody.addEventListener('click', (event) => {
+    const candidateBtn = event.target.closest('[data-action="open-candidate"]');
+    if (!candidateBtn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const candidateId = candidateBtn.dataset.candidateId;
+    const candidateName = candidateBtn.dataset.candidateName;
+    openCandidateQuickView(candidateId, candidateName);
+  });
+}
+
+function initMissingInfoToggle() {
+  const toggleBtn = document.getElementById('teleapoMissingInfoToggle');
+  const wrapper = document.getElementById('teleapoMissingInfoTableWrapper');
+  if (!toggleBtn) return;
+  const updateLabel = () => {
+    toggleBtn.textContent = missingInfoExpanded ? '一覧を閉じる' : '一覧を開く';
+    setToggleButtonState(toggleBtn, missingInfoExpanded);
+  };
+  updateLabel();
+  if (wrapper) wrapper.classList.toggle('hidden', !missingInfoExpanded);
+  toggleBtn.addEventListener('click', () => {
+    missingInfoExpanded = !missingInfoExpanded;
+    updateLabel();
+    if (wrapper) wrapper.classList.toggle('hidden', !missingInfoExpanded);
+    renderMissingInfoTable(teleapoMissingInfoCandidates);
   });
 }
 
@@ -2283,6 +2946,7 @@ async function fetchTeleapoApi() {
 // ★ 候補者一覧を取得して datalist 用の辞書を作る
 async function loadCandidates() {
   renderCsTaskTable([], { loading: true });
+  renderMissingInfoTable([], { loading: true });
   try {
     const res = await fetch(CANDIDATES_API_URL, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Candidates API Error: ${res.status}`);
@@ -2292,6 +2956,8 @@ async function loadCandidates() {
 
     candidateNameMap.clear();
     candidateIdMap.clear();
+    candidateAttendanceMap.clear();
+    candidateAttendanceByName.clear();
     items.forEach(c => {
       // 名前を一意のキーにする（同姓同名対策が必要なら "名前(ID)" 等にするが、一旦名前で実装）
       const fullName = String(c.candidateName ?? c.candidate_name ?? c.name ?? '').trim();
@@ -2299,6 +2965,41 @@ async function loadCandidates() {
       if (fullName && Number.isFinite(candidateId) && candidateId > 0) {
         candidateNameMap.set(fullName, candidateId);
         candidateIdMap.set(String(candidateId), fullName);
+        registerCandidateAttendance(
+          candidateId,
+          fullName,
+          c.attendanceConfirmed ?? c.first_interview_attended ?? c.attendance_confirmed ?? c.firstInterviewAttended
+        );
+        const phone =
+          c.phone ??
+          c.phone_number ??
+          c.phoneNumber ??
+          c.tel ??
+          c.mobile ??
+          c.candidate_phone ??
+          "";
+        const phoneText = String(phone ?? "").trim();
+        const birthday =
+          c.birthday ??
+          c.birth_date ??
+          c.birthDate ??
+          c.birthdate ??
+          "";
+        const ageRaw = c.age ?? c.age_years ?? c.ageYears ?? null;
+        const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : null;
+        const detail = {
+          phone: phoneText,
+          birthday: String(birthday ?? "").trim(),
+          age,
+          attendanceConfirmed: normalizeAttendanceValue(
+            c.attendanceConfirmed ?? c.first_interview_attended ?? c.attendance_confirmed ?? c.firstInterviewAttended
+          ),
+          firstInterviewDate: c.firstInterviewDate ?? c.first_interview_date ?? c.firstInterviewAt ?? c.first_interview_at ?? null
+        };
+        if (detail.phone) candidatePhoneCache.set(candidateId, detail.phone);
+        if (detail.phone || detail.birthday || detail.age !== null) {
+          candidateDetailCache.set(candidateId, detail);
+        }
       }
     });
     candidateNameList = Array.from(candidateNameMap.keys()).sort((a, b) => b.length - a.length);
@@ -2308,7 +3009,8 @@ async function loadCandidates() {
 
     teleapoCandidateMaster = items;
     rebuildCsTaskCandidates();
-    if (teleapoFilteredLogs.length) renderLogTable();
+    applyFilters();
+    scheduleAttendanceFetchFromLogs(teleapoLogData);
   } catch (e) {
     console.error("候補者一覧の取得に失敗:", e);
     renderCsTaskTable([], { error: true });
@@ -2328,6 +3030,7 @@ async function loadTeleapoData() {
     annotateCallAttempts(teleapoLogData);
     rebuildEmployeeMap();
     refreshCandidateDatalist();
+    scheduleAttendanceFetchFromLogs(teleapoLogData);
     applyFilters();
     rebuildCsTaskCandidates();
   } catch (err) {
@@ -2336,6 +3039,7 @@ async function loadTeleapoData() {
     teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     refreshCandidateDatalist();
+    scheduleAttendanceFetchFromLogs(teleapoLogData);
     applyFilters();
     rebuildCsTaskCandidates();
   }
@@ -2354,7 +3058,11 @@ export function mount() {
   initLogTableSort();
   initLogTableActions();
   initCsTaskTableActions();
+  initCsTaskToggle();
+  initMissingInfoTableActions();
+  initMissingInfoToggle();
   initCandidateQuickView();
+  initRateModeToggle();
 
   // initLogForm(); // ← ★削除またはコメントアウト（モック用フォームはもう不要）
 
@@ -2472,6 +3180,44 @@ function updateCallNoAndRoute(candidateName) {
   })[0];
   if (routeSelect) routeSelect.value = routeLabelFromLogRoute(latest.route);
   if (candidateIdHidden && latest?.candidateId) candidateIdHidden.value = String(latest.candidateId);
+}
+
+function prefillDialFormFromCandidate(candidateId, candidateName) {
+  const form = document.getElementById("teleapoFormSection");
+  const nameInput = document.getElementById("dialFormCandidateName");
+  const idInput = document.getElementById("dialFormCandidateId");
+  const calledAtInput = document.getElementById("dialFormCalledAt");
+  const routeSelect = document.getElementById("dialFormRoute");
+
+  const resolvedName = candidateName || candidateIdMap.get(String(candidateId)) || "";
+  if (nameInput && resolvedName) {
+    nameInput.value = resolvedName;
+  }
+  if (idInput && candidateId) {
+    idInput.value = String(candidateId);
+  }
+  if (calledAtInput) {
+    calledAtInput.value = nowLocalDateTime();
+  }
+
+  if (resolvedName) {
+    updateCallNoAndRoute(resolvedName);
+  }
+  if (routeSelect) {
+    routeSelect.value = "電話";
+  }
+  updateInterviewFieldVisibility(document.getElementById("dialFormResult")?.value);
+
+  if (form) {
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const resultSelect = document.getElementById("dialFormResult");
+  if (resultSelect) {
+    resultSelect.focus();
+  } else {
+    nameInput?.focus();
+  }
 }
 
 function shouldRequireInterview(resultValue) {
