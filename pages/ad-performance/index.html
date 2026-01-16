@@ -45,7 +45,7 @@
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
       <div class="text-sm text-slate-500">決定率</div>
       <div id="adSummaryDecisionRate" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-      <div class="text-xs text-slate-500 mt-1">応募全体に対する入社割合</div>
+      <div class="text-xs text-slate-500 mt-1">有効応募数に対する入社割合</div>
     </div>
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
       <div class="text-sm text-slate-500">ROAS</div>
@@ -58,17 +58,16 @@
     <div class="p-4 rounded-lg border border-slate-200 bg-white shadow-sm flex flex-col">
       <div id="adMainBarChartSection" class="flex flex-col flex-1">
         <div class="flex items-center justify-between mb-3">
-          <h4 class="text-base font-semibold text-slate-800">媒体別指標比較</h4>
-          <select id="adGraphMetricSelect"
-            class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
-            <option value="roas" selected>ROAS (売上/費用)</option>
-            <option value="sales_cost">売上額・契約費用</option>
-            <option value="applications">応募数・有効応募数</option>
-          </select>
-        </div>
-        <div class="flex-grow relative min-h-[300px]">
-          <canvas id="adMainBarChartCanvas"></canvas>
-        </div>
+        <h4 class="text-base font-semibold text-slate-800">媒体別指標比較</h4>
+        <select id="adGraphMetricSelect"
+          class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+          <option value="roas" selected>ROAS (売上/費用)</option>
+          <option value="applications">有効応募率、応募数、有効応募数</option>
+        </select>
+      </div>
+      <div class="flex-grow relative min-h-[220px]">
+        <canvas id="adMainBarChartCanvas"></canvas>
+      </div>
       </div>
       <div id="adContractInfo"
         class="mt-4 p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 shadow-sm hidden">
@@ -85,7 +84,7 @@
             class="border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500">
             <option value="decisionRate">決定率</option>
             <option value="initialInterviewRate">初回面談設定率</option>
-            <option value="retention30">定着率</option>
+            <option value="retentionWarranty">定着率（保障期間）</option>
             <option value="costPerHire">費用/入社</option>
           </select>
           <span>媒体をクリックでフィルタ</span>
@@ -124,25 +123,25 @@
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplicationRate">
-          有効応募率
+          有効応募率（有効応募数/応募数）
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviewRate">
-          初回面談設定率 <span class="sort-indicator ml-1">▼</span></th>
+          初回面談設定率（初回面談数/有効応募数） <span class="sort-indicator ml-1">▼</span></th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offers">内定数 <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率 <span
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率（内定数/有効応募数） <span
             class="sort-indicator ml-1">▼</span></th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hired">入社数 <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率 <span
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率（入社数/内定数） <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率 <span
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率（入社数/有効応募数） <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retention30">定着率（30日）
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retentionWarranty">定着率（保障期間）
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalSales">売上高 <span
