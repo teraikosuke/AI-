@@ -19,6 +19,7 @@ let candidateNameMap = new Map(); // Name -> ID
 let candidateIdMap = new Map(); // ID -> Name
 let candidateNameList = [];
 let teleapoCsTaskCandidates = [];
+let teleapoCandidateMaster = [];
 let teleapoCandidateAbort = null;
 
 function buildCandidateDetailUrl(candidateId) {
@@ -170,6 +171,21 @@ function getCandidateDetailApiUrl(candidateId) {
   const id = String(candidateId ?? "").trim();
   if (!id) return "";
   return `${CANDIDATES_API_URL}/${encodeURIComponent(id)}`;
+}
+
+async function updateCandidateFirstInterview(candidateId, interviewAt) {
+  const url = getCandidateDetailApiUrl(candidateId);
+  if (!url) throw new Error("candidateId is required");
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ firstInterviewDate: interviewAt }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  return res.json().catch(() => ({}));
 }
 
 function normalizeCandidateDetail(raw) {
@@ -425,6 +441,46 @@ function renderValidApplicationBadge(isValid) {
   return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${classes}">${label}</span>`;
 }
 
+function buildTeleapoSummaryForCandidate(candidateId, candidateName) {
+  if (!teleapoLogData.length) return null;
+  const idNum = Number(candidateId);
+  const hasId = Number.isFinite(idNum) && idNum > 0;
+  const normalizedName = normalizeNameKey(candidateName);
+  if (!hasId && !normalizedName) return null;
+
+  let callCount = 0;
+  let hasConnected = false;
+  let hasSms = false;
+  let lastConnectedAt = null;
+  let lastConnectedTs = -Infinity;
+
+  for (const log of teleapoLogData) {
+    if (hasId) {
+      if (Number(log.candidateId) !== idNum) continue;
+    } else {
+      const targetKey = normalizeNameKey(log.target || "");
+      if (!targetKey || !targetKey.includes(normalizedName)) continue;
+    }
+
+    if (log.route === ROUTE_TEL) {
+      callCount += 1;
+    }
+    const flags = classifyTeleapoResult(log);
+    if (flags.code === "sms_sent") hasSms = true;
+    if (flags.isConnect) {
+      hasConnected = true;
+      const ts = parseDateTime(log.datetime)?.getTime() || 0;
+      if (ts >= lastConnectedTs) {
+        lastConnectedTs = ts;
+        lastConnectedAt = log.datetime;
+      }
+    }
+  }
+
+  if (!callCount && !hasConnected && !hasSms) return null;
+  return { hasConnected, hasSms, callCount, lastConnectedAt };
+}
+
 function normalizeCandidateTask(candidate) {
   if (!candidate) return null;
   const candidateId =
@@ -440,7 +496,11 @@ function normalizeCandidateTask(candidate) {
     ""
   ).trim();
   const phaseList = normalizePhaseList(candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "");
-  const phaseText = phaseList.length ? phaseList.join(" / ") : resolveCandidatePhaseDisplay(candidate);
+  const teleapoSummary = buildTeleapoSummaryForCandidate(candidateId, candidateName);
+  const teleapoPhaseText = teleapoSummary
+    ? resolveCandidatePhaseDisplay({ ...candidate, csSummary: teleapoSummary })
+    : "";
+  const phaseText = teleapoPhaseText || (phaseList.length ? phaseList.join(" / ") : resolveCandidatePhaseDisplay(candidate));
   const validApplication = isValidApplicationCandidate(candidate);
   const registeredAt =
     candidate.registeredAt ??
@@ -459,7 +519,9 @@ function normalizeCandidateTask(candidate) {
     candidate.mobile ??
     candidate.mobilePhone ??
     "";
-  const isUncontacted = phaseList.includes("未接触") || phaseText === "未接触";
+  const isUncontacted = teleapoSummary
+    ? !(teleapoSummary.hasConnected || teleapoSummary.hasSms || teleapoSummary.callCount > 0)
+    : (phaseList.includes("未接触") || phaseText === "未接触");
 
   return {
     candidateId,
@@ -470,6 +532,42 @@ function normalizeCandidateTask(candidate) {
     phone,
     isUncontacted,
   };
+}
+
+function resolveCandidatePhone(candidateId, candidateName) {
+  if (!teleapoLogData.length) return "";
+  const idNum = Number(candidateId);
+  const normalizedName = normalizeNameKey(candidateName);
+  let bestTel = "";
+  let bestTs = -Infinity;
+
+  for (const log of teleapoLogData) {
+    const tel = String(log.tel || "").trim();
+    if (!tel) continue;
+    if (Number.isFinite(idNum) && idNum > 0) {
+      if (Number(log.candidateId) !== idNum) continue;
+    } else if (normalizedName) {
+      const targetKey = normalizeNameKey(log.target || "");
+      if (!targetKey || !targetKey.includes(normalizedName)) continue;
+    } else {
+      continue;
+    }
+    const ts = parseDateTime(log.datetime)?.getTime() || 0;
+    if (ts >= bestTs) {
+      bestTs = ts;
+      bestTel = tel;
+    }
+  }
+
+  return bestTel;
+}
+
+function rebuildCsTaskCandidates() {
+  if (!teleapoCandidateMaster.length) return;
+  teleapoCsTaskCandidates = teleapoCandidateMaster
+    .map(normalizeCandidateTask)
+    .filter((c) => c && c.validApplication && c.isUncontacted);
+  renderCsTaskTable(teleapoCsTaskCandidates);
 }
 
 function renderCsTaskTable(list, state = {}) {
@@ -510,6 +608,7 @@ function renderCsTaskTable(list, state = {}) {
   body.innerHTML = list.map((row) => {
     const nameLabel = row.candidateName || "-";
     const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
+    const phoneValue = row.phone || resolveCandidatePhone(candidateId, row.candidateName);
     const nameCell = nameLabel !== "-"
       ? `<button type="button"
            class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
@@ -523,7 +622,7 @@ function renderCsTaskTable(list, state = {}) {
         <td class="whitespace-nowrap">${renderValidApplicationBadge(row.validApplication)}</td>
         <td class="whitespace-nowrap">${nameCell}</td>
         <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
-        <td class="whitespace-nowrap">${escapeHtml(row.phone || "-")}</td>
+        <td class="whitespace-nowrap">${escapeHtml(phoneValue || "-")}</td>
       </tr>
     `;
   }).join("");
@@ -539,9 +638,11 @@ const RESULT_LABELS = {
 };
 
 let teleapoLogData = [];
+let teleapoPendingLogs = [];
 let teleapoFilteredLogs = [];
 let teleapoEmployeeMetrics = [];
 let teleapoSummaryScope = { type: 'company', name: '全体' };
+let teleapoEmployeeTrendMode = 'month';
 let teleapoAnalysisRange = 'all';
 let teleapoLogSort = { key: 'datetime', dir: 'desc' };
 let teleapoEmployeeSortState = { key: 'connectRate', dir: 'desc' };
@@ -640,6 +741,93 @@ function normalizeLog(log) {
     resultCode,
     result: RESULT_LABELS[resultCode] || rawResult || ''
   };
+}
+
+function isSameTeleapoLog(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id && String(a.id) === String(b.id)) return true;
+  if (!a.datetime || !b.datetime) return false;
+  if (a.employee && b.employee && a.employee !== b.employee) return false;
+  if (a.datetime !== b.datetime) return false;
+  if (a.candidateId && b.candidateId && Number(a.candidateId) === Number(b.candidateId)) return true;
+  const aKey = normalizeNameKey(a.target || "");
+  const bKey = normalizeNameKey(b.target || "");
+  return aKey && bKey && aKey === bKey;
+}
+
+function resolveCandidateContact(candidateId, candidateName) {
+  if (!teleapoCandidateMaster.length) return { tel: "", email: "" };
+  const idText = candidateId ? String(candidateId) : "";
+  const nameKey = normalizeNameKey(candidateName || "");
+  let candidate = null;
+  if (idText) {
+    candidate = teleapoCandidateMaster.find(c => String(c.id ?? c.candidate_id ?? c.candidateId ?? c.candidateID) === idText) || null;
+  }
+  if (!candidate && nameKey) {
+    candidate = teleapoCandidateMaster.find(c => normalizeNameKey(c.candidateName ?? c.candidate_name ?? c.name ?? "") === nameKey) || null;
+  }
+  const tel =
+    candidate?.phone ??
+    candidate?.phone_number ??
+    candidate?.phoneNumber ??
+    candidate?.tel ??
+    candidate?.mobile ??
+    candidate?.candidate_phone ??
+    "";
+  const email =
+    candidate?.email ??
+    candidate?.candidate_email ??
+    candidate?.mail ??
+    "";
+  return { tel, email };
+}
+
+function buildPendingTeleapoLog({
+  id,
+  candidateId,
+  candidateName,
+  calledAt,
+  employee,
+  route,
+  result,
+  memo,
+  callerUserId
+}) {
+  const contact = resolveCandidateContact(candidateId, candidateName);
+  return normalizeLog({
+    id: id != null && id !== "" ? String(id) : undefined,
+    datetime: toDateTimeString(calledAt) || "",
+    employee: employee || "",
+    route,
+    target: candidateName || "",
+    tel: contact.tel || "",
+    email: contact.email || "",
+    resultRaw: result || "",
+    memo: memo || "",
+    candidateId: Number.isFinite(candidateId) && candidateId > 0 ? candidateId : undefined,
+    callerUserId: Number.isFinite(callerUserId) && callerUserId > 0 ? callerUserId : undefined
+  });
+}
+
+function addPendingTeleapoLog(log) {
+  if (!log || !log.datetime) return;
+  const exists = teleapoPendingLogs.some(p => isSameTeleapoLog(p, log));
+  if (!exists) teleapoPendingLogs.unshift(log);
+}
+
+function mergePendingLogs(baseLogs) {
+  if (!teleapoPendingLogs.length) return baseLogs;
+  const merged = [...baseLogs];
+  const stillPending = [];
+  for (const pending of teleapoPendingLogs) {
+    const exists = merged.some(l => isSameTeleapoLog(l, pending));
+    if (!exists) {
+      merged.unshift(pending);
+      stillPending.push(pending);
+    }
+  }
+  teleapoPendingLogs = stillPending;
+  return merged;
 }
 
 function classifyTeleapoResult(log) {
@@ -1029,6 +1217,37 @@ function updateEmployeeSortIndicators() {
   });
 }
 
+function initEmployeeTrendModeControls() {
+  const container = document.getElementById('teleapoEmployeeTrendMode');
+  if (!container) return;
+
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-employee-trend-mode]');
+    if (!button) return;
+    const mode = button.dataset.employeeTrendMode;
+    if (!mode || mode === teleapoEmployeeTrendMode) return;
+    setEmployeeTrendMode(mode);
+  });
+
+  updateEmployeeTrendModeButtons();
+}
+
+function setEmployeeTrendMode(mode) {
+  teleapoEmployeeTrendMode = mode;
+  updateEmployeeTrendModeButtons();
+  if (teleapoSummaryScope.type === 'employee') {
+    renderEmployeeTrendChart(teleapoSummaryScope.name, teleapoFilteredLogs);
+  }
+}
+
+function updateEmployeeTrendModeButtons() {
+  document.querySelectorAll('[data-employee-trend-mode]').forEach((btn) => {
+    const isActive = btn.dataset.employeeTrendMode === teleapoEmployeeTrendMode;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
 
 // 上書き版: フィルタ済みログの範囲を使い、最大日時を基準にウィンドウを切る
 function renderHeatmap(logs) {
@@ -1396,16 +1615,18 @@ function getWeekOfMonth(dt) {
   return Math.floor((firstDay + dt.getDate() - 1) / 7) + 1;
 }
 
-function buildEmployeeTrendPoints(empLogs) {
+function buildEmployeeTrendPoints(empLogs, modeOverride) {
   const range = getDateRange(empLogs);
-  if (!range) return { mode: 'day', points: [] };
+  if (!range) return { mode: modeOverride || 'month', points: [] };
 
   const spanDays = (range.max - range.min) / (1000 * 60 * 60 * 24);
-  let mode;
-  if (spanDays <= 1) mode = 'hour';
-  else if (spanDays <= 7) mode = 'weekday';
-  else if (spanDays <= 31) mode = 'week';
-  else mode = 'month';
+  let mode = modeOverride;
+  if (!mode) {
+    if (spanDays <= 1) mode = 'hour';
+    else if (spanDays <= 7) mode = 'weekday';
+    else if (spanDays <= 31) mode = 'week';
+    else mode = 'month';
+  }
 
   const buckets = new Map();
   const addBucket = (key, label, sortValue) => {
@@ -1435,11 +1656,16 @@ function buildEmployeeTrendPoints(empLogs) {
       key = `${dt.getFullYear()}-${dt.getMonth() + 1}-W${week}`;
       label = `${dt.getMonth() + 1}月${week}週`;
       sortValue = new Date(dt.getFullYear(), dt.getMonth(), (week - 1) * 7 + 1).getTime();
-    } else {
+    } else if (mode === 'month') {
       const month = dt.getMonth() + 1;
       key = `${dt.getFullYear()}-${month}`;
       label = `${dt.getFullYear()}/${String(month).padStart(2, '0')}`;
       sortValue = new Date(dt.getFullYear(), dt.getMonth(), 1).getTime();
+    } else {
+      const year = dt.getFullYear();
+      key = `${year}`;
+      label = `${year}年`;
+      sortValue = new Date(year, 0, 1).getTime();
     }
 
     const bucket = addBucket(key, label, sortValue);
@@ -1461,6 +1687,79 @@ function buildEmployeeTrendPoints(empLogs) {
   return { mode, points };
 }
 
+function getTrendModeLabel(mode) {
+  if (mode === 'hour') return '時間帯';
+  if (mode === 'weekday') return '曜日';
+  if (mode === 'week') return '週';
+  if (mode === 'year') return '年';
+  return '月';
+}
+
+function renderEmployeeSummary(empName, empLogs, trend) {
+  const summary = empLogs.reduce((acc, log) => {
+    const flags = classifyTeleapoResult(log);
+    acc.dials += 1;
+    if (flags.isConnect) acc.connects += 1;
+    if (flags.isSet) acc.sets += 1;
+    if (flags.isShow) acc.shows += 1;
+    return acc;
+  }, { dials: 0, connects: 0, sets: 0, shows: 0 });
+
+  const connectRate = summary.dials ? (summary.connects / summary.dials) * 100 : 0;
+  const setRate = summary.connects ? (summary.sets / summary.connects) * 100 : 0;
+  const showRate = summary.sets ? (summary.shows / summary.sets) * 100 : 0;
+
+  setText('teleapoEmployeeKpiDials', summary.dials.toLocaleString());
+  setText('teleapoEmployeeKpiConnects', summary.connects.toLocaleString());
+  setText('teleapoEmployeeKpiSets', summary.sets.toLocaleString());
+  setText('teleapoEmployeeKpiShows', summary.shows.toLocaleString());
+  setText('teleapoEmployeeRateConnect', formatRate(connectRate));
+  setText('teleapoEmployeeRateSet', formatRate(setRate));
+  setText('teleapoEmployeeRateShow', formatRate(showRate));
+
+  renderEmployeeTrendTable(trend.points, trend.mode);
+}
+
+function renderEmployeeTrendTable(points, mode) {
+  const body = document.getElementById('teleapoEmployeeTrendTableBody');
+  if (!body) return;
+
+  setText('teleapoEmployeeTrendModeLabel', getTrendModeLabel(mode));
+
+  if (!points.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="5" class="teleapo-employee-table-empty">データがありません。</td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = points.map((p) => {
+    const connectDetail = p.dials ? `${p.connects}/${p.dials}` : '-';
+    const setDetail = p.connects ? `${p.sets}/${p.connects}` : '-';
+    const showDetail = p.sets ? `${p.shows}/${p.sets}` : '-';
+    return `
+      <tr>
+        <td>${escapeHtml(p.label)}</td>
+        <td class="text-right">${p.dials}</td>
+        <td class="text-right">
+          <div class="teleapo-employee-table-rate">${formatRate(p.connectRate)}</div>
+          <div class="teleapo-employee-table-detail">${connectDetail}</div>
+        </td>
+        <td class="text-right">
+          <div class="teleapo-employee-table-rate">${formatRate(p.setRate)}</div>
+          <div class="teleapo-employee-table-detail">${setDetail}</div>
+        </td>
+        <td class="text-right">
+          <div class="teleapo-employee-table-rate">${formatRate(p.showRate)}</div>
+          <div class="teleapo-employee-table-detail">${showDetail}</div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
 function renderAttemptChart(logs) {
   const wrapper = document.getElementById('teleapoAttemptChartWrapper');
   const svg = document.getElementById('teleapoAttemptChart');
@@ -1478,7 +1777,7 @@ function renderAttemptChart(logs) {
   const rect = svg.getBoundingClientRect();
   const maxWidth = 300;
   const width = Math.min(maxWidth, Math.round(rect.width || 0) || maxWidth);
-  const height = 240;
+  const height = 260;
   const padding = { top: 16, right: 20, bottom: 40, left: 56 };
   const count = Math.max(buckets.length, 1);
   const available = width - padding.left - padding.right;
@@ -1547,12 +1846,14 @@ function renderEmployeeTrendChart(empName, logs) {
 
   titleEl.textContent = `${empName} さんのKPI推移（架電のみ）`;
 
-  const { points } = buildEmployeeTrendPoints(empLogs);
+  const trend = buildEmployeeTrendPoints(empLogs, teleapoEmployeeTrendMode);
+  const { mode, points } = trend;
   if (!points.length) { wrapper.classList.add('hidden'); return; }
+  renderEmployeeSummary(empName, empLogs, trend);
 
-  const width = 800;
-  const height = 260;
-  const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+  const width = 880;
+  const height = 340;
+  const padding = { top: 28, right: 32, bottom: 62, left: 72 };
   const maxY = Math.max(...points.map(p => Math.max(p.connectRate, p.setRate, p.showRate)), 100);
   const yTicks = [0, 20, 40, 60, 80, 100].filter(v => v <= maxY + 5);
   const toX = (i) => padding.left + (i / Math.max(points.length - 1, 1)) * (width - padding.left - padding.right);
@@ -1581,7 +1882,7 @@ function renderEmployeeTrendChart(empName, logs) {
   const line = (vals, color) => {
     const d = buildSmoothPath(vals);
     if (!d) return '';
-    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`;
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />`;
   };
 
   const connectPath = line(points.map(p => p.connectRate), '#2563eb');
@@ -1592,15 +1893,16 @@ function renderEmployeeTrendChart(empName, logs) {
     const y = toY(t);
     return `
       <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgb(226 232 240)" stroke-width="1" />
-      <text x="${padding.left - 12}" y="${y + 4}" text-anchor="end" class="text-[10px] fill-slate-600">${t}%</text>
+      <text x="${padding.left - 14}" y="${y + 4}" text-anchor="end" class="teleapo-chart-axis-tick">${t}%</text>
     `;
   }).join('');
 
-  const yLabelX = padding.left - 32;
+  const yLabelX = padding.left - 38;
   const yLabelY = (height - padding.bottom + padding.top) / 2;
+  const xAxisLabel = getTrendModeLabel(mode);
   const axisLabels = `
-    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 6}" text-anchor="middle" class="text-[10px] fill-slate-600">月</text>
-    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="text-[10px] fill-slate-600" transform="rotate(-90 ${yLabelX} ${yLabelY})">率（%）</text>
+    <text x="${(padding.left + width - padding.right) / 2}" y="${height - 8}" text-anchor="middle" class="teleapo-chart-axis-label">${xAxisLabel}</text>
+    <text x="${yLabelX}" y="${yLabelY}" text-anchor="middle" class="teleapo-chart-axis-label" transform="rotate(-90 ${yLabelX} ${yLabelY})">率（%）</text>
   `;
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -1617,7 +1919,7 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="3" fill="#2563eb"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.connectRate)}" r="4" fill="#2563eb"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
     const tip = `${p.label}
@@ -1625,7 +1927,7 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="3" fill="#f59e0b"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.setRate)}" r="4" fill="#f59e0b"><title>${tip}</title></circle>`;
   }).join('')}
     ${points.map((p, i) => {
     const tip = `${p.label}
@@ -1633,9 +1935,9 @@ function renderEmployeeTrendChart(empName, logs) {
 通電率: ${p.connectRate.toFixed(1)}% (${p.connects}/${p.dials})
 設定率: ${p.setRate.toFixed(1)}% (${p.sets}/${Math.max(p.connects, 1)})
 着座率: ${p.showRate.toFixed(1)}% (${p.shows}/${Math.max(p.sets, 1)})`;
-    return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="3" fill="#10b981"><title>${tip}</title></circle>`;
+    return `<circle cx="${toX(i)}" cy="${toY(p.showRate)}" r="4" fill="#10b981"><title>${tip}</title></circle>`;
   }).join('')}
-    ${points.map((p, i) => `<text x="${toX(i)}" y="${height - padding.bottom + 16}" text-anchor="middle" class="text-[10px] fill-slate-700">${p.label}</text>`).join('')}
+    ${points.map((p, i) => `<text x="${toX(i)}" y="${height - padding.bottom + 18}" text-anchor="middle" class="teleapo-chart-axis-tick">${p.label}</text>`).join('')}
     ${axisLabels}
   `;
 
@@ -1859,6 +2161,7 @@ function initLogTableActions() {
       teleapoLogData = teleapoLogData.filter(l => String(l.id) !== String(logId));
       annotateCallAttempts(teleapoLogData);
       applyFilters();
+      rebuildCsTaskCandidates();
       if (removedLog?.route === ROUTE_TEL) {
         const candidateInput = document.getElementById("dialFormCandidateName");
         if (candidateInput) updateCallNoAndRoute(candidateInput.value);
@@ -1922,6 +2225,7 @@ function initLogForm() {
 
       teleapoLogData.push(newLog);
       applyFilters();
+      rebuildCsTaskCandidates();
       setStatus('追加しました', 'success');
 
       ['teleapoLogInputTarget', 'teleapoLogInputTel', 'teleapoLogInputEmail', 'teleapoLogInputMemo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -1984,7 +2288,7 @@ async function loadCandidates() {
     if (!res.ok) throw new Error(`Candidates API Error: ${res.status}`);
 
     const data = await res.json();
-    const items = data.items || [];
+    const items = Array.isArray(data.items) ? data.items : [];
 
     candidateNameMap.clear();
     candidateIdMap.clear();
@@ -2002,10 +2306,8 @@ async function loadCandidates() {
     console.log(`候補者ロード完了: ${candidateNameMap.size}件`);
     refreshCandidateDatalist(); // datalist更新
 
-    teleapoCsTaskCandidates = items
-      .map(normalizeCandidateTask)
-      .filter((c) => c && c.validApplication && c.isUncontacted);
-    renderCsTaskTable(teleapoCsTaskCandidates);
+    teleapoCandidateMaster = items;
+    rebuildCsTaskCandidates();
     if (teleapoFilteredLogs.length) renderLogTable();
   } catch (e) {
     console.error("候補者一覧の取得に失敗:", e);
@@ -2022,16 +2324,20 @@ async function loadTeleapoData() {
     if (!teleapoLogData.length && mappedLogs.length) {
       teleapoLogData = mappedLogs;
     }
+    teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     rebuildEmployeeMap();
     refreshCandidateDatalist();
     applyFilters();
+    rebuildCsTaskCandidates();
   } catch (err) {
     console.error('[teleapo] API取得に失敗したためモックを使用します', err);
     teleapoLogData = teleapoInitialMockLogs.map(normalizeLog);
+    teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     refreshCandidateDatalist();
     applyFilters();
+    rebuildCsTaskCandidates();
   }
 }
 
@@ -2044,6 +2350,7 @@ export function mount() {
   initHeatmapControls();
   initEmployeeSort();
   initEmployeeSortHeaders();
+  initEmployeeTrendModeControls();
   initLogTableSort();
   initLogTableActions();
   initCsTaskTableActions();
@@ -2167,6 +2474,20 @@ function updateCallNoAndRoute(candidateName) {
   if (candidateIdHidden && latest?.candidateId) candidateIdHidden.value = String(latest.candidateId);
 }
 
+function shouldRequireInterview(resultValue) {
+  return normalizeResultCode(resultValue) === "set";
+}
+
+function updateInterviewFieldVisibility(resultValue) {
+  const field = document.getElementById("dialFormInterviewField");
+  const input = document.getElementById("dialFormInterviewAt");
+  if (!field || !input) return;
+  const shouldShow = shouldRequireInterview(resultValue ?? document.getElementById("dialFormResult")?.value);
+  field.classList.toggle("is-hidden", !shouldShow);
+  input.required = shouldShow;
+  if (!shouldShow) input.value = "";
+}
+
 function resetDialFormDefaults(clearMessage = true) {
   const dt = document.getElementById("dialFormCalledAt");
   if (dt) dt.value = nowLocalDateTime();
@@ -2176,6 +2497,9 @@ function resetDialFormDefaults(clearMessage = true) {
   if (route) route.value = "電話";
   const callNo = document.getElementById("dialFormCallNo");
   if (callNo) callNo.value = "1";
+  const result = document.getElementById("dialFormResult");
+  if (result) result.value = "通電";
+  updateInterviewFieldVisibility(result?.value);
   const memo = document.getElementById("dialFormMemo");
   if (memo) memo.value = "";
   const msg = document.getElementById("dialFormMessage");
@@ -2185,6 +2509,7 @@ function resetDialFormDefaults(clearMessage = true) {
 // 既存の bindDialForm をこれで上書き
 function bindDialForm() {
   const candidateInput = document.getElementById("dialFormCandidateName");
+  const resultSelect = document.getElementById("dialFormResult");
 
   // 名前入力時の自動補完ロジック
   if (candidateInput) {
@@ -2201,6 +2526,11 @@ function bindDialForm() {
         }
       })
     );
+  }
+
+  if (resultSelect) {
+    resultSelect.addEventListener("change", () => updateInterviewFieldVisibility(resultSelect.value));
+    updateInterviewFieldVisibility(resultSelect.value);
   }
 
   const submitBtn = document.getElementById("dialFormSubmit");
@@ -2223,6 +2553,8 @@ function bindDialForm() {
     const calledAt = localDateTimeToRfc3339(calledAtLocal);
     const route = document.getElementById("dialFormRoute")?.value || "電話";
     const result = document.getElementById("dialFormResult")?.value || "通電";
+    const interviewAtLocal = document.getElementById("dialFormInterviewAt")?.value || "";
+    const needsInterview = shouldRequireInterview(result);
     const employee = document.getElementById("dialFormEmployee")?.value || "";
     const memo = document.getElementById("dialFormMemo")?.value || "";
     const callNo = Number(document.getElementById("dialFormCallNo")?.value);
@@ -2234,6 +2566,14 @@ function bindDialForm() {
     }
     if (!employee || !calledAt) {
       if (msg) msg.textContent = "担当者と日時は必須です";
+      return;
+    }
+    if (needsInterview && !interviewAtLocal) {
+      if (msg) msg.textContent = "アポ結果が設定の場合は初回面談日時を入力してください";
+      return;
+    }
+    if (needsInterview && !candidateIdValue) {
+      if (msg) msg.textContent = "初回面談日時の登録には候補者を一覧から選択してください";
       return;
     }
 
@@ -2277,16 +2617,50 @@ function bindDialForm() {
       } catch (e) {
         responseJson = null;
       }
+      const responseId =
+        responseJson?.id ??
+        responseJson?.log_id ??
+        responseJson?.logId ??
+        responseJson?.item?.id ??
+        responseJson?.data?.id ??
+        null;
       setLogHighlightTarget({
-        id: responseJson?.id,
+        id: responseId,
         candidateId: candidateIdValue,
         calledAt,
         callerUserId,
         candidateName
       });
+      const pendingLog = buildPendingTeleapoLog({
+        id: responseId,
+        candidateId: candidateIdValue,
+        candidateName,
+        calledAt,
+        employee,
+        route,
+        result,
+        memo,
+        callerUserId
+      });
+      addPendingTeleapoLog(pendingLog);
+      teleapoLogData = mergePendingLogs(teleapoLogData);
+      annotateCallAttempts(teleapoLogData);
+      applyFilters();
+      let interviewUpdateError = "";
+      if (needsInterview && candidateIdValue) {
+        const interviewAt = localDateTimeToRfc3339(interviewAtLocal);
+        try {
+          await updateCandidateFirstInterview(candidateIdValue, interviewAt);
+        } catch (err) {
+          interviewUpdateError = "（初回面談日時の保存に失敗しました）";
+          console.error("candidate interview update error:", err);
+        }
+      }
       if (msg) {
-        msg.className = "teleapo-form-message text-sm text-emerald-600 font-semibold";
-        msg.textContent = "架電ログに追加しました";
+        msg.className = `teleapo-form-message text-sm ${interviewUpdateError ? "text-amber-600" : "text-emerald-600"} font-semibold`;
+        msg.textContent = interviewUpdateError
+          ? `架電ログに追加しました${interviewUpdateError}`
+          : "架電ログに追加しました";
         setTimeout(() => msg.textContent = "", 3000);
       }
 
