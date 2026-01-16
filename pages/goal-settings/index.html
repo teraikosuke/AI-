@@ -19,6 +19,10 @@
                 <span>月次評価（毎月1日〜末日）</span>
               </label>
               <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="master-month" />
+                <span>月次評価（マスターキー専用：毎月16日〜翌月15日）</span>
+              </label>
+              <label class="settings-radio">
                 <input type="radio" name="evaluationRule" value="half-month" />
                 <span>半月評価（1〜15日／16〜末日）</span>
               </label>
@@ -159,6 +163,7 @@
               <select id="personalDailyPeriodSelect"></select>
             </label>
             <button type="button" id="distributeDailyButton" class="settings-ghost-button">期間目標から均等割りで自動入力</button>
+            <button type="button" id="copyPreviousDailyButton" class="settings-ghost-button">前月と同じ値を入れる</button>
           </div>
         </div>
 
