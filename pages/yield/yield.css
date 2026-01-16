@@ -1266,3 +1266,11 @@
   background: #ffffff;
   font-size: 0.9rem;
 }
+
+.yield-page {
+  padding-bottom: 2rem;
+}
+
+.yield-page-host {
+  width: 100%;
+}
