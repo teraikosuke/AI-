@@ -1280,6 +1280,11 @@ function buildReferralCandidateQuickViewHtml(candidate, state = {}) {
           <div class="referral-candidate-name">${formatCandidateField(candidate.name)}</div>
           <div class="referral-candidate-sub">${titleText} / ${ageText}</div>
         </div>
+        <button 
+          onclick="navigateToCandidate('${candidate.id}')" 
+          class="px-3 py-2 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-500 shadow-sm whitespace-nowrap">
+          詳細画面へ
+        </button>
       </div>
       <div class="referral-candidate-grid">
         <div class="referral-candidate-item">

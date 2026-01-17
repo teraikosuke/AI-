@@ -121,7 +121,7 @@ function processAttendanceQueue() {
   const batch = attendanceQueue.splice(0, ATTENDANCE_FETCH_BATCH);
   batch.forEach((idNum) => attendanceQueueSet.delete(idNum));
   Promise.all(batch.map((idNum) => fetchCandidateDetailInfo(idNum)))
-    .catch(() => {})
+    .catch(() => { })
     .finally(() => {
       setTimeout(processAttendanceQueue, ATTENDANCE_FETCH_DELAY_MS);
     });
@@ -230,7 +230,7 @@ function buildCandidateDetailUrl(candidateId) {
   return url.toString();
 }
 
-function navigateToCandidateDetail(candidateId, candidateName) {
+window.navigateToCandidateDetail = function (candidateId, candidateName) {
   const resolvedId = candidateId || findCandidateIdFromTarget(candidateName);
   if (!resolvedId) {
     console.warn('candidate not found:', candidateName);
@@ -247,7 +247,7 @@ function navigateToCandidateDetail(candidateId, candidateName) {
   url.searchParams.set(CANDIDATE_ID_PARAM, resolvedIdText);
   history.replaceState({}, '', url.toString());
   window.location.hash = '/candidates';
-}
+};
 
 
 function escapeHtml(str) {
@@ -881,11 +881,18 @@ function renderCandidateQuickView(detail) {
 
   setCandidateQuickViewContent(`
     <div class="teleapo-candidate-meta">
-      <div class="teleapo-candidate-name">${escapeHtml(name)}</div>
-      <div class="teleapo-candidate-tags">
-        ${phaseBadges}
-        ${validBadge}
+      <div>
+        <div class="teleapo-candidate-name">${escapeHtml(name)}</div>
+        <div class="teleapo-candidate-tags">
+          ${phaseBadges}
+          ${validBadge}
+        </div>
       </div>
+      <button 
+        onclick="navigateToCandidateDetail('${candidate.id}', '${escapeHtml(name)}')" 
+        class="px-3 py-2 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-500 shadow-sm whitespace-nowrap">
+        詳細画面へ
+      </button>
     </div>
     ${actionHtml}
 
@@ -2551,24 +2558,24 @@ function renderLogTable() {
         <td>${emailText}</td>
         <td>
           ${flags.flowLabels
-    ? `
+        ? `
             <div class="flex flex-wrap items-center gap-1">
               ${flags.flowLabels.map((label, index) => {
-      const variantClass = label.startsWith('通電')
-        ? 'bg-blue-100 text-blue-700'
-        : label.startsWith('面談')
-          ? 'bg-emerald-100 text-emerald-700'
-          : label === '着座'
-            ? 'bg-green-100 text-green-700'
-            : 'bg-slate-100 text-slate-700';
-      const arrow = index < flags.flowLabels.length - 1
-        ? '<span class="text-slate-400 text-xs">→</span>'
-        : '';
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-semibold ${variantClass}">${escapeHtml(label)}</span>${arrow}`;
-    }).join('')}
+          const variantClass = label.startsWith('通電')
+            ? 'bg-blue-100 text-blue-700'
+            : label.startsWith('面談')
+              ? 'bg-emerald-100 text-emerald-700'
+              : label === '着座'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-slate-100 text-slate-700';
+          const arrow = index < flags.flowLabels.length - 1
+            ? '<span class="text-slate-400 text-xs">→</span>'
+            : '';
+          return `<span class="px-2 py-0.5 rounded text-[10px] font-semibold ${variantClass}">${escapeHtml(label)}</span>${arrow}`;
+        }).join('')}
             </div>
           `
-    : `<span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">
+        : `<span class="px-2 py-1 rounded text-xs font-semibold ${badgeClass}">
               ${escapeHtml(flags.displayLabel || RESULT_LABELS[flags.code] || row.result || '')}
             </span>`}
         </td>
