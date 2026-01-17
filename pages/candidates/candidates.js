@@ -100,13 +100,6 @@ let detailAutoSaveTimer = null;
 // 正規化
 // =========================
 function normalizeCandidate(candidate) {
-  // ★デバッグ用ログ
-  if (candidate && candidate.candidateName && candidate.candidateName.includes("上本")) {
-    console.log("【デバッグ】上本さんのデータ:", candidate);
-    console.log("isConnected:", candidate.isConnected);
-    console.log("callCount:", candidate.callCount);
-  }
-
   if (!candidate) return candidate;
 
   // --- 既存のプロパティマッピング ---
@@ -132,7 +125,13 @@ function normalizeCandidate(candidate) {
   candidate.employmentStatus = candidate.employmentStatus ?? candidate.employment_status ?? "";
   candidate.currentIncome = candidate.currentIncome ?? candidate.current_income ?? "";
   candidate.desiredIncome = candidate.desiredIncome ?? candidate.desired_income ?? "";
-  candidate.firstInterviewNote = candidate.firstInterviewNote ?? candidate.first_interview_note ?? "";
+  candidate.firstInterviewNote =
+    candidate.firstInterviewNote ??
+    candidate.first_interview_note ??
+    candidate.hearingMemo ??
+    candidate.hearing?.memo ??
+    candidate.memo ??
+    "";
   candidate.careerMotivation = candidate.careerMotivation ?? candidate.career_motivation ?? "";
   candidate.careerReason = candidate.careerReason ?? candidate.career_reason ?? "";
   candidate.transferTiming = candidate.transferTiming ?? candidate.transfer_timing ?? "";
@@ -150,7 +149,13 @@ function normalizeCandidate(candidate) {
   candidate.address = candidate.address ?? [candidate.addressPref, candidate.addressCity, candidate.addressDetail]
     .filter(Boolean)
     .join("");
-  candidate.contactPreferredTime = candidate.contactPreferredTime ?? candidate.contact_preferred_time ?? "";
+  candidate.contactPreferredTime =
+    candidate.contactPreferredTime ??
+    candidate.contact_preferred_time ??
+    candidate.contactTime ??
+    candidate.contact_time ??
+    "";
+  candidate.contactTime = candidate.contactTime ?? candidate.contact_time ?? candidate.contactPreferredTime ?? "";
   candidate.mandatoryInterviewItems = candidate.mandatoryInterviewItems ?? candidate.mandatory_interview_items ?? "";
   candidate.applyCompanyName = candidate.applyCompanyName ?? candidate.apply_company_name ?? "";
   candidate.companyName = candidate.companyName
@@ -160,9 +165,11 @@ function normalizeCandidate(candidate) {
     ?? candidate.company
     ?? candidate.applyCompany
     ?? "";
-  candidate.applyJobName = candidate.applyJobName ?? candidate.apply_job_name ?? "";
-  candidate.applyRouteText = candidate.applyRouteText ?? candidate.apply_route_text ?? "";
-  candidate.applicationNote = candidate.applicationNote ?? candidate.application_note ?? "";
+  candidate.applyJobName = candidate.applyJobName ?? candidate.apply_job_name ?? candidate.jobName ?? candidate.job_name ?? "";
+  candidate.applyRouteText = candidate.applyRouteText ?? candidate.apply_route_text ?? candidate.source ?? "";
+  candidate.jobName = candidate.jobName ?? candidate.job_name ?? candidate.applyJobName ?? "";
+  candidate.applicationNote = candidate.applicationNote ?? candidate.application_note ?? candidate.remarks ?? "";
+  candidate.remarks = candidate.remarks ?? candidate.applicationNote ?? candidate.application_note ?? "";
   candidate.desiredJobType = candidate.desiredJobType ?? candidate.desired_job_type ?? "";
   candidate.otherSelectionStatus = candidate.otherSelectionStatus ?? candidate.other_selection_status ?? "";
   candidate.attendanceConfirmed = candidate.attendanceConfirmed ?? candidate.first_interview_attended ?? null;
@@ -477,14 +484,13 @@ function parseCandidateDate(value) {
 }
 
 function resolveValidApplication(candidate) {
+  const computed = candidate?.validApplicationComputed;
+  if (computed === true || computed === false) return computed;
   // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
-  // ルールがあれば常に計算を行う
+  // ルールがあれば計算を行う
   if (screeningRules) {
     return computeValidApplication(candidate, screeningRules);
   }
-
-  const computed = candidate?.validApplicationComputed;
-  if (computed === true || computed === false) return computed;
   const raw =
     candidate.validApplication ??
     candidate.valid_application ??
@@ -1494,6 +1500,38 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
 }
 
 function buildCandidateDetailPayload(candidate) {
+  const address =
+    candidate.address ||
+    [candidate.addressPref, candidate.addressCity, candidate.addressDetail]
+      .filter(Boolean)
+      .join("");
+  const contactTime = candidate.contactPreferredTime || candidate.contactTime || "";
+  const companyName = candidate.applyCompanyName || candidate.companyName || "";
+  const jobName = candidate.applyJobName || candidate.jobName || "";
+  const source = candidate.applyRouteText || candidate.source || "";
+  const remarks = candidate.applicationNote || candidate.remarks || "";
+  const hearingMemo =
+    candidate.firstInterviewNote || candidate.hearing?.memo || candidate.hearingMemo || "";
+  const hearing = {
+    ...(candidate.hearing || {}),
+    memo: hearingMemo,
+    mandatoryInterviewItems: candidate.mandatoryInterviewItems,
+    desiredLocation: candidate.desiredLocation,
+    desiredJobType: candidate.desiredJobType,
+    currentIncome: candidate.currentIncome,
+    desiredIncome: candidate.desiredIncome,
+    employmentStatus: candidate.employmentStatus,
+    careerReason: candidate.careerReason,
+    careerMotivation: candidate.careerMotivation,
+    transferTiming: candidate.transferTiming,
+    skills: candidate.skills,
+    personality: candidate.personality,
+    workExperience: candidate.workExperience,
+    otherSelectionStatus: candidate.otherSelectionStatus,
+    interviewPreferredDate: candidate.interviewPreferredDate,
+    recommendationText: candidate.recommendationText,
+  };
+
   const payload = {
     id: candidate.id,
     detailMode: true,
@@ -1502,7 +1540,8 @@ function buildCandidateDetailPayload(candidate) {
     email: candidate.email,
     birthday: candidate.birthday,
     postalCode: candidate.postalCode,
-    contactPreferredTime: candidate.contactPreferredTime,
+    contactPreferredTime: candidate.contactPreferredTime || contactTime,
+    contactTime,
     firstContactPlannedAt: candidate.firstContactPlannedAt,
     scheduleConfirmedAt: candidate.scheduleConfirmedAt,
     firstInterviewDate: candidate.firstInterviewDate,
@@ -1521,16 +1560,33 @@ function buildCandidateDetailPayload(candidate) {
     otherSelectionStatus: candidate.otherSelectionStatus,
     interviewPreferredDate: candidate.interviewPreferredDate,
     mandatoryInterviewItems: candidate.mandatoryInterviewItems,
-    applyCompanyName: candidate.applyCompanyName,
-    applyJobName: candidate.applyJobName,
-    applyRouteText: candidate.applyRouteText,
-    applicationNote: candidate.applicationNote,
-    firstInterviewNote: candidate.firstInterviewNote,
+    applyCompanyName: candidate.applyCompanyName || companyName,
+    applyJobName: candidate.applyJobName || jobName,
+    applyRouteText: candidate.applyRouteText || source,
+    applicationNote: candidate.applicationNote || remarks,
+    firstInterviewNote: candidate.firstInterviewNote || hearingMemo,
     recommendationText: candidate.recommendationText,
     nationality: candidate.nationality,
     japaneseLevel: candidate.japaneseLevel,
     advisorUserId: candidate.advisorUserId,
     partnerUserId: candidate.partnerUserId,
+    advisorName: candidate.advisorName,
+    partnerName: candidate.partnerName,
+    companyName,
+    jobName,
+    source,
+    remarks,
+    address,
+    memoDetail: candidate.memoDetail,
+    hearing,
+    hearingMemo,
+    meetingPlans: candidate.meetingPlans,
+    resumeDocuments: candidate.resumeDocuments,
+    selectionProgress: candidate.selectionProgress,
+    afterAcceptance: candidate.afterAcceptance,
+    refundInfo: candidate.refundInfo,
+    actionInfo: candidate.actionInfo,
+    csChecklist: candidate.csChecklist,
   };
 
   payload.advisor_user_id = candidate.advisorUserId;
@@ -1575,6 +1631,9 @@ function initializeDetailContentListeners() {
   detailContentHandlers.click = handleDetailContentClick;
   detailContentHandlers.input = handleDetailFieldChange;
 
+  container.addEventListener("click", detailContentHandlers.click);
+  container.addEventListener("input", detailContentHandlers.input);
+  container.addEventListener("change", detailContentHandlers.input);
 }
 function escapeHtmlAttr(value) {
   if (value === null || value === undefined) return "";
@@ -1933,6 +1992,26 @@ function handleDetailFieldChange(event) {
   }
   if (fieldPath === "partnerUserId") {
     candidate.partnerName = resolveUserName(candidate.partnerUserId);
+  }
+  if (fieldPath === "contactPreferredTime") {
+    candidate.contactTime = value;
+  }
+  if (fieldPath === "applyCompanyName") {
+    candidate.companyName = value;
+  }
+  if (fieldPath === "applyJobName") {
+    candidate.jobName = value;
+  }
+  if (fieldPath === "applyRouteText") {
+    candidate.source = value;
+  }
+  if (fieldPath === "applicationNote") {
+    candidate.remarks = value;
+  }
+  if (fieldPath === "firstInterviewNote") {
+    candidate.hearing = candidate.hearing || {};
+    candidate.hearing.memo = value;
+    candidate.hearingMemo = value;
   }
 
   const selectionMatch = fieldPath.match(/^selectionProgress\.(\d+)\./);
