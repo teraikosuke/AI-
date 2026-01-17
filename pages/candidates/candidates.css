@@ -84,6 +84,43 @@
   overflow-wrap: anywhere;
 }
 
+.candidates-table-card .table-grid th.next-action-head {
+  background-color: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.candidates-table-card .table-grid td.candidate-next-action-cell {
+  background-color: #eef2ff;
+  box-shadow: inset 4px 0 0 #6366f1;
+}
+
+.candidates-table-card .table-grid tbody tr:hover td.candidate-next-action-cell {
+  background-color: #e0e7ff;
+}
+
+.candidate-next-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.candidate-next-action-date {
+  font-weight: 700;
+  color: #312e81;
+  white-space: nowrap;
+}
+
+.candidate-next-action-label {
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.candidate-next-action-empty {
+  font-weight: 600;
+  color: #64748b;
+}
+
 .candidates-table-card .table-grid tbody tr {
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -986,4 +1023,58 @@ body.has-modal-open {
 .next-action-label {
   font-size: 0.85rem;
   color: #475569;
+}
+
+/* Table Sorting Arrows (copied from Teleapo) */
+.candidates-table-card th[data-sort-key] {
+  position: relative;
+  padding-right: 1.5rem;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.candidates-table-card th[data-sort-key]::before,
+.candidates-table-card th[data-sort-key]::after {
+  content: "";
+  position: absolute;
+  right: 0.5rem;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.45;
+}
+
+.candidates-table-card th[data-sort-key]::before {
+  border-bottom: 6px solid #94a3b8;
+  top: 45%;
+  transform: translateY(-100%);
+}
+
+.candidates-table-card th[data-sort-key]::after {
+  border-top: 6px solid #94a3b8;
+  top: 55%;
+}
+
+.candidates-table-card th[data-sort-key].is-sorted {
+  background-color: #eef2ff;
+  color: #4338ca;
+}
+
+.candidates-table-card th[data-sort-key][data-sort-dir="asc"]::before {
+  border-bottom-color: #4338ca;
+  opacity: 1;
+}
+
+.candidates-table-card th[data-sort-key][data-sort-dir="asc"]::after {
+  opacity: 0.2;
+}
+
+.candidates-table-card th[data-sort-key][data-sort-dir="desc"]::after {
+  border-top-color: #4338ca;
+  opacity: 1;
+}
+
+.candidates-table-card th[data-sort-key][data-sort-dir="desc"]::before {
+  opacity: 0.2;
 }

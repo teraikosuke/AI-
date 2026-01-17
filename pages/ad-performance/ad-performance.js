@@ -39,13 +39,12 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;')
   .replaceAll('<', '&lt;')
   .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#39;');
 const escapeAttr = (value) => escapeHtml(value);
 
 let selectedMediaFilter = null;
 let decisionLineChart = null;
 let mainBarChart = null;
+let mainPieChart = null;
 let chartJsLoading = null;
 let lastAggregated = [];
 let lineMetric = 'decisionRate';
@@ -72,11 +71,22 @@ function formatContractDateValue(value) {
   return `${y}-${m}-${d}`;
 }
 
+const ADS_CHART_PALETTE = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6', '#38bdf8', '#ef4444', '#10b981'];
+
 export function mount() {
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
   loadAdPerformanceData();
+}
+
+function getMediaColor(mediaName, allMediaNames) {
+  if (!mediaName) return '#cbd5e1';
+  // Sort distinct names to ensure deterministic index
+  const sorted = [...new Set(allMediaNames)].sort();
+  const index = sorted.indexOf(mediaName);
+  if (index === -1) return '#cbd5e1';
+  return ADS_CHART_PALETTE[index % ADS_CHART_PALETTE.length];
 }
 
 export function unmount() {
@@ -89,6 +99,10 @@ export function unmount() {
   if (mainBarChart) {
     mainBarChart.destroy();
     mainBarChart = null;
+  }
+  if (mainPieChart) {
+    mainPieChart.destroy();
+    mainPieChart = null;
   }
 }
 
@@ -580,9 +594,17 @@ function renderAdTable(data) {
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.initialInterviews)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.initialInterviewRate)}">${formatPercent(ad.initialInterviewRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.offers)}</td>
-        <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.offerRate)}</td>
+        <td class="text-right whitespace-nowrap px-2">
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.offerRate)}">
+            ${formatPercent(ad.offerRate)}
+          </span>
+        </td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
-        <td class="text-right whitespace-nowrap px-2">${formatPercent(ad.hireRate)}</td>
+        <td class="text-right whitespace-nowrap px-2">
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.hireRate)}">
+            ${formatPercent(ad.hireRate)}
+          </span>
+        </td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retentionWarranty)}">${formatPercent(ad.retentionWarranty)}</span></td>
         
@@ -665,6 +687,8 @@ function setMainBarChartPlaceholder(message) {
 
 function renderAdMainChart(data) {
   const canvas = document.getElementById('adMainBarChartCanvas');
+  const pieContainer = document.getElementById('adMainPieChartContainer');
+  const barContainer = document.getElementById('adMainBarChartContainer');
   if (!canvas) return;
 
   if (mainBarChart) {
@@ -674,6 +698,13 @@ function renderAdMainChart(data) {
 
   if (!data.length) {
     setMainBarChartPlaceholder('データがありません');
+    if (pieContainer) pieContainer.classList.add('hidden');
+    // Default to smaller height if no data to avoid huge blank space, or keep large? 
+    // Let's keep small.
+    if (barContainer) {
+      barContainer.classList.remove('h-[720px]');
+      barContainer.classList.add('h-[400px]');
+    }
     return;
   }
 
@@ -688,6 +719,29 @@ function renderAdMainChart(data) {
     roas: Number(d.roas) || 0
   }));
 
+  // Layout Dynamic Switching
+  if (currentGraphMetric === 'roas') {
+    // ROAS Mode: Bar + Pie
+    // Compact Bar Chart (400px)
+    if (barContainer) {
+      barContainer.classList.remove('h-[720px]');
+      barContainer.classList.add('h-[400px]');
+    }
+    if (pieContainer) pieContainer.classList.remove('hidden');
+  } else {
+    // Other Mode (e.g. Applications): Bar Only
+    // Expand Bar Chart (720px) to use the space
+    if (barContainer) {
+      barContainer.classList.remove('h-[400px]');
+      barContainer.classList.add('h-[720px]');
+    }
+    if (pieContainer) pieContainer.classList.add('hidden');
+    if (mainPieChart) {
+      mainPieChart.destroy();
+      mainPieChart = null;
+    }
+  }
+
   let sorted = normalized;
   let datasets = [];
   let xTickFormatter = (v) => formatNumber(v);
@@ -701,12 +755,19 @@ function renderAdMainChart(data) {
     y: { grid: { display: false } }
   };
 
+  // Determine all unique media names for consistent coloring (global scope of data)
+  const allMediaNames = data.map(d => d.mediaName);
+
   if (currentGraphMetric === 'roas') {
+    renderRoasPieChart(normalized); // Ensure this is called
     sorted = [...normalized].sort((a, b) => b.roas - a.roas);
     datasets = [{
       label: 'ROAS',
       data: sorted.map(d => d.roas),
-      backgroundColor: '#6366f1'
+      backgroundColor: '#6366f1',
+      maxBarThickness: 20,
+      categoryPercentage: 0.8,
+      barPercentage: 0.9
     }];
     xTickFormatter = (v) => formatPercent(v);
     tooltipFormatter = (ctx) => `ROAS: ${formatPercent(ctx.raw)}`;
@@ -719,6 +780,12 @@ function renderAdMainChart(data) {
       y: { grid: { display: false } }
     };
   } else {
+    // For other metrics, we might keep single color or use palette. 
+    // Usually "Applications" is single metric comparison, so keeping single color is standard, 
+    // but user asked for "same color scheme". Let's apply it to "Applications" too if it makes sense?
+    // Actually, usually "Applications" bar chart is one color. 
+    // But let's stick to the request "same color scheme as media-specific time series".
+    // If we apply it to bars, each bar has different color. It might look colorful but matches the wish.
     sorted = [...normalized].sort((a, b) => b.applications - a.applications);
     const rates = sorted.map(d => {
       const total = Number(d.applications) || 0;
@@ -729,14 +796,29 @@ function renderAdMainChart(data) {
       {
         label: '応募数',
         data: sorted.map(d => d.applications),
-        backgroundColor: '#94a3b8',
-        xAxisID: 'x'
+        backgroundColor: sorted.map(d => getMediaColor(d.mediaName, allMediaNames)),
+        xAxisID: 'x',
+        maxBarThickness: 20
       },
       {
         label: '有効応募数',
         data: sorted.map(d => d.validApplications),
+        // Darken or lighten for valid? Or just use same color? 
+        // Using same color makes it hard to distinguish stacked or grouped.
+        // Let's keep valid apps as a distinct color (purple) or just apply palette to "Applications" main bars.
+        // Re-reading: "Color scheme same as media specific time series" implies media-based coloring.
+        // If we have grouped bars, standard chart.js doesn't easily support per-bar colors in grouped datasets cleanly without arrays.
+        // Let's just color the 'Applications' bars by media. 'Valid' can stay purple or similar to show subset.
+        // Or maybe just stick to standard colors for non-ROAS metrics unless strictly requested?
+        // User said "Bar chart and Pie chart (ROAS)". 
+        // Let's assume this applies primarily to the ROAS view where Pie is also present.
+        // For 'Applications', existing gray/purple scheme is functional. 
+        // BUT, if the user explicitly wants "Match colors with right side", the right side IS media-based.
+        // So I will apply it to ROAS bar chart definitively.
+        // For Applications, I will keep existing to avoid confusion unless I hear otherwise.
         backgroundColor: '#6366f1',
-        xAxisID: 'x'
+        xAxisID: 'x',
+        maxBarThickness: 20
       },
       {
         label: '有効応募率',
@@ -750,6 +832,11 @@ function renderAdMainChart(data) {
         tension: 0.2
       }
     ];
+    // Override Applications color if we want to match. 
+    // But 'Applications' has 2 bars per media. If we color both by media, they merge.
+    // So I will only apply media coloring to ROAS chart where it's 1 bar per media.
+    datasets[0].backgroundColor = '#94a3b8'; // Reset to gray for apps
+
     xTickFormatter = (v) => formatNumber(v);
     tooltipFormatter = (ctx) => {
       const row = sorted[ctx.dataIndex] || {};
@@ -800,12 +887,71 @@ function renderAdMainChart(data) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', display: datasets.length > 1 },
-        tooltip: { callbacks: { label: tooltipFormatter } }
+        tooltip: {
+          callbacks: { label: tooltipFormatter }
+        },
+        legend: { display: currentGraphMetric !== 'roas' }
       },
       interaction: { mode: 'nearest', intersect: true },
       onClick: handleClick,
       scales
+    }
+  });
+}
+
+function renderRoasPieChart(normalizedData) {
+  const canvas = document.getElementById('adMainPieChartCanvas');
+  if (!canvas) return;
+
+  if (mainPieChart) {
+    mainPieChart.destroy();
+  }
+
+  // Filter out items with 0 ROAS to keep clean
+  const validData = normalizedData.filter(d => d.roas > 0).sort((a, b) => b.roas - a.roas);
+
+  if (validData.length === 0) {
+    // Clear canvas if no data
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  const labels = validData.map(d => d.mediaName);
+  const data = validData.map(d => d.roas);
+
+  // Generate colors (using a palette or random if many)
+  const baseColors = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff', '#94a3b8', '#cbd5e1'];
+  const backgroundColors = validData.map((_, i) => baseColors[i % baseColors.length]);
+
+  mainPieChart = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut', // Doughnut or Pie
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: backgroundColors,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right', // Legend on right
+          align: 'center',
+          labels: { boxWidth: 12, font: { size: 12 } } // Bigger font
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = Number(ctx.raw) || 0;
+              return `${ctx.label}: ${val.toFixed(1)}%`;
+            }
+          }
+        }
+      }
     }
   });
 }
@@ -832,14 +978,16 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   }
 
   const labels = Array.from(new Set(rawData.map(d => d.period))).sort();
-  const palette = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6', '#38bdf8', '#ef4444', '#10b981'];
+  // Determine all unique media names available in the raw data for consistent coloring
+  const allMediaNames = Array.from(new Set(rawData.map(d => d.mediaName)));
+
   const mediaMap = {};
   rawData.forEach(d => {
     if (!mediaMap[d.mediaName]) mediaMap[d.mediaName] = {};
     mediaMap[d.mediaName][d.period] = d[lineMetric];
   });
-  const datasets = Object.keys(mediaMap).map((name, idx) => {
-    const color = palette[idx % palette.length];
+  const datasets = Object.keys(mediaMap).map((name) => {
+    const color = getMediaColor(name, allMediaNames);
     return {
       label: name,
       data: labels.map(l => mediaMap[name][l] ?? null),

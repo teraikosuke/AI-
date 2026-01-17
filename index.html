@@ -28,7 +28,10 @@
         </div>
         <button type="button" id="sidebarToggle"
           class="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-slate-300" aria-label="サイドバーを折りたたみ">
-          ◀
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" />
+          </svg>
         </button>
       </div>
       <nav class="flex-1 overflow-y-auto">
@@ -212,7 +215,7 @@
   </div>
 
   <script type="module">
-      import { boot } from './scripts/router.js?v=20260308';
+    import { boot } from './scripts/router.js?v=20260313';
     boot();
   </script>
 </body>

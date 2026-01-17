@@ -26,6 +26,8 @@ let teleapoCsTaskCandidates = [];
 let teleapoCandidateMaster = [];
 let teleapoCandidateAbort = null;
 let candidatePhoneCache = new Map();
+let candidatePhoneToId = new Map();
+let candidateEmailToId = new Map();
 let candidateDetailCache = new Map();
 let candidateDetailRequests = new Map();
 let missingInfoQueue = [];
@@ -35,14 +37,22 @@ const MISSING_INFO_FETCH_BATCH = 20;
 const MISSING_INFO_FETCH_DELAY_MS = 200;
 const MISSING_INFO_RENDER_LIMIT = 200;
 let missingInfoExpanded = false;
+let contactTimeQueue = [];
+let contactTimeQueueSet = new Set();
+let contactTimeQueueActive = false;
+const CONTACT_TIME_FETCH_BATCH = 10;
+const CONTACT_TIME_FETCH_DELAY_MS = 200;
+let candidateDetailRefreshTimer = null;
 let teleapoSummaryByCandidateId = new Map();
 let teleapoSummaryByName = new Map();
 let csTaskExpanded = false;
+let logExpanded = true;
 let attendanceQueue = [];
 let attendanceQueueSet = new Set();
 let attendanceQueueActive = false;
 let attendanceRefreshTimer = null;
 let teleapoRateMode = TELEAPO_RATE_MODE_CONTACT;
+let teleapoQuickEditState = { candidateId: null, detail: null, editMode: false, saving: false };
 const ATTENDANCE_FETCH_BATCH = 10;
 const ATTENDANCE_FETCH_DELAY_MS = 200;
 
@@ -77,6 +87,15 @@ function scheduleAttendanceRefresh() {
     if (teleapoLogData.length) {
       applyFilters();
     }
+  }, 200);
+}
+
+function scheduleCandidateDetailRefresh() {
+  if (candidateDetailRefreshTimer) return;
+  candidateDetailRefreshTimer = window.setTimeout(() => {
+    candidateDetailRefreshTimer = null;
+    renderLogTable();
+    renderCsTaskTable(teleapoCsTaskCandidates);
   }, 200);
 }
 
@@ -120,6 +139,52 @@ function scheduleAttendanceFetchFromLogs(logs) {
     }
     if (!Number.isFinite(idNum) || idNum <= 0) return;
     enqueueAttendanceFetch(idNum);
+  });
+}
+
+function enqueueContactTimeFetch(candidateId) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return;
+  if (contactTimeQueueSet.has(idNum)) return;
+  if (candidateDetailRequests.has(idNum)) return;
+  const cached = candidateDetailCache.get(idNum);
+  if (cached) {
+    const cachedTime = String(cached.contactPreferredTime ?? cached.contact_preferred_time ?? "").trim();
+    if (cachedTime) return;
+    if (cached.contactPreferredTimeFetched) return;
+  }
+  contactTimeQueueSet.add(idNum);
+  contactTimeQueue.push(idNum);
+  if (!contactTimeQueueActive) processContactTimeQueue();
+}
+
+function processContactTimeQueue() {
+  if (!contactTimeQueue.length) {
+    contactTimeQueueActive = false;
+    return;
+  }
+  contactTimeQueueActive = true;
+  const batch = contactTimeQueue.splice(0, CONTACT_TIME_FETCH_BATCH);
+  batch.forEach((idNum) => contactTimeQueueSet.delete(idNum));
+  Promise.all(batch.map((idNum) => fetchCandidateDetailInfo(idNum)))
+    .finally(() => {
+      scheduleCandidateDetailRefresh();
+      setTimeout(processContactTimeQueue, CONTACT_TIME_FETCH_DELAY_MS);
+    });
+}
+
+function prefetchContactTimeForLogs(logs) {
+  if (!Array.isArray(logs) || !logs.length) return;
+  logs.forEach((log) => {
+    const resolvedId = resolveCandidateIdFromLog(log);
+    if (resolvedId) enqueueContactTimeFetch(resolvedId);
+  });
+}
+
+function prefetchContactTimeForTasks(list) {
+  if (!Array.isArray(list) || !list.length) return;
+  list.forEach((row) => {
+    if (row?.candidateId) enqueueContactTimeFetch(row.candidateId);
   });
 }
 
@@ -200,6 +265,37 @@ function normalizeNameKey(name) {
     .toLowerCase();
 }
 
+function normalizePhoneKey(value) {
+  return String(value ?? '').replace(/[^\d]/g, '');
+}
+
+function normalizeEmailKey(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function registerCandidateContactMaps(candidateId, candidate = {}) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return;
+  const phone =
+    candidate.phone ??
+    candidate.phone_number ??
+    candidate.phoneNumber ??
+    candidate.tel ??
+    candidate.mobile ??
+    candidate.candidate_phone ??
+    "";
+  const email =
+    candidate.email ??
+    candidate.candidate_email ??
+    candidate.mail ??
+    candidate.email_address ??
+    "";
+  const phoneKey = normalizePhoneKey(phone);
+  if (phoneKey) candidatePhoneToId.set(phoneKey, idNum);
+  const emailKey = normalizeEmailKey(email);
+  if (emailKey) candidateEmailToId.set(emailKey, idNum);
+}
+
 function findCandidateIdByName(name) {
   if (!name) return undefined;
   const direct = candidateNameMap.get(name);
@@ -234,6 +330,35 @@ function findCandidateIdFromTarget(target) {
     }
   }
   return bestId;
+}
+
+function resolveCandidateIdFromLog(log) {
+  const rawId = log?.candidateId ?? log?.candidate_id;
+  const idNum = Number(rawId);
+  if (Number.isFinite(idNum) && idNum > 0) return idNum;
+  const nameResolved = findCandidateIdFromTarget(log?.target || "");
+  const nameIdNum = Number(nameResolved);
+  if (Number.isFinite(nameIdNum) && nameIdNum > 0) return nameIdNum;
+  const phoneKey = normalizePhoneKey(log?.tel || "");
+  if (phoneKey && candidatePhoneToId.has(phoneKey)) return candidatePhoneToId.get(phoneKey);
+  const emailKey = normalizeEmailKey(log?.email || "");
+  if (emailKey && candidateEmailToId.has(emailKey)) return candidateEmailToId.get(emailKey);
+  return null;
+}
+
+function hydrateLogCandidateIds(logs) {
+  if (!Array.isArray(logs) || !logs.length) return false;
+  let updated = false;
+  logs.forEach((log) => {
+    const current = Number(log?.candidateId);
+    if (Number.isFinite(current) && current > 0) return;
+    const resolved = resolveCandidateIdFromLog(log);
+    if (resolved) {
+      log.candidateId = resolved;
+      updated = true;
+    }
+  });
+  return updated;
 }
 
 function normalizePhaseList(raw) {
@@ -306,6 +431,16 @@ function formatCandidateValue(value, fallback = "-") {
   return text ? escapeHtml(text) : fallback;
 }
 
+function formatDateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function getCandidateDetailApiUrl(candidateId) {
   const id = String(candidateId ?? "").trim();
   if (!id) return "";
@@ -331,6 +466,8 @@ function fetchCandidateDetailInfo(candidateId) {
       return res.json();
     })
     .then(data => {
+      const prev = candidateDetailCache.get(idNum);
+      const prevContactTime = String(prev?.contactPreferredTime ?? prev?.contact_preferred_time ?? "").trim();
       const phone =
         data?.phone ??
         data?.phone_number ??
@@ -338,6 +475,12 @@ function fetchCandidateDetailInfo(candidateId) {
         data?.tel ??
         data?.mobile ??
         data?.candidate_phone ??
+        "";
+      const email =
+        data?.email ??
+        data?.candidate_email ??
+        data?.mail ??
+        data?.email_address ??
         "";
       const attendanceRaw =
         data?.attendanceConfirmed ??
@@ -356,13 +499,22 @@ function fetchCandidateDetailInfo(candidateId) {
         data?.birthDate ??
         data?.birthdate ??
         "";
+      const contactPreferredTime =
+        data?.contactPreferredTime ??
+        data?.contact_preferred_time ??
+        "";
       const ageRaw = data?.age ?? data?.age_years ?? data?.ageYears ?? null;
-      const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : null;
+      const ageValue = Number(ageRaw);
+      const age = Number.isFinite(ageValue) && ageValue > 0 ? ageValue : null;
+      const contactTimeText = String(contactPreferredTime ?? "").trim();
 
       const detail = {
         phone: String(phone ?? "").trim(),
+        email: String(email ?? "").trim(),
         birthday: String(birthday ?? "").trim(),
         age,
+        contactPreferredTime: contactTimeText,
+        contactPreferredTimeFetched: true,
         attendanceConfirmed: normalizeAttendanceValue(attendanceRaw),
         firstInterviewDate: firstInterviewDate
       };
@@ -372,12 +524,16 @@ function fetchCandidateDetailInfo(candidateId) {
         scheduleAttendanceRefresh();
       }
       if (detail.phone) candidatePhoneCache.set(idNum, detail.phone);
+      registerCandidateContactMaps(idNum, detail);
+      if (contactTimeText && contactTimeText !== prevContactTime) {
+        scheduleCandidateDetailRefresh();
+      }
       return detail;
     })
     .catch(err => {
       console.error("candidate detail fetch error:", err);
       if (!candidateDetailCache.has(idNum)) {
-        candidateDetailCache.set(idNum, { phone: "", birthday: "", age: null, failed: true });
+        candidateDetailCache.set(idNum, { phone: "", birthday: "", age: null, contactPreferredTime: "", contactPreferredTimeFetched: true, failed: true });
       }
       return candidateDetailCache.get(idNum);
     })
@@ -415,6 +571,7 @@ function normalizeCandidateDetail(raw) {
   if (!raw) return raw;
   return {
     ...raw,
+    candidateId: raw.candidateId ?? raw.candidate_id ?? raw.id ?? null,
     candidateName: raw.candidateName ?? raw.candidate_name ?? raw.name ?? "",
     advisorName: raw.advisorName ?? raw.advisor_name ?? "",
     partnerName: raw.partnerName ?? raw.partner_name ?? "",
@@ -422,6 +579,8 @@ function normalizeCandidateDetail(raw) {
     validApplication: raw.validApplication ?? raw.valid_application ?? raw.is_effective_application ?? raw.active_flag ?? null,
     phone: raw.phone ?? raw.phone_number ?? raw.tel ?? "",
     email: raw.email ?? raw.email_address ?? "",
+    birthday: raw.birthday ?? raw.birth_date ?? raw.birthDate ?? raw.birthdate ?? "",
+    age: raw.age ?? raw.age_years ?? raw.ageYears ?? null,
     applyCompanyName: raw.applyCompanyName ?? raw.apply_company_name ?? raw.companyName ?? raw.company_name ?? "",
     applyJobName: raw.applyJobName ?? raw.apply_job_name ?? raw.jobName ?? raw.job_name ?? "",
     applyRouteText: raw.applyRouteText ?? raw.apply_route_text ?? raw.source ?? "",
@@ -466,9 +625,167 @@ function setCandidateQuickViewContent(html) {
   container.innerHTML = html;
 }
 
+function setCandidateQuickEditStatus(message, variant = "info") {
+  const el = document.getElementById("teleapoCandidateEditStatus");
+  if (!el) return;
+  el.textContent = message || "";
+  el.classList.remove("text-slate-500", "text-rose-600", "text-emerald-600");
+  if (variant === "error") el.classList.add("text-rose-600");
+  else if (variant === "success") el.classList.add("text-emerald-600");
+  else el.classList.add("text-slate-500");
+}
+
+function readQuickEditValue(id) {
+  const el = document.getElementById(id);
+  if (!el) return "";
+  return String(el.value ?? "").trim();
+}
+
+function buildQuickEditPayload(candidateId) {
+  const birthday = readQuickEditValue("teleapoQuickEditBirthday");
+  const ageInput = readQuickEditValue("teleapoQuickEditAge");
+  const parsedAge = ageInput ? Number(ageInput) : null;
+  const age = Number.isFinite(parsedAge) && parsedAge > 0 ? Math.trunc(parsedAge) : null;
+  return {
+    id: candidateId ?? null,
+    detailMode: true,
+    phone: readQuickEditValue("teleapoQuickEditPhone"),
+    email: readQuickEditValue("teleapoQuickEditEmail"),
+    contactPreferredTime: readQuickEditValue("teleapoQuickEditContactTime"),
+    applyCompanyName: readQuickEditValue("teleapoQuickEditApplyCompany"),
+    applyJobName: readQuickEditValue("teleapoQuickEditApplyJob"),
+    applyRouteText: readQuickEditValue("teleapoQuickEditApplyRoute"),
+    birthday: birthday || null,
+    age
+  };
+}
+
+function syncCandidateCaches(candidateId, detail) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return;
+  const phone = String(detail.phone ?? "").trim();
+  const birthday = String(detail.birthday ?? "").trim();
+  const contactPreferredTime = String(detail.contactPreferredTime ?? "").trim();
+  const ageRaw = detail.age ?? null;
+  const ageValue = Number(ageRaw);
+  const age = Number.isFinite(ageValue) && ageValue > 0 ? ageValue : calculateAgeFromBirthday(birthday);
+  const prev = candidateDetailCache.get(idNum) || {};
+
+  candidateDetailCache.set(idNum, {
+    ...prev,
+    phone,
+    birthday,
+    age,
+    contactPreferredTime,
+    contactPreferredTimeFetched: true
+  });
+
+  if (phone) candidatePhoneCache.set(idNum, phone);
+  registerCandidateContactMaps(idNum, { phone, email: detail.email ?? "" });
+
+  const entry = teleapoCandidateMaster.find(c => {
+    const entryId = c.id ?? c.candidate_id ?? c.candidateId ?? c.candidateID;
+    return String(entryId) === String(idNum);
+  });
+  if (entry) {
+    entry.phone = phone;
+    entry.phone_number = phone;
+    entry.tel = phone;
+    entry.email = detail.email ?? entry.email ?? "";
+    entry.birthday = birthday;
+    entry.birth_date = birthday;
+    entry.birthDate = birthday;
+    entry.age = age ?? entry.age ?? null;
+    entry.apply_company_name = detail.applyCompanyName ?? entry.apply_company_name ?? "";
+    entry.apply_job_name = detail.applyJobName ?? entry.apply_job_name ?? "";
+    entry.apply_route_text = detail.applyRouteText ?? entry.apply_route_text ?? "";
+    entry.contactPreferredTime = contactPreferredTime;
+    entry.contact_preferred_time = contactPreferredTime;
+  }
+}
+
+async function saveCandidateQuickEdit() {
+  if (teleapoQuickEditState.saving) return;
+  const candidateId =
+    teleapoQuickEditState.candidateId ??
+    teleapoQuickEditState.detail?.candidateId ??
+    teleapoQuickEditState.detail?.id ??
+    teleapoQuickEditState.detail?.candidate_id ??
+    null;
+  if (!candidateId) {
+    setCandidateQuickEditStatus("候補者IDが取得できませんでした。", "error");
+    return;
+  }
+  const url = getCandidateDetailApiUrl(candidateId);
+  if (!url) {
+    setCandidateQuickEditStatus("保存先のURLが取得できません。", "error");
+    return;
+  }
+
+  const payload = buildQuickEditPayload(candidateId);
+  teleapoQuickEditState.saving = true;
+  setCandidateQuickEditStatus("保存中...", "info");
+
+  try {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
+    const data = await res.json().catch(() => ({}));
+    const normalized = normalizeCandidateDetail(data) || {};
+    const fallbackPhone = payload.phone;
+    const fallbackBirthday = payload.birthday;
+    const idNum = Number(candidateId);
+    if (fallbackPhone && !String(normalized.phone || "").trim()) {
+      normalized.phone = fallbackPhone;
+    }
+    if (fallbackBirthday && !String(normalized.birthday || "").trim()) {
+      normalized.birthday = fallbackBirthday;
+    }
+    if (Number.isFinite(payload.age) && (!Number.isFinite(Number(normalized.age)) || Number(normalized.age) <= 0)) {
+      normalized.age = payload.age;
+    }
+    if (!normalized.candidateId && !normalized.id && Number.isFinite(idNum)) {
+      normalized.candidateId = idNum;
+    }
+    teleapoQuickEditState.detail = normalized;
+    teleapoQuickEditState.editMode = false;
+    syncCandidateCaches(candidateId, normalized);
+    renderCandidateQuickView(normalized);
+    rebuildMissingInfoCandidates();
+    setCandidateQuickEditStatus("", "info");
+  } catch (err) {
+    console.error("candidate quick edit error:", err);
+    const message = err?.message ? `保存に失敗しました: ${err.message}` : "保存に失敗しました。";
+    setCandidateQuickEditStatus(message, "error");
+  } finally {
+    teleapoQuickEditState.saving = false;
+  }
+}
+
 function renderCandidateQuickView(detail) {
   const candidate = normalizeCandidateDetail(detail || {});
   const name = candidate.candidateName || "-";
+  const candidateId = candidate.candidateId ?? candidate.id ?? candidate.candidate_id ?? null;
+  const isEditing = teleapoQuickEditState.editMode;
+  const birthdayValue = candidate.birthday ?? "";
+  const rawAge = Number(candidate.age);
+  const ageFromBirthday = calculateAgeFromBirthday(birthdayValue);
+  const ageValue = Number.isFinite(rawAge) && rawAge > 0
+    ? rawAge
+    : (Number.isFinite(ageFromBirthday) && ageFromBirthday > 0 ? ageFromBirthday : null);
+  const birthdayText = birthdayValue ? formatCandidateDate(birthdayValue) : "-";
+  const ageText = Number.isFinite(ageValue) && ageValue > 0 ? `${ageValue}歳` : "-";
+  const editDisabled = teleapoQuickEditState.saving ? "disabled" : "";
+
+  teleapoQuickEditState.detail = candidate;
+  if (candidateId) teleapoQuickEditState.candidateId = candidateId;
+
   setCandidateQuickViewTitle(name ? `${name} の詳細` : "候補者詳細");
 
   const phaseBadges = buildCandidatePhaseBadges(candidate);
@@ -517,6 +834,51 @@ function renderCandidateQuickView(detail) {
     `
     : '<p class="teleapo-candidate-muted">選考情報はありません。</p>';
 
+  const actionHtml = isEditing
+    ? `
+      <div class="teleapo-candidate-actions">
+        <button type="button" data-candidate-action="save" ${editDisabled}
+          class="teleapo-candidate-action teleapo-candidate-action--primary">保存</button>
+        <button type="button" data-candidate-action="cancel"
+          class="teleapo-candidate-action">キャンセル</button>
+        <span id="teleapoCandidateEditStatus" class="teleapo-candidate-edit-status"></span>
+      </div>
+    `
+    : `
+      <div class="teleapo-candidate-actions">
+        <button type="button" data-candidate-action="edit"
+          class="teleapo-candidate-action">編集</button>
+      </div>
+    `;
+
+  const applyRouteField = isEditing
+    ? `<input id="teleapoQuickEditApplyRoute" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.applyRouteText || "")}" />`
+    : formatCandidateValue(candidate.applyRouteText);
+  const applyCompanyField = isEditing
+    ? `<input id="teleapoQuickEditApplyCompany" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.applyCompanyName || "")}" />`
+    : formatCandidateValue(candidate.applyCompanyName);
+  const applyJobField = isEditing
+    ? `<input id="teleapoQuickEditApplyJob" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.applyJobName || "")}" />`
+    : formatCandidateValue(candidate.applyJobName);
+  const birthdayField = isEditing
+    ? `<input id="teleapoQuickEditBirthday" type="date" class="teleapo-candidate-edit-input" value="${escapeHtml(formatDateInputValue(birthdayValue))}" />`
+    : escapeHtml(birthdayText);
+  const ageInputValue = Number.isFinite(rawAge) && rawAge > 0
+    ? rawAge
+    : (Number.isFinite(ageFromBirthday) && ageFromBirthday > 0 ? ageFromBirthday : "");
+  const ageField = isEditing
+    ? `<input id="teleapoQuickEditAge" type="number" min="0" class="teleapo-candidate-edit-input" value="${escapeHtml(String(ageInputValue))}" />`
+    : escapeHtml(ageText);
+  const phoneField = isEditing
+    ? `<input id="teleapoQuickEditPhone" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.phone || "")}" />`
+    : formatCandidateValue(candidate.phone);
+  const emailField = isEditing
+    ? `<input id="teleapoQuickEditEmail" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.email || "")}" />`
+    : formatCandidateValue(candidate.email);
+  const contactTimeField = isEditing
+    ? `<input id="teleapoQuickEditContactTime" class="teleapo-candidate-edit-input" value="${escapeHtml(candidate.contactPreferredTime || "")}" />`
+    : formatCandidateValue(candidate.contactPreferredTime);
+
   setCandidateQuickViewContent(`
     <div class="teleapo-candidate-meta">
       <div class="teleapo-candidate-name">${escapeHtml(name)}</div>
@@ -525,15 +887,18 @@ function renderCandidateQuickView(detail) {
         ${validBadge}
       </div>
     </div>
+    ${actionHtml}
 
     <div class="teleapo-candidate-grid">
       <div class="teleapo-candidate-card">
         <div class="teleapo-candidate-card-title">基本情報</div>
         <dl class="teleapo-candidate-kv">
           <div><dt>登録日</dt><dd>${escapeHtml(formatCandidateDate(candidate.registeredAt))}</dd></div>
-          <div><dt>応募経路</dt><dd>${formatCandidateValue(candidate.applyRouteText)}</dd></div>
-          <div><dt>応募企業</dt><dd>${formatCandidateValue(candidate.applyCompanyName)}</dd></div>
-          <div><dt>応募職種</dt><dd>${formatCandidateValue(candidate.applyJobName)}</dd></div>
+          <div><dt>応募経路</dt><dd>${applyRouteField}</dd></div>
+          <div><dt>応募企業</dt><dd>${applyCompanyField}</dd></div>
+          <div><dt>応募職種</dt><dd>${applyJobField}</dd></div>
+          <div><dt>生年月日</dt><dd>${birthdayField}</dd></div>
+          <div><dt>年齢</dt><dd>${ageField}</dd></div>
           <div><dt>担当CS</dt><dd>${formatCandidateValue(candidate.advisorName)}</dd></div>
           <div><dt>担当パートナー</dt><dd>${formatCandidateValue(candidate.partnerName)}</dd></div>
         </dl>
@@ -541,9 +906,9 @@ function renderCandidateQuickView(detail) {
       <div class="teleapo-candidate-card">
         <div class="teleapo-candidate-card-title">連絡先</div>
         <dl class="teleapo-candidate-kv">
-          <div><dt>電話</dt><dd>${formatCandidateValue(candidate.phone)}</dd></div>
-          <div><dt>メール</dt><dd>${formatCandidateValue(candidate.email)}</dd></div>
-          <div><dt>希望時間</dt><dd>${formatCandidateValue(candidate.contactPreferredTime)}</dd></div>
+          <div><dt>電話</dt><dd>${phoneField}</dd></div>
+          <div><dt>メール</dt><dd>${emailField}</dd></div>
+          <div><dt>希望時間</dt><dd>${contactTimeField}</dd></div>
           <div><dt>現住所</dt><dd>${formatCandidateValue(candidate.address)}</dd></div>
         </dl>
       </div>
@@ -577,6 +942,10 @@ function renderCandidateQuickView(detail) {
 function openCandidateQuickView(candidateId, candidateName) {
   const resolvedId = candidateId || findCandidateIdFromTarget(candidateName);
   const fallbackName = candidateName || candidateIdMap.get(String(candidateId)) || "候補者詳細";
+  teleapoQuickEditState.editMode = false;
+  teleapoQuickEditState.saving = false;
+  teleapoQuickEditState.detail = null;
+  teleapoQuickEditState.candidateId = resolvedId || null;
   setCandidateQuickViewTitle(fallbackName);
   setCandidateQuickViewContent(`
     <div class="teleapo-candidate-empty">
@@ -645,14 +1014,41 @@ function closeTeleapoCandidateModal() {
   }
 }
 
+function handleCandidateQuickAction(event) {
+  const btn = event.target.closest("[data-candidate-action]");
+  if (!btn) return;
+  event.preventDefault();
+  const action = btn.dataset.candidateAction;
+  if (!action) return;
+  if (!teleapoQuickEditState.detail) return;
+
+  if (action === "edit") {
+    teleapoQuickEditState.editMode = true;
+    renderCandidateQuickView(teleapoQuickEditState.detail);
+    return;
+  }
+  if (action === "cancel") {
+    teleapoQuickEditState.editMode = false;
+    renderCandidateQuickView(teleapoQuickEditState.detail);
+    return;
+  }
+  if (action === "save") {
+    saveCandidateQuickEdit();
+  }
+}
+
 function initCandidateQuickView() {
   const modal = document.getElementById("teleapoCandidateModal");
   const closeBtn = document.getElementById("teleapoCandidateClose");
+  const detailContent = document.getElementById("teleapoCandidateDetailContent");
   if (closeBtn) closeBtn.addEventListener("click", closeTeleapoCandidateModal);
   if (modal) {
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeTeleapoCandidateModal();
     });
+  }
+  if (detailContent) {
+    detailContent.addEventListener("click", handleCandidateQuickAction);
   }
 }
 
@@ -727,6 +1123,10 @@ function normalizeCandidateTask(candidate) {
     candidate.mobile ??
     candidate.mobilePhone ??
     "";
+  const contactPreferredTime =
+    candidate.contactPreferredTime ??
+    candidate.contact_preferred_time ??
+    "";
   const isUncontacted = teleapoSummary
     ? !(teleapoSummary.hasConnected || teleapoSummary.hasSms || teleapoSummary.callCount > 0)
     : (phaseList.includes("未接触") || phaseText === "未接触");
@@ -738,6 +1138,7 @@ function normalizeCandidateTask(candidate) {
     validApplication,
     registeredAt,
     phone,
+    contactPreferredTime,
     isUncontacted,
   };
 }
@@ -799,7 +1200,7 @@ function renderCsTaskTable(list, state = {}) {
   if (state.loading) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">読み込み中...</td>
+        <td colspan="7" class="text-center text-slate-500 py-6">読み込み中...</td>
       </tr>
     `;
     return;
@@ -808,7 +1209,7 @@ function renderCsTaskTable(list, state = {}) {
   if (state.error) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-rose-600 py-6">候補者の取得に失敗しました</td>
+        <td colspan="7" class="text-center text-rose-600 py-6">候補者の取得に失敗しました</td>
       </tr>
     `;
     return;
@@ -817,7 +1218,7 @@ function renderCsTaskTable(list, state = {}) {
   if (!csTaskExpanded) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
+        <td colspan="7" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
       </tr>
     `;
     return;
@@ -826,7 +1227,7 @@ function renderCsTaskTable(list, state = {}) {
   if (!list.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
+        <td colspan="7" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
       </tr>
     `;
     return;
@@ -836,6 +1237,10 @@ function renderCsTaskTable(list, state = {}) {
     const nameLabel = row.candidateName || "-";
     const candidateId = row.candidateId ?? findCandidateIdFromTarget(row.candidateName);
     const phoneValue = row.phone || resolveCandidatePhone(candidateId, row.candidateName);
+    const contactTimeValue = row.contactPreferredTime || resolveCandidateContactPreferredTime(candidateId, row.candidateName);
+    const contactTimeTextValue = String(contactTimeValue ?? "").trim();
+    if (!contactTimeTextValue) enqueueContactTimeFetch(candidateId);
+    const contactTimeText = escapeHtml(contactTimeTextValue || "-");
     const dialBtn = candidateId || nameLabel !== "-"
       ? `<button type="button"
            class="text-xs px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
@@ -859,6 +1264,7 @@ function renderCsTaskTable(list, state = {}) {
         <td class="whitespace-nowrap">${nameCell}</td>
         <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
         <td class="whitespace-nowrap">${escapeHtml(phoneValue || "-")}</td>
+        <td class="whitespace-nowrap">${contactTimeText}</td>
         <td class="whitespace-nowrap">${dialBtn}</td>
       </tr>
     `;
@@ -917,7 +1323,8 @@ function normalizeMissingInfoCandidate(candidate) {
     candidate.age_years ??
     candidate.ageYears ??
     null;
-  const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : calculateAgeFromBirthday(birthday);
+  const ageValue = Number(ageRaw);
+  const age = Number.isFinite(ageValue) && ageValue > 0 ? ageValue : calculateAgeFromBirthday(birthday);
 
   const phone =
     cached?.phone ??
@@ -930,11 +1337,11 @@ function normalizeMissingInfoCandidate(candidate) {
     candidatePhoneCache.get(idNum) ??
     "";
 
-  const missingBirth = !birthday || !(Number.isFinite(age) && age > 0);
+  const missingAge = !(Number.isFinite(age) && age > 0);
   const missingPhone = !String(phone ?? "").trim();
-  const needsDetail = (missingBirth || missingPhone) && Number.isFinite(idNum) && idNum > 0 && !candidateDetailCache.has(idNum);
+  const needsDetail = (missingAge || missingPhone) && Number.isFinite(idNum) && idNum > 0 && !candidateDetailCache.has(idNum);
 
-  if (!missingBirth && !missingPhone) return null;
+  if (!missingAge && !missingPhone) return null;
 
   return {
     candidateId: Number.isFinite(idNum) && idNum > 0 ? idNum : null,
@@ -943,7 +1350,7 @@ function normalizeMissingInfoCandidate(candidate) {
     birthday,
     age,
     phone,
-    missingBirth,
+    missingAge,
     missingPhone,
     needsDetail
   };
@@ -973,7 +1380,7 @@ function renderMissingInfoTable(list, state = {}) {
   if (state.loading) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">読み込み中...</td>
+        <td colspan="5" class="text-center text-slate-500 py-6">読み込み中...</td>
       </tr>
     `;
     return;
@@ -982,7 +1389,7 @@ function renderMissingInfoTable(list, state = {}) {
   if (!list.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
+        <td colspan="5" class="text-center text-slate-500 py-6">対象の候補者がいません</td>
       </tr>
     `;
     return;
@@ -991,7 +1398,7 @@ function renderMissingInfoTable(list, state = {}) {
   if (!missingInfoExpanded) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
+        <td colspan="5" class="text-center text-slate-500 py-6">一覧を開くと内容が表示されます</td>
       </tr>
     `;
     return;
@@ -1000,7 +1407,7 @@ function renderMissingInfoTable(list, state = {}) {
   if (!missingInfoExpanded && list.length > MISSING_INFO_RENDER_LIMIT) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">
+        <td colspan="5" class="text-center text-slate-500 py-6">
           対象が多いため一覧を一時的に非表示にしています（${list.length}件）。
           右上の「一覧を開く」を押してください。
         </td>
@@ -1022,7 +1429,7 @@ function renderMissingInfoTable(list, state = {}) {
            data-candidate-name="${escapeHtml(row.candidateName || '')}">${escapeHtml(nameLabel)}</button>`
       : escapeHtml(nameLabel);
     const missingTags = [
-      row.missingBirth ? "生年月日/年齢" : null,
+      row.missingAge ? "年齢" : null,
       row.missingPhone ? "電話番号" : null
     ].filter(Boolean);
     const missingHtml = missingTags.map(tag => `
@@ -1031,7 +1438,6 @@ function renderMissingInfoTable(list, state = {}) {
       </span>
     `).join(" ");
 
-    const birthdayText = row.birthday ? formatCandidateDate(row.birthday) : "-";
     const ageText = Number.isFinite(row.age) && row.age > 0 ? `${row.age}歳` : "-";
     const phoneText = String(row.phone ?? "").trim() || "-";
 
@@ -1040,7 +1446,6 @@ function renderMissingInfoTable(list, state = {}) {
         <td class="whitespace-nowrap">${missingHtml || "-"}</td>
         <td class="whitespace-nowrap">${nameCell}</td>
         <td class="whitespace-nowrap">${escapeHtml(formatCandidateDateTime(row.registeredAt))}</td>
-        <td class="whitespace-nowrap">${escapeHtml(birthdayText)}</td>
         <td class="whitespace-nowrap">${escapeHtml(ageText)}</td>
         <td class="whitespace-nowrap">${escapeHtml(phoneText)}</td>
       </tr>
@@ -1211,8 +1616,8 @@ function isSameTeleapoLog(a, b) {
   return aKey && bKey && aKey === bKey;
 }
 
-function resolveCandidateContact(candidateId, candidateName) {
-  if (!teleapoCandidateMaster.length) return { tel: "", email: "" };
+function findCandidateEntry(candidateId, candidateName) {
+  if (!teleapoCandidateMaster.length) return null;
   const idText = candidateId ? String(candidateId) : "";
   const nameKey = normalizeNameKey(candidateName || "");
   let candidate = null;
@@ -1222,6 +1627,19 @@ function resolveCandidateContact(candidateId, candidateName) {
   if (!candidate && nameKey) {
     candidate = teleapoCandidateMaster.find(c => normalizeNameKey(c.candidateName ?? c.candidate_name ?? c.name ?? "") === nameKey) || null;
   }
+  if (!candidate && candidateName) {
+    const resolvedId = findCandidateIdFromTarget(candidateName);
+    if (resolvedId) {
+      const resolvedIdText = String(resolvedId);
+      candidate = teleapoCandidateMaster.find(c => String(c.id ?? c.candidate_id ?? c.candidateId ?? c.candidateID) === resolvedIdText) || null;
+    }
+  }
+  return candidate;
+}
+
+function resolveCandidateContact(candidateId, candidateName) {
+  const candidate = findCandidateEntry(candidateId, candidateName);
+  if (!candidate) return { tel: "", email: "" };
   const tel =
     candidate?.phone ??
     candidate?.phone_number ??
@@ -1236,6 +1654,30 @@ function resolveCandidateContact(candidateId, candidateName) {
     candidate?.mail ??
     "";
   return { tel, email };
+}
+
+function resolveCandidateContactPreferredTime(candidateId, candidateName) {
+  let idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const resolved = findCandidateIdFromTarget(candidateName);
+    idNum = Number(resolved);
+  }
+  if (Number.isFinite(idNum) && idNum > 0) {
+    const cached = candidateDetailCache.get(idNum);
+    const cachedTime =
+      cached?.contactPreferredTime ??
+      cached?.contact_preferred_time ??
+      "";
+    if (String(cachedTime ?? "").trim()) {
+      return String(cachedTime ?? "").trim();
+    }
+  }
+  const candidate = findCandidateEntry(candidateId, candidateName);
+  const time =
+    candidate?.contactPreferredTime ??
+    candidate?.contact_preferred_time ??
+    "";
+  return String(time ?? "").trim();
 }
 
 function buildPendingTeleapoLog({
@@ -1863,6 +2305,9 @@ function buildHeatmapInsight(logs, scopeLabel) {
   if (!telLogs.length) return null;
 
   const buckets = new Map();
+  const allowedDays = new Set(TELEAPO_HEATMAP_DAYS);
+  let totalDials = 0;
+  let totalConnects = 0;
   const addBucket = (day, slot) => {
     const key = `${day}-${slot}`;
     if (!buckets.has(key)) buckets.set(key, { day, slot, dials: 0, connects: 0 });
@@ -1873,17 +2318,20 @@ function buildHeatmapInsight(logs, scopeLabel) {
     const dt = parseDateTime(log.datetime);
     if (!dt) return;
     const day = '日月火水木金土'[dt.getDay()];
+    if (!allowedDays.has(day)) return;
     const hour = dt.getHours();
     const slot = hour < 11 ? '09-11' : hour < 13 ? '11-13' : hour < 15 ? '13-15' : hour < 17 ? '15-17' : hour < 19 ? '17-19' : null;
     if (!slot) return;
     const flags = classifyTeleapoResult(log);
     const bucket = addBucket(day, slot);
     bucket.dials += 1;
-    if (flags.isConnect) bucket.connects += 1;
+    totalDials += 1;
+    if (flags.isConnect) {
+      bucket.connects += 1;
+      totalConnects += 1;
+    }
   });
 
-  const totalDials = telLogs.length;
-  const totalConnects = telLogs.filter(l => classifyTeleapoResult(l).isConnect).length;
   const baselineRate = totalDials ? (totalConnects / totalDials) * 100 : 0;
   const minSamples = Math.max(5, Math.ceil(totalDials * 0.05));
   const priorWeight = 6;
@@ -1894,24 +2342,25 @@ function buildHeatmapInsight(logs, scopeLabel) {
       const smoothed = b.dials
         ? ((b.connects + (baselineRate / 100) * priorWeight) / (b.dials + priorWeight)) * 100
         : null;
-      const lift = smoothed == null ? null : smoothed - baselineRate;
-      const score = lift == null ? -Infinity : lift * Math.sqrt(b.dials);
+      const lift = rate == null ? null : rate - baselineRate;
+      const smoothedLift = smoothed == null ? null : smoothed - baselineRate;
+      const score = smoothedLift == null ? -Infinity : smoothedLift * Math.sqrt(b.dials);
       return { ...b, rate, smoothed, lift, score };
     })
     .filter(b => b.rate != null && b.dials >= minSamples)
     .sort((a, b) => (b.score - a.score) || (b.dials - a.dials));
 
   if (!ranked.length || totalDials < minSamples) {
-    return { type: 'lowSample', scopeLabel, baselineRate, totalDials };
+    return { type: 'lowSample', scopeLabel, baselineRate, totalDials, minSamples };
   }
 
   const best = ranked[0];
   if (best.lift != null && best.lift >= 6) {
-    return { type: 'lift', ...best, scopeLabel, baselineRate, totalDials };
+    return { type: 'lift', ...best, scopeLabel, baselineRate, totalDials, minSamples };
   }
 
   const byVolume = ranked.slice().sort((a, b) => b.dials - a.dials)[0];
-  return { type: 'volume', ...byVolume, scopeLabel, baselineRate, totalDials };
+  return { type: 'volume', ...byVolume, scopeLabel, baselineRate, totalDials, minSamples };
 }
 
 function buildAttemptInsight(logs) {
@@ -1956,7 +2405,12 @@ function updateTeleapoInsight(logs, scope) {
 
   if (attempt && heatmap && heatmap.type === 'lift') {
     const lift = Math.round(heatmap.lift || 0);
-    el.textContent = `通電は${attempt.attempt}回目が勝負！${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が平均より+${lift}ptと強いので、ここを集中攻略しましょう！`;
+    const rateText = Number.isFinite(heatmap.rate) ? `${heatmap.rate.toFixed(0)}%` : '-';
+    const baseText = Number.isFinite(heatmap.baselineRate) ? `${heatmap.baselineRate.toFixed(0)}%` : '-';
+    const dials = heatmap.dials || 0;
+    const connects = heatmap.connects || 0;
+    const sampleNote = heatmap.minSamples ? `（母数${heatmap.minSamples}件以上の中で）` : '';
+    el.textContent = `通電は${attempt.attempt}回目が勝負！${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯は通電率${rateText}（${connects}/${dials}件）で平均${baseText}より${lift}ポイント高い${sampleNote}ため、ここを集中攻略しましょう！`;
     return;
   }
   if (attempt && heatmap && heatmap.type === 'volume') {
@@ -1976,7 +2430,12 @@ function updateTeleapoInsight(logs, scope) {
   }
   if (heatmap && heatmap.type === 'lift') {
     const lift = Math.round(heatmap.lift || 0);
-    el.textContent = `${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯が平均より+${lift}ptで好調！この時間帯を攻めて伸ばしましょう！`;
+    const rateText = Number.isFinite(heatmap.rate) ? `${heatmap.rate.toFixed(0)}%` : '-';
+    const baseText = Number.isFinite(heatmap.baselineRate) ? `${heatmap.baselineRate.toFixed(0)}%` : '-';
+    const dials = heatmap.dials || 0;
+    const connects = heatmap.connects || 0;
+    const sampleNote = heatmap.minSamples ? `（母数${heatmap.minSamples}件以上の中で）` : '';
+    el.textContent = `${heatmap.scopeLabel}の${heatmap.day}${heatmap.slot}帯は通電率${rateText}（${connects}/${dials}件）で平均${baseText}より${lift}ポイント高く好調${sampleNote}！この時間帯を攻めて伸ばしましょう！`;
     return;
   }
   if (heatmap && heatmap.type === 'volume') {
@@ -2051,7 +2510,11 @@ function renderLogTable() {
     // ★ 相手（候補者名）をクリックで候補者詳細へ
     const targetLabel = row.target || '';
     const targetText = escapeHtml(targetLabel);
-    const targetCandidateId = row.candidateId ?? findCandidateIdFromTarget(targetLabel);
+    const resolvedCandidateId = resolveCandidateIdFromLog(row);
+    if (resolvedCandidateId && !row.candidateId) {
+      row.candidateId = resolvedCandidateId;
+    }
+    const targetCandidateId = resolvedCandidateId || row.candidateId;
     const targetCell = targetLabel
       ? `<button type="button"
            class="text-indigo-600 hover:text-indigo-800 underline bg-transparent border-0 p-0"
@@ -2062,6 +2525,10 @@ function renderLogTable() {
 
     // ★ 電話・メールは mapApiLog で candidates 由来が tel/email に入るので表示できる
     const telText = escapeHtml(row.tel || '');
+    const contactTimeValue = resolveCandidateContactPreferredTime(targetCandidateId || row.candidateId, targetLabel);
+    const contactTimeTextValue = String(contactTimeValue ?? "").trim();
+    if (!contactTimeTextValue) enqueueContactTimeFetch(targetCandidateId || row.candidateId);
+    const contactTimeText = escapeHtml(contactTimeTextValue || "-");
     const emailText = escapeHtml(row.email || '');
     const memoText = escapeHtml(row.memo || '');
     const isHighlight = shouldHighlightLog(row);
@@ -2076,10 +2543,11 @@ function renderLogTable() {
     return `
       <tr class="${rowClass}" ${rowIdAttr}>
         <td class="whitespace-nowrap">${escapeHtml(row.datetime)}</td>
-        <td>${escapeHtml(row.employee || '')}</td>
+        <td class="whitespace-nowrap">${escapeHtml(row.employee || '')}</td>
         <td>${escapeHtml(routeLabel)}</td>
         <td>${targetCell}</td>
         <td>${telText}</td>
+        <td class="whitespace-nowrap">${contactTimeText}</td>
         <td>${emailText}</td>
         <td>
           ${flags.flowLabels
@@ -2526,7 +2994,18 @@ function renderEmployeeTrendChart(empName, logs) {
     ${axisLabels}
   `;
 
+  const prevName = wrapper.dataset.employeeName || '';
+  wrapper.dataset.employeeName = empName;
+  const shouldHighlight = prevName !== empName;
   wrapper.classList.remove('hidden');
+  if (shouldHighlight) {
+    const chartCard = wrapper.querySelector('.teleapo-employee-chart-card');
+    if (chartCard) {
+      chartCard.classList.remove('is-highlight');
+      void chartCard.offsetWidth;
+      chartCard.classList.add('is-highlight');
+    }
+  }
 }
 
 function applyFilters() {
@@ -2853,6 +3332,26 @@ function initMissingInfoToggle() {
   });
 }
 
+function initLogToggle() {
+  const toggleBtn = document.getElementById('teleapoLogToggle');
+  const wrapper = document.getElementById('teleapoLogWrapper');
+  if (!toggleBtn) return;
+  const updateLabel = () => {
+    toggleBtn.textContent = logExpanded ? '一覧を閉じる' : '一覧を開く';
+    setToggleButtonState(toggleBtn, logExpanded);
+  };
+  updateLabel();
+  if (wrapper) wrapper.classList.toggle('hidden', !logExpanded);
+  toggleBtn.addEventListener('click', () => {
+    logExpanded = !logExpanded;
+    updateLabel();
+    if (wrapper) wrapper.classList.toggle('hidden', !logExpanded);
+    if (logExpanded) {
+      renderLogTable();
+    }
+  });
+}
+
 function initLogForm() {
   const addBtn = document.getElementById('teleapoLogInputAddBtn');
   const statusEl = document.getElementById('teleapoLogInputStatus');
@@ -2952,16 +3451,19 @@ async function loadCandidates() {
     if (!res.ok) throw new Error(`Candidates API Error: ${res.status}`);
 
     const data = await res.json();
-    const items = Array.isArray(data.items) ? data.items : [];
+    const rawItems = Array.isArray(data.items) ? data.items : [];
+    const items = rawItems.map(item => normalizeCandidateDetail(item) || item);
 
     candidateNameMap.clear();
     candidateIdMap.clear();
     candidateAttendanceMap.clear();
     candidateAttendanceByName.clear();
+    candidatePhoneToId.clear();
+    candidateEmailToId.clear();
     items.forEach(c => {
       // 名前を一意のキーにする（同姓同名対策が必要なら "名前(ID)" 等にするが、一旦名前で実装）
       const fullName = String(c.candidateName ?? c.candidate_name ?? c.name ?? '').trim();
-      const candidateId = Number(c.candidate_id ?? c.id ?? c.candidateId ?? c.candidateID);
+      const candidateId = Number(c.candidateId ?? c.candidate_id ?? c.id ?? c.candidateID);
       if (fullName && Number.isFinite(candidateId) && candidateId > 0) {
         candidateNameMap.set(fullName, candidateId);
         candidateIdMap.set(String(candidateId), fullName);
@@ -2979,27 +3481,28 @@ async function loadCandidates() {
           c.candidate_phone ??
           "";
         const phoneText = String(phone ?? "").trim();
-        const birthday =
-          c.birthday ??
-          c.birth_date ??
-          c.birthDate ??
-          c.birthdate ??
-          "";
+        const birthday = String(c.birthday ?? c.birth_date ?? c.birthDate ?? c.birthdate ?? "").trim();
+        const contactPreferredTime = String(c.contactPreferredTime ?? c.contact_preferred_time ?? "").trim();
+        const contactPreferredTimeFetched = Boolean(contactPreferredTime);
         const ageRaw = c.age ?? c.age_years ?? c.ageYears ?? null;
-        const age = Number.isFinite(Number(ageRaw)) ? Number(ageRaw) : null;
+        const ageValue = Number(ageRaw);
+        const age = Number.isFinite(ageValue) && ageValue > 0 ? ageValue : null;
         const detail = {
           phone: phoneText,
           birthday: String(birthday ?? "").trim(),
           age,
+          contactPreferredTime: String(contactPreferredTime ?? "").trim(),
+          contactPreferredTimeFetched,
           attendanceConfirmed: normalizeAttendanceValue(
             c.attendanceConfirmed ?? c.first_interview_attended ?? c.attendance_confirmed ?? c.firstInterviewAttended
           ),
           firstInterviewDate: c.firstInterviewDate ?? c.first_interview_date ?? c.firstInterviewAt ?? c.first_interview_at ?? null
         };
         if (detail.phone) candidatePhoneCache.set(candidateId, detail.phone);
-        if (detail.phone || detail.birthday || detail.age !== null) {
+        if (detail.phone || detail.birthday || detail.age !== null || detail.contactPreferredTime) {
           candidateDetailCache.set(candidateId, detail);
         }
+        registerCandidateContactMaps(candidateId, { ...c, phone: phoneText });
       }
     });
     candidateNameList = Array.from(candidateNameMap.keys()).sort((a, b) => b.length - a.length);
@@ -3009,6 +3512,12 @@ async function loadCandidates() {
 
     teleapoCandidateMaster = items;
     rebuildCsTaskCandidates();
+    const hydrated = hydrateLogCandidateIds(teleapoLogData);
+    if (hydrated) {
+      rebuildTeleapoSummaryCache(teleapoLogData);
+    }
+    prefetchContactTimeForLogs(teleapoLogData);
+    prefetchContactTimeForTasks(teleapoCsTaskCandidates);
     applyFilters();
     scheduleAttendanceFetchFromLogs(teleapoLogData);
   } catch (e) {
@@ -3030,18 +3539,30 @@ async function loadTeleapoData() {
     annotateCallAttempts(teleapoLogData);
     rebuildEmployeeMap();
     refreshCandidateDatalist();
+    const hydrated = hydrateLogCandidateIds(teleapoLogData);
+    if (hydrated) {
+      rebuildTeleapoSummaryCache(teleapoLogData);
+    }
     scheduleAttendanceFetchFromLogs(teleapoLogData);
+    prefetchContactTimeForLogs(teleapoLogData);
     applyFilters();
     rebuildCsTaskCandidates();
+    prefetchContactTimeForTasks(teleapoCsTaskCandidates);
   } catch (err) {
     console.error('[teleapo] API取得に失敗したためモックを使用します', err);
     teleapoLogData = teleapoInitialMockLogs.map(normalizeLog);
     teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);
     refreshCandidateDatalist();
+    const hydrated = hydrateLogCandidateIds(teleapoLogData);
+    if (hydrated) {
+      rebuildTeleapoSummaryCache(teleapoLogData);
+    }
     scheduleAttendanceFetchFromLogs(teleapoLogData);
+    prefetchContactTimeForLogs(teleapoLogData);
     applyFilters();
     rebuildCsTaskCandidates();
+    prefetchContactTimeForTasks(teleapoCsTaskCandidates);
   }
 }
 
@@ -3061,6 +3582,7 @@ export function mount() {
   initCsTaskToggle();
   initMissingInfoTableActions();
   initMissingInfoToggle();
+  initLogToggle();
   initCandidateQuickView();
   initRateModeToggle();
 

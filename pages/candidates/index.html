@@ -104,25 +104,34 @@
         </div>
       </div>
 
-      <div class="overflow-auto">
-        <table class="table-grid w-full">
+      <div class="overflow-auto table-surface">
+        <table class="table-grid min-w-[1380px]">
           <colgroup>
             <col style="width: 160px" />
             <col style="width: 220px" />
             <col style="width: 110px" />
             <col style="width: 170px" />
             <col style="width: 160px" />
+            <col style="width: 220px" />
+            <col style="width: 160px" />
             <col style="width: 180px" />
           </colgroup>
           <thead>
             <tr>
-              <th>登録日</th>
-              <th>フェーズ</th>
-              <th>媒体</th>
-              <th>有効応募</th>
-              <th>求職者名</th>
-              <th>担当CS</th>
-              <th>担当パートナー</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="registeredAt">登録日
+              </th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="phase">フェーズ</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="source">媒体</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="validApplication">
+                有効応募</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="candidateName">
+                求職者名</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="nextAction">
+                次回アクション</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="advisorName">担当CS
+              </th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="partnerName">
+                担当パートナー</th>
             </tr>
           </thead>
           <tbody id="candidatesTableBody"></tbody>
