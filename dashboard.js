@@ -18,9 +18,10 @@ const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebarToggle");
 if (sidebar && sidebarToggle) {
   const updateSidebarToggleLabel = () => {
-    sidebarToggle.textContent = sidebar.classList.contains("sidebar-collapsed")
-      ? "⪢"
-      : "⪡";
+    const iconSvg = sidebar.classList.contains("sidebar-collapsed")
+      ? `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5" /></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" /></svg>`;
+    sidebarToggle.innerHTML = iconSvg;
   };
   sidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("sidebar-collapsed");
@@ -743,7 +744,7 @@ const renderMediaSummary = (summary) => {
     console.warn('mediaSummaryTableBody element not found, skipping renderMediaSummary');
     return;
   }
-  
+
   mediaSummaryTableBody.innerHTML = "";
   if (!summary.length) {
     const row = document.createElement("tr");
@@ -817,7 +818,7 @@ const drawJobDetailChart = (timeline) => {
     console.warn('jobDetailChart element not found, skipping chart rendering');
     return;
   }
-  
+
   jobDetailChart.innerHTML = "";
   const width = 600;
   const height = 260;
@@ -863,15 +864,12 @@ const drawJobDetailChart = (timeline) => {
   axes.setAttribute("stroke", "#cbd5f5");
   axes.setAttribute("stroke-width", "1");
   axes.innerHTML = `
-          <line x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${
-    padding.left + plotWidth
-  }" y2="${padding.top + plotHeight}" />
-          <line x1="${padding.left}" y1="${padding.top}" x2="${
-    padding.left
-  }" y2="${padding.top + plotHeight}" />
-          <line x1="${padding.left + plotWidth}" y1="${padding.top}" x2="${
-    padding.left + plotWidth
-  }" y2="${padding.top + plotHeight}" stroke-dasharray="4 4" />
+          <line x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${padding.left + plotWidth
+    }" y2="${padding.top + plotHeight}" />
+          <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left
+    }" y2="${padding.top + plotHeight}" />
+          <line x1="${padding.left + plotWidth}" y1="${padding.top}" x2="${padding.left + plotWidth
+    }" y2="${padding.top + plotHeight}" stroke-dasharray="4 4" />
         `;
   jobDetailChart.appendChild(axes);
 
@@ -979,7 +977,7 @@ const renderJobDetailSummary = (records) => {
     console.warn('jobDetailSummary element not found, skipping renderJobDetailSummary');
     return;
   }
-  
+
   const fields = jobDetailSummary.querySelectorAll("dd");
   if (!records.length) {
     fields.forEach((field) => {
@@ -1038,7 +1036,7 @@ const renderJobDetailTable = (records) => {
     console.warn('jobDetailTableBody element not found, skipping renderJobDetailTable');
     return;
   }
-  
+
   jobDetailTableBody.innerHTML = "";
   if (!records.length) {
     const row = document.createElement("tr");
@@ -1116,8 +1114,8 @@ const renderJobDetailTable = (records) => {
       row.hires === 0 && row.introductions > 0
         ? "入社0件"
         : row.applications === 0
-        ? "応募0件"
-        : "";
+          ? "応募0件"
+          : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
             <td>${row.periodLabel}</td>
@@ -1131,9 +1129,8 @@ const renderJobDetailTable = (records) => {
             <td>${formatCostPer(row.baseCost, row.applications)}</td>
             <td>${formatCostPer(row.baseCost, row.introductions)}</td>
             <td>${formatCostPer(row.baseCost, row.hires)}</td>
-            <td class="${
-              highlight ? "text-amber-600 font-semibold" : "text-slate-500"
-            }">
+            <td class="${highlight ? "text-amber-600 font-semibold" : "text-slate-500"
+      }">
               ${highlight || "—"}
             </td>
           `;
@@ -1146,7 +1143,7 @@ const updateJobDetailSelectOptions = (jobIds) => {
     console.warn('jobDetailSelect element not found, skipping job detail select update');
     return;
   }
-  
+
   const existingValue = jobDetailSelect.value;
   jobDetailSelect.innerHTML =
     '<option value="auto">フィルター結果から自動選択</option>';
@@ -1201,7 +1198,7 @@ const renderUnmatchedQueue = () => {
     console.warn('unmatchedTableBody element not found, skipping renderUnmatchedQueue');
     return;
   }
-  
+
   unmatchedTableBody.innerHTML = "";
   if (!adState.unmatched.length) {
     unmatchedEmptyState.classList.remove("hidden");
@@ -1255,7 +1252,7 @@ const renderImportLog = () => {
     console.warn('importLogBody element not found, skipping renderImportLog');
     return;
   }
-  
+
   importLogBody.innerHTML = "";
   if (!adState.importLog.length) {
     const row = document.createElement("tr");
@@ -1282,14 +1279,14 @@ const renderImportLog = () => {
       entry.errors && entry.errors.length
         ? `エラー ${entry.errors.length}件`
         : entry.unmatched
-        ? `未突合 ${entry.unmatched}件`
-        : "完了";
+          ? `未突合 ${entry.unmatched}件`
+          : "完了";
     const resultClass =
       entry.errors && entry.errors.length
         ? "text-rose-600 font-semibold"
         : entry.unmatched
-        ? "text-amber-600 font-semibold"
-        : "text-emerald-600 font-semibold";
+          ? "text-amber-600 font-semibold"
+          : "text-emerald-600 font-semibold";
     row.innerHTML = `
             <td>${timestamp}</td>
             <td>${entry.fileName}</td>
@@ -1613,14 +1610,14 @@ const applyCandidateFilters = () => {
   );
   const toDate = toDateRaw
     ? new Date(
-        toDateRaw.getFullYear(),
-        toDateRaw.getMonth(),
-        toDateRaw.getDate(),
-        23,
-        59,
-        59,
-        999
-      )
+      toDateRaw.getFullYear(),
+      toDateRaw.getMonth(),
+      toDateRaw.getDate(),
+      23,
+      59,
+      59,
+      999
+    )
     : null;
   const activePhases = new Set(
     phaseCheckboxes
@@ -1833,7 +1830,7 @@ const populateDrawer = (row) => {
     console.warn('drawerTimeline element not found, skipping timeline rendering');
     return;
   }
-  
+
   drawerTimeline.innerHTML = "";
   const timelineRaw = row.dataset.timeline || "";
   timelineRaw.split(";").forEach((entry) => {
@@ -1877,23 +1874,23 @@ const setDefaultKpiRanges = () => {
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
-  
+
   const startDate = new Date(currentYear, currentMonth, 1);
   const endDate = new Date(currentYear, currentMonth, 12);
-  
+
   const formatDate = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  
+
   // 個人成績の期間設定
   const personalRangeStart = document.getElementById('personalRangeStart');
   const personalRangeEnd = document.getElementById('personalRangeEnd');
   if (personalRangeStart) personalRangeStart.value = formatDate(startDate);
   if (personalRangeEnd) personalRangeEnd.value = formatDate(endDate);
-  
+
   // 社内成績の期間設定
   const companyRangeStart = document.getElementById('companyRangeStart');
   const companyRangeEnd = document.getElementById('companyRangeEnd');
@@ -1944,7 +1941,7 @@ const mockEmployeeData = [
 const generateMonthlyTrendData = () => {
   const months = [];
   const today = new Date();
-  
+
   for (let i = 5; i >= 0; i--) {
     const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthStr = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
@@ -1959,7 +1956,7 @@ const generateMonthlyTrendData = () => {
       acceptRate: Math.floor(Math.random() * 25) + 50         // 50-75%
     });
   }
-  
+
   return months;
 };
 
@@ -1986,7 +1983,7 @@ const formatPercentage = (rate) => {
 // 率の計算
 const calculateRates = (data) => {
   const { proposals, recommendations, interviewsScheduled, interviewsHeld, offers, accepts, newInterviews } = data;
-  
+
   return {
     proposalRate: newInterviews > 0 ? (proposals / newInterviews) * 100 : 0,
     recommendationRate: proposals > 0 ? (recommendations / proposals) * 100 : 0,
@@ -2001,19 +1998,19 @@ const calculateRates = (data) => {
 const drawTrendChart = () => {
   const chartEl = document.getElementById('personalTrendChart');
   const legendEl = document.getElementById('personalChartLegend');
-  
+
   if (!chartEl || !legendEl) return;
-  
+
   const data = generateMonthlyTrendData();
   const width = 800;
   const height = 300;
   const padding = { top: 40, right: 40, bottom: 60, left: 60 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
-  
+
   // チャートクリア
   chartEl.innerHTML = '';
-  
+
   // 軸描画
   const axes = `
     <g stroke="#e5e7eb" stroke-width="1">
@@ -2022,7 +2019,7 @@ const drawTrendChart = () => {
     </g>
   `;
   chartEl.insertAdjacentHTML('beforeend', axes);
-  
+
   // Y軸グリッド（0-100%）
   for (let i = 0; i <= 4; i++) {
     const y = padding.top + (plotHeight * i / 4);
@@ -2032,7 +2029,7 @@ const drawTrendChart = () => {
       <text x="${padding.left - 10}" y="${y + 3}" text-anchor="end" font-size="12" fill="#6b7280">${value}%</text>
     `);
   }
-  
+
   // X軸ラベル
   data.forEach((item, index) => {
     const x = padding.left + (plotWidth * index / (data.length - 1));
@@ -2040,7 +2037,7 @@ const drawTrendChart = () => {
       <text x="${x}" y="${padding.top + plotHeight + 20}" text-anchor="middle" font-size="12" fill="#6b7280">${item.label}</text>
     `);
   });
-  
+
   // 線の色設定
   const lineColors = {
     proposalRate: '#6366f1',
@@ -2050,16 +2047,16 @@ const drawTrendChart = () => {
     offerRate: '#8b5cf6',
     acceptRate: '#06b6d4'
   };
-  
+
   const lineLabels = {
     proposalRate: '提案率',
-    recommendationRate: '推薦率', 
+    recommendationRate: '推薦率',
     interviewScheduleRate: '面談設定率',
     interviewHeldRate: '面談実施率',
     offerRate: '内定率',
     acceptRate: '承諾率'
   };
-  
+
   // 各系列の線を描画
   Object.keys(lineColors).forEach(key => {
     const points = data.map((item, index) => {
@@ -2067,11 +2064,11 @@ const drawTrendChart = () => {
       const y = padding.top + plotHeight - (plotHeight * item[key] / 100);
       return `${x},${y}`;
     }).join(' ');
-    
+
     chartEl.insertAdjacentHTML('beforeend', `
       <polyline points="${points}" fill="none" stroke="${lineColors[key]}" stroke-width="2.5" stroke-linejoin="round" />
     `);
-    
+
     // 点を描画
     data.forEach((item, index) => {
       const x = padding.left + (plotWidth * index / (data.length - 1));
@@ -2081,7 +2078,7 @@ const drawTrendChart = () => {
       `);
     });
   });
-  
+
   // 凡例生成
   legendEl.innerHTML = '';
   Object.keys(lineColors).forEach(key => {
@@ -2099,9 +2096,9 @@ const drawTrendChart = () => {
 const renderEmployeeTable = (employees = mockEmployeeData) => {
   const tableBody = document.getElementById('employeeTableBody');
   if (!tableBody) return;
-  
+
   tableBody.innerHTML = '';
-  
+
   employees.forEach(employee => {
     const rates = calculateRates(employee);
     const row = document.createElement('tr');
@@ -2128,9 +2125,9 @@ const renderEmployeeTable = (employees = mockEmployeeData) => {
 const renderEmployeeCards = (employees = mockEmployeeData) => {
   const cardContainer = document.getElementById('employeeCardContainer');
   if (!cardContainer) return;
-  
+
   cardContainer.innerHTML = '';
-  
+
   employees.forEach(employee => {
     const rates = calculateRates(employee);
     const card = document.createElement('div');
@@ -2173,48 +2170,48 @@ const updateKpiDisplay = () => {
   // 個人成績の更新
   const personalData = mockKpiData.personal;
   const personalRates = calculateRates(personalData);
-  
+
   // 売り上げ達成率と金額
   const achievementRateEl = document.getElementById('personalAchievementRate');
   const currentEl = document.getElementById('personalCurrent');
   const targetEl = document.getElementById('personalTarget');
-  
+
   if (achievementRateEl) achievementRateEl.textContent = formatPercentage(personalData.achievementRate);
   if (currentEl) currentEl.textContent = formatCurrency(personalData.currentAmount);
   if (targetEl) targetEl.textContent = formatCurrency(personalData.targetAmount);
-  
+
   // 個人成績の数値
   const personalCountFields = ['proposals', 'recommendations', 'interviewsScheduled', 'interviewsHeld', 'offers', 'accepts'];
   personalCountFields.forEach(field => {
     const el = document.getElementById(`personal${field.charAt(0).toUpperCase() + field.slice(1)}`);
     if (el) el.textContent = formatKpiNumber(personalData[field]);
   });
-  
+
   // 個人成績の率
   const personalRateFields = ['proposalRate', 'recommendationRate', 'interviewScheduleRate', 'interviewHeldRate', 'offerRate', 'acceptRate'];
   personalRateFields.forEach(field => {
     const el = document.getElementById(`personal${field.charAt(0).toUpperCase() + field.slice(1)}`);
     if (el) el.textContent = formatPercentage(personalRates[field]);
   });
-  
+
   // 社内成績の更新
   const companyData = mockKpiData.company;
   const companyRates = calculateRates(companyData);
-  
+
   // 社内成績の数値
   const companyCountFields = ['proposals', 'recommendations', 'interviewsScheduled', 'interviewsHeld', 'offers', 'accepts'];
   companyCountFields.forEach(field => {
     const el = document.getElementById(`company${field.charAt(0).toUpperCase() + field.slice(1)}`);
     if (el) el.textContent = formatKpiNumber(companyData[field]);
   });
-  
+
   // 社内成績の率
   const companyRateFields = ['proposalRate', 'recommendationRate', 'interviewScheduleRate', 'interviewHeldRate', 'offerRate', 'acceptRate'];
   companyRateFields.forEach(field => {
     const el = document.getElementById(`company${field.charAt(0).toUpperCase() + field.slice(1)}`);
     if (el) el.textContent = formatPercentage(companyRates[field]);
   });
-  
+
   // グラフとテーブルの描画
   drawTrendChart();
   renderEmployeeTable();
@@ -2224,10 +2221,10 @@ const updateKpiDisplay = () => {
 // 社員成績の並び替え
 const sortEmployees = (employees, sortKey) => {
   const [field, order] = sortKey.split('-');
-  
+
   return employees.slice().sort((a, b) => {
     let valueA, valueB;
-    
+
     if (field === 'name') {
       valueA = a.name;
       valueB = b.name;
@@ -2240,7 +2237,7 @@ const sortEmployees = (employees, sortKey) => {
       valueA = a[field] || 0;
       valueB = b[field] || 0;
     }
-    
+
     if (order === 'desc') {
       return valueB > valueA ? 1 : -1;
     } else {
@@ -2252,8 +2249,8 @@ const sortEmployees = (employees, sortKey) => {
 // 社員成績の検索
 const filterEmployees = (employees, searchTerm) => {
   if (!searchTerm.trim()) return employees;
-  
-  return employees.filter(employee => 
+
+  return employees.filter(employee =>
     employee.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 };
@@ -2264,12 +2261,12 @@ const handleKpiRangeChange = (section) => {
   const endId = `${section}RangeEnd`;
   const startEl = document.getElementById(startId);
   const endEl = document.getElementById(endId);
-  
+
   if (!startEl || !endEl) return;
-  
+
   const startDate = startEl.value;
   const endDate = endEl.value;
-  
+
   if (startDate && endDate) {
     console.log(`${section} 期間変更:`, startDate, '〜', endDate);
     // TODO: ここで実際のデータ取得処理を呼び出し
@@ -2289,7 +2286,7 @@ const setupKpiEventListeners = () => {
   const personalRangeEnd = document.getElementById('personalRangeEnd');
   const companyRangeStart = document.getElementById('companyRangeStart');
   const companyRangeEnd = document.getElementById('companyRangeEnd');
-  
+
   if (personalRangeStart) {
     personalRangeStart.addEventListener('change', () => handleKpiRangeChange('personal'));
   }
@@ -2302,41 +2299,41 @@ const setupKpiEventListeners = () => {
   if (companyRangeEnd) {
     companyRangeEnd.addEventListener('change', () => handleKpiRangeChange('company'));
   }
-  
+
   // 社員成績の検索
   const searchInput = document.getElementById('employeeSearchInput');
   const sortSelect = document.getElementById('employeeSortSelect');
   const viewToggle = document.getElementById('employeeViewToggle');
   const tableView = document.getElementById('employeeTableView');
   const cardView = document.getElementById('employeeCardView');
-  
+
   let currentEmployees = mockEmployeeData;
-  
+
   const updateEmployeeViews = () => {
     const searchTerm = searchInput ? searchInput.value : '';
     const sortKey = sortSelect ? sortSelect.value : 'name-asc';
-    
+
     let filteredEmployees = filterEmployees(mockEmployeeData, searchTerm);
     let sortedEmployees = sortEmployees(filteredEmployees, sortKey);
-    
+
     currentEmployees = sortedEmployees;
     renderEmployeeTable(currentEmployees);
     renderEmployeeCards(currentEmployees);
   };
-  
+
   if (searchInput) {
     searchInput.addEventListener('input', updateEmployeeViews);
   }
-  
+
   if (sortSelect) {
     sortSelect.addEventListener('change', updateEmployeeViews);
   }
-  
+
   // 表示切り替え
   if (viewToggle && tableView && cardView) {
     viewToggle.addEventListener('click', () => {
       const currentView = viewToggle.dataset.view;
-      
+
       if (currentView === 'table') {
         tableView.classList.add('hidden');
         cardView.classList.remove('hidden');
@@ -2661,20 +2658,20 @@ const candidatesState = {
 const renderCandidatesTable = () => {
   const tableBody = document.getElementById('candidatesTableBody');
   const countEl = document.getElementById('candidatesFilterCount');
-  
+
   if (!tableBody) return;
-  
+
   tableBody.innerHTML = '';
-  
+
   candidatesState.filteredCandidates.forEach(candidate => {
     const row = document.createElement('tr');
     row.className = 'candidates-row cursor-pointer hover:bg-indigo-50';
     row.dataset.candidateId = candidate.id;
-    
+
     // 応募日をフォーマット
     const appliedDate = new Date(candidate.appliedAt);
     const formattedDate = `${appliedDate.getFullYear()}/${String(appliedDate.getMonth() + 1).padStart(2, '0')}/${String(appliedDate.getDate()).padStart(2, '0')}`;
-    
+
     row.innerHTML = `
       <td>${formattedDate}</td>
       <td>${candidate.source}</td>
@@ -2689,13 +2686,13 @@ const renderCandidatesTable = () => {
       <td>${candidate.companyName}</td>
       <td class="whitespace-nowrap">${candidate.address}</td>
     `;
-    
+
     // 行クリックでドロワー表示
     row.addEventListener('click', () => openCandidateDrawer(candidate));
-    
+
     tableBody.appendChild(row);
   });
-  
+
   // 件数更新
   if (countEl) {
     countEl.textContent = `${candidatesState.filteredCandidates.length}件`;
@@ -2706,9 +2703,9 @@ const renderCandidatesTable = () => {
 const openCandidateDrawer = (candidate) => {
   const drawer = document.getElementById('candidateDrawer');
   const overlay = document.getElementById('drawerOverlay');
-  
+
   if (!drawer || !overlay) return;
-  
+
   // 基本情報の更新
   const drawerName = document.getElementById('drawerName');
   const drawerCompany = document.getElementById('drawerCompany');
@@ -2716,30 +2713,30 @@ const openCandidateDrawer = (candidate) => {
   const drawerPhase = document.getElementById('drawerPhase');
   const drawerInitial = document.getElementById('drawerInitial');
   const drawerStuck = document.getElementById('drawerStuck');
-  
+
   if (drawerName) drawerName.textContent = candidate.name;
   if (drawerCompany) drawerCompany.textContent = candidate.companyName;
   if (drawerOwner) drawerOwner.textContent = '候補者管理';
   if (drawerPhase) drawerPhase.textContent = '応募済み';
   if (drawerInitial) drawerInitial.textContent = `応募日 ${candidate.appliedAt}`;
   if (drawerStuck) drawerStuck.textContent = '新規';
-  
+
   // 詳細情報の更新
   const drawerAddress = document.getElementById('drawerAddress');
   const drawerPhone = document.getElementById('drawerPhone');
   const drawerEmail = document.getElementById('drawerEmail');
-  
+
   if (drawerAddress) drawerAddress.textContent = candidate.address;
   if (drawerPhone) drawerPhone.innerHTML = `<a href="tel:${candidate.phone}" class="candidates-phone">${candidate.phone}</a>`;
   if (drawerEmail) drawerEmail.innerHTML = `<a href="mailto:${candidate.email}" class="candidates-email">${candidate.email}</a>`;
-  
+
   // 架電履歴の表示
   updateCallLogSection(candidate.id);
-  
+
   // ドロワー表示
   drawer.classList.add('open');
   overlay.classList.add('visible');
-  
+
   // 現在の候補者IDを保存
   drawer.dataset.currentCandidateId = candidate.id;
 };
@@ -2748,13 +2745,13 @@ const openCandidateDrawer = (candidate) => {
 const updateCallLogSection = (candidateId) => {
   const drawerTimeline = document.getElementById('drawerTimeline');
   if (!drawerTimeline) return;
-  
+
   // 既存の架電履歴セクションをクリア
   let callLogSection = document.querySelector('.call-log-section');
   if (callLogSection) {
     callLogSection.remove();
   }
-  
+
   // 新しい架電履歴セクションを作成
   callLogSection = document.createElement('section');
   callLogSection.className = 'call-log-section';
@@ -2820,17 +2817,17 @@ const updateCallLogSection = (candidateId) => {
       </div>
     </div>
   `;
-  
+
   // ドロワーの最後に追加
   const drawerContent = document.querySelector('#candidateDrawer .flex-1.overflow-y-auto');
   if (drawerContent) {
     drawerContent.appendChild(callLogSection);
   }
-  
+
   // 該当候補者の架電履歴を表示
   const candidateCallLogs = mockCallLogs.filter(log => log.candidateId === candidateId);
   const callLogHistoryEl = document.getElementById('callLogHistory');
-  
+
   if (callLogHistoryEl) {
     if (candidateCallLogs.length === 0) {
       callLogHistoryEl.innerHTML = '<div class="call-log-item text-center text-slate-500 text-sm">架電履歴はありません</div>';
@@ -2840,7 +2837,7 @@ const updateCallLogSection = (candidateId) => {
         .map(log => {
           const callDate = new Date(log.calledAt);
           const formattedDate = `${callDate.getFullYear()}/${String(callDate.getMonth() + 1).padStart(2, '0')}/${String(callDate.getDate()).padStart(2, '0')} ${String(callDate.getHours()).padStart(2, '0')}:${String(callDate.getMinutes()).padStart(2, '0')}`;
-          
+
           return `
             <div class="call-log-item">
               <div class="call-log-date">${formattedDate} - ${log.owner}</div>
@@ -2854,7 +2851,7 @@ const updateCallLogSection = (candidateId) => {
         }).join('');
     }
   }
-  
+
   // 現在時刻をデフォルトに設定
   const newCallDateTime = document.getElementById('newCallDateTime');
   if (newCallDateTime) {
@@ -2885,21 +2882,21 @@ window.clearCallLogForm = () => {
 window.saveCallLog = () => {
   const drawer = document.getElementById('candidateDrawer');
   const candidateId = drawer?.dataset.currentCandidateId;
-  
+
   if (!candidateId) return;
-  
+
   const newCallDateTime = document.getElementById('newCallDateTime')?.value;
   const newCallOwner = document.getElementById('newCallOwner')?.value;
   const newCallResult = document.getElementById('newCallResult')?.value;
   const newCallNextAction = document.getElementById('newCallNextAction')?.value;
   const newCallNextActionDate = document.getElementById('newCallNextActionDate')?.value;
   const newCallMemo = document.getElementById('newCallMemo')?.value;
-  
+
   if (!newCallDateTime || !newCallOwner || !newCallResult) {
     alert('必須項目を入力してください。');
     return;
   }
-  
+
   // 新しい架電ログを追加
   const newCallLog = {
     id: `CL${Date.now()}`,
@@ -2912,48 +2909,48 @@ window.saveCallLog = () => {
     memo: newCallMemo,
     appointmentStatus: newCallResult === '通電' && newCallNextAction.includes('面接') ? 'scheduled' : 'pending'
   };
-  
+
   mockCallLogs.push(newCallLog);
-  
+
   // TODO: ここで実際のAPIに保存
   console.log('架電ログ保存:', newCallLog);
-  
+
   // フォームをクリア
   clearCallLogForm();
-  
+
   // 履歴を更新
   updateCallLogSection(candidateId);
-  
+
   alert('架電ログを保存しました。');
 };
 
 // 候補者フィルタリング
 const filterCandidates = () => {
   const { dateFrom, dateTo, source, name, jobTitle } = candidatesState.filters;
-  
+
   candidatesState.filteredCandidates = candidatesState.allCandidates.filter(candidate => {
     // 日付フィルタ
     if (dateFrom && candidate.appliedAt < dateFrom) return false;
     if (dateTo && candidate.appliedAt > dateTo) return false;
-    
+
     // 媒体フィルタ
     if (source && candidate.source !== source) return false;
-    
+
     // 名前フィルタ
     if (name && !candidate.name.toLowerCase().includes(name.toLowerCase())) return false;
-    
+
     // 求人名フィルタ
     if (jobTitle && !candidate.jobTitle.toLowerCase().includes(jobTitle.toLowerCase())) return false;
-    
+
     return true;
   });
-  
+
   // ソートを適用
   applyCandidatesSort();
-  
+
   // テーブルを再描画
   renderCandidatesTable();
-  
+
   // URLクエリを更新
   updateCandidatesUrlQuery();
 };
@@ -2961,27 +2958,27 @@ const filterCandidates = () => {
 // 候補者ソート
 const applyCandidatesSort = () => {
   const { field, order } = candidatesState.currentSort;
-  
+
   candidatesState.filteredCandidates.sort((a, b) => {
     let valueA = a[field];
     let valueB = b[field];
-    
+
     // 日付の場合は Date オブジェクトに変換
     if (field === 'appliedAt') {
       valueA = new Date(valueA);
       valueB = new Date(valueB);
     }
-    
+
     // 文字列の場合は小文字で比較
     if (typeof valueA === 'string') {
       valueA = valueA.toLowerCase();
       valueB = valueB.toLowerCase();
     }
-    
+
     let result = 0;
     if (valueA > valueB) result = 1;
     else if (valueA < valueB) result = -1;
-    
+
     return order === 'desc' ? -result : result;
   });
 };
@@ -2989,11 +2986,11 @@ const applyCandidatesSort = () => {
 // URLクエリの更新
 const updateCandidatesUrlQuery = () => {
   const params = new URLSearchParams();
-  
+
   Object.entries(candidatesState.filters).forEach(([key, value]) => {
     if (value) params.set(key, value);
   });
-  
+
   const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
   window.history.replaceState({}, '', newUrl);
 };
@@ -3001,7 +2998,7 @@ const updateCandidatesUrlQuery = () => {
 // URLクエリからフィルタを読み込み
 const loadCandidatesFromUrlQuery = () => {
   const params = new URLSearchParams(window.location.search);
-  
+
   Object.keys(candidatesState.filters).forEach(key => {
     const value = params.get(key);
     if (value) {
@@ -3010,7 +3007,7 @@ const loadCandidatesFromUrlQuery = () => {
       if (input) input.value = value;
     }
   });
-  
+
   filterCandidates();
 };
 
@@ -3023,7 +3020,7 @@ const setupCandidatesEventListeners = () => {
   const nameInput = document.getElementById('candidatesFilterName');
   const jobTitleInput = document.getElementById('candidatesFilterJobTitle');
   const resetButton = document.getElementById('candidatesFilterReset');
-  
+
   // 日付フィルタ
   if (dateFromInput) {
     dateFromInput.addEventListener('change', (e) => {
@@ -3031,14 +3028,14 @@ const setupCandidatesEventListeners = () => {
       filterCandidates();
     });
   }
-  
+
   if (dateToInput) {
     dateToInput.addEventListener('change', (e) => {
       candidatesState.filters.dateTo = e.target.value;
       filterCandidates();
     });
   }
-  
+
   // 媒体フィルタ
   if (sourceSelect) {
     sourceSelect.addEventListener('change', (e) => {
@@ -3046,7 +3043,7 @@ const setupCandidatesEventListeners = () => {
       filterCandidates();
     });
   }
-  
+
   // 名前検索（デバウンス）
   if (nameInput) {
     nameInput.addEventListener('input', (e) => {
@@ -3057,7 +3054,7 @@ const setupCandidatesEventListeners = () => {
       }, 300);
     });
   }
-  
+
   // 求人名検索（デバウンス）
   if (jobTitleInput) {
     jobTitleInput.addEventListener('input', (e) => {
@@ -3068,7 +3065,7 @@ const setupCandidatesEventListeners = () => {
       }, 300);
     });
   }
-  
+
   // リセットボタン
   if (resetButton) {
     resetButton.addEventListener('click', () => {
@@ -3080,25 +3077,25 @@ const setupCandidatesEventListeners = () => {
         name: '',
         jobTitle: ''
       };
-      
+
       // 入力要素をクリア
       if (dateFromInput) dateFromInput.value = '';
       if (dateToInput) dateToInput.value = '';
       if (sourceSelect) sourceSelect.value = '';
       if (nameInput) nameInput.value = '';
       if (jobTitleInput) jobTitleInput.value = '';
-      
+
       // フィルタを適用
       filterCandidates();
     });
   }
-  
+
   // ソートヘッダー
   const sortHeaders = document.querySelectorAll('[data-sort]');
   sortHeaders.forEach(header => {
     header.addEventListener('click', () => {
       const field = header.dataset.sort;
-      
+
       // 現在のソートと同じフィールドの場合は順序を反転
       if (candidatesState.currentSort.field === field) {
         candidatesState.currentSort.order = candidatesState.currentSort.order === 'asc' ? 'desc' : 'asc';
@@ -3106,17 +3103,17 @@ const setupCandidatesEventListeners = () => {
         candidatesState.currentSort.field = field;
         candidatesState.currentSort.order = 'desc';
       }
-      
+
       // ソートヘッダーのスタイル更新
       sortHeaders.forEach(h => h.classList.remove('active'));
       header.classList.add('active');
-      
+
       // ソートアイコン更新
       const icon = header.querySelector('.sort-icon') || header.querySelector('span');
       if (icon) {
         icon.textContent = candidatesState.currentSort.order === 'asc' ? '↑' : '↓';
       }
-      
+
       // ソートを適用
       applyCandidatesSort();
       renderCandidatesTable();
@@ -3128,10 +3125,10 @@ const setupCandidatesEventListeners = () => {
 const initializeCandidatesManagement = () => {
   // URLクエリからフィルタを読み込み
   loadCandidatesFromUrlQuery();
-  
+
   // 初期表示
   renderCandidatesTable();
-  
+
   // イベントリスナー設定
   setupCandidatesEventListeners();
 };
@@ -3140,14 +3137,14 @@ const initializeCandidatesManagement = () => {
 navLinks.forEach((link) => {
   link.addEventListener('click', () => {
     const target = link.dataset.target;
-    
+
     if (target === 'candidates') {
       // 候補者管理ページがアクティブになった時に初期化
       setTimeout(() => {
         initializeCandidatesManagement();
       }, 0);
     }
-    
+
     if (target === 'tele-log' || target === 'teleapo') {
       // 架電管理ページがアクティブになった時に初期化
       setTimeout(() => {
@@ -3248,29 +3245,29 @@ const initializeTeleapoManagement = () => {
   console.log('initializeTeleapoManagement called'); // デバッグログ
   console.log('teleapoData:', teleapoData); // デバッグログ
   console.log('teleapoFilters:', teleapoFilters); // デバッグログ
-  
+
   // tele-logページ内のteleapoセクションを表示
   const teleapoSection = document.querySelector('[data-page="teleapo"]');
   if (teleapoSection && teleapoSection.classList.contains('hidden')) {
     teleapoSection.classList.remove('hidden');
     console.log('Removed hidden class from teleapo section');
   }
-  
+
   // URLクエリからフィルタを読み込み
   loadTeleapoFiltersFromUrl();
-  
+
   console.log('After loadTeleapoFiltersFromUrl, filters:', teleapoFilters); // デバッグログ
-  
+
   // 初期表示
   updateTeleapoKpis();
   renderTeleapoEmployeeList();
   renderTeleapoLogTable();
   renderTeleapoHeatmap();
   renderTeleapoPersonalChart();
-  
+
   // イベントリスナー設定
   setupTeleapoEventListeners();
-  
+
   console.log('Teleapo management initialization complete'); // デバッグログ
 };
 
@@ -3278,25 +3275,25 @@ const initializeTeleapoManagement = () => {
 const renderTeleapoPersonalChart = () => {
   const svg = document.getElementById('teleapoPersonalTrendChart');
   if (!svg) return;
-  
+
   // チャートデータを生成（過去7日間のサンプルデータ）
   const chartData = generatePersonalTrendData();
-  
+
   // SVG設定
   const width = 800;
   const height = 300;
   const margin = { top: 20, right: 20, bottom: 40, left: 60 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
-  
+
   // スケール設定
   const maxY = Math.max(...chartData.map(d => Math.max(d.dials, d.connects, d.sets, d.shows)));
   const scaleX = chartWidth / (chartData.length - 1);
   const scaleY = chartHeight / maxY;
-  
+
   // SVGをクリア
   svg.innerHTML = '';
-  
+
   // 背景グリッド
   const gridLines = [];
   for (let i = 0; i <= 4; i++) {
@@ -3304,14 +3301,14 @@ const renderTeleapoPersonalChart = () => {
     gridLines.push(`<line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" stroke="#e2e8f0" stroke-width="1" />`);
   }
   svg.innerHTML += gridLines.join('');
-  
+
   // Y軸ラベル
   for (let i = 0; i <= 4; i++) {
     const value = Math.round(maxY * (4 - i) / 4);
     const y = margin.top + (chartHeight * i / 4);
     svg.innerHTML += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#64748b">${value}</text>`;
   }
-  
+
   // データライン描画
   const colors = {
     dials: '#3b82f6',
@@ -3319,18 +3316,18 @@ const renderTeleapoPersonalChart = () => {
     sets: '#f59e0b',
     shows: '#ef4444'
   };
-  
+
   const metrics = ['dials', 'connects', 'sets', 'shows'];
-  
+
   metrics.forEach(metric => {
     const points = chartData.map((d, i) => {
       const x = margin.left + (i * scaleX);
       const y = margin.top + chartHeight - (d[metric] * scaleY);
       return `${x},${y}`;
     }).join(' ');
-    
+
     svg.innerHTML += `<polyline points="${points}" fill="none" stroke="${colors[metric]}" stroke-width="2" />`;
-    
+
     // データポイント
     chartData.forEach((d, i) => {
       const x = margin.left + (i * scaleX);
@@ -3338,14 +3335,14 @@ const renderTeleapoPersonalChart = () => {
       svg.innerHTML += `<circle cx="${x}" cy="${y}" r="4" fill="${colors[metric]}" />`;
     });
   });
-  
+
   // X軸ラベル
   chartData.forEach((d, i) => {
     const x = margin.left + (i * scaleX);
     const y = margin.top + chartHeight + 20;
     svg.innerHTML += `<text x="${x}" y="${y}" text-anchor="middle" font-size="11" fill="#64748b">${d.date}</text>`;
   });
-  
+
   // 凡例を更新
   const legend = document.getElementById('teleapoPersonalChartLegend');
   if (legend) {
@@ -3376,14 +3373,14 @@ const renderTeleapoPersonalChart = () => {
 const generatePersonalTrendData = () => {
   const data = [];
   const today = new Date();
-  
+
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    
+
     const dayOfWeek = date.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    
+
     if (isWeekend) {
       // 週末は少なめ
       data.push({
@@ -3399,7 +3396,7 @@ const generatePersonalTrendData = () => {
       const connects = Math.floor(dials * (0.4 + Math.random() * 0.3));
       const sets = Math.floor(connects * (0.2 + Math.random() * 0.2));
       const shows = Math.floor(sets * (0.7 + Math.random() * 0.3));
-      
+
       data.push({
         date: `${date.getMonth() + 1}/${date.getDate()}`,
         dials,
@@ -3409,14 +3406,14 @@ const generatePersonalTrendData = () => {
       });
     }
   }
-  
+
   return data;
 };
 
 // URLクエリからフィルタを読み込み
 const loadTeleapoFiltersFromUrl = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  
+
   if (urlParams.get('teleapo_date_start')) {
     teleapoFilters.dateStart = urlParams.get('teleapo_date_start');
   }
@@ -3429,7 +3426,7 @@ const loadTeleapoFiltersFromUrl = () => {
   if (urlParams.get('teleapo_result')) {
     teleapoFilters.result = urlParams.get('teleapo_result');
   }
-  
+
   // 日付入力フィールドに値を設定
   const personalStartInput = document.getElementById('teleapoPersonalRangeStart');
   const personalEndInput = document.getElementById('teleapoPersonalRangeEnd');
@@ -3439,7 +3436,7 @@ const loadTeleapoFiltersFromUrl = () => {
   const logEndInput = document.getElementById('teleapoLogRangeEnd');
   const analysisStartInput = document.getElementById('teleapoAnalysisRangeStart');
   const analysisEndInput = document.getElementById('teleapoAnalysisRangeEnd');
-  
+
   if (personalStartInput) personalStartInput.value = teleapoFilters.dateStart;
   if (personalEndInput) personalEndInput.value = teleapoFilters.dateEnd;
   if (companyStartInput) companyStartInput.value = teleapoFilters.dateStart;
@@ -3448,11 +3445,11 @@ const loadTeleapoFiltersFromUrl = () => {
   if (logEndInput) logEndInput.value = teleapoFilters.dateEnd;
   if (analysisStartInput) analysisStartInput.value = teleapoFilters.dateStart;
   if (analysisEndInput) analysisEndInput.value = teleapoFilters.dateEnd;
-  
+
   // フィルタ入力フィールドに値を設定
   const employeeFilter = document.getElementById('teleapoLogEmployeeFilter');
   const resultFilter = document.getElementById('teleapoLogResultFilter');
-  
+
   if (employeeFilter) employeeFilter.value = teleapoFilters.employee;
   if (resultFilter) resultFilter.value = teleapoFilters.result;
 };
@@ -3460,31 +3457,31 @@ const loadTeleapoFiltersFromUrl = () => {
 // フィルタをURLクエリに保存
 const saveTeleapoFiltersToUrl = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  
+
   if (teleapoFilters.dateStart !== '2024-11-01') {
     urlParams.set('teleapo_date_start', teleapoFilters.dateStart);
   } else {
     urlParams.delete('teleapo_date_start');
   }
-  
+
   if (teleapoFilters.dateEnd !== '2024-11-13') {
     urlParams.set('teleapo_date_end', teleapoFilters.dateEnd);
   } else {
     urlParams.delete('teleapo_date_end');
   }
-  
+
   if (teleapoFilters.employee) {
     urlParams.set('teleapo_employee', teleapoFilters.employee);
   } else {
     urlParams.delete('teleapo_employee');
   }
-  
+
   if (teleapoFilters.result) {
     urlParams.set('teleapo_result', teleapoFilters.result);
   } else {
     urlParams.delete('teleapo_result');
   }
-  
+
   const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
   window.history.replaceState({}, '', newUrl);
 };
@@ -3492,22 +3489,22 @@ const saveTeleapoFiltersToUrl = () => {
 // KPIを更新
 const updateTeleapoKpis = () => {
   console.log('updateTeleapoKpis called'); // デバッグログ
-  
+
   const filteredLogs = getFilteredTeleapoLogs();
   console.log('Filtered logs count:', filteredLogs.length); // デバッグログ
-  
+
   // 個人成績KPIを更新
   const personalDials = filteredLogs.length;
   const personalConnects = filteredLogs.filter(log => ['通電', '設定', '着座'].includes(log.result)).length;
   const personalSets = filteredLogs.filter(log => ['設定', '着座'].includes(log.result)).length;
   const personalShows = filteredLogs.filter(log => log.result === '着座').length;
-  
+
   const personalConnectRate = personalDials > 0 ? Math.round((personalConnects / personalDials) * 100) : 0;
   const personalSetRate = personalConnects > 0 ? Math.round((personalSets / personalConnects) * 100) : 0;
   const personalShowRate = personalSets > 0 ? Math.round((personalShows / personalSets) * 100) : 0;
-  
+
   console.log('Personal KPIs:', { personalDials, personalConnects, personalSets, personalShows, personalConnectRate, personalSetRate, personalShowRate }); // デバッグログ
-  
+
   updateElementText('teleapoPersonalDials', personalDials.toLocaleString());
   updateElementText('teleapoPersonalConnects', personalConnects.toLocaleString());
   updateElementText('teleapoPersonalSets', personalSets.toLocaleString());
@@ -3515,7 +3512,7 @@ const updateTeleapoKpis = () => {
   updateElementText('teleapoPersonalConnectRate', `${personalConnectRate}%`);
   updateElementText('teleapoPersonalSetRate', `${personalSetRate}%`);
   updateElementText('teleapoPersonalShowRate', `${personalShowRate}%`);
-  
+
   // メタ情報も更新
   const personalConnectRateCard = document.querySelector('#teleapoPersonalConnectRate').closest('.kpi-v2-card');
   if (personalConnectRateCard) {
@@ -3524,7 +3521,7 @@ const updateTeleapoKpis = () => {
       metaElement.textContent = `通電数 ${personalConnects} / 架電数 ${personalDials}`;
     }
   }
-  
+
   const personalSetRateCard = document.querySelector('#teleapoPersonalSetRate').closest('.kpi-v2-card');
   if (personalSetRateCard) {
     const metaElement = personalSetRateCard.querySelector('.kpi-v2-meta');
@@ -3532,7 +3529,7 @@ const updateTeleapoKpis = () => {
       metaElement.textContent = `設定数 ${personalSets} / 通電数 ${personalConnects}`;
     }
   }
-  
+
   const personalShowRateCard = document.querySelector('#teleapoPersonalShowRate').closest('.kpi-v2-card');
   if (personalShowRateCard) {
     const metaElement = personalShowRateCard.querySelector('.kpi-v2-meta');
@@ -3540,17 +3537,17 @@ const updateTeleapoKpis = () => {
       metaElement.textContent = `着座数 ${personalShows} / 設定数 ${personalSets}`;
     }
   }
-  
+
   // 会社全体のKPIは既存データを使用
   updateElementText('teleapoCompanyDials', teleapoData.companyKpis.dials.toLocaleString());
   updateElementText('teleapoCompanyConnects', teleapoData.companyKpis.connects.toLocaleString());
   updateElementText('teleapoCompanySets', teleapoData.companyKpis.sets.toLocaleString());
   updateElementText('teleapoCompanyShows', teleapoData.companyKpis.shows.toLocaleString());
-  
+
   const companyConnectRate = Math.round((teleapoData.companyKpis.connects / teleapoData.companyKpis.dials) * 100);
   const companySetRate = Math.round((teleapoData.companyKpis.sets / teleapoData.companyKpis.connects) * 100);
   const companyShowRate = Math.round((teleapoData.companyKpis.shows / teleapoData.companyKpis.sets) * 100);
-  
+
   updateElementText('teleapoCompanyConnectRate', `${companyConnectRate}%`);
   updateElementText('teleapoCompanySetRate', `${companySetRate}%`);
   updateElementText('teleapoCompanyShowRate', `${companyShowRate}%`);
@@ -3561,23 +3558,23 @@ const getFilteredTeleapoLogs = () => {
   console.log('getFilteredTeleapoLogs called');
   console.log('teleapoData.callLogs length:', teleapoData.callLogs ? teleapoData.callLogs.length : 'undefined');
   console.log('teleapoFilters:', teleapoFilters);
-  
+
   if (!teleapoData.callLogs) {
     console.error('teleapoData.callLogs is undefined');
     return [];
   }
-  
+
   return teleapoData.callLogs.filter(log => {
     const logDate = new Date(log.datetime);
     const startDate = new Date(teleapoFilters.dateStart);
     const endDate = new Date(teleapoFilters.dateEnd);
     endDate.setHours(23, 59, 59, 999); // 終了日の最後まで含める
-    
+
     if (logDate < startDate || logDate > endDate) return false;
     if (teleapoFilters.employee && log.employee !== teleapoFilters.employee) return false;
     if (teleapoFilters.result && log.result !== teleapoFilters.result) return false;
     if (teleapoFilters.target && !log.target.toLowerCase().includes(teleapoFilters.target.toLowerCase())) return false;
-    
+
     return true;
   });
 };
@@ -3586,7 +3583,7 @@ const getFilteredTeleapoLogs = () => {
 const renderTeleapoEmployeeList = () => {
   const container = document.getElementById('teleapoEmployeeTableBody');
   if (!container) return;
-  
+
   // 社員ごとの集計データを生成
   const employeeStats = teleapoData.employees.map(employee => {
     const employeeLogs = teleapoData.callLogs.filter(log => log.employee === employee);
@@ -3594,30 +3591,30 @@ const renderTeleapoEmployeeList = () => {
     const connects = employeeLogs.filter(log => ['通電', '設定', '着座'].includes(log.result)).length;
     const sets = employeeLogs.filter(log => ['設定', '着座'].includes(log.result)).length;
     const shows = employeeLogs.filter(log => log.result === '着座').length;
-    
+
     const connectRate = dials > 0 ? Math.round((connects / dials) * 100) : 0;
     const setRate = connects > 0 ? Math.round((sets / connects) * 100) : 0;
     const showRate = sets > 0 ? Math.round((shows / sets) * 100) : 0;
-    
+
     return { employee, dials, connects, sets, shows, connectRate, setRate, showRate };
   });
-  
+
   // ソート
   const sortSelect = document.getElementById('teleapoEmployeeSortSelect');
   const sortValue = sortSelect ? sortSelect.value : 'name-asc';
   const [sortField, sortOrder] = sortValue.split('-');
-  
+
   employeeStats.sort((a, b) => {
     let aVal = a[sortField === 'name' ? 'employee' : sortField];
     let bVal = b[sortField === 'name' ? 'employee' : sortField];
-    
+
     if (typeof aVal === 'string') {
       return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
-    
+
     return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
   });
-  
+
   // テーブル行生成
   container.innerHTML = employeeStats.map(stat => `
     <tr>
@@ -3637,7 +3634,7 @@ const renderTeleapoEmployeeList = () => {
 const renderTeleapoLogTable = () => {
   const tbody = document.getElementById('teleapoLogTableBody');
   if (!tbody) return;
-  
+
   const filteredLogs = getFilteredTeleapoLogs();
   const sortedLogs = [...filteredLogs].sort((a, b) => {
     if (teleapoFilters.sortBy === 'datetime') {
@@ -3645,22 +3642,22 @@ const renderTeleapoLogTable = () => {
       const bDate = new Date(b.datetime);
       return teleapoFilters.sortOrder === 'desc' ? bDate - aDate : aDate - bDate;
     }
-    
+
     const aVal = a[teleapoFilters.sortBy];
     const bVal = b[teleapoFilters.sortBy];
-    
+
     if (typeof aVal === 'string') {
       return teleapoFilters.sortOrder === 'desc' ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
     }
-    
+
     return teleapoFilters.sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
   });
-  
+
   // ページネーション
   const startIndex = (teleapoFilters.currentPage - 1) * teleapoFilters.pageSize;
   const endIndex = startIndex + teleapoFilters.pageSize;
   const pagedLogs = sortedLogs.slice(startIndex, endIndex);
-  
+
   // 結果のバッジスタイルマッピング
   const resultBadgeStyles = {
     '通電': 'bg-blue-100 text-blue-700',
@@ -3669,7 +3666,7 @@ const renderTeleapoLogTable = () => {
     '不在': 'bg-slate-100 text-slate-600',
     'コールバック': 'bg-amber-100 text-amber-700'
   };
-  
+
   tbody.innerHTML = pagedLogs.map(log => {
     const formattedDateTime = new Date(log.datetime).toLocaleString('ja-JP', {
       year: 'numeric',
@@ -3678,9 +3675,9 @@ const renderTeleapoLogTable = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-    
+
     const badgeClass = resultBadgeStyles[log.result] || 'bg-slate-100 text-slate-600';
-    
+
     return `
       <tr>
         <td class="whitespace-nowrap">${formattedDateTime}</td>
@@ -3695,7 +3692,7 @@ const renderTeleapoLogTable = () => {
       </tr>
     `;
   }).join('');
-  
+
   // ページネーション情報を更新
   const totalPages = Math.ceil(sortedLogs.length / teleapoFilters.pageSize);
   updateTeleapoLogPagination(totalPages, sortedLogs.length);
@@ -3707,7 +3704,7 @@ const updateTeleapoLogPagination = (totalPages, totalCount) => {
   const prevBtn = document.getElementById('teleapoLogPrevBtn');
   const nextBtn = document.getElementById('teleapoLogNextBtn');
   const pageInfo = document.getElementById('teleapoLogPageInfo');
-  
+
   if (prevBtn) prevBtn.disabled = teleapoFilters.currentPage <= 1;
   if (nextBtn) nextBtn.disabled = teleapoFilters.currentPage >= totalPages;
   if (pageInfo) pageInfo.textContent = `${teleapoFilters.currentPage} / ${totalPages}`;
@@ -3717,17 +3714,17 @@ const updateTeleapoLogPagination = (totalPages, totalCount) => {
 const renderTeleapoHeatmap = () => {
   const heatmapContainer = document.getElementById('teleapoAnalysisHeatmapContainer');
   if (!heatmapContainer) return;
-  
+
   // 時間帯（9時から18時）
   const hours = Array.from({ length: 10 }, (_, i) => i + 9);
   const weekdays = ['月', '火', '水', '木', '金'];
-  
+
   // ヒートマップデータを生成（架電数ベース）
   const heatmapData = generateHeatmapData(weekdays, hours);
-  
+
   // 最大値を取得してスケール用に使用
   const maxValue = Math.max(...Object.values(heatmapData));
-  
+
   // ヒートマップHTML生成
   const heatmapHtml = `
     <div class="teleapo-heatmap">
@@ -3741,12 +3738,12 @@ const renderTeleapoHeatmap = () => {
         <div class="teleapo-heatmap-row">
           <div class="teleapo-heatmap-weekday">${weekday}</div>
           ${hours.map(hour => {
-            const key = `${weekday}-${hour}`;
-            const value = heatmapData[key] || 0;
-            const intensity = maxValue > 0 ? value / maxValue : 0;
-            const opacity = 0.1 + (intensity * 0.9);
-            
-            return `
+    const key = `${weekday}-${hour}`;
+    const value = heatmapData[key] || 0;
+    const intensity = maxValue > 0 ? value / maxValue : 0;
+    const opacity = 0.1 + (intensity * 0.9);
+
+    return `
               <div class="teleapo-heatmap-cell" 
                    data-weekday="${weekday}" 
                    data-hour="${hour}" 
@@ -3756,7 +3753,7 @@ const renderTeleapoHeatmap = () => {
                 <span class="teleapo-heatmap-value">${value > 0 ? value : ''}</span>
               </div>
             `;
-          }).join('')}
+  }).join('')}
         </div>
       `).join('')}
     </div>
@@ -3764,16 +3761,16 @@ const renderTeleapoHeatmap = () => {
       <span class="text-sm text-gray-600">少ない</span>
       <div class="teleapo-heatmap-scale">
         ${Array.from({ length: 5 }, (_, i) => {
-          const opacity = 0.1 + (i * 0.225);
-          return `<div class="teleapo-heatmap-scale-item" style="background-color: rgba(34, 197, 94, ${opacity})"></div>`;
-        }).join('')}
+    const opacity = 0.1 + (i * 0.225);
+    return `<div class="teleapo-heatmap-scale-item" style="background-color: rgba(34, 197, 94, ${opacity})"></div>`;
+  }).join('')}
       </div>
       <span class="text-sm text-gray-600">多い</span>
     </div>
   `;
-  
+
   heatmapContainer.innerHTML = heatmapHtml;
-  
+
   // セルのホバーイベント
   const cells = heatmapContainer.querySelectorAll('.teleapo-heatmap-cell');
   cells.forEach(cell => {
@@ -3790,34 +3787,34 @@ const renderTeleapoHeatmap = () => {
 // ヒートマップデータを生成
 const generateHeatmapData = (weekdays, hours) => {
   const data = {};
-  
+
   // 現在の日付から過去の週の架電データをシミュレート
   const now = new Date();
   const currentWeekday = now.getDay(); // 0=日曜日, 1=月曜日, ...
-  
+
   weekdays.forEach((weekday, weekIndex) => {
     hours.forEach(hour => {
       const key = `${weekday}-${hour}`;
-      
+
       // 曜日と時間帯による架電数のパターン
       let baseCount = 0;
-      
+
       // 時間帯による調整（朝と夕方は少なめ、昼間は多め）
       if (hour >= 10 && hour <= 16) {
         baseCount = Math.floor(Math.random() * 20) + 10; // 10-30件
       } else {
         baseCount = Math.floor(Math.random() * 10) + 2;  // 2-12件
       }
-      
+
       // 曜日による調整（火-木は多め、月金は普通）
       if (weekIndex >= 1 && weekIndex <= 3) {
         baseCount = Math.floor(baseCount * 1.2);
       }
-      
+
       data[key] = baseCount;
     });
   });
-  
+
   return data;
 };
 
@@ -3830,7 +3827,7 @@ const setupTeleapoEventListeners = () => {
     'teleapoLogRangeStart', 'teleapoLogRangeEnd',
     'teleapoAnalysisRangeStart', 'teleapoAnalysisRangeEnd'
   ];
-  
+
   rangePickers.forEach(id => {
     const element = document.getElementById(id);
     if (element) {
@@ -3851,7 +3848,7 @@ const setupTeleapoEventListeners = () => {
             if (el && el !== element) el.value = element.value;
           });
         }
-        
+
         saveTeleapoFiltersToUrl();
         updateTeleapoKpis();
         renderTeleapoLogTable();
@@ -3860,7 +3857,7 @@ const setupTeleapoEventListeners = () => {
       });
     }
   });
-  
+
   // フィルタの変更イベント
   const employeeFilter = document.getElementById('teleapoLogEmployeeFilter');
   if (employeeFilter) {
@@ -3872,7 +3869,7 @@ const setupTeleapoEventListeners = () => {
       renderTeleapoLogTable();
     });
   }
-  
+
   const resultFilter = document.getElementById('teleapoLogResultFilter');
   if (resultFilter) {
     resultFilter.addEventListener('change', () => {
@@ -3882,7 +3879,7 @@ const setupTeleapoEventListeners = () => {
       renderTeleapoLogTable();
     });
   }
-  
+
   const targetSearch = document.getElementById('teleapoLogTargetSearch');
   if (targetSearch) {
     let searchTimeout;
@@ -3895,7 +3892,7 @@ const setupTeleapoEventListeners = () => {
       }, 300); // 300msデバウンス
     });
   }
-  
+
   // フィルタリセット
   const resetBtn = document.getElementById('teleapoLogFilterReset');
   if (resetBtn) {
@@ -3904,16 +3901,16 @@ const setupTeleapoEventListeners = () => {
       teleapoFilters.result = '';
       teleapoFilters.target = '';
       teleapoFilters.currentPage = 1;
-      
+
       if (employeeFilter) employeeFilter.value = '';
       if (resultFilter) resultFilter.value = '';
       if (targetSearch) targetSearch.value = '';
-      
+
       saveTeleapoFiltersToUrl();
       renderTeleapoLogTable();
     });
   }
-  
+
   // ページネーション
   const prevBtn = document.getElementById('teleapoLogPrevBtn');
   if (prevBtn) {
@@ -3924,7 +3921,7 @@ const setupTeleapoEventListeners = () => {
       }
     });
   }
-  
+
   const nextBtn = document.getElementById('teleapoLogNextBtn');
   if (nextBtn) {
     nextBtn.addEventListener('click', () => {
@@ -3936,7 +3933,7 @@ const setupTeleapoEventListeners = () => {
       }
     });
   }
-  
+
   const pageSizeSelect = document.getElementById('teleapoLogPageSize');
   if (pageSizeSelect) {
     pageSizeSelect.addEventListener('change', () => {
@@ -3945,7 +3942,7 @@ const setupTeleapoEventListeners = () => {
       renderTeleapoLogTable();
     });
   }
-  
+
   // ソート
   const sortableHeaders = document.querySelectorAll('#teleapoLogTable .sortable');
   sortableHeaders.forEach(header => {
@@ -3957,22 +3954,22 @@ const setupTeleapoEventListeners = () => {
         teleapoFilters.sortBy = sortField;
         teleapoFilters.sortOrder = 'desc';
       }
-      
+
       // ソートインジケーターを更新
       sortableHeaders.forEach(h => {
         const arrow = h.querySelector('span');
         if (arrow) arrow.textContent = '▼';
       });
-      
+
       const currentArrow = header.querySelector('span');
       if (currentArrow) {
         currentArrow.textContent = teleapoFilters.sortOrder === 'desc' ? '▼' : '▲';
       }
-      
+
       renderTeleapoLogTable();
     });
   });
-  
+
   // 社員成績ソート
   const employeeSortSelect = document.getElementById('teleapoEmployeeSortSelect');
   if (employeeSortSelect) {
@@ -3980,7 +3977,7 @@ const setupTeleapoEventListeners = () => {
       renderTeleapoEmployeeList();
     });
   }
-  
+
   // 手入力フォーム
   const manualSaveBtn = document.getElementById('teleapoManualSave');
   if (manualSaveBtn) {
@@ -3988,7 +3985,7 @@ const setupTeleapoEventListeners = () => {
       saveManualCallLog();
     });
   }
-  
+
   const manualResetBtn = document.getElementById('teleapoManualReset');
   if (manualResetBtn) {
     manualResetBtn.addEventListener('click', () => {
@@ -3998,13 +3995,13 @@ const setupTeleapoEventListeners = () => {
   // CSVインポート機能
   const csvInput = document.getElementById('teleapoCsvInput');
   const csvUploadBtn = document.getElementById('teleapoCsvUpload');
-  
+
   if (csvUploadBtn) {
     csvUploadBtn.addEventListener('click', () => {
       if (csvInput) csvInput.click();
     });
   }
-  
+
   if (csvInput) {
     csvInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -4022,30 +4019,30 @@ const importCallLogsCsv = (file) => {
     try {
       const csv = e.target.result;
       const lines = csv.split('\n');
-      
+
       // ヘッダー行をスキップ
       const dataLines = lines.slice(1).filter(line => line.trim());
-      
+
       let importCount = 0;
       const errors = [];
-      
+
       dataLines.forEach((line, index) => {
         try {
           const columns = parseCsvLine(line);
-          
+
           if (columns.length < 5) {
             errors.push(`行${index + 2}: カラム数が不足しています`);
             return;
           }
-          
+
           const [datetime, employee, target, phone, email, result, memo] = columns;
-          
+
           // バリデーション
           if (!datetime || !employee || !target || !result) {
             errors.push(`行${index + 2}: 必須項目が不足しています`);
             return;
           }
-          
+
           const newLog = {
             id: teleapoData.callLogs.length + importCount + 1,
             datetime: datetime,
@@ -4056,14 +4053,14 @@ const importCallLogsCsv = (file) => {
             result: result.trim(),
             memo: memo ? memo.trim() : ''
           };
-          
+
           teleapoData.callLogs.unshift(newLog);
           importCount++;
         } catch (error) {
           errors.push(`行${index + 2}: ${error.message}`);
         }
       });
-      
+
       // インポート結果を表示
       let message = `${importCount}件のログをインポートしました。`;
       if (errors.length > 0) {
@@ -4072,22 +4069,22 @@ const importCallLogsCsv = (file) => {
           message += '\n...他に' + (errors.length - 5) + '件';
         }
       }
-      
+
       alert(message);
-      
+
       if (importCount > 0) {
         updateTeleapoKpis();
         renderTeleapoLogTable();
       }
-      
+
     } catch (error) {
       alert('CSVファイルの読み込みに失敗しました: ' + error.message);
     }
-    
+
     // ファイル入力をリセット
     csvInput.value = '';
   };
-  
+
   reader.readAsText(file, 'UTF-8');
 };
 
@@ -4096,10 +4093,10 @@ const parseCsvLine = (line) => {
   const result = [];
   let current = '';
   let inQuotes = false;
-  
+
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-    
+
     if (char === '"') {
       if (inQuotes && line[i + 1] === '"') {
         // エスケープされた引用符
@@ -4117,10 +4114,10 @@ const parseCsvLine = (line) => {
       current += char;
     }
   }
-  
+
   // 最後のカラム
   result.push(current);
-  
+
   return result.map(item => item.trim());
 };
 const saveManualCallLog = () => {
@@ -4131,12 +4128,12 @@ const saveManualCallLog = () => {
   const email = document.getElementById('teleapoManualEmail').value;
   const result = document.getElementById('teleapoManualResult').value;
   const memo = document.getElementById('teleapoManualMemo').value;
-  
+
   if (!datetime || !employee || !target || !result) {
     alert('必須項目を入力してください。');
     return;
   }
-  
+
   const newLog = {
     id: teleapoData.callLogs.length + 1,
     datetime,
@@ -4147,13 +4144,13 @@ const saveManualCallLog = () => {
     result,
     memo: memo || ''
   };
-  
+
   teleapoData.callLogs.unshift(newLog); // 最新を先頭に追加
-  
+
   updateTeleapoKpis();
   renderTeleapoLogTable();
   resetManualForm();
-  
+
   alert('架電ログを保存しました。');
 };
 
@@ -4356,7 +4353,7 @@ const initializeReferralManagement = () => {
   console.log('initializeReferralManagement called'); // デバッグログ
   // 初期表示
   renderReferralTable();
-  
+
   // イベントリスナー設定
   setupReferralEventListeners();
   setupMatchingEventListeners();
@@ -4371,22 +4368,22 @@ const renderReferralTable = () => {
     console.error('referralTableBody not found'); // デバッグログ
     return;
   }
-  
+
   const tableRows = [];
   console.log('Companies data:', referralData.companies); // デバッグログ
-  
+
   referralData.companies.forEach(company => {
     // 各職種の行を追加
     company.jobs.forEach(job => {
       const remaining = job.planHeadcount - job.hiredCount;
       const retentionRate = job.joined > 0 ? Math.round((job.retainedCount / job.joined) * 100) : 0;
-      
+
       // 残り人数の色分けクラス
       let remainingClass = 'remaining-excess';
       if (remaining > 5) remainingClass = 'remaining-critical';
       else if (remaining >= 1) remainingClass = 'remaining-warning';
       else if (remaining === 0) remainingClass = 'remaining-ok';
-      
+
       tableRows.push(`
         <tr class="company-row" data-company-id="${company.companyId}">
           <td class="sticky left-0 bg-white z-10">${company.companyName}</td>
@@ -4404,7 +4401,7 @@ const renderReferralTable = () => {
         </tr>
       `);
     });
-    
+
     // 企業合計行を追加
     const totalPlanHeadcount = company.jobs.reduce((sum, job) => sum + job.planHeadcount, 0);
     const totalHiredCount = company.jobs.reduce((sum, job) => sum + job.hiredCount, 0);
@@ -4418,12 +4415,12 @@ const renderReferralTable = () => {
     const totalPrejoinDeclines = company.jobs.reduce((sum, job) => sum + job.prejoinDeclines, 0);
     const totalRemaining = totalPlanHeadcount - totalHiredCount;
     const totalRetentionRate = totalJoined > 0 ? Math.round((totalRetained / totalJoined) * 100) : 0;
-    
+
     let totalRemainingClass = 'remaining-excess';
     if (totalRemaining > 5) totalRemainingClass = 'remaining-critical';
     else if (totalRemaining >= 1) totalRemainingClass = 'remaining-warning';
     else if (totalRemaining === 0) totalRemainingClass = 'remaining-ok';
-    
+
     tableRows.push(`
       <tr class="company-total-row" data-company-id="${company.companyId}">
         <td class="sticky left-0 bg-slate-50 z-10">${company.companyName} 合計</td>
@@ -4441,9 +4438,9 @@ const renderReferralTable = () => {
       </tr>
     `);
   });
-  
+
   tbody.innerHTML = tableRows.join('');
-  
+
   // フィルタ件数を更新
   updateFilterCount('referralFilterCount', referralData.companies.length);
 };
@@ -4456,10 +4453,10 @@ const showCompanyDrawer = (companyId) => {
     console.error('Company not found for ID:', companyId); // デバッグログ
     return;
   }
-  
+
   console.log('Company found:', company.companyName); // デバッグログ
   selectedCompany = company;
-  
+
   // 企業情報を設定
   document.getElementById('companyDrawerName').textContent = company.detail.company.name;
   document.getElementById('companyDrawerLocation').textContent = company.detail.company.address;
@@ -4468,47 +4465,47 @@ const showCompanyDrawer = (companyId) => {
   document.getElementById('companyInfo_contact').textContent = company.detail.company.contact;
   document.getElementById('companyInfo_industry').textContent = company.detail.company.industry;
   document.getElementById('companyInfo_profile').textContent = company.detail.company.profile;
-  
+
   // 指標サマリーを計算・設定
   const totalProposal = company.jobs.reduce((sum, job) => sum + job.proposal, 0);
   const totalHired = company.jobs.reduce((sum, job) => sum + job.hiredCount, 0);
   const totalRetained = company.jobs.reduce((sum, job) => sum + job.retainedCount, 0);
   const totalFee = company.jobs.reduce((sum, job) => sum + job.fee, 0);
-  const avgLeadTime = company.jobs.length > 0 
+  const avgLeadTime = company.jobs.length > 0
     ? Math.round(company.jobs.reduce((sum, job) => sum + job.avgLeadTimeDays, 0) / company.jobs.length)
     : 0;
   const totalPrejoinDeclines = company.jobs.reduce((sum, job) => sum + job.prejoinDeclines, 0);
   const retentionRate = totalHired > 0 ? Math.round((totalRetained / totalHired) * 100) : 0;
-  
+
   document.getElementById('summary_proposal').textContent = totalProposal.toLocaleString();
   document.getElementById('summary_hired').textContent = totalHired.toLocaleString();
   document.getElementById('summary_retention').textContent = `${retentionRate}%`;
   document.getElementById('summary_fee').textContent = `¥${totalFee.toLocaleString()}`;
   document.getElementById('summary_leadtime').textContent = `${avgLeadTime}日`;
   document.getElementById('summary_prejoinDeclines').textContent = totalPrejoinDeclines.toLocaleString();
-  
+
   // 欲しい人材情報を設定
   document.getElementById('wants_skills').textContent = company.detail.wants.skills;
   document.getElementById('wants_experience').textContent = company.detail.wants.experience;
   document.getElementById('wants_traits').textContent = company.detail.wants.traits;
-  
+
   // ドロワー要素の存在確認
   const overlay = document.getElementById('companyDrawerOverlay');
   const drawer = document.getElementById('companyDrawer');
-  
+
   console.log('Overlay element:', overlay); // デバッグログ
   console.log('Drawer element:', drawer); // デバッグログ
-  
+
   if (!overlay) {
     console.error('companyDrawerOverlay element not found!');
     return;
   }
-  
+
   if (!drawer) {
     console.error('companyDrawer element not found!');
     return;
   }
-  
+
   // ドロワーを表示
   if (DEBUG) console.log('Showing drawer...');
   overlay.classList.remove('hidden');
@@ -4519,7 +4516,7 @@ const showCompanyDrawer = (companyId) => {
   overlay.style.inset = '0';
   overlay.style.background = 'rgba(15, 23, 42, 0.6)';
   overlay.style.zIndex = '40';
-  
+
   drawer.style.position = 'fixed';
   drawer.style.top = '0';
   drawer.style.right = '0';
@@ -4531,7 +4528,7 @@ const showCompanyDrawer = (companyId) => {
   drawer.style.zIndex = '50';
   drawer.style.overflowY = 'auto';
   drawer.style.borderLeft = '1px solid #e2e8f0';
-  
+
   console.log('Overlay classes after show:', overlay.classList.toString()); // デバッグログ
   console.log('Drawer classes after show:', drawer.classList.toString()); // デバッグログ
   console.log('Overlay computed style display:', window.getComputedStyle(overlay).display); // デバッグログ
@@ -4539,7 +4536,7 @@ const showCompanyDrawer = (companyId) => {
   console.log('Drawer computed style background:', window.getComputedStyle(drawer).backgroundColor); // デバッグログ
   console.log('Drawer computed style width:', window.getComputedStyle(drawer).width); // デバッグログ
   console.log('Drawer computed style z-index:', window.getComputedStyle(drawer).zIndex); // デバッグログ
-  
+
   // フォーカストラップ設定
   drawer.focus();
 };
@@ -4548,19 +4545,19 @@ const showCompanyDrawer = (companyId) => {
 const hideCompanyDrawer = () => {
   const overlay = document.getElementById('companyDrawerOverlay');
   const drawer = document.getElementById('companyDrawer');
-  
+
   if (overlay) {
     overlay.classList.add('hidden');
     overlay.classList.remove('visible');
   }
-  
+
   if (drawer) {
     drawer.classList.add('hidden');
     drawer.classList.remove('open'); // CSS用のクラス削除
     // インラインスタイルをクリア
     drawer.style.right = '-500px';
   }
-  
+
   selectedCompany = null;
 };
 
@@ -4593,10 +4590,10 @@ const executeMatching = (query) => {
       salaryRange: '800-1200万円'
     }
   ];
-  
+
   // スコアに基づいて結果をソート
   mockResults.sort((a, b) => b.score - a.score);
-  
+
   return mockResults;
 };
 
@@ -4604,7 +4601,7 @@ const executeMatching = (query) => {
 const displayMatchResults = (results) => {
   const container = document.getElementById('matchResults');
   if (!container) return;
-  
+
   if (results.length === 0) {
     container.innerHTML = `
       <div class="text-center text-slate-500 text-sm py-8">
@@ -4613,12 +4610,12 @@ const displayMatchResults = (results) => {
     `;
     return;
   }
-  
+
   const resultsHtml = results.map(result => {
     let scoreClass = 'low';
     if (result.score >= 80) scoreClass = 'high';
     else if (result.score >= 60) scoreClass = 'medium';
-    
+
     return `
       <div class="match-result-item">
         <div class="flex items-start justify-between">
@@ -4639,7 +4636,7 @@ const displayMatchResults = (results) => {
       </div>
     `;
   }).join('');
-  
+
   container.innerHTML = resultsHtml;
 };
 
@@ -4650,13 +4647,13 @@ let referralEventListenersInitialized = false;
 const setupReferralEventListeners = () => {
   // 既に初期化済みの場合はスキップ
   if (referralEventListenersInitialized) return;
-  
+
   // テーブル行クリック（イベント委譲）
   document.addEventListener('click', (e) => {
     // 紹介実績ページでのみ動作
     const referralSection = document.querySelector('[data-page="referral"]:not(.hidden)');
     if (!referralSection) return;
-    
+
     const row = e.target.closest('.company-row, .company-total-row');
     if (row) {
       console.log('Row clicked:', row.dataset.companyId); // デバッグログ
@@ -4666,26 +4663,26 @@ const setupReferralEventListeners = () => {
       }
     }
   });
-  
+
   // ドロワーを閉じる
   const closeBtn = document.getElementById('companyDrawerClose');
   const overlay = document.getElementById('companyDrawerOverlay');
-  
+
   if (closeBtn) {
     closeBtn.addEventListener('click', hideCompanyDrawer);
   }
-  
+
   if (overlay) {
     overlay.addEventListener('click', hideCompanyDrawer);
   }
-  
+
   // Escキーでドロワーを閉じる
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && selectedCompany) {
       hideCompanyDrawer();
     }
   });
-  
+
   referralEventListenersInitialized = true;
   console.log('Referral event listeners initialized'); // デバッグログ
 };
@@ -4697,33 +4694,33 @@ const setupMatchingEventListeners = () => {
   const conditionTab = document.getElementById('matchTabCondition');
   const candidatePanel = document.getElementById('matchCandidatePanel');
   const conditionPanel = document.getElementById('matchConditionPanel');
-  
+
   if (candidateTab && conditionTab && candidatePanel && conditionPanel) {
     candidateTab.addEventListener('click', () => {
       candidateTab.classList.add('border-indigo-500', 'text-indigo-600');
       candidateTab.classList.remove('border-transparent', 'text-slate-500');
       conditionTab.classList.remove('border-indigo-500', 'text-indigo-600');
       conditionTab.classList.add('border-transparent', 'text-slate-500');
-      
+
       candidatePanel.classList.remove('hidden');
       conditionPanel.classList.add('hidden');
     });
-    
+
     conditionTab.addEventListener('click', () => {
       conditionTab.classList.add('border-indigo-500', 'text-indigo-600');
       conditionTab.classList.remove('border-transparent', 'text-slate-500');
       candidateTab.classList.remove('border-indigo-500', 'text-indigo-600');
       candidateTab.classList.add('border-transparent', 'text-slate-500');
-      
+
       conditionPanel.classList.remove('hidden');
       candidatePanel.classList.add('hidden');
     });
   }
-  
+
   // マッチング実行ボタン
   const matchFromCandidateBtn = document.getElementById('matchFromCandidate');
   const matchFromConditionBtn = document.getElementById('matchFromCondition');
-  
+
   if (matchFromCandidateBtn) {
     matchFromCandidateBtn.addEventListener('click', () => {
       const candidateText = document.getElementById('candidateText').value;
@@ -4731,19 +4728,19 @@ const setupMatchingEventListeners = () => {
         alert('候補者プロフィールを入力してください。');
         return;
       }
-      
+
       const results = executeMatching({ candidateText });
       displayMatchResults(results);
     });
   }
-  
+
   if (matchFromConditionBtn) {
     matchFromConditionBtn.addEventListener('click', () => {
       const salaryMin = document.getElementById('conditionSalaryMin').value;
       const salaryMax = document.getElementById('conditionSalaryMax').value;
       const location = document.getElementById('conditionLocation').value;
       const skills = document.getElementById('conditionSkills').value;
-      
+
       const query = {
         req: {
           salary: salaryMin && salaryMax ? `${salaryMin}-${salaryMax}万円` : null,
@@ -4751,7 +4748,7 @@ const setupMatchingEventListeners = () => {
           skills: skills || null
         }
       };
-      
+
       const results = executeMatching(query);
       displayMatchResults(results);
     });
@@ -4774,16 +4771,16 @@ const setupLegacyNavigation = () => {
       e.preventDefault();
       const targetPage = button.getAttribute('data-target');
       if (DEBUG) console.log('Legacy navigation clicked, target:', targetPage);
-      
+
       // 全てのページを隠す
       document.querySelectorAll('[data-page]').forEach(page => {
         page.classList.add('hidden');
       });
-      
+
       // 対象ページを表示
       const pageElement = document.querySelector(`[data-page="${targetPage}"]`);
       if (DEBUG) console.log('Legacy navigation page element found:', !!pageElement, 'for target:', targetPage);
-      
+
       if (pageElement) {
         pageElement.classList.remove('hidden');
         if (DEBUG) console.log('Legacy navigation page displayed:', targetPage);
@@ -4791,10 +4788,10 @@ const setupLegacyNavigation = () => {
       } else {
         console.error('Legacy navigation page not found:', targetPage);
       }
-      
+
       // ナビゲーション状態を更新
       updateLegacyNavigationState(targetPage);
-      
+
       // ページ固有の初期化
       initializeTargetPage(targetPage);
     });
@@ -4821,7 +4818,7 @@ const updateLegacyNavigationState = (currentTarget) => {
 // 対象ページの初期化
 const initializeTargetPage = (target) => {
   console.log('initializeTargetPage called with target:', target); // デバッグログ
-  
+
   // 少し遅延して初期化を実行
   setTimeout(() => {
     if (target === 'tele-log') {
@@ -4844,17 +4841,17 @@ const initializeTargetPage = (target) => {
 // ページルーティング
 const showPage = (pageName) => {
   console.log('showPage called with:', pageName);
-  
+
   // すべてのページを非表示
   document.querySelectorAll('[data-page]').forEach(page => {
     page.classList.add('hidden');
     console.log('Hidden page:', page.dataset.page);
   });
-  
+
   // 指定されたページを表示
   const targetPage = document.querySelector(`[data-page="${pageName}"]`);
   console.log('Target page found:', !!targetPage, 'for page:', pageName);
-  
+
   if (targetPage) {
     targetPage.classList.remove('hidden');
     console.log('Page displayed:', pageName);
@@ -4862,14 +4859,14 @@ const showPage = (pageName) => {
   } else {
     console.error('Page not found:', pageName);
   }
-  
+
   // 現在表示されているページを確認
   const visiblePages = document.querySelectorAll('[data-page]:not(.hidden)');
   console.log('Currently visible pages:', Array.from(visiblePages).map(p => p.dataset.page));
-  
+
   // ナビゲーション更新
   updateNavigationState(pageName);
-  
+
   // ページ固有の初期化
   initializeCurrentPage(pageName);
 };
@@ -4913,10 +4910,10 @@ const initializeCurrentPage = (pageName) => {
 // 全体の初期化
 const initializeDashboard = () => {
   console.log("Initializing dashboard...");
-  
+
   // レガシーナビゲーション設定
   setupLegacyNavigation();
-  
+
   // 初期ページ表示（yieldページ）
   const initialPage = 'yield';
   document.querySelectorAll('[data-page]').forEach(page => {
@@ -4926,10 +4923,10 @@ const initializeDashboard = () => {
   if (yieldPage) {
     yieldPage.classList.remove('hidden');
   }
-  
+
   // 初期ナビゲーション状態設定
   updateLegacyNavigationState(initialPage);
-  
+
   // 初期ページ初期化
   initializeTargetPage(initialPage);
 };
@@ -5176,19 +5173,19 @@ let adManagementFilters = {
 // URLクエリから広告管理フィルタを読み込み
 const loadAdManagementFiltersFromUrl = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  
+
   if (urlParams.get('ad_media')) {
     adManagementFilters.mediaName = urlParams.get('ad_media');
   }
-  
+
   if (urlParams.get('ad_sort')) {
     adManagementFilters.sortBy = urlParams.get('ad_sort');
   }
-  
+
   if (urlParams.get('ad_order')) {
     adManagementFilters.sortOrder = urlParams.get('ad_order');
   }
-  
+
   if (urlParams.get('ad_page')) {
     adManagementFilters.currentPage = parseInt(urlParams.get('ad_page')) || 1;
   }
@@ -5197,13 +5194,13 @@ const loadAdManagementFiltersFromUrl = () => {
 // 広告管理フィルタをURLに保存
 const saveAdManagementFiltersToUrl = () => {
   const url = new URL(window.location);
-  
+
   if (adManagementFilters.mediaName) {
     url.searchParams.set('ad_media', adManagementFilters.mediaName);
   } else {
     url.searchParams.delete('ad_media');
   }
-  
+
   if (adManagementFilters.sortBy) {
     url.searchParams.set('ad_sort', adManagementFilters.sortBy);
     url.searchParams.set('ad_order', adManagementFilters.sortOrder);
@@ -5211,32 +5208,32 @@ const saveAdManagementFiltersToUrl = () => {
     url.searchParams.delete('ad_sort');
     url.searchParams.delete('ad_order');
   }
-  
+
   if (adManagementFilters.currentPage > 1) {
     url.searchParams.set('ad_page', adManagementFilters.currentPage);
   } else {
     url.searchParams.delete('ad_page');
   }
-  
+
   window.history.replaceState({}, '', url);
 };
 
 // フィルタ済み広告データを取得
 const getFilteredAdManagementData = () => {
   let filteredData = adManagementData.mediaData.slice();
-  
+
   // 媒体名フィルタ
   if (adManagementFilters.mediaName) {
-    filteredData = filteredData.filter(item => 
+    filteredData = filteredData.filter(item =>
       item.mediaName.toLowerCase().includes(adManagementFilters.mediaName.toLowerCase())
     );
   }
-  
+
   // ソート
   if (adManagementFilters.sortBy) {
     filteredData.sort((a, b) => {
       let aVal, bVal;
-      
+
       switch (adManagementFilters.sortBy) {
         case 'applications':
           aVal = a.applications;
@@ -5257,11 +5254,11 @@ const getFilteredAdManagementData = () => {
         default:
           return 0;
       }
-      
+
       return adManagementFilters.sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
     });
   }
-  
+
   return filteredData;
 };
 
@@ -5269,16 +5266,16 @@ const getFilteredAdManagementData = () => {
 const renderAdManagementTable = () => {
   const filteredData = getFilteredAdManagementData();
   const tableBody = document.getElementById('adManagementTableBody');
-  
+
   if (!tableBody) return;
-  
+
   // ページネーション計算
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / adManagementFilters.pageSize);
   const startIndex = (adManagementFilters.currentPage - 1) * adManagementFilters.pageSize;
   const endIndex = Math.min(startIndex + adManagementFilters.pageSize, totalItems);
   const pageData = filteredData.slice(startIndex, endIndex);
-  
+
   // テーブル描画
   if (pageData.length === 0) {
     tableBody.innerHTML = `
@@ -5291,7 +5288,7 @@ const renderAdManagementTable = () => {
   } else {
     tableBody.innerHTML = pageData.map(item => {
       const retentionRate = item.hired > 0 ? Math.round((item.retained / item.hired) * 100) : 0;
-      
+
       return `
         <tr class="hover:bg-slate-50">
           <td class="fixed-col font-medium">${item.mediaName}</td>
@@ -5306,10 +5303,10 @@ const renderAdManagementTable = () => {
       `;
     }).join('');
   }
-  
+
   // ページ情報更新
   updateAdManagementPageInfo(totalItems, startIndex + 1, endIndex, totalPages);
-  
+
   // ページネーションボタン状態更新
   updateAdManagementPaginationButtons(totalPages);
 };
@@ -5318,14 +5315,14 @@ const renderAdManagementTable = () => {
 const updateAdManagementPageInfo = (total, start, end, totalPages) => {
   const infoElements = ['adManagementInfo'];
   const pageElements = ['adManagementPageInfo', 'adManagementPageInfo2'];
-  
+
   infoElements.forEach(id => {
     const element = document.getElementById(id);
     if (element) {
       element.textContent = `${total}件中 ${start}-${end}件表示`;
     }
   });
-  
+
   pageElements.forEach(id => {
     const element = document.getElementById(id);
     if (element) {
@@ -5338,14 +5335,14 @@ const updateAdManagementPageInfo = (total, start, end, totalPages) => {
 const updateAdManagementPaginationButtons = (totalPages) => {
   const prevButtons = ['adManagementPrevBtn', 'adManagementPrevBtn2'];
   const nextButtons = ['adManagementNextBtn', 'adManagementNextBtn2'];
-  
+
   prevButtons.forEach(id => {
     const btn = document.getElementById(id);
     if (btn) {
       btn.disabled = adManagementFilters.currentPage <= 1;
     }
   });
-  
+
   nextButtons.forEach(id => {
     const btn = document.getElementById(id);
     if (btn) {
@@ -5359,7 +5356,7 @@ const updateAdManagementSortIndicators = () => {
   document.querySelectorAll('[data-page="ad-performance"] .sort-indicator').forEach(indicator => {
     indicator.textContent = '↕';
   });
-  
+
   if (adManagementFilters.sortBy) {
     const activeHeader = document.querySelector(`[data-page="ad-performance"] [data-sort="${adManagementFilters.sortBy}"] .sort-indicator`);
     if (activeHeader) {
@@ -5379,30 +5376,30 @@ const setupAdManagementEventListeners = () => {
       renderAdManagementTable();
       saveAdManagementFiltersToUrl();
     });
-    
+
     // 初期値設定
     mediaFilter.value = adManagementFilters.mediaName;
   }
-  
+
   // ソートヘッダー
   document.querySelectorAll('[data-page="ad-performance"] .sortable').forEach(header => {
     header.addEventListener('click', () => {
       const sortBy = header.dataset.sort;
-      
+
       if (adManagementFilters.sortBy === sortBy) {
         adManagementFilters.sortOrder = adManagementFilters.sortOrder === 'desc' ? 'asc' : 'desc';
       } else {
         adManagementFilters.sortBy = sortBy;
         adManagementFilters.sortOrder = 'desc';
       }
-      
+
       adManagementFilters.currentPage = 1;
       renderAdManagementTable();
       updateAdManagementSortIndicators();
       saveAdManagementFiltersToUrl();
     });
   });
-  
+
   // ページネーションボタン
   const setupPaginationButton = (id, action) => {
     const btn = document.getElementById(id);
@@ -5418,7 +5415,7 @@ const setupAdManagementEventListeners = () => {
       });
     }
   };
-  
+
   setupPaginationButton('adManagementPrevBtn', 'prev');
   setupPaginationButton('adManagementPrevBtn2', 'prev');
   setupPaginationButton('adManagementNextBtn', 'next');
@@ -5428,12 +5425,12 @@ const setupAdManagementEventListeners = () => {
 // 広告管理の初期化
 const initializeAdManagement = () => {
   console.log('Initializing ad management...');
-  
+
   loadAdManagementFiltersFromUrl();
   setupAdManagementEventListeners();
   renderAdManagementTable();
   updateAdManagementSortIndicators();
-  
+
   console.log('Ad management initialization complete');
 };
 

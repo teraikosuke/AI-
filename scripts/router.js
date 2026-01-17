@@ -16,9 +16,9 @@ const routes = {
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
   "yield-company": () => import("../pages/yield-company/yield-company.js"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260301"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260218"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260306"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260322"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_6"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260321"),
   referral: () => import("../pages/referral/referral.js?v=20260217"),
   settings: () => import("../pages/settings/settings.js?v=20260230"),
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
@@ -49,9 +49,9 @@ const pageCSS = {
   "yield-company": "pages/yield/yield.css?v=20260127",
   "yield-admin": "pages/yield/yield.css?v=20260127",
   mypage: "pages/mypage/mypage.css",
-  candidates: "pages/candidates/candidates.css",
+  candidates: "pages/candidates/candidates.css?v=20260322",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
-  teleapo: "pages/teleapo/teleapo.css?v=20260206",
+  teleapo: "pages/teleapo/teleapo.css?v=20260321",
   referral: "pages/referral/referral.css?v=20260196",
   settings: "pages/settings/settings.css?v=20260229",
   "goal-settings": "pages/goal-settings/goal-settings.css?v=20260127",
@@ -278,10 +278,14 @@ function setupSidebarToggle() {
 
   const updateToggleLabel = () => {
     const collapsed = sidebar.classList.contains("sidebar-collapsed");
-    toggleBtn.textContent = collapsed ? "笆ｶ" : "笳";
+    const iconSvg = collapsed
+      ? `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5" /></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" /></svg>`;
+
+    toggleBtn.innerHTML = iconSvg;
     toggleBtn.setAttribute(
       "aria-label",
-      collapsed ? "繧ｵ繧､繝峨ヰ繝ｼ繧貞ｱ暮幕" : "繧ｵ繧､繝峨ヰ繝ｼ繧呈釜繧翫◆縺溘∩"
+      collapsed ? "サイドバーを展開" : "サイドバーを折りたたみ"
     );
   };
 

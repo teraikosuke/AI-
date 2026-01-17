@@ -49,6 +49,21 @@ const detailSectionKeys = [
 ];
 
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
+const PHASE_ORDER = [
+  "未接触",
+  "通電",
+  "架電中",
+  "SMS送信",
+  "面談設定",
+  "実施",
+  "内定",
+  "成約",
+  "失注"
+];
+
+let currentSortKey = "registeredAt";
+let currentSortOrder = "desc";
+
 const japaneseLevelOptions = [
   { value: "", label: "未設定" },
   "N1",
@@ -138,6 +153,13 @@ function normalizeCandidate(candidate) {
   candidate.contactPreferredTime = candidate.contactPreferredTime ?? candidate.contact_preferred_time ?? "";
   candidate.mandatoryInterviewItems = candidate.mandatoryInterviewItems ?? candidate.mandatory_interview_items ?? "";
   candidate.applyCompanyName = candidate.applyCompanyName ?? candidate.apply_company_name ?? "";
+  candidate.companyName = candidate.companyName
+    ?? candidate.company_name
+    ?? candidate.clientName
+    ?? candidate.client_name
+    ?? candidate.company
+    ?? candidate.applyCompany
+    ?? "";
   candidate.applyJobName = candidate.applyJobName ?? candidate.apply_job_name ?? "";
   candidate.applyRouteText = candidate.applyRouteText ?? candidate.apply_route_text ?? "";
   candidate.applicationNote = candidate.applicationNote ?? candidate.application_note ?? "";
@@ -174,6 +196,16 @@ function normalizeCandidate(candidate) {
     selectionNote: row.selectionNote ?? row.selection_note ?? "",
     status: row.status ?? row.stage_current ?? "",
   }));
+
+  if (!candidate.companyName && candidate.selectionProgress.length) {
+    candidate.companyName = candidate.selectionProgress[0]?.companyName ?? "";
+  }
+  if (!candidate.applyCompanyName && candidate.companyName) {
+    candidate.applyCompanyName = candidate.companyName;
+  }
+  if (!candidate.companyName && candidate.applyCompanyName) {
+    candidate.companyName = candidate.applyCompanyName;
+  }
 
   candidate.teleapoLogs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs : [];
 
@@ -308,7 +340,13 @@ function initializeCandidatesFilters() {
 
 function initializeSortControl() {
   const sortSelect = document.getElementById("candidatesSortOrder");
-  if (sortSelect) sortSelect.addEventListener("change", handleFilterChange);
+  if (sortSelect) sortSelect.addEventListener("change", (e) => {
+    // Dropdown change updates global order only if key matches or just resets
+    currentSortOrder = e.target.value;
+    currentSortKey = "registeredAt"; // Dropdown implies registered date
+    handleFilterChange();
+    updateHeaderSortStyles();
+  });
 }
 
 function initializeTableInteraction() {
@@ -319,8 +357,20 @@ function initializeTableInteraction() {
     tableBody.addEventListener("change", handleInlineEdit);
   }
 
+  const tableHead = document.querySelector(".candidates-table-card thead");
+  if (tableHead) {
+    tableHead.addEventListener("click", (e) => {
+      const th = e.target.closest("th[data-sort-key]");
+      if (th) {
+        handleHeaderSort(th.dataset.sortKey);
+      }
+    });
+  }
+
   const toggleButton = document.getElementById("candidatesToggleEdit");
   if (toggleButton) toggleButton.addEventListener("click", toggleCandidatesEditMode);
+
+  ensureNextActionColumnPriority();
 }
 
 // =========================
@@ -349,11 +399,14 @@ async function loadCandidatesData(filtersOverride = {}) {
         candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
       });
     }
+    updateFilterSelectOptions(allCandidates);
     filteredCandidates = applyLocalFilters(allCandidates, filters);
-    filteredCandidates = sortCandidatesByDate(filteredCandidates, filters.sortOrder);
+    // Apply current global sort state
+    filteredCandidates = sortCandidates(filteredCandidates, currentSortKey, currentSortOrder);
     pendingInlineUpdates = {};
 
     renderCandidatesTable(filteredCandidates);
+    updateHeaderSortStyles(); // Ensure headers reflect state
     updateCandidatesCount(filteredCandidates.length);
 
     lastSyncedAt = result.lastSyncedAt || null;
@@ -424,6 +477,12 @@ function parseCandidateDate(value) {
 }
 
 function resolveValidApplication(candidate) {
+  // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
+  // ルールがあれば常に計算を行う
+  if (screeningRules) {
+    return computeValidApplication(candidate, screeningRules);
+  }
+
   const computed = candidate?.validApplicationComputed;
   if (computed === true || computed === false) return computed;
   const raw =
@@ -559,8 +618,9 @@ function applyScreeningRulesToCandidates() {
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
-  filteredCandidates = sortCandidatesByDate(filteredCandidates, filters.sortOrder);
+  filteredCandidates = sortCandidates(filteredCandidates, currentSortKey, currentSortOrder);
   renderCandidatesTable(filteredCandidates);
+  updateHeaderSortStyles();
   updateCandidatesCount(filteredCandidates.length);
 }
 
@@ -593,88 +653,98 @@ function resolvePhaseValues(candidate) {
 }
 
 function applyLocalFilters(list, filters) {
+  const baseList = applyCandidatesFilters(list, filters);
   const year = normalizeFilterText(filters.year);
   const month = normalizeFilterText(filters.month);
   const day = normalizeFilterText(filters.day);
-  const source = normalizeFilterText(filters.source);
-  const name = normalizeFilterText(filters.name);
-  const company = normalizeFilterText(filters.company);
-  const advisor = normalizeFilterText(filters.advisor);
-  const phase = normalizeFilterText(filters.phase);
-  const valid = normalizeFilterText(filters.valid);
 
-  return list.filter((candidate) => {
+  if (!year && !month && !day) return baseList;
+
+  return baseList.filter((candidate) => {
     const registeredDate = parseCandidateDate(resolveCandidateDateValue(candidate));
-    if (year || month || day) {
-      if (!registeredDate) return false;
-      const yearValue = String(registeredDate.getFullYear());
-      const monthValue = String(registeredDate.getMonth() + 1).padStart(2, "0");
-      const dayValue = String(registeredDate.getDate()).padStart(2, "0");
-      if (year && yearValue !== year) return false;
-      if (month && monthValue !== month) return false;
-      if (day && dayValue !== day) return false;
-    }
-
-    if (source) {
-      const sourceValue = normalizeFilterText(
-        candidate.applyRouteText ??
-        candidate.apply_route_text ??
-        candidate.source ??
-        candidate.route ??
-        ""
-      );
-      if (!sourceValue.includes(source)) return false;
-    }
-
-    if (name) {
-      const nameValue = normalizeFilterText(
-        candidate.candidateName ?? candidate.candidate_name ?? candidate.name ?? ""
-      );
-      if (!nameValue.includes(name)) return false;
-    }
-
-    if (company) {
-      const companyValue = normalizeFilterText(
-        candidate.applyCompanyName ??
-        candidate.apply_company_name ??
-        candidate.companyName ??
-        candidate.company_name ??
-        ""
-      );
-      if (!companyValue.includes(company)) return false;
-    }
-
-    if (advisor) {
-      const advisorValue = normalizeFilterText(
-        candidate.advisorName ?? candidate.advisor_name ?? ""
-      );
-      if (!advisorValue.includes(advisor)) return false;
-    }
-
-    if (phase) {
-      const phaseValues = resolvePhaseValues(candidate).map((value) => normalizeFilterText(value));
-      if (!phaseValues.some((value) => value.includes(phase))) return false;
-    }
-
-    if (valid) {
-      const validValue = resolveValidApplication(candidate);
-      if (valid === "true" && validValue !== true) return false;
-      if (valid === "false" && validValue !== false) return false;
-    }
-
+    if (!registeredDate) return false;
+    const yearValue = String(registeredDate.getFullYear());
+    const monthValue = String(registeredDate.getMonth() + 1).padStart(2, "0");
+    const dayValue = String(registeredDate.getDate()).padStart(2, "0");
+    if (year && yearValue !== year) return false;
+    if (month && monthValue !== month) return false;
+    if (day && dayValue !== day) return false;
     return true;
   });
 }
 
-function sortCandidatesByDate(list, sortOrder) {
-  const direction = sortOrder === "asc" ? 1 : -1;
+function sortCandidates(list, key, order) {
+  const direction = order === "asc" ? 1 : -1;
   return [...list].sort((a, b) => {
-    const aDate = parseCandidateDate(resolveCandidateDateValue(a));
-    const bDate = parseCandidateDate(resolveCandidateDateValue(b));
-    const aTime = aDate ? aDate.getTime() : 0;
-    const bTime = bDate ? bDate.getTime() : 0;
-    if (aTime === bTime) return 0;
-    return direction * (aTime - bTime);
+    let aVal, bVal;
+
+    switch (key) {
+      case "registeredAt":
+        const aDate = parseCandidateDate(resolveCandidateDateValue(a));
+        const bDate = parseCandidateDate(resolveCandidateDateValue(b));
+        aVal = aDate ? aDate.getTime() : 0;
+        bVal = bDate ? bDate.getTime() : 0;
+        break;
+      case "nextAction":
+        const aNext = pickNextAction(a);
+        const bNext = pickNextAction(b);
+        aVal = aNext ? aNext.date.getTime() : 0;
+        bVal = bNext ? bNext.date.getTime() : 0;
+        break;
+      case "validApplication":
+        aVal = resolveValidApplication(a) === true ? 1 : 0;
+        bVal = resolveValidApplication(b) === true ? 1 : 0;
+        break;
+      case "candidateName":
+      case "advisorName":
+      case "partnerName":
+      case "source":
+      case "phase":
+        aVal = String(a[key] || "");
+        bVal = String(b[key] || "");
+        break;
+      default:
+        aVal = a[key] || "";
+        bVal = b[key] || "";
+    }
+
+    if (aVal === bVal) return 0;
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return direction * aVal.localeCompare(bVal, "ja");
+    }
+    return direction * (aVal - bVal);
+  });
+}
+
+function handleHeaderSort(key) {
+  if (currentSortKey === key) {
+    currentSortOrder = currentSortOrder === "asc" ? "desc" : "asc";
+  } else {
+    currentSortKey = key;
+    currentSortOrder = "desc";
+  }
+
+  // Update filteredCandidates directly and re-render
+  filteredCandidates = sortCandidates(filteredCandidates, currentSortKey, currentSortOrder);
+  renderCandidatesTable(filteredCandidates);
+  updateHeaderSortStyles();
+}
+
+function updateHeaderSortStyles() {
+  const headers = document.querySelectorAll(".candidates-table-card thead th[data-sort-key]");
+  headers.forEach(th => {
+    th.classList.remove("is-sorted", "bg-slate-100", "text-slate-900");
+    th.removeAttribute("data-sort-dir");
+
+    // Clean up text content if it has text arrows
+    let label = th.textContent.replace(/[▲▼]/g, "").trim();
+    th.textContent = label;
+
+    const key = th.dataset.sortKey;
+    if (key === currentSortKey) {
+      th.classList.add("is-sorted");
+      th.setAttribute("data-sort-dir", currentSortOrder);
+    }
   });
 }
 
@@ -723,7 +793,15 @@ function matchesSelectValue(value, selectedValue) {
 }
 
 function getCandidateCompanyName(candidate) {
-  return candidate?.applyCompanyName || candidate?.companyName || "";
+  return (
+    candidate?.applyCompanyName
+    || candidate?.companyName
+    || candidate?.clientName
+    || candidate?.client_name
+    || candidate?.company
+    || candidate?.selectionProgress?.[0]?.companyName
+    || ""
+  );
 }
 
 function getCandidateAdvisorName(candidate) {
@@ -862,7 +940,7 @@ function renderCandidatesTable(list) {
   if (list.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
+        <td colspan="8" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
       </tr>
     `;
     return;
@@ -891,8 +969,49 @@ function buildTableRow(candidate) {
       ${renderTextCell(candidate, "candidateName", { strong: true, readOnly: true })}
       ${renderTextCell(candidate, "advisorName", { readOnly: true })}
       ${renderTextCell(candidate, "partnerName", { readOnly: true })}
+      ${renderNextActionCell(candidate)}
     </tr>
   `;
+}
+
+function renderNextActionCell(candidate) {
+  const nextAction = pickNextAction(candidate);
+  if (!nextAction) {
+    return '<td class="candidate-next-action-cell"><span class="candidate-next-action-empty">未設定</span></td>';
+  }
+  return `
+    <td class="candidate-next-action-cell">
+      <div class="candidate-next-action-stack">
+        <span class="candidate-next-action-date">${escapeHtml(formatDateJP(nextAction.date))}</span>
+        <span class="candidate-next-action-label">${escapeHtml(nextAction.label)}</span>
+      </div>
+    </td>
+  `;
+}
+
+function ensureNextActionColumnPriority() {
+  const table = document.querySelector(".candidates-table-card table");
+  if (!table) return;
+  if (table.dataset.nextActionPriority === "true") return;
+
+  const headRow = table.querySelector("thead tr");
+  if (!headRow) return;
+
+  const headers = Array.from(headRow.querySelectorAll("th"));
+  const nextIndex = headers.findIndex((th) => th.dataset.sortKey === "nextAction");
+  if (nextIndex === -1) return;
+
+  const nextHeader = headers[nextIndex];
+  nextHeader.classList.add("next-action-head");
+  headRow.appendChild(nextHeader);
+
+  const colgroup = table.querySelector("colgroup");
+  if (colgroup) {
+    const cols = Array.from(colgroup.querySelectorAll("col"));
+    if (cols[nextIndex]) colgroup.appendChild(cols[nextIndex]);
+  }
+
+  table.dataset.nextActionPriority = "true";
 }
 
 function renderCheckboxCell(candidate, field, label) {
@@ -1318,6 +1437,35 @@ function updateSelectionStatusCell(index, status) {
 // -----------------------
 // 必須：保存APIのURLを統一
 // -----------------------
+
+
+// -----------------------
+// フェーズ表示ロジック
+// -----------------------
+function resolveCurrentPhases(candidate) {
+  let phases = Array.isArray(candidate.phaseList) ? candidate.phaseList : (candidate.phase ? [candidate.phase] : []);
+
+  // 通電等の接触履歴がある場合は「未接触」を除外する
+  const hasContact = candidate.hasConnected || candidate.hasSms || (candidate.callCount > 0);
+  if (hasContact) {
+    phases = phases.filter(p => p !== "未接触");
+  }
+  return phases;
+}
+
+function resolvePhaseDisplay(candidate) {
+  const phases = resolveCurrentPhases(candidate);
+  return phases.length > 0 ? phases[0] : "-";
+}
+
+function renderPhasePills(candidate) {
+  const phases = resolveCurrentPhases(candidate);
+  if (phases.length === 0) return "-";
+  return `<div class="candidate-phase-list">
+    ${phases.map(phase => `<span class="candidate-phase-pill">${escapeHtml(phase)}</span>`).join("")}
+  </div>`;
+}
+
 async function saveCandidateRecord(candidate, { preserveDetailState = true, includeDetail = false } = {}) {
   if (!candidate || !candidate.id) throw new Error("保存対象の候補者が見つかりません。");
 
@@ -1427,50 +1575,6 @@ function initializeDetailContentListeners() {
   detailContentHandlers.click = handleDetailContentClick;
   detailContentHandlers.input = handleDetailFieldChange;
 
-  container.addEventListener("click", detailContentHandlers.click);
-  container.addEventListener("input", detailContentHandlers.input);
-  container.addEventListener("change", detailContentHandlers.input);
-}
-
-function resolvePhaseDisplay(candidate) {
-  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value);
-  const unique = Array.from(new Set(list));
-  if (unique.length > 0) return unique.join(" / ");
-
-  const hasConnected = candidate?.csSummary?.hasConnected ?? candidate?.phoneConnected ?? false;
-  const hasSms = candidate?.csSummary?.hasSms ?? candidate?.smsSent ?? candidate?.smsConfirmed ?? false;
-  const callCount = candidate?.csSummary?.callCount ?? candidate?.csSummary?.max_call_no ?? 0;
-  if (hasConnected) return "通電";
-  if (hasSms) return "SMS送信";
-  if (Number(callCount || 0) > 0) return "架電中";
-  return "未接触";
-}
-
-function renderPhasePills(candidate) {
-  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value);
-  const unique = Array.from(new Set(list));
-  const display = unique.length ? unique : [resolvePhaseDisplay(candidate)];
-  const pills = display
-    .map((value) => `<span class="candidate-phase-pill">${escapeHtml(value || "-")}</span>`)
-    .join("");
-  return `<div class="candidate-phase-list">${pills}</div>`;
-}
-
-function escapeHtml(value) {
-  if (value === null || value === undefined) return "";
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function escapeHtmlAttr(value) {
   if (value === null || value === undefined) return "";
@@ -2600,3 +2704,16 @@ function formatInputValue(value, type) {
   }
   return value;
 }
+
+// Utility functions for escaping HTML
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+

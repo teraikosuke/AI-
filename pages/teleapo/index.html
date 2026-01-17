@@ -285,7 +285,7 @@
   </div>
   </div>
 
-  <section class="kpi-v2-section teleapo-form-card" id="teleapoFormSection">
+  <section class="kpi-v2-section teleapo-form-card teleapo-panel" id="teleapoFormSection">
     <div class="teleapo-form-header">
       <div>
         <p class="teleapo-form-eyebrow">新規架電ログを登録</p>
@@ -345,22 +345,22 @@
     <p id="dialFormMessage" class="teleapo-form-message text-sm"></p>
   </section>
 
-  <section class="kpi-v2-section" id="teleapoCsTaskSection">
+  <section class="kpi-v2-section teleapo-panel" id="teleapoCsTaskSection">
     <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
         <h4 class="text-base font-semibold text-slate-800">CSタスク管理</h4>
-        <p class="text-xs text-slate-500">未接触かつ有効応募の候補者</p>
+        <p class="text-xs text-slate-500">対応が必要な候補者（未接触かつ有効応募）</p>
       </div>
       <div class="flex items-center gap-3 text-xs text-slate-500">
         <button id="teleapoCsTaskToggle" type="button" aria-expanded="false" aria-controls="teleapoCsTaskTableWrapper"
           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
           一覧を開く
         </button>
-        <span id="teleapoCsTaskCount">0件</span>
+        <span id="teleapoCsTaskCount" class="teleapo-count-badge">0件</span>
       </div>
     </div>
     <div class="table-surface overflow-auto mt-3 hidden" id="teleapoCsTaskTableWrapper">
-      <table class="table-grid min-w-[780px]" id="teleapoCsTaskTable">
+      <table class="table-grid min-w-[900px]" id="teleapoCsTaskTable">
         <thead>
           <tr>
             <th class="whitespace-nowrap">フェーズ</th>
@@ -368,6 +368,7 @@
             <th class="whitespace-nowrap">求職者名</th>
             <th class="whitespace-nowrap">登録日時</th>
             <th class="whitespace-nowrap">電話番号</th>
+            <th class="whitespace-nowrap">連絡希望時間帯</th>
             <th class="whitespace-nowrap">架電登録</th>
           </tr>
         </thead>
@@ -376,11 +377,11 @@
     </div>
   </section>
 
-  <section class="kpi-v2-section" id="teleapoMissingInfoSection">
+  <section class="kpi-v2-section teleapo-panel" id="teleapoMissingInfoSection">
     <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
         <h4 class="text-base font-semibold text-slate-800">候補者情報不足一覧</h4>
-        <p class="text-xs text-slate-500">生年月日/年齢または電話番号が未登録の候補者</p>
+        <p class="text-xs text-slate-500">年齢または電話番号が未登録の候補者</p>
       </div>
       <div class="flex items-center gap-3 text-xs text-slate-500">
         <button id="teleapoMissingInfoToggle" type="button" aria-expanded="false"
@@ -388,7 +389,7 @@
           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
           一覧を開く
         </button>
-        <span id="teleapoMissingInfoCount">0件</span>
+        <span id="teleapoMissingInfoCount" class="teleapo-count-badge">0件</span>
       </div>
     </div>
     <div class="table-surface overflow-auto mt-3 hidden" id="teleapoMissingInfoTableWrapper">
@@ -398,7 +399,6 @@
             <th class="whitespace-nowrap">不足項目</th>
             <th class="whitespace-nowrap">求職者名</th>
             <th class="whitespace-nowrap">登録日時</th>
-            <th class="whitespace-nowrap">生年月日</th>
             <th class="whitespace-nowrap">年齢</th>
             <th class="whitespace-nowrap">電話番号</th>
           </tr>
@@ -408,90 +408,94 @@
     </div>
   </section>
 
-  <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3" id="teleapoSectionLogs">
-    <h4 class="text-sm font-semibold text-slate-700">架電ログ</h4>
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 text-xs text-slate-500">
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-semibold text-slate-500">担当者</label>
-        <select id="teleapoLogEmployeeFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-          <option value="">全員</option>
-          <option value="佐藤">佐藤</option>
-          <option value="田中">田中</option>
-          <option value="山本">山本</option>
-          <option value="鈴木">鈴木</option>
-        </select>
+  <section class="kpi-v2-section teleapo-panel" id="teleapoSectionLogs">
+    <div class="teleapo-form-header">
+      <div>
+        <p class="teleapo-form-eyebrow">架電ログ一覧</p>
+        <h4 class="teleapo-form-title">架電ログ</h4>
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-semibold text-slate-500">アポ結果</label>
-        <select id="teleapoLogResultFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-          <option value="">全て</option>
-          <option value="通電">通電</option>
-          <option value="不在">不在</option>
-          <option value="設定">設定</option>
-          <option value="着座">着座</option>
-          <option value="コールバック">コールバック</option>
-        </select>
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-semibold text-slate-500">経路</label>
-        <select id="teleapoLogRouteFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-          <option value="">全て</option>
-          <option value="tel">架電</option>
-          <option value="other">その他</option>
-        </select>
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-semibold text-slate-500">相手名検索</label>
-        <input type="text" id="teleapoLogTargetSearch"
-          class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
-      </div>
-      <div class="flex items-end gap-2">
-        <button id="teleapoLogFilterReset"
-          class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
-          条件をクリア
-        </button>
-        <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
-          0件
+      <button id="teleapoLogToggle" type="button" aria-expanded="true" aria-controls="teleapoLogWrapper"
+        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
+        一覧を閉じる
+      </button>
+    </div>
+    <div id="teleapoLogWrapper" class="space-y-3">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 text-xs text-slate-500">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">担当者</label>
+          <select id="teleapoLogEmployeeFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">全員</option>
+            <option value="佐藤">佐藤</option>
+            <option value="田中">田中</option>
+            <option value="山本">山本</option>
+            <option value="鈴木">鈴木</option>
+          </select>
         </div>
-        <span id="teleapoLogPeriodLabel" class="text-[11px] text-slate-500"></span>
-        <span id="teleapoLogStatus" class="text-[11px] text-slate-500"></span>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">アポ結果</label>
+          <select id="teleapoLogResultFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">全て</option>
+            <option value="通電">通電</option>
+            <option value="不在">不在</option>
+            <option value="設定">設定</option>
+            <option value="着座">着座</option>
+            <option value="コールバック">コールバック</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">経路</label>
+          <select id="teleapoLogRouteFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
+            <option value="">全て</option>
+            <option value="tel">架電</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-500">相手名検索</label>
+          <input type="text" id="teleapoLogTargetSearch"
+            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
+        </div>
+        <div class="flex items-end gap-2">
+          <button id="teleapoLogFilterReset"
+            class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
+            条件をクリア
+          </button>
+          <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
+            0件
+          </div>
+          <span id="teleapoLogPeriodLabel" class="text-[11px] text-slate-500"></span>
+          <span id="teleapoLogStatus" class="text-[11px] text-slate-500"></span>
+        </div>
+      </div>
+      <div class="overflow-auto table-surface table-teleapo">
+        <table class="table-grid min-w-[1320px]" id="teleapoLogTable">
+          <thead>
+            <tr>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort="datetime">日時</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort="employee">担当者</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="route">
+                経路
+              </th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="target">
+                相手
+              </th>
+              <th class="whitespace-nowrap">電話番号</th>
+              <th class="whitespace-nowrap">連絡希望時間帯</th>
+              <th class="whitespace-nowrap">メールアドレス</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="result">
+                アポ結果
+              </th>
+              <th>メモ</th>
+              <th>削除</th>
+            </tr>
+          </thead>
+          <tbody id="teleapoLogTableBody">
+            <!-- JSで描画 -->
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
-
-  <!-- ログテーブル -->
-  <div class="overflow-auto table-surface table-teleapo">
-    <table class="table-grid min-w-[1200px]" id="teleapoLogTable">
-      <thead>
-        <tr>
-          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="datetime">
-            日時
-            <span class="ml-1 text-xs text-slate-400">↕</span>
-          </th>
-          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="employee">
-            担当者
-          </th>
-          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="route">
-            経路
-          </th>
-          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="target">
-            相手
-          </th>
-          <th>電話番号</th>
-          <th>メールアドレス</th>
-          <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="result">
-            アポ結果
-          </th>
-          <th>メモ</th>
-          <th>削除</th>
-        </tr>
-      </thead>
-      <tbody id="teleapoLogTableBody">
-        <!-- JSで描画 -->
-      </tbody>
-    </table>
-  </div>
-  </div>
+  </section>
 
   <div class="teleapo-candidate-modal" id="teleapoCandidateModal" aria-hidden="true">
     <div class="teleapo-candidate-panel" role="dialog" aria-modal="true" aria-labelledby="teleapoCandidateModalTitle">
@@ -510,5 +514,5 @@
     </div>
   </div>
 
-  <script type="module" src="./teleapo.js?v=20260306"></script>
+  <script type="module" src="./teleapo.js?v=20260321"></script>
 </section>
