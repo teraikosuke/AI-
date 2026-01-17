@@ -699,10 +699,12 @@
     box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.25);
     transform: translateY(0);
   }
+
   45% {
     box-shadow: 0 0 0 12px rgba(99, 102, 241, 0.12);
     transform: translateY(-2px);
   }
+
   100% {
     box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
     transform: translateY(0);
@@ -1383,8 +1385,10 @@ body.teleapo-candidate-open {
 
 [data-page="teleapo"] .teleapo-candidate-meta {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 [data-page="teleapo"] .teleapo-candidate-name {
