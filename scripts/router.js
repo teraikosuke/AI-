@@ -16,10 +16,10 @@ const routes = {
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
   "yield-company": () => import("../pages/yield-company/yield-company.js"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260322_3"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_6"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_5"),
-  referral: () => import("../pages/referral/referral.js?v=20260322_8"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260322_24"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_12"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_10"),
+  referral: () => import("../pages/referral/referral.js?v=20260322_34"),
   settings: () => import("../pages/settings/settings.js?v=20260230"),
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
@@ -170,7 +170,9 @@ export async function navigate(to) {
 
     // Load page HTML
     const htmlURL = resolveAsset(`../pages/${page}/index.html`);
-    const response = await fetch(htmlURL, { cache: "no-cache" });
+    // Add cache-busting parameter
+    const htmlUrl = `${htmlURL}?v=${Date.now()}`;
+    const response = await fetch(htmlUrl, { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(`Failed to load ${page} page (${response.status})`);
     }

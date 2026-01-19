@@ -502,43 +502,54 @@ function fetchCandidateDetailInfo(candidateId) {
       const contactPreferredTime =
         data?.contactPreferredTime ??
         data?.contact_preferred_time ??
+        data?.preferredContactTime ??
+        data?.preferred_contact_time ??
         "";
+
+      console.log(`[teleapo] Fetched detail for ${idNum}:`, {
+        contactPreferredTime,
+        rawData: data
+      });
+
       const ageRaw = data?.age ?? data?.age_years ?? data?.ageYears ?? null;
       const ageValue = Number(ageRaw);
       const age = Number.isFinite(ageValue) && ageValue > 0 ? ageValue : null;
-      const contactTimeText = String(contactPreferredTime ?? "").trim();
 
-      const detail = {
-        phone: String(phone ?? "").trim(),
-        email: String(email ?? "").trim(),
-        birthday: String(birthday ?? "").trim(),
-        age,
-        contactPreferredTime: contactTimeText,
-        contactPreferredTimeFetched: true,
-        attendanceConfirmed: normalizeAttendanceValue(attendanceRaw),
-        firstInterviewDate: firstInterviewDate
-      };
-      candidateDetailCache.set(idNum, detail);
-      registerCandidateAttendance(idNum, data?.candidateName ?? data?.candidate_name ?? data?.name ?? "", detail.attendanceConfirmed);
-      if (typeof detail.attendanceConfirmed === "boolean") {
-        scheduleAttendanceRefresh();
+      const normalized = normalizeCandidateDetail({
+        ...data,
+        candidateId: idNum,
+        phone,
+        email,
+        contactPreferredTime
+      });
+
+      // Maintain legacy/specific fields
+      normalized.attendanceConfirmed = normalizeAttendanceValue(attendanceRaw);
+      if (firstInterviewDate) {
+        normalized.firstInterviewDate = firstInterviewDate;
       }
-      if (detail.phone) candidatePhoneCache.set(idNum, detail.phone);
-      registerCandidateContactMaps(idNum, detail);
-      if (contactTimeText && contactTimeText !== prevContactTime) {
+      normalized.contactPreferredTimeFetched = true;
+
+      candidateDetailCache.set(idNum, normalized);
+      candidateDetailRequests.delete(idNum);
+
+      // Refresh if we got a new contact preference
+      const newContactTime = String(contactPreferredTime).trim();
+      if (newContactTime && newContactTime !== prevContactTime) {
         scheduleCandidateDetailRefresh();
       }
-      return detail;
+
+      return normalized;
     })
     .catch(err => {
-      console.error("candidate detail fetch error:", err);
+      console.warn(`[teleapo] Detail fetch error for ${idNum}:`, err);
       if (!candidateDetailCache.has(idNum)) {
-        candidateDetailCache.set(idNum, { phone: "", birthday: "", age: null, contactPreferredTime: "", contactPreferredTimeFetched: true, failed: true });
+        candidateDetailCache.set(idNum, {
+          contactPreferredTimeFetched: true
+        });
       }
-      return candidateDetailCache.get(idNum);
-    })
-    .finally(() => {
       candidateDetailRequests.delete(idNum);
+      return null;
     });
 
   candidateDetailRequests.set(idNum, req);
@@ -596,6 +607,8 @@ function normalizeCandidateDetail(raw) {
     phases: raw.phases ?? raw.phaseList ?? raw.phase ?? ""
   };
 }
+
+
 
 function buildCandidatePhaseBadges(candidate) {
   const list = normalizePhaseList(candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "");
