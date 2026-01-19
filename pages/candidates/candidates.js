@@ -1342,6 +1342,8 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
       ${sections}
     </div>
   `;
+
+  initializeDetailContentListeners();
 }
 
 function getCandidateDetailPlaceholder() {
@@ -1350,7 +1352,7 @@ function getCandidateDetailPlaceholder() {
       <p class="text-sm text-slate-500">候補者行をクリックすると詳細が表示されます。</p>
       <p class="text-xs text-slate-400">求職者情報・共有面談・選考進捗・CS項目をまとめて確認できます。</p>
     </div>
-  `;
+    `;
 }
 
 function setCandidateDetailPlaceholder() {
@@ -1365,9 +1367,9 @@ function renderDetailSection(title, body, key, options = {}) {
   const editable = options.editable !== false;
   const actions = editable
     ? `
-      <button type="button" class="detail-edit-btn ${editing ? "is-active" : ""}" data-section-edit="${key}">
-        ${editing ? "編集完了" : "編集"}
-      </button>
+    <button type="button" class="detail-edit-btn ${editing ? "is-active" : ""}" data-section-edit="${key}">
+      ${editing ? "編集完了" : "編集"}
+    </button>
     `
     : "";
   return `
@@ -1381,8 +1383,9 @@ function renderDetailSection(title, body, key, options = {}) {
       <div class="candidate-detail-section-body">
         ${body}
       </div>
+      </div>
     </section>
-  `;
+    `;
 }
 
 function renderDetailSubsection(title, body) {
@@ -1395,7 +1398,7 @@ function renderDetailSubsection(title, body) {
         ${body}
       </div>
     </div>
-  `;
+    `;
 }
 
 function renderStatusPill(label, variant = "muted") {
@@ -1433,7 +1436,7 @@ function resolveSelectionStageValue(row = {}) {
 }
 
 function updateSelectionStatusCell(index, status) {
-  const row = document.querySelector(`[data-selection-row="${index}"]`);
+  const row = document.querySelector(`[data - selection - row="${index}"]`);
   if (!row) return;
   const cell = row.querySelector("[data-selection-status]");
   if (!cell) return;
@@ -1490,7 +1493,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`HTTP ${response.status} ${response.statusText} - ${text.slice(0, 200)}`);
+    throw new Error(`HTTP ${response.status} ${response.statusText} - ${text.slice(0, 200)} `);
   }
 
   const updated = normalizeCandidate(await response.json());
@@ -1628,12 +1631,22 @@ function initializeDetailContentListeners() {
   const container = document.getElementById("candidateDetailContent");
   if (!container) return;
 
+  if (detailContentHandlers.click) {
+    container.removeEventListener("click", detailContentHandlers.click);
+  }
+  if (detailContentHandlers.input) {
+    container.removeEventListener("input", detailContentHandlers.input);
+    container.removeEventListener("change", detailContentHandlers.input);
+  }
+
   detailContentHandlers.click = handleDetailContentClick;
   detailContentHandlers.input = handleDetailFieldChange;
 
   container.addEventListener("click", detailContentHandlers.click);
   container.addEventListener("input", detailContentHandlers.input);
   container.addEventListener("change", detailContentHandlers.input);
+
+  // console.log('[candidates] Detail listeners attached');
 }
 function escapeHtmlAttr(value) {
   if (value === null || value === undefined) return "";
@@ -1646,7 +1659,7 @@ function formatDateJP(dateLike) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}/${month}/${day}`;
+  return `${year} /${month}/${day} `;
 }
 function formatDateTimeJP(dateTimeLike) {
   if (!dateTimeLike) return "-";
@@ -1654,7 +1667,7 @@ function formatDateTimeJP(dateTimeLike) {
   if (Number.isNaN(date.getTime())) return dateTimeLike;
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${formatDateJP(dateTimeLike)} ${hours}:${minutes}`;
+  return `${formatDateJP(dateTimeLike)} ${hours}:${minutes} `;
 }
 function formatDisplayValue(value) {
   if (value === null || value === undefined || value === "") return "-";
@@ -1682,12 +1695,12 @@ function formatMoneyToMan(value) {
     const min = toMan(nums[0]);
     const max = toMan(nums[1]);
     if (min === null || max === null) return text;
-    return `${min}-${max}万円`;
+    return `${min} -${max} 万円`;
   }
 
   const single = toMan(nums[0]);
   if (single === null) return text;
-  return `${single}万円`;
+  return `${single} 万円`;
 }
 function calculateAge(birthday) {
   if (!birthday) return null;
@@ -1833,8 +1846,15 @@ function handleDetailContentClick(event) {
 function syncDetailSectionInputs(sectionKey) {
   if (!sectionKey) return;
   const section = document.querySelector(`.candidate-detail-section[data-section="${sectionKey}"]`);
-  if (!section) return;
+  if (!section) {
+    console.error(`[candidates] syncDetailSectionInputs: Section not found for key "${sectionKey}". Please reload.`);
+    alert("画面の状態が古いため保存できませんでした。ページをリロードしてください。");
+    return;
+  }
   const inputs = section.querySelectorAll("[data-detail-field], [data-array-field]");
+  if (inputs.length === 0) {
+    console.warn(`[candidates] syncDetailSectionInputs: No inputs found in section "${sectionKey}"`);
+  }
   inputs.forEach((input) => {
     handleDetailFieldChange({ target: input });
   });
@@ -1858,9 +1878,10 @@ async function toggleDetailSectionEdit(sectionKey) {
   // 編集完了時（OFFに戻ったタイミング）で保存
   if (wasEditing && !detailEditState[sectionKey]) {
     try {
-      await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
+      const updated = await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
       renderCandidatesTable(filteredCandidates);
       highlightSelectedRow();
+      renderCandidateDetail(updated, { preserveEditState: false });
     } catch (error) {
       console.error("詳細の保存に失敗しました。", error);
       alert("保存に失敗しました。ネットワーク状態を確認してください。");
@@ -1883,7 +1904,7 @@ function handleDetailAddRow(type) {
     case "resumeDocuments": {
       candidate.resumeDocuments = candidate.resumeDocuments || [];
       const docs = candidate.resumeDocuments;
-      docs.push({ label: `経歴書${docs.length + 1}`, value: "" });
+      docs.push({ label: `経歴書${docs.length + 1} `, value: "" });
       break;
     }
     case "selectionProgress": {
@@ -1934,7 +1955,6 @@ function handleDetailRemoveRow(type, index) {
 function handleDetailFieldChange(event) {
   const target = event.target;
   if (!target) return;
-
   const candidate = getSelectedCandidate();
   if (!candidate) return;
 
@@ -2149,7 +2169,7 @@ function renderAssigneeSection(candidate) {
 
 function renderApplicantInfoSection(candidate) {
   const age = calculateAge(candidate.birthday);
-  const ageDisplay = age !== null ? `${age}歳` : candidate.age ? `${candidate.age}歳` : "-";
+  const ageDisplay = age !== null ? `${age} 歳` : candidate.age ? `${candidate.age} 歳` : "-";
   const address = candidate.address || [candidate.addressPref, candidate.addressCity, candidate.addressDetail].filter(Boolean).join("");
   const basicFields = [
     { label: "求職者名", value: candidate.candidateName, editable: false, span: 3 },
@@ -2239,7 +2259,7 @@ function renderSelectionProgressSection(candidate) {
   const editing = detailEditState.selection;
   const headerAction = editing ? "<th>操作</th>" : "";
   const addButton = editing
-    ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress">追加</button>`
+    ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress"> 追加</button>`
     : "";
 
   let bodyHtml;
@@ -2251,26 +2271,26 @@ function renderSelectionProgressSection(candidate) {
       .map((row, index) => {
         const statusValue = resolveSelectionStageValue(row) || row.status || "";
         if (editing) {
-          const pathPrefix = `selectionProgress.${index}`;
+          const pathPrefix = `selectionProgress.${index} `;
           const cells = [
             `<td>${renderTableSelect(buildClientOptions(row.clientId, row.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
             `<td>${renderTableInput(row.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
             // status-pill cell: add nowrap-cell class
             `<td class="text-center nowrap-cell" data-selection-status>${renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue))}</td>`,
-            `<td>${renderTableInput(row.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.interviewSetupDate, `${pathPrefix}.interviewSetupDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.interviewDate, `${pathPrefix}.interviewDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.secondInterviewSetupDate, `${pathPrefix}.secondInterviewSetupDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.acceptanceDate, `${pathPrefix}.acceptanceDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.onboardingDate, `${pathPrefix}.onboardingDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.preJoinDeclineDate, `${pathPrefix}.preJoinDeclineDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.preJoinDeclineReason, `${pathPrefix}.preJoinDeclineReason`, "text", "selection")}</td>`,
-            `<td>${renderTableInput(row.postJoinQuitDate, `${pathPrefix}.postJoinQuitDate`, "date", "selection")}</td>`,
-            `<td>${renderTableInput(row.postJoinQuitReason, `${pathPrefix}.postJoinQuitReason`, "text", "selection")}</td>`,
-            `<td>${renderTableInput(row.closeExpectedDate, `${pathPrefix}.closeExpectedDate`, "date", "selection")}</td>`,
-            `<td><span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span></td>`,
+            `< td > ${renderTableInput(row.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.interviewSetupDate, `${pathPrefix}.interviewSetupDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.interviewDate, `${pathPrefix}.interviewDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.secondInterviewSetupDate, `${pathPrefix}.secondInterviewSetupDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.acceptanceDate, `${pathPrefix}.acceptanceDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.onboardingDate, `${pathPrefix}.onboardingDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.preJoinDeclineDate, `${pathPrefix}.preJoinDeclineDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.preJoinDeclineReason, `${pathPrefix}.preJoinDeclineReason`, "text", "selection")}</td > `,
+            `< td > ${renderTableInput(row.postJoinQuitDate, `${pathPrefix}.postJoinQuitDate`, "date", "selection")}</td > `,
+            `< td > ${renderTableInput(row.postJoinQuitReason, `${pathPrefix}.postJoinQuitReason`, "text", "selection")}</td > `,
+            `< td > ${renderTableInput(row.closeExpectedDate, `${pathPrefix}.closeExpectedDate`, "date", "selection")}</td > `,
+            `< td > <span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span></td > `,
             `<td>${renderTableTextarea(row.selectionNote, `${pathPrefix}.selectionNote`, "selection")}</td>`,
           ].join("");
           const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
@@ -2332,15 +2352,15 @@ function renderTeleapoLogsSection(candidate) {
   const rows = candidate.teleapoLogs || [];
   if (rows.length === 0) {
     return `
-      <div class="detail-table-wrapper">
-        <table class="detail-table">
-          <thead>
-            <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
-          </tbody>
-        </table>
+    <div class="detail-table-wrapper">
+      <table class="detail-table">
+        <thead>
+          <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
+        </tbody>
+      </table>
       </div>
     `;
   }
@@ -2368,7 +2388,7 @@ function renderTeleapoLogsSection(candidate) {
         <tbody>${bodyHtml}</tbody>
       </table>
     </div>
-  `;
+    `;
 }
 
 function renderMoneySection(candidate) {
@@ -2387,15 +2407,15 @@ function renderMoneySection(candidate) {
           ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
           : renderBooleanPill(row.orderReported);
         return `
-          <tr>
+    <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${feeCell}</td>
             <td class="text-center">${reportCell}</td>
           </tr>
-        `;
+    `;
       })
       .join("")
-    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
+    : `< tr > <td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr > `;
 
   const refundBody = hasRows
     ? rows
@@ -2416,14 +2436,14 @@ function renderMoneySection(candidate) {
           ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
           : renderBooleanPill(row.refundReported);
         return `
-          <tr>
+    <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${refundAmountCell}</td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(retirementDate)))}</span></td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(refundType))}</span></td>
             <td class="text-center">${refundReportCell}</td>
           </tr>
-        `;
+    `;
       })
       .join("")
     : `<tr><td colspan="5" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>`;
@@ -2437,7 +2457,7 @@ function renderMoneySection(candidate) {
         <tbody>${orderBody}</tbody>
       </table>
     </div>
-  `;
+    `;
 
   const refundTable = `
     <div class="detail-table-wrapper">
@@ -2448,7 +2468,7 @@ function renderMoneySection(candidate) {
         <tbody>${refundBody}</tbody>
       </table>
     </div>
-  `;
+    `;
 
   return [
     renderDetailSubsection("入社承諾後", orderTable),
@@ -2468,7 +2488,7 @@ function renderAfterAcceptanceSection(candidate) {
       .join("") || "-";
   return `
     ${renderDetailGridFields(fields, "afterAcceptance")}
-    <div class="detail-pill-list">${reportStatuses}</div>
+  <div class="detail-pill-list">${reportStatuses}</div>
   `;
 }
 
@@ -2494,15 +2514,15 @@ function renderRefundSection(candidate) {
 
   if (!items.length) {
     return `
-      <div class="detail-table-wrapper">
-        <table class="detail-table">
-          <thead>
-            <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="4" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>
-          </tbody>
-        </table>
+    <div class="detail-table-wrapper">
+      <table class="detail-table">
+        <thead>
+          <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="4" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>
+        </tbody>
+      </table>
       </div>
     `;
   }
@@ -2530,15 +2550,15 @@ function renderRefundSection(candidate) {
         <tbody>${bodyHtml}</tbody>
       </table>
     </div>
-  `;
+    `;
 }
 
 function renderNextActionSection(candidate) {
   const nextAction = pickNextAction(candidate);
   if (!nextAction) {
     return `
-      <div class="next-action-card">
-        <span class="next-action-label">次回アクションは未設定です。</span>
+    <div class="next-action-card">
+      <span class="next-action-label">次回アクションは未設定です。</span>
       </div>
     `;
   }
@@ -2548,7 +2568,7 @@ function renderNextActionSection(candidate) {
       <span class="next-action-date">次回アクション: ${escapeHtml(formatDateJP(nextAction.date))}</span>
       <span class="next-action-label">(${escapeHtml(nextAction.label)})</span>
     </div>
-  `;
+    `;
 }
 
 function renderCsSection(candidate) {
@@ -2561,7 +2581,7 @@ function renderCsSection(candidate) {
 
   const items = [
     { label: "SMS送信", html: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
-    { label: "架電回数", value: Number(callCount) > 0 ? `${callCount}回` : "-" },
+    { label: "架電回数", value: Number(callCount) > 0 ? `${callCount} 回` : "-" },
     { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
@@ -2584,9 +2604,10 @@ function renderCsSection(candidate) {
             </div>
           `
       )
-      .join("")}
+      .join("")
+    }
     </div>
-  `;
+    `;
 }
 
 function parseDateValue(value) {
@@ -2614,14 +2635,14 @@ function pickNextAction(candidate) {
 
   (candidate.selectionProgress || []).forEach((row) => {
     const prefix = row.companyName ? `${row.companyName} ` : "";
-    pushIfUpcoming(`${prefix}面接設定日`, row.interviewSetupDate);
-    pushIfUpcoming(`${prefix}面接日`, row.interviewDate);
-    pushIfUpcoming(`${prefix}二次面接調整日`, row.secondInterviewSetupDate);
-    pushIfUpcoming(`${prefix}二次面接日`, row.secondInterviewDate);
-    pushIfUpcoming(`${prefix}内定日`, row.offerDate);
-    pushIfUpcoming(`${prefix}内定承諾日`, row.acceptanceDate);
-    pushIfUpcoming(`${prefix}入社日`, row.onboardingDate);
-    pushIfUpcoming(`${prefix}クロージング予定日`, row.closeExpectedDate);
+    pushIfUpcoming(`${prefix} 面接設定日`, row.interviewSetupDate);
+    pushIfUpcoming(`${prefix} 面接日`, row.interviewDate);
+    pushIfUpcoming(`${prefix} 二次面接調整日`, row.secondInterviewSetupDate);
+    pushIfUpcoming(`${prefix} 二次面接日`, row.secondInterviewDate);
+    pushIfUpcoming(`${prefix} 内定日`, row.offerDate);
+    pushIfUpcoming(`${prefix} 内定承諾日`, row.acceptanceDate);
+    pushIfUpcoming(`${prefix} 入社日`, row.onboardingDate);
+    pushIfUpcoming(`${prefix} クロージング予定日`, row.closeExpectedDate);
   });
 
   if (upcoming.length === 0) return null;
@@ -2633,10 +2654,10 @@ function renderMemoSection(candidate) {
   const editing = detailEditState.memo;
   if (editing) {
     return `
-      <label class="detail-textarea-field">
-        <span>自由メモ</span>
-        <textarea rows="4" class="detail-inline-input detail-inline-textarea" data-detail-field="memoDetail" data-detail-section="memo">${escapeHtml(candidate.memoDetail || "")}</textarea>
-      </label>
+    <label class="detail-textarea-field">
+      <span>自由メモ</span>
+      ${renderTableTextarea(candidate.memoDetail, "memoDetail", "memo")}
+    </label>
     `;
   }
   return `
@@ -2644,7 +2665,7 @@ function renderMemoSection(candidate) {
       <span>自由メモ</span>
       <span class="detail-value">${escapeHtml(candidate.memoDetail || "-")}</span>
     </label>
-  `;
+    `;
 }
 
 function resolveDetailGridSpanClass(field) {
@@ -2697,9 +2718,10 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
             </div>
           `;
       })
-      .join("")}
+      .join("")
+    }
     </dl>
-  `;
+    `;
 }
 
 function renderDetailFieldInput(field, value, sectionKey) {
@@ -2710,8 +2732,8 @@ function renderDetailFieldInput(field, value, sectionKey) {
   }
   if (field.input === "select") {
     return `
-      <select class="detail-inline-input" ${dataset}${valueType}>
-        ${(field.options || [])
+    <select class="detail-inline-input" ${dataset}${valueType}>
+      ${(field.options || [])
         .map((option) => {
           const isObject = option && typeof option === "object";
           const optValue = isObject ? option.value : option;
@@ -2721,17 +2743,18 @@ function renderDetailFieldInput(field, value, sectionKey) {
             : String(optValue ?? "") === String(value ?? "");
           return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
         })
-        .join("")}
+        .join("")
+      }
       </select>
     `;
   }
   if (field.input === "checkbox") {
     return `
-      <label class="meeting-check">
-        <input type="checkbox" ${value ? "checked" : ""} ${dataset}${valueType || ' data-value-type="boolean"'}>
+    <label class="meeting-check">
+      <input type="checkbox" ${value ? "checked" : ""} ${dataset} ${valueType || 'data-value-type="boolean"'}>
         <span>${field.checkboxLabel || "済"}</span>
       </label>
-    `;
+  `;
   }
   const type = field.type === "datetime" ? "datetime-local" : field.type || "text";
   return `<input type="${type}" class="detail-inline-input" value="${escapeHtmlAttr(formatInputValue(value, type))}" ${dataset}${valueType}>`;
@@ -2779,7 +2802,7 @@ function formatInputValue(value, type) {
     const day = String(d.getDate()).padStart(2, "0");
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${day}T${hh}:${mm}`;
+    return `${y} -${m} -${day}T${hh}:${mm} `;
   }
   return value;
 }

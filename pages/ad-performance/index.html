@@ -126,7 +126,10 @@
   <table class="table-grid min-w-[2000px]" id="adTable">
     <thead>
       <tr>
-        <th class="sticky top-0 left-0 bg-slate-50 z-40 whitespace-nowrap">媒体名</th>
+        <th
+          class="sticky top-0 left-0 bg-slate-50 z-[60] whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+          style="position: sticky; left: 0; top: 0; z-index: 60;">
+          媒体名</th>
 
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="applications">応募数 <span
             class="sort-indicator ml-1">▼</span></th>
@@ -134,27 +137,32 @@
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="validApplicationRate">
-          有効応募率（有効応募数/応募数）
+          有効応募率<span class="text-[10px] font-normal text-slate-500 ml-1">（有効応募数/応募数）</span>
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviews">初回面談設定数
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="initialInterviewRate">
-          初回面談設定率（初回面談数/有効応募数） <span class="sort-indicator ml-1">▼</span></th>
+          初回面談設定率<span class="text-[10px] font-normal text-slate-500 ml-1">（初回面談数/有効応募数）</span> <span
+            class="sort-indicator ml-1">▼</span></th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offers">内定数 <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率（内定数/有効応募数）
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="offerRate">内定率<span
+            class="text-[10px] font-normal text-slate-500 ml-1">（内定数/有効応募数）</span>
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hired">入社数 <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率（入社数/内定数） <span
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="hireRate">入社率<span
+            class="text-[10px] font-normal text-slate-500 ml-1">（入社数/内定数）</span> <span
             class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率（入社数/有効応募数）
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="decisionRate">決定率<span
+            class="text-[10px] font-normal text-slate-500 ml-1">（入社数/有効応募数）</span>
           <span class="sort-indicator ml-1">▼</span>
         </th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retentionWarranty">定着率（保障期間）
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="retentionWarranty">定着率<span
+            class="text-[10px] font-normal text-slate-500 ml-1">（保障期間）</span>
           <span class="sort-indicator ml-1">▼</span>
         </th>
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="totalSales">売上高 <span
@@ -163,10 +171,13 @@
         <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="cost">契約費用 <span
             class="sort-indicator ml-1">▼</span></th>
 
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="roas">ROAS <span
-            class="sort-indicator ml-1">▼</span></th>
-        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">返金額（税込） <span
-            class="sort-indicator ml-1">▼</span></th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="roas">ROAS
+          <span class="text-[10px] font-normal text-slate-500 ml-1">(売上高/契約費用)</span> <span
+            class="sort-indicator ml-1">▼</span>
+        </th>
+        <th class="sortable cursor-pointer hover:bg-slate-100 whitespace-nowrap" data-sort="refund">返金額<span
+            class="text-[10px] font-normal text-slate-500 ml-1">（税込）</span> <span class="sort-indicator ml-1">▼</span>
+        </th>
       </tr>
     </thead>
     <tbody id="adManagementTableBody">
