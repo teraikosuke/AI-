@@ -352,8 +352,8 @@ function calcDerivedRates(item) {
   const totalSales = Number(item.totalSales) || 0;
   const retentionWarranty = resolveRetentionValue(item);
 
-  // ROAS計算
-  const roas = cost > 0 ? (totalSales / cost) * 100 : 0;
+  // ROAS計算：契約費用が0の時は'-'を返す
+  const roas = cost > 0 ? (totalSales / cost) * 100 : null;
 
   return {
     ...item,
@@ -612,7 +612,7 @@ function renderAdTable(data) {
         
         <td class="text-right font-semibold whitespace-nowrap px-2 text-slate-700">${formatCurrency(ad.cost)}</td>
         
-        <td class="text-right font-semibold whitespace-nowrap px-2 text-indigo-700">${formatPercent(ad.roas)}</td>
+        <td class="text-right font-semibold whitespace-nowrap px-2 text-indigo-700">${ad.roas !== null ? formatPercent(ad.roas) : '-'}</td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.refund)}</td>
       </tr>
@@ -1479,7 +1479,7 @@ function handleExportCSV() {
   const sortedData = getAggregatedSorted();
 
   // ★列順変更: 売上高 -> 契約費用 -> ROAS
-  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（保障期間）', '売上高（税込）', '契約費用', 'ROAS', '返金額（税込）'];
+  const headers = ['媒体名', '応募件数', '有効応募件数', '初回面談設定数', '初回面談設定率', '内定数', '内定率', '入社数', '入社率', '決定率', '定着率（保障期間）', '売上高（税込）', '契約費用', 'ROAS（売上高/契約費用）', '返金額（税込）'];
 
   const csvContent = [
     headers.join(','),

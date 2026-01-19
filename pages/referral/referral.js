@@ -64,61 +64,6 @@ window.navigateToCandidate = function (candidateId) {
 
 // ==========================================
 
-export function mount() {
-
-  initializeFilters();
-
-  initializePagination();
-
-  initializeSort();
-
-  initializeExport();
-
-  initializeMatchingTabs();
-
-  initializeMatching();
-
-  initializeCreateForm();
-
-  initReferralCandidateModal();
-
-  loadCandidateSummaries().then(() => {
-    if (selectedCompanyId) renderCompanyDetail();
-  });
-
-
-  // APIからデータをロード
-
-  loadReferralData()
-
-    .then(() => {
-
-      renderCompanyDetail();
-
-      updateFilterCount();
-
-    })
-
-    .catch((e) => {
-
-      console.error('API取得失敗:', e);
-
-      allData = [];
-
-      filteredData = [];
-
-      renderTable();
-
-      renderCompanyDetail();
-
-      updateFilterCount();
-
-    });
-
-}
-
-
-
 export function unmount() {
 
   const ids = [
@@ -220,13 +165,8 @@ async function loadReferralData() {
 
   allData = items.map((item, index) => normalizeReferralItem(item, index));
 
-
-
-  if (allData.length > 0) {
-
-    selectedCompanyId = allData[0].id;
-
-  }
+  // Don't auto-select any company
+  selectedCompanyId = null;
 
 
 
@@ -298,7 +238,8 @@ function normalizeReferralItem(item = {}, index = 0) {
 
   const retentionRaw = val(['retentionRate', 'retention', 'retention_rate']);
 
-  const retention = formatRetention(retentionRaw);
+  // 入社数が0の場合は定着率を'-'とする
+  const retention = joined === 0 ? '-' : formatRetention(retentionRaw);
 
   const warrantyPeriod = num(['warrantyPeriod', 'warranty_period'], null);
 
@@ -711,7 +652,7 @@ function normalizeCandidates(list) {
 }
 
 const PHASE_FLOW_ORDER = [
-  '提案',
+  '推薦',
   '書類',
   '一次',
   '二次',
@@ -759,7 +700,7 @@ function normalizeCandidateStageKey(stage) {
   if (includesAny(['二次', '2次', 'second', '2nd'])) return '二次';
   if (includesAny(['一次', '1次', 'first', '1st', '面接', '面談', '初回', '面接設定', '一次面接調整', '初回面談設定', 'interview'])) return '一次';
   if (includesAny(['書類選考', '書類通過', '書類', 'document', 'doc', 'docscreen', 'doc_screen', 'document_screening'])) return '書類';
-  if (includesAny(['提案', '提案済', '推薦', '推薦済', '応募', '応募済', 'エントリー', 'proposal', 'recommend', 'entry', 'apply', 'application', 'new', '未接触', '架電', 'sms', '通電'])) return '提案';
+  if (includesAny(['推薦', '推薦済', '提案', '提案済', '応募', '応募済', 'エントリー', 'proposal', 'recommend', 'entry', 'apply', 'application', 'new', '未接触', '架電', 'sms', '通電'])) return '推薦';
 
   return '';
 }
@@ -1892,9 +1833,9 @@ function renderTable() {
 
         <td class="text-left">${remainingBadge(item.remaining)}</td>
 
-        <td class="text-left">${retentionBadge(item.retention, item.warrantyPeriod)}</td>
-
         <td>${item.jobTitle}</td>
+
+        <td class="text-right">${item.planHeadcount}名</td>
 
         <td class="text-right">${item.proposal}件</td>
 
@@ -1908,11 +1849,11 @@ function renderTable() {
 
         <td class="text-right">${item.joined}件</td>
 
-        <td class="text-right">${item.planHeadcount}名</td>
-
         <td class="text-right">${formatCurrency(item.refundAmount)}</td>
 
         <td class="text-right">${item.leadTime}日</td>
+
+        <td class="text-left">${retentionBadge(item.retention, item.warrantyPeriod)}</td>
 
         <td class="text-right">${item.feeDisplay}</td>
 
@@ -1965,192 +1906,106 @@ function attachRowClickHandlers() {
 
 
 function renderCompanyDetail() {
-
-  const container = document.getElementById('referralCompanyDetail');
-
-  if (!container) return;
+  if (!selectedCompanyId) return;
 
   const company = filteredData.find(c => c.id === selectedCompanyId);
+  if (!company) return;
 
-  if (!company) { container.innerHTML = '<div class="text-sm text-slate-500">企業が選択されていません</div>'; return; }
+  const badge = (text, classes = '', size = 'px-3 py-1 text-xs') =>
+    `<span class="${size} rounded-full ${classes} font-semibold inline-flex items-center justify-center">${text}</span>`;
 
-
-
-  const badge = (text, classes = '', size = 'px-3 py-1 text-xs') => `<span class="${size} rounded-lg font-semibold ${classes}">${text}</span>`;
+  const detail = document.getElementById('referralCompanyDetail');
+  if (!detail) return;
+  // Show detail section
+  detail.classList.remove('hidden');
 
   const retentionClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-
   const leadClass = 'bg-amber-50 text-amber-700 border border-amber-100';
-
   const refundClass = Number(company.refundAmount) > 0 ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-slate-50 text-slate-700 border border-slate-100';
-
   const editing = detailEditMode;
-
   const desired = company.desiredTalent || {
-
     salaryRange: [0, 0],
-
     locations: [],
-
     mustQualifications: [],
-
     niceQualifications: [],
-
     personality: [],
-
     experiences: []
-
   };
-
   const salaryRange = Array.isArray(desired.salaryRange) ? desired.salaryRange : [0, 0];
-
   const salaryMinValue = Number(salaryRange[0] || 0);
-
   const salaryMaxValue = Number(salaryRange[1] || 0);
-
   const salaryMinInput = salaryMinValue > 0 ? salaryMinValue : '';
-
   const salaryMaxInput = salaryMaxValue > 0 ? salaryMaxValue : '';
-
   const salaryLabel = (salaryMinValue || salaryMaxValue)
-
     ? `${salaryMinValue || '-'}\u301c${salaryMaxValue || '-'} 万円`
     : '-';
-
   const mustDisplay = sanitizeList(desired.mustQualifications).join(' / ') || '-';
-
   const niceDisplay = sanitizeList(desired.niceQualifications).join(' / ') || '-';
-
   const locationDisplay = sanitizeList(desired.locations).join(' / ') || '-';
-
   const personalityDisplay = sanitizeList(desired.personality).join(' / ') || '-';
-
   const experienceDisplay = sanitizeList(desired.experiences).join(' / ') || '-';
-
   const selectionNoteText = company.selectionNote || '';
-
   const editActions = editing
-
     ? `
-
       <div class="flex items-center gap-2">
-
         <button type="button" id="referralDetailSaveBtn" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-500">保存</button>
-
         <button type="button" id="referralDetailCancelBtn" class="px-3 py-1.5 border border-slate-300 rounded-md text-xs text-slate-600 hover:bg-slate-100">キャンセル</button>
-
       </div>
-
     `
-
     : `<button type="button" id="referralDetailEditBtn" class="px-3 py-1.5 border border-slate-300 rounded-md text-xs text-slate-600 hover:bg-slate-100">編集</button>`;
 
-
-
   const desiredContent = editing
-
     ? `
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">年収レンジ（万円）</span>
-
         <div class="flex items-center gap-2">
-
           <input type="number" min="0" id="referralDesiredSalaryMin" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm w-full" placeholder="600" value="${salaryMinInput}">
-
           <span class="text-xs text-slate-400">&#x301c;</span>
           <input type="number" min="0" id="referralDesiredSalaryMax" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm w-full" placeholder="900" value="${salaryMaxInput}">
-
         </div>
-
       </label>
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">必須資格</span>
-
         <input type="text" id="referralDesiredMust" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.mustQualifications)}">
-
       </label>
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">歓迎資格</span>
-
         <input type="text" id="referralDesiredNice" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.niceQualifications)}">
-
       </label>
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">勤務地</span>
-
         <input type="text" id="referralDesiredLocations" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.locations)}">
-
       </label>
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">性格傾向</span>
-
         <input type="text" id="referralDesiredPersonality" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.personality)}">
-
       </label>
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">経験</span>
-
         <textarea rows="2" id="referralDesiredExperiences" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り">${listToInputValue(desired.experiences)}</textarea>
-
       </label>
-
     `
-
     : `
-
       <div><span class="font-semibold text-slate-700">年収レンジ：</span>${salaryLabel}</div>
-
       <div><span class="font-semibold text-slate-700">必須資格：</span>${mustDisplay}</div>
-
       <div><span class="font-semibold text-slate-700">歓迎資格：</span>${niceDisplay}</div>
-
       <div><span class="font-semibold text-slate-700">勤務地：</span>${locationDisplay}</div>
-
       <div><span class="font-semibold text-slate-700">性格傾向：</span>${personalityDisplay}</div>
-
       <div><span class="font-semibold text-slate-700">経験：</span>${experienceDisplay}</div>
-
     `;
-
-
 
   const memoContent = editing
-
     ? `
-
       <label class="flex flex-col gap-1">
-
         <span class="text-xs font-semibold text-slate-600">メモ内容</span>
-
         <textarea rows="6" id="referralSelectionNote" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="選考メモを入力">${selectionNoteText}</textarea>
-
       </label>
-
       <div class="text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
-
     `
-
     : `
-
       <div class="whitespace-pre-wrap text-slate-700">${selectionNoteText || 'メモがありません'}</div>
-
       <div class="text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
-
     `;
-
-
 
   const flowCandidates = getFlowCandidates(company);
   const normalizedFlowCandidates = (flowCandidates || []).map(candidate => {
@@ -2170,7 +2025,7 @@ function renderCompanyDetail() {
     return Number.isFinite(num) ? num : 0;
   };
   const stageValueMap = {
-    '提案': company.proposal,
+    '推薦': company.proposal,
     '書類': company.docScreen,
     '一次': company.interview1,
     '二次': company.interview2,
@@ -2187,24 +2042,14 @@ function renderCompanyDetail() {
 
 
   const candidateBubble = (c) => `
-
     <div class="inline-flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-full shadow-sm text-[11px] text-slate-700 max-w-[160px] sm:max-w-[220px]">
-
       <span class="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
-
       <div class="flex flex-col leading-tight min-w-0">
-
         <span class="font-semibold text-[12px] truncate">${c.name}</span>
-
         <span class="text-slate-500 truncate">${formatDateString(c.date)}</span>
-
       </div>
-
       ${c.note ? `<span class="text-slate-500 truncate max-w-[80px] sm:max-w-[120px]">${c.note}</span>` : ''}
-
     </div>`;
-
-
 
   const flow = stages.map((s, idx) => {
     const stageCands = normalizedFlowCandidates.filter(c => (c.stageKey || c.stage) === s.key);
@@ -2240,71 +2085,97 @@ function renderCompanyDetail() {
 
   const recommendedHtml = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
 
-  container.innerHTML = `
+  detail.innerHTML = `
+    <div class="border border-indigo-200 border-l-4 border-l-indigo-500 rounded-xl p-4 bg-gradient-to-br from-indigo-50 via-white to-blue-50 space-y-4 shadow-lg text-sm text-slate-800">
 
-    <div class="border border-slate-200 rounded-xl p-5 bg-white space-y-5 shadow-sm text-sm text-slate-800">
-
-      <div class="flex flex-col lg:flex-row justify-between gap-4">
-
-        <div class="space-y-3 flex-1 min-w-0 w-full">
-
-          <div class="flex flex-wrap items-center gap-2">
-
-            <div class="text-2xl font-bold text-slate-900">${company.company}</div>
-
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">担当 ${company.contact}</span>
-
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-
-            <span class="px-3 py-1 rounded-full bg-slate-100 border border-slate-200">${company.industry}</span>
-
-            <span class="px-3 py-1 rounded-full bg-slate-100 border border-slate-200">${company.location}</span>
-
-          </div>
-
-          <div class="text-lg font-bold text-indigo-800">募集ポジション：${company.highlightPosition}</div>
-
+      <!-- ヘッダー：会社名と闉じるボタン -->
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <h2 class="text-2xl font-bold text-indigo-900">${company.company}</h2>
         </div>
-
-        <div class="w-full lg:w-auto flex-none max-w-full order-3 lg:order-none mt-2 lg:mt-0 lg:ml-auto">
-
-          <div class="flex flex-wrap gap-1.5 sm:gap-2 justify-start lg:justify-end text-[10px] sm:text-sm">
-
-            ${badge(`定着率 ${company.retention}`, retentionClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
-
-            ${badge(`リードタイム ${company.leadTime}日`, leadClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
-
-            ${badge(`Fee ${company.feeDisplay}`, 'bg-indigo-50 text-indigo-700 border border-indigo-100', 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
-
-            ${badge(`返金額 ${formatCurrency(company.refundAmount)}`, refundClass, 'px-2.5 py-1 text-[10px] inline-flex items-center leading-tight sm:px-4 sm:py-2 sm:text-sm sm:whitespace-nowrap')}
-
-          </div>
-
-        </div>
-
+        <button
+          id="closeCompanyDetail"
+          class="flex-shrink-0 p-2 hover:bg-indigo-100 rounded-lg transition text-indigo-700 hover:text-indigo-900"
+          title="闉じる">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
+
+      <!-- 基本情報 -->
+      <div class="space-y-2">
+        <!-- 担当者など -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200 w-fit">👤 ${company.contact}</span>
+        </div>
+        
+        <!-- 業種・所在地 -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs">🏢 ${company.industry}</span>
+          <span class="px-2.5 py-1 rounded-full bg-cyan-100 text-cyan-700 border border-cyan-200 font-semibold text-xs">📍 ${company.location}</span>
+        </div>
+      </div>
+
+      <!-- 募集ポジション -->
+      <div class="bg-gradient-to-r from-slate-50 to-blue-50 rounded-lg px-3 py-2 border border-slate-300 shadow-sm">
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="text-lg">💼</span>
+          <span class="text-xs font-semibold text-slate-700 uppercase tracking-wide">募集ポジション</span>
+        </div>
+        <div class="text-lg font-bold text-slate-900">${company.highlightPosition}</div>
+      </div>
+
+      <!-- 各種指標 -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div class="${retentionClass} px-3 py-2 text-center shadow-sm rounded-lg">
+          <div class="text-[10px] mb-0.5 opacity-80">
+            📊 定着率<span class="ml-1 text-[9px] font-normal text-slate-500">（返金発生期間）</span>
+          </div>
+          <div class="text-base font-bold">${company.retention}</div>
+        </div>
+        <div class="${leadClass} px-3 py-2 text-center shadow-sm rounded-lg">
+          <div class="text-[10px] mb-0.5 opacity-80">
+            ⏱️ リードタイム<span class="ml-1 text-[9px] font-normal text-slate-500">（推薦から入社までの期間）</span>
+          </div>
+          <div class="text-base font-bold">${company.leadTime}日</div>
+        </div>
+        <div class="bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-800 border border-indigo-200 px-3 py-2 text-center shadow-sm rounded-lg">
+          <div class="text-[10px] mb-0.5 opacity-80">💰 合計Fee</div>
+          <div class="text-base font-bold">${company.feeDisplay}</div>
+        </div>
+        <div class="${refundClass} px-3 py-2 text-center shadow-sm rounded-lg">
+          <div class="text-[10px] mb-0.5 opacity-80">${Number(company.refundAmount) > 0 ? '❌' : '✅'} 返金</div>
+          <div class="text-base font-bold">${formatCurrency(company.refundAmount)}</div>
+        </div>
+      </div>
+      
 
       
 
-      <div class="p-4 border border-slate-200 bg-slate-50 rounded-lg leading-6 w-full">
+      <div class="p-3 border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 rounded-lg leading-relaxed w-full shadow-sm">
 
-        <div class="font-semibold text-slate-900 text-sm mb-1">企業メモ</div>
+        <div class="font-bold text-blue-900 text-sm mb-1.5 flex items-center gap-1.5">
+          <span class="text-base">📝</span>
+          <span>企業メモ</span>
+        </div>
 
-        <div class="text-base text-slate-800 font-semibold w-full max-w-none">${buildAIInsight(company)}</div>
+        <div class="text-sm text-slate-800 font-semibold w-full max-w-none">${buildAIInsight(company)}</div>
 
-        <div class="text-slate-800 text-sm mt-2">${buildAgencyInsight(company)}</div>
+        <div class="text-slate-800 text-xs mt-1.5">${buildAgencyInsight(company)}</div>
 
       </div>
 
 
 
-      <div class="space-y-3 pt-1">
+      <div class="space-y-2 pt-1">
 
-        <div class="text-base font-bold text-slate-900 tracking-wide">募集・選考の進捗</div>
+        <div class="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
+          <span class="text-lg">📈</span>
+          <span>募集・選考の進捗</span>
+        </div>
 
-        <div class="flex flex-nowrap items-start gap-2 sm:gap-4 lg:gap-6 justify-start lg:justify-between overflow-x-auto pb-2 w-full max-w-full">
+        <div class="flex flex-nowrap items-start gap-2 sm:gap-3 lg:gap-4 justify-start lg:justify-between overflow-x-auto pb-2 w-full max-w-full bg-white/60 rounded-lg p-3 border border-slate-200">
 
           ${flow}
 
@@ -2316,81 +2187,152 @@ function renderCompanyDetail() {
 
       
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 text-center">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-2.5 text-center">
 
-        <div class="p-4 border border-slate-200 rounded-lg bg-slate-50">
+        <div class="p-3 border border-slate-300 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm hover:shadow-md transition">
 
-          <div class="text-xs text-slate-500">採用予定</div>
+          <div class="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">採用予定</div>
 
-          <div class="text-lg sm:text-2xl font-bold text-slate-900">${company.planHeadcount}名</div>
-
-        </div>
-
-        <div class="p-4 border border-slate-200 rounded-lg bg-indigo-50">
-
-          <div class="text-xs text-indigo-600">内定 / 入社</div>
-
-          <div class="text-lg sm:text-2xl font-bold text-indigo-800">${company.offer} / ${company.joined}</div>
+          <div class="text-2xl font-bold text-slate-900 mt-1">${company.planHeadcount}<span class="text-sm text-slate-600">名</span></div>
 
         </div>
 
-        <div class="p-4 border border-slate-200 rounded-lg bg-emerald-50">
+        <div class="p-3 border border-blue-300 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm hover:shadow-md transition">
 
-          <div class="text-xs text-emerald-700">残り人数</div>
+          <div class="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">内定 / 入社</div>
 
-          <div class="text-lg sm:text-2xl font-bold text-emerald-800">${company.remaining}</div>
+          <div class="text-2xl font-bold text-blue-900 mt-1">${company.offer} <span class="text-blue-600">/</span> ${company.joined}</div>
 
         </div>
 
+        <div class="p-3 border border-slate-300 rounded-lg bg-gradient-to-br from-slate-50 to-blue-50 shadow-sm hover:shadow-md transition">
+
+          <div class="text-[10px] font-semibold text-slate-700 uppercase tracking-wide">残り人数</div>
+
+          <div class="text-2xl font-bold text-slate-900 mt-1">${company.remaining}<span class="text-sm text-slate-600">名</span></div>
+
+        </div>
       </div>
-
-
-
-      <div class="space-y-3">
-
-        <div class="flex items-center justify-between">
-
-          <div class="text-sm font-semibold text-slate-700">欲しい人材・選考メモ</div>
-
+      <!-- 求人情報 -->
+      <div class="bg-white/50 rounded-xl p-4 border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="text-xl">🎯</span>
+            <span>求人情報</span>
+          </div>
           ${editActions}
-
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-
-          <div class="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200 text-[15px] leading-6">
-
-            <div class="flex items-center justify-between">
-
-              <div class="font-semibold text-slate-900 text-base">欲しい人材</div>
-
-              ${editing ? '<span class="text-[11px] text-slate-400">カンマ区切り</span>' : ''}
-
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm">
+          <!-- 欲しい人材 -->
+          <div class="p-3 bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-200 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <div class="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+                <span>👥</span>
+                <span>欲しい人材</span>
+              </div>
+              ${editing ? '<span class="text-[10px] text-slate-500">カンマ区切り</span>' : ''}
             </div>
-
             ${desiredContent}
-
           </div>
 
-          <div class="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200 text-[15px] leading-6">
-
-            <div class="font-semibold text-slate-900 text-base">選考メモ</div>
-
+          <!-- 選考メモ -->
+          <div class="p-3 bg-gradient-to-br from-slate-50 to-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-2">
+              <span>📋</span>
+              <span>選考メモ</span>
+            </div>
             ${memoContent}
-
           </div>
+        </div>
+      </div>
 
+      <!-- 契約情報 -->
+      <div class="bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 rounded-xl p-4 border border-slate-300 shadow-md">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="text-xl">📝</span>
+            <span>契約情報（人材会社 ⇔ 顧客企業間）</span>
+          </h3>
+          <button 
+            id="contractInfoEditBtn" 
+            class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
+            📝 編集
+          </button>
         </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <!-- 返金保証期間 -->
+          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              <span>⏰</span>
+              <span>返金保証期間</span>
+            </div>
+            <div id="warrantyPeriodDisplay" class="text-sm text-slate-800 min-h-[60px] leading-relaxed">
+              ${company.warrantyPeriod ? `${company.warrantyPeriod}日` : '-'}
+            </div>
+            <textarea 
+              id="warrantyPeriodInput" 
+              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
+              placeholder="例: 90日、3ヶ月など">${company.warrantyPeriod || ''}</textarea>
+          </div>
+
+          <!-- Fee契約内容 -->
+          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              <span>💰</span>
+              <span>Fee契約内容</span>
+            </div>
+            <div id="feeContractDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
+              ${company.feeContract || '-'}
+            </div>
+            <textarea 
+              id="feeContractInput" 
+              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
+              placeholder="Fee契約の詳細を入力">${company.feeContract || ''}</textarea>
+          </div>
+
+          <!-- その他契約メモ -->
+          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              <span>📌</span>
+              <span>その他</span>
+            </div>
+            <div id="contractNotesDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
+              ${company.contractNotes || '-'}
+            </div>
+            <textarea 
+              id="contractNotesInput" 
+              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
+              placeholder="その他の契約に関するメモ">${company.contractNotes || ''}</textarea>
+          </div>
+        </div>
+
+        <!-- 編集時の保存/キャンセルボタン -->
+        <div id="contractInfoEditActions" class="hidden mt-3 flex gap-2 justify-end">
+          <button 
+            id="contractInfoCancelBtn" 
+            class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
+            キャンセル
+          </button>
+          <button 
+            id="contractInfoSaveBtn" 
+            class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 border border-blue-700 rounded-lg transition">
+            保存
+          </button>
+        </div>
       </div>
 
 
 
-      <div class="bg-indigo-50/50 rounded-lg p-4 border border-indigo-100">
+      <div class="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-50 rounded-lg p-3 border border-slate-300 shadow-sm">
 
-         <h4 class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3">AIマッチング候補者 (Top 3)</h4>
+         <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+           <span class="text-base">🤖</span>
+           <span>AIマッチング候補者 (Top 3)</span>
+         </h4>
 
-         <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="referralRecommendedCandidates">
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-2" id="referralRecommendedCandidates">
 
            ${recommendedHtml}
 
@@ -2405,6 +2347,19 @@ function renderCompanyDetail() {
   renderRecommendedCandidates(company);
 
   attachDetailEditHandlers(company);
+
+  // Add close button handler
+  const closeBtn = document.getElementById('closeCompanyDetail');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      const detail = document.getElementById('referralCompanyDetail');
+      if (detail) {
+        detail.classList.add('hidden');
+      }
+      selectedCompanyId = null;
+      renderTable();
+    });
+  }
 
 }
 
@@ -2456,6 +2411,98 @@ function attachDetailEditHandlers(company) {
 
   }
 
+  // Contract information edit handlers
+  attachContractInfoEditHandlers(company);
+
+}
+
+
+
+function attachContractInfoEditHandlers(company) {
+  const editBtn = document.getElementById('contractInfoEditBtn');
+  const cancelBtn = document.getElementById('contractInfoCancelBtn');
+  const saveBtn = document.getElementById('contractInfoSaveBtn');
+  const editActions = document.getElementById('contractInfoEditActions');
+
+  if (!editBtn) return;
+
+  editBtn.addEventListener('click', () => {
+    // Show edit mode
+    document.getElementById('warrantyPeriodDisplay').classList.add('hidden');
+    document.getElementById('warrantyPeriodInput').classList.remove('hidden');
+    document.getElementById('feeContractDisplay').classList.add('hidden');
+    document.getElementById('feeContractInput').classList.remove('hidden');
+    document.getElementById('contractNotesDisplay').classList.add('hidden');
+    document.getElementById('contractNotesInput').classList.remove('hidden');
+
+    editBtn.classList.add('hidden');
+    editActions.classList.remove('hidden');
+  });
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      // Cancel edit mode
+      document.getElementById('warrantyPeriodDisplay').classList.remove('hidden');
+      document.getElementById('warrantyPeriodInput').classList.add('hidden');
+      document.getElementById('feeContractDisplay').classList.remove('hidden');
+      document.getElementById('feeContractInput').classList.add('hidden');
+      document.getElementById('contractNotesDisplay').classList.remove('hidden');
+      document.getElementById('contractNotesInput').classList.add('hidden');
+
+      editBtn.classList.remove('hidden');
+      editActions.classList.add('hidden');
+
+      // Reset values
+      renderCompanyDetail();
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const warrantyPeriod = document.getElementById('warrantyPeriodInput').value.trim();
+      const feeContract = document.getElementById('feeContractInput').value.trim();
+      const contractNotes = document.getElementById('contractNotesInput').value.trim();
+
+      const payload = {
+        id: company.id,
+        warrantyPeriod: warrantyPeriod || null,
+        feeContract: feeContract || null,
+        contractNotes: contractNotes || null
+      };
+
+      try {
+        // Save to backend (placeholder - adjust based on actual API)
+        console.log('Saving contract info:', payload);
+
+        // Update local data
+        const companyIndex = referralData.findIndex(c => c.id === company.id);
+        if (companyIndex !== -1) {
+          referralData[companyIndex].warrantyPeriod = warrantyPeriod || null;
+          referralData[companyIndex].feeContract = feeContract || null;
+          referralData[companyIndex].contractNotes = contractNotes || null;
+        }
+
+        // Exit edit mode and refresh display
+        document.getElementById('warrantyPeriodDisplay').classList.remove('hidden');
+        document.getElementById('warrantyPeriodInput').classList.add('hidden');
+        document.getElementById('feeContractDisplay').classList.remove('hidden');
+        document.getElementById('feeContractInput').classList.add('hidden');
+        document.getElementById('contractNotesDisplay').classList.remove('hidden');
+        document.getElementById('contractNotesInput').classList.add('hidden');
+
+        editBtn.classList.remove('hidden');
+        editActions.classList.add('hidden');
+
+        // Refresh the detail view
+        renderCompanyDetail();
+
+        alert('契約情報を保存しました');
+      } catch (error) {
+        console.error('Failed to save contract info:', error);
+        alert('保存に失敗しました');
+      }
+    });
+  }
 }
 
 
@@ -3383,11 +3430,39 @@ function renderMatchResults(results) {
 
 
 
+export async function mount(appElement) {
 
+  try {
 
+    await loadReferralData();
 
+    await loadCandidateSummaries();
 
+    initializeCreateForm();
 
+    initReferralCandidateModal();
 
+    updateUI();
 
+    attachFilters();
 
+    attachPagination();
+
+    attachRowClickHandlers();
+
+    attachExport();
+
+    attachMatchingHandlers();
+
+    const detail = document.getElementById('referralCompanyDetail');
+    if (detail) {
+      detail.classList.add('hidden');
+    }
+
+  } catch (e) {
+
+    console.error('[referral] mount error:', e);
+
+  }
+
+}
