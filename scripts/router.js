@@ -4,7 +4,7 @@
  */
 
 import { getSession, hasRole, onAuthChange } from './auth.js';
-import { authRepo } from './api/repositories/auth.js';
+import { authRepo } from './api/repositories/auth.js?v=20260120_2';
 
 const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 

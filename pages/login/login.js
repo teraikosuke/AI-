@@ -1,23 +1,23 @@
 /**
  * Login page JavaScript module
  */
-import { authRepo } from '../../scripts/api/repositories/auth.js';
+import { authRepo } from '../../scripts/api/repositories/auth.js?v=20260120_2';
 import { consumePostLoginRedirect } from '../../scripts/router.js';
 
 export async function mount(root) {
   console.log('Mounting login page...');
-  
+
   const form = root.querySelector('#loginForm');
   const errorMessage = root.querySelector('#errorMessage');
   const devLoginButton = root.querySelector('#devLoginButton');
-  
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const email = form.email.value;
       const password = form.password.value;
-      
+
       try {
         errorMessage.classList.add('hidden');
         const session = await authRepo.login(email, password);
