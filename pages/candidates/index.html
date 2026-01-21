@@ -83,7 +83,12 @@
   </div>
 
   <div class="candidates-main-grid">
-    <div class="candidates-table-card border border-slate-200 rounded-lg overflow-hidden bg-white">
+    <div class="candidates-tab-bar">
+      <button type="button" class="candidates-tab-btn is-active" data-candidates-tab="calendar">次回アクション日カレンダー</button>
+      <button type="button" class="candidates-tab-btn" data-candidates-tab="list">一覧</button>
+    </div>
+    <div class="candidates-table-card candidates-tab-panel border border-slate-200 rounded-lg overflow-hidden bg-white"
+      data-candidates-panel="list">
       <div class="candidates-table-toolbar">
         <div class="text-sm text-slate-600">
           <span class="font-semibold text-slate-900" id="candidatesResultCount">0件</span>
@@ -130,15 +135,34 @@
                 求職者名</th>
               <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="nextAction">
                 次回アクション</th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="advisorName">担当CS
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="partnerName">担当CS
               </th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="partnerName">
-                担当パートナー</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="advisorName">
+                担当アドバイザー</th>
             </tr>
           </thead>
           <tbody id="candidatesTableBody"></tbody>
         </table>
       </div>
+    </div>
+    <div
+      class="candidates-calendar-card candidates-tab-panel is-active border border-slate-200 rounded-lg overflow-hidden bg-white"
+      data-candidates-panel="calendar">
+      <div class="candidates-calendar-header">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-700">次回アクション日カレンダー</h4>
+          <p class="text-xs text-slate-500">次回アクション日と担当者を月別に確認できます</p>
+        </div>
+        <div class="candidates-calendar-controls">
+          <span id="candidatesCalendarTitle" class="calendar-month-label">-</span>
+          <div class="calendar-nav">
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="prev">前月</button>
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="today">今月</button>
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="next">翌月</button>
+          </div>
+        </div>
+      </div>
+      <div class="candidates-calendar-body" id="candidatesCalendarBody"></div>
     </div>
   </div>
 

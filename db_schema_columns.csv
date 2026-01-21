@@ -86,6 +86,7 @@ public,candidates,54,transfer_timing,text,YES,,,,
 public,candidates,55,other_selection_status,text,YES,,,,
 public,candidates,56,interview_preferred_date,text,YES,,,,
 public,candidates,57,recommendation_text,text,YES,,,,
+public,candidates,58,next_action_date,date,YES,,,,
 public,clients,1,id,bigint,NO,nextval('clients_id_seq'::regclass),,64,0
 public,clients,2,name,text,NO,,,,
 public,clients,3,industry,text,YES,,,,
