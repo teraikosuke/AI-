@@ -325,7 +325,7 @@ function mapCandidateUpdateColumns(payload = {}) {
     attendance_confirmed: payload.attendanceConfirmed ?? false,
     next_action_date:
       normalizeDate(actionInfo.nextActionDate) ??
-      normalizeDate(payload.nextActionDate),
+      normalizeDate(payload.nextActionDate ?? payload.next_action_date),
     final_result: actionInfo.finalResult ?? payload.finalResult ?? null,
     order_amount: afterAcceptance.amount ?? null,
     after_acceptance_job_type: afterAcceptance.jobCategory ?? null,

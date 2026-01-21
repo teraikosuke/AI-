@@ -53,7 +53,60 @@
 .candidates-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
+  gap: 0.75rem;
+}
+
+.candidates-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-end;
+  padding: 0 0.25rem;
+}
+
+.candidates-tab-btn {
+  border: 1px solid #1e3a8a;
+  border-bottom: none;
+  border-radius: 0.6rem 0.6rem 0 0;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  background: #1e3a8a;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: -1px;
+}
+
+.candidates-tab-btn:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+.candidates-tab-btn.is-active {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+  z-index: 2;
+}
+
+.candidates-tab-panel {
+  display: none;
+}
+
+.candidates-tab-panel.is-active {
+  display: block;
+}
+
+.candidates-table-card.candidates-tab-panel,
+.candidates-calendar-card.candidates-tab-panel {
+  display: none;
+}
+
+.candidates-table-card.candidates-tab-panel.is-active,
+.candidates-calendar-card.candidates-tab-panel.is-active {
+  display: flex;
 }
 
 .candidates-table-card {
@@ -97,6 +150,191 @@
 
 .candidates-table-card .table-grid tbody tr:hover td.candidate-next-action-cell {
   background-color: #e0e7ff;
+}
+
+.candidates-calendar-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.candidates-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(90deg, rgba(129, 140, 248, 0.08), rgba(236, 233, 252, 0.6));
+}
+
+.candidates-calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.calendar-month-label {
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #312e81;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.calendar-nav-btn {
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4338ca;
+  transition: all 0.2s ease;
+}
+
+.calendar-nav-btn:hover {
+  background-color: #eef2ff;
+}
+
+.candidates-calendar-body {
+  padding: 1rem;
+  background: #f8fafc;
+}
+
+.candidates-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: #e2e8f0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.candidates-calendar-weekday {
+  background: #eef2ff;
+  padding: 0.5rem 0.3rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.candidates-calendar-day {
+  background: #ffffff;
+  min-height: 128px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: relative;
+}
+
+.candidates-calendar-day.is-outside {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.candidates-calendar-day.is-today {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+  background: #eef2ff;
+}
+
+.candidates-calendar-day-number {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.candidates-calendar-day.is-outside .candidates-calendar-day-number {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.candidates-calendar-day.is-today .candidates-calendar-day-number {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.calendar-event {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: 1px solid #c7d2fe;
+  border-left: 3px solid #6366f1;
+  background: #eef2ff;
+  color: #312e81;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.calendar-event:hover {
+  background: #e0e7ff;
+}
+
+.calendar-event:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.calendar-event-name {
+  font-weight: 600;
+}
+
+.calendar-event-meta {
+  font-size: 0.65rem;
+  color: #4b5563;
+  line-height: 1.2;
+}
+
+.calendar-event--more {
+  border-color: #e2e8f0;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: default;
+  border-style: dashed;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .candidates-calendar-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .candidates-calendar-day {
+    min-height: 100px;
+  }
+
+  .calendar-event-meta {
+    display: none;
+  }
 }
 
 .candidate-next-action-stack {
