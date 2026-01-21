@@ -16,6 +16,9 @@ const candidatesApi = (path) => `${CANDIDATES_API_BASE}${path}`;
 // =========================
 const params = new URLSearchParams(window.location.search);
 const candidateIdFromUrl = params.get("candidateId");
+const shouldAutoOpenDetail = ["1", "true", "yes"].includes(
+  String(params.get("openDetail") || "").toLowerCase()
+);
 
 // =========================
 // フィルタ定義
@@ -38,14 +41,14 @@ const refundReportOptions = ["LINE報告済み", "企業報告済み"];
 const modalHandlers = { closeButton: null, overlay: null, keydown: null };
 
 const detailSectionKeys = [
+  "nextAction",
+  "selection",
   "profile",
   "assignees",
   "hearing",
-  "selection",
   "cs",
   "teleapoLogs",
   "money",
-  "nextAction",
 ];
 
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
@@ -60,9 +63,10 @@ const PHASE_ORDER = [
   "成約",
   "失注"
 ];
+const CALENDAR_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
-let currentSortKey = "registeredAt";
-let currentSortOrder = "desc";
+let currentSortKey = "nextAction";
+let currentSortOrder = "asc";
 
 const japaneseLevelOptions = [
   { value: "", label: "未設定" },
@@ -95,11 +99,14 @@ let screeningRules = null;
 let screeningRulesLoaded = false;
 let screeningRulesLoading = false;
 let detailAutoSaveTimer = null;
+const nextActionCache = new Map();
+let calendarViewDate = new Date();
+calendarViewDate.setDate(1);
 
 // =========================
 // 正規化
 // =========================
-function normalizeCandidate(candidate) {
+function normalizeCandidate(candidate, { source = "detail" } = {}) {
   if (!candidate) return candidate;
 
   // --- 既存のプロパティマッピング ---
@@ -175,6 +182,20 @@ function normalizeCandidate(candidate) {
   candidate.attendanceConfirmed = candidate.attendanceConfirmed ?? candidate.first_interview_attended ?? null;
   candidate.advisorUserId = candidate.advisorUserId ?? candidate.advisor_user_id ?? null;
   candidate.partnerUserId = candidate.partnerUserId ?? candidate.partner_user_id ?? null;
+  candidate.advisorName = candidate.advisorName ?? candidate.advisor_name ?? "";
+  candidate.partnerName = candidate.partnerName ?? candidate.partner_name ?? "";
+
+  if (source === "list") {
+    const listAdvisorName = candidate.advisorName;
+    const listPartnerName = candidate.partnerName;
+    const listAdvisorUserId = candidate.advisorUserId;
+    const listPartnerUserId = candidate.partnerUserId;
+
+    candidate.advisorName = listPartnerName;
+    candidate.partnerName = listAdvisorName;
+    candidate.advisorUserId = listPartnerUserId;
+    candidate.partnerUserId = listAdvisorUserId;
+  }
 
   candidate.meetingPlans = Array.isArray(candidate.meetingPlans) ? candidate.meetingPlans : [];
   candidate.resumeDocuments = Array.isArray(candidate.resumeDocuments) ? candidate.resumeDocuments : [];
@@ -235,6 +256,34 @@ function normalizeCandidate(candidate) {
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
+  const nextActionFromDetail =
+    candidate.detail?.actionInfo?.nextActionDate ??
+    candidate.detail?.actionInfo?.next_action_date ??
+    candidate.detail?.newActionDate ??
+    candidate.detail?.new_action_date ??
+    null;
+  candidate.nextActionDate =
+    candidate.nextActionDate ??
+    candidate.next_action_date ??
+    candidate.nextActionDateLegacy ??
+    candidate.newActionDate ??
+    candidate.actionInfo?.nextActionDate ??
+    candidate.actionInfo?.next_action_date ??
+    nextActionFromDetail ??
+    null;
+  if (candidate.nextActionDate === "") candidate.nextActionDate = null;
+  const nextActionCacheKey = candidate.id != null ? String(candidate.id) : "";
+  if (nextActionCacheKey) {
+    if (candidate.nextActionDate) {
+      nextActionCache.set(nextActionCacheKey, candidate.nextActionDate);
+    } else if (nextActionCache.has(nextActionCacheKey)) {
+      const cached = nextActionCache.get(nextActionCacheKey);
+      if (cached) candidate.nextActionDate = cached;
+    }
+  }
+  if (candidate.nextActionDate && !candidate.actionInfo.nextActionDate) {
+    candidate.actionInfo.nextActionDate = candidate.nextActionDate;
+  }
   candidate.csChecklist = candidate.csChecklist || {};
 
   // --- ★ここから追加したロジック（returnの前に行うこと！） ---
@@ -320,6 +369,7 @@ export function mount() {
   initializeCandidatesFilters();
   initializeSortControl();
   initializeTableInteraction();
+  initializeCandidatesTabs();
   initializeDetailModal();
   initializeDetailContentListeners();
 
@@ -343,6 +393,9 @@ function initializeCandidatesFilters() {
 
   const resetButton = document.getElementById("candidatesFilterReset");
   if (resetButton) resetButton.addEventListener("click", handleFilterReset);
+
+  // フェーズフィルターの初期化（固定値）
+  setFilterSelectOptions("candidatesFilterPhase", PHASE_ORDER);
 }
 
 function initializeSortControl() {
@@ -380,6 +433,25 @@ function initializeTableInteraction() {
   ensureNextActionColumnPriority();
 }
 
+function initializeCandidatesTabs() {
+  const tabButtons = document.querySelectorAll("[data-candidates-tab]");
+  tabButtons.forEach((button) => {
+    button.addEventListener("click", handleCandidatesTabClick);
+  });
+
+  const calendarNavButtons = document.querySelectorAll("[data-calendar-nav]");
+  calendarNavButtons.forEach((button) => {
+    button.addEventListener("click", handleCalendarNavClick);
+  });
+
+  const calendarBody = document.getElementById("candidatesCalendarBody");
+  if (calendarBody) {
+    calendarBody.addEventListener("click", handleCalendarEventClick);
+  }
+
+  setCandidatesActiveTab("calendar");
+}
+
 // =========================
 // 一覧取得（RDS連携）
 // =========================
@@ -398,7 +470,7 @@ async function loadCandidatesData(filtersOverride = {}) {
     const result = await response.json();
 
     allCandidates = Array.isArray(result.items)
-      ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }))
+      ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }, { source: "list" }))
       : [];
 
     if (screeningRules) {
@@ -415,14 +487,15 @@ async function loadCandidatesData(filtersOverride = {}) {
     renderCandidatesTable(filteredCandidates);
     updateHeaderSortStyles(); // Ensure headers reflect state
     updateCandidatesCount(filteredCandidates.length);
+    prefetchNextActionDates(allCandidates);
 
     lastSyncedAt = result.lastSyncedAt || null;
     updateLastSyncedDisplay(lastSyncedAt);
 
     refreshSelectionState();
 
-    // ★ teleapo → candidates で ?candidateId= が来ている場合、自動で詳細を開く
-    if (!openedFromUrlOnce && candidateIdFromUrl) {
+    // ★ teleapo → candidates で ?candidateId= が来ている場合の自動詳細は明示時のみ
+    if (!openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
       openedFromUrlOnce = true;
       try {
         await openCandidateById(candidateIdFromUrl);
@@ -437,6 +510,44 @@ async function loadCandidatesData(filtersOverride = {}) {
     renderCandidatesTable([]);
     updateCandidatesCount(0);
     updateLastSyncedDisplay(null);
+  }
+}
+
+async function prefetchNextActionDates(candidates) {
+  const targets = (candidates || []).filter((candidate) => {
+    const id = String(candidate?.id ?? "");
+    if (!id) return false;
+    if (candidate.nextActionDate) return false;
+    if (nextActionCache.has(id)) return false;
+    return true;
+  });
+  if (targets.length === 0) return;
+
+  const queue = targets.slice();
+  const updates = [];
+  const concurrency = Math.min(4, queue.length);
+
+  const worker = async () => {
+    while (queue.length) {
+      const candidate = queue.shift();
+      if (!candidate) return;
+      const id = String(candidate.id);
+      if (nextActionCache.has(id)) continue;
+      try {
+        const detail = await fetchCandidateDetailById(id, { includeMaster: false });
+        if (!detail) continue;
+        nextActionCache.set(id, detail.nextActionDate ?? null);
+        if (detail.nextActionDate) updates.push(detail);
+      } catch (error) {
+        console.error("次回アクション日の事前取得に失敗しました。", error);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, worker));
+
+  if (updates.length > 0) {
+    batchApplyCandidateUpdates(updates, { preserveDetailState: true, renderDetail: false });
   }
 }
 
@@ -694,8 +805,14 @@ function sortCandidates(list, key, order) {
       case "nextAction":
         const aNext = pickNextAction(a);
         const bNext = pickNextAction(b);
-        aVal = aNext ? aNext.date.getTime() : 0;
-        bVal = bNext ? bNext.date.getTime() : 0;
+        const MAX_TS = 8640000000000000;
+        if (order === "asc") {
+          aVal = aNext ? aNext.date.getTime() : MAX_TS;
+          bVal = bNext ? bNext.date.getTime() : MAX_TS;
+        } else {
+          aVal = aNext ? aNext.date.getTime() : 0;
+          bVal = bNext ? bNext.date.getTime() : 0;
+        }
         break;
       case "validApplication":
         aVal = resolveValidApplication(a) === true ? 1 : 0;
@@ -757,7 +874,7 @@ function updateHeaderSortStyles() {
 function buildCandidatesQuery(filters) {
   const p = new URLSearchParams();
   if (filters.source) p.set("source", filters.source);
-  if (filters.phase) p.set("phase", filters.phase);
+  if (filters.phase && filters.phase !== "未接触") p.set("phase", filters.phase);
   if (filters.advisor) p.set("advisor", filters.advisor);
   if (filters.name) p.set("name", filters.name);
   if (filters.company) p.set("company", filters.company);
@@ -835,14 +952,8 @@ function parseFilterDate(value, { isEnd } = {}) {
 }
 
 function getCandidatePhaseList(candidate) {
-  const raw = candidate?.phases ?? candidate?.phaseList ?? candidate?.phase ?? "";
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value);
-  const unique = Array.from(new Set(list));
+  const list = resolvePhaseValues(candidate);
+  const unique = Array.from(new Set(list.map((value) => String(value).trim()).filter(Boolean)));
   if (unique.length > 0) return unique;
   return [resolvePhaseDisplay(candidate)];
 }
@@ -928,12 +1039,150 @@ function updateFilterSelectOptions(list) {
   setFilterSelectOptions("candidatesFilterSource", buildUniqueValues(sources));
   setFilterSelectOptions("candidatesFilterCompany", buildUniqueValues(companies));
   setFilterSelectOptions("candidatesFilterAdvisor", buildUniqueValues(advisors));
-  setFilterSelectOptions("candidatesFilterPhase", buildUniqueValues(phases));
 }
 
 function getElementValue(id) {
   const element = document.getElementById(id);
   return element ? element.value.trim() : "";
+}
+
+function handleCandidatesTabClick(event) {
+  const tabKey = event.currentTarget?.dataset?.candidatesTab;
+  if (!tabKey) return;
+
+  setCandidatesActiveTab(tabKey);
+}
+
+function setCandidatesActiveTab(tabKey) {
+  document.querySelectorAll("[data-candidates-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.candidatesTab === tabKey);
+  });
+
+  document.querySelectorAll("[data-candidates-panel]").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.candidatesPanel === tabKey);
+  });
+
+  if (tabKey === "calendar") {
+    renderNextActionCalendar(filteredCandidates);
+  }
+}
+
+function handleCalendarNavClick(event) {
+  const action = event.currentTarget?.dataset?.calendarNav;
+  if (!action) return;
+
+  const base = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1);
+  if (action === "prev") {
+    base.setMonth(base.getMonth() - 1);
+  } else if (action === "next") {
+    base.setMonth(base.getMonth() + 1);
+  } else if (action === "today") {
+    const today = new Date();
+    base.setFullYear(today.getFullYear(), today.getMonth(), 1);
+  }
+
+  calendarViewDate = new Date(base.getFullYear(), base.getMonth(), 1);
+  renderNextActionCalendar(filteredCandidates);
+}
+
+function handleCalendarEventClick(event) {
+  const card = event.target.closest("[data-candidate-id]");
+  if (!card) return;
+  const id = card.dataset.candidateId;
+  if (id) openCandidateById(id);
+}
+
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  const date = parseDateValue(value);
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildNextActionMap(list) {
+  const map = new Map();
+  (list || []).forEach((candidate) => {
+    const key = toDateKey(candidate?.nextActionDate);
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push({
+      id: candidate.id,
+      name: candidate.candidateName || "-",
+      advisorName: candidate.advisorName || "-",
+      partnerName: candidate.partnerName || "-",
+      note: candidate.nextActionNote || "",
+    });
+  });
+
+  map.forEach((items) => {
+    items.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  });
+  return map;
+}
+
+function renderNextActionCalendar(list) {
+  const container = document.getElementById("candidatesCalendarBody");
+  if (!container) return;
+
+  const viewYear = calendarViewDate.getFullYear();
+  const viewMonth = calendarViewDate.getMonth();
+  const title = document.getElementById("candidatesCalendarTitle");
+  if (title) title.textContent = `${viewYear}年${viewMonth + 1}月`;
+
+  const eventsMap = buildNextActionMap(list);
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const startOffset = firstOfMonth.getDay();
+  const gridStart = new Date(viewYear, viewMonth, 1 - startOffset);
+  const todayKey = toDateKey(new Date());
+
+  const cells = [];
+  CALENDAR_WEEKDAYS.forEach((label) => {
+    cells.push(`<div class="candidates-calendar-weekday">${label}</div>`);
+  });
+
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + i);
+    const key = toDateKey(date);
+    const isOutside = date.getMonth() !== viewMonth;
+    const isToday = key && key === todayKey;
+    const dayNumber = date.getDate();
+    const events = key ? (eventsMap.get(key) || []) : [];
+    const visibleEvents = events.slice(0, 3);
+    const overflow = events.length - visibleEvents.length;
+    const eventsHtml = visibleEvents
+      .map(
+        (item) => `
+          <button type="button" class="calendar-event" data-candidate-id="${escapeHtmlAttr(String(item.id))}">
+            <span class="calendar-event-name">${escapeHtml(item.name)}</span>
+            ${item.note ? `<div class="text-[10px] text-slate-500 truncate" title="${escapeHtml(item.note)}">${escapeHtml(item.note)}</div>` : ""}
+            <span class="calendar-event-meta">CS: ${escapeHtml(item.partnerName)} / PT: ${escapeHtml(item.advisorName)}</span>
+          </button>
+        `
+      )
+      .join("");
+    const overflowHtml =
+      overflow > 0
+        ? `<div class="calendar-event calendar-event--more">+${overflow}件</div>`
+        : "";
+
+    cells.push(`
+      <div class="candidates-calendar-day${isOutside ? " is-outside" : ""}${isToday ? " is-today" : ""}">
+        <div class="candidates-calendar-day-number">${dayNumber}</div>
+        ${eventsHtml}
+        ${overflowHtml}
+      </div>
+    `);
+  }
+
+  container.innerHTML = `<div class="candidates-calendar-grid">${cells.join("")}</div>`;
 }
 
 // =========================
@@ -949,11 +1198,13 @@ function renderCandidatesTable(list) {
         <td colspan="8" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
       </tr>
     `;
+    renderNextActionCalendar(list);
     return;
   }
 
   tableBody.innerHTML = list.map((candidate) => buildTableRow(candidate)).join("");
   highlightSelectedRow();
+  renderNextActionCalendar(list);
 }
 
 function buildTableRow(candidate) {
@@ -973,8 +1224,8 @@ function buildTableRow(candidate) {
 
       ${renderCheckboxCell(candidate, "validApplication", "有効応募")}
       ${renderTextCell(candidate, "candidateName", { strong: true, readOnly: true })}
-      ${renderTextCell(candidate, "advisorName", { readOnly: true })}
       ${renderTextCell(candidate, "partnerName", { readOnly: true })}
+      ${renderTextCell(candidate, "advisorName", { readOnly: true })}
       ${renderNextActionCell(candidate)}
     </tr>
   `;
@@ -985,11 +1236,20 @@ function renderNextActionCell(candidate) {
   if (!nextAction) {
     return '<td class="candidate-next-action-cell"><span class="candidate-next-action-empty">未設定</span></td>';
   }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const actionDate = new Date(nextAction.date.getFullYear(), nextAction.date.getMonth(), nextAction.date.getDate());
+  const isExpired = actionDate < today;
+
   return `
     <td class="candidate-next-action-cell">
       <div class="candidate-next-action-stack">
-        <span class="candidate-next-action-date">${escapeHtml(formatDateJP(nextAction.date))}</span>
-        <span class="candidate-next-action-label">${escapeHtml(nextAction.label)}</span>
+        <span class="candidate-next-action-date ${isExpired ? "text-red-600 font-bold" : ""}">${isExpired ? "⚠️ " : ""}${escapeHtml(formatDateJP(nextAction.date))}</span>
+        ${nextAction.note
+      ? `<span class="candidate-next-action-label text-slate-600 font-medium" title="${escapeHtml(nextAction.note)}">${escapeHtml(nextAction.note)}</span>`
+      : `<span class="candidate-next-action-label">${escapeHtml(nextAction.label)}</span>`
+    }
       </div>
     </td>
   `;
@@ -1153,16 +1413,18 @@ function updateLastSyncedDisplay(ts) {
 // =========================
 // 行クリック：必ず詳細APIを叩く（重要）
 // =========================
-async function fetchCandidateDetailById(id) {
-  // 画面の詳細は必ず詳細APIから取得する
-  const url = candidatesApi(`${candidateDetailPath(id)}?includeMaster=1`); // /candidates/{candidateId}
+async function fetchCandidateDetailById(id, { includeMaster = true } = {}) {
+  const query = includeMaster ? "?includeMaster=true" : "";
+  const url = candidatesApi(`${candidateDetailPath(id)}${query}`); // /candidates/{candidateId}
   const res = await fetch(url);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Candidate detail HTTP ${res.status}: ${text}`);
   }
   const detail = normalizeCandidate(await res.json());
-  updateMastersFromDetail(detail);
+  if (includeMaster) {
+    updateMastersFromDetail(detail);
+  }
   if (detail?.masters) delete detail.masters;
   return detail;
 }
@@ -1186,7 +1448,7 @@ async function openCandidateById(id) {
   highlightSelectedRow();
 
   try {
-    const detail = await fetchCandidateDetailById(idStr);
+    const detail = await fetchCandidateDetailById(idStr, { includeMaster: true });
 
     // 一覧にも反映（あれば更新、無ければ詳細モーダルだけでも表示できる）
     applyCandidateUpdate(detail, { preserveDetailState: true });
@@ -1318,22 +1580,22 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
       </div>
       <div class="candidate-detail-header-right flex items-start gap-3">
         <div class="candidate-header-card bg-slate-50 border border-slate-100 shadow-sm rounded-lg px-4 py-3 text-xs">
-          <div><span>担当CS</span><strong>${escapeHtml(candidate.advisorName || "-")}</strong></div>
-          <div><span>担当パートナー</span><strong>${escapeHtml(candidate.partnerName || "-")}</strong></div>
+          <div><span>担当CS</span><strong>${escapeHtml(candidate.partnerName || "-")}</strong></div>
+          <div><span>担当パートナー</span><strong>${escapeHtml(candidate.advisorName || "-")}</strong></div>
         </div>
       </div>
     </div>
   `;
 
   const sections = [
+    renderDetailSection("次回アクション", renderNextActionSection(candidate), "nextAction"),
+    renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection"),
     renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile"),
     renderDetailSection("担当者", renderAssigneeSection(candidate), "assignees"),
     renderDetailSection("共有面談", renderHearingSection(candidate), "hearing"),
-    renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection"),
     renderDetailSection("CS項目", renderCsSection(candidate), "cs"),
     renderDetailSection("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
     renderDetailSection("売上・返金", renderMoneySection(candidate), "money"),
-    renderDetailSection("次回アクション", renderNextActionSection(candidate), "nextAction", { editable: false }),
   ].join("");
 
   container.innerHTML = `
@@ -1365,24 +1627,43 @@ function setCandidateDetailPlaceholder() {
 function renderDetailSection(title, body, key, options = {}) {
   const editing = detailEditState[key];
   const editable = options.editable !== false;
+
+  // 状態に応じたスタイル定義
+  const sectionBase = "candidate-detail-section rounded-xl shadow-sm border transition-all duration-200";
+  const sectionColor = editing
+    ? "bg-indigo-50/30 border-indigo-400 ring-2 ring-indigo-100"
+    : "bg-white border-slate-100";
+
+  const headerBase = "candidate-detail-section-header px-4 py-3 flex items-center justify-between rounded-t-xl transition-colors duration-200";
+  const headerColor = editing
+    ? "bg-indigo-100/50 border-b border-indigo-200"
+    : "bg-slate-50 border-b border-slate-100"; // 元のbg-slate-50を維持
+
   const actions = editable
     ? `
-    <button type="button" class="detail-edit-btn ${editing ? "is-active" : ""}" data-section-edit="${key}">
-      ${editing ? "編集完了" : "編集"}
+    <button type="button" class="detail-edit-btn ${editing ? "is-active bg-indigo-600 text-white border-transparent hover:bg-indigo-700 shadow-sm" : ""}" data-section-edit="${key}">
+      ${editing ? "完了して保存" : "編集"}
     </button>
     `
     : "";
+
+  const editingBadge = editing
+    ? `<span class="ml-2 px-2 py-0.5 text-xs font-bold text-indigo-700 bg-indigo-100 rounded-full border border-indigo-200">編集中</span>`
+    : "";
+
   return `
-    <section class="candidate-detail-section bg-white rounded-xl shadow-sm border border-slate-100" data-section="${key}">
-      <header class="candidate-detail-section-header bg-slate-50">
-        <h4>${title}</h4>
+    <section class="${sectionBase} ${sectionColor}" data-section="${key}">
+      <header class="${headerBase} ${headerColor}">
+        <div class="flex items-center">
+          <h4 class="font-semibold text-slate-800 ${editing ? 'text-indigo-900' : ''}">${title}</h4>
+          ${editingBadge}
+        </div>
         <div class="detail-section-actions">
           ${actions}
         </div>
       </header>
       <div class="candidate-detail-section-body">
         ${body}
-      </div>
       </div>
     </section>
     `;
@@ -1436,7 +1717,7 @@ function resolveSelectionStageValue(row = {}) {
 }
 
 function updateSelectionStatusCell(index, status) {
-  const row = document.querySelector(`[data - selection - row="${index}"]`);
+  const row = document.querySelector(`[data-selection-row="${index}"]`);
   if (!row) return;
   const cell = row.querySelector("[data-selection-status]");
   if (!cell) return;
@@ -1478,12 +1759,120 @@ function renderPhasePills(candidate) {
 async function saveCandidateRecord(candidate, { preserveDetailState = true, includeDetail = false } = {}) {
   if (!candidate || !candidate.id) throw new Error("保存対象の候補者が見つかりません。");
 
+  // ---------------------------------------------------------
+  // DOMからの強制同期処理 (全入力フィールド)
+  // Inputイベント漏れを防ぐため、保存直前に画面の値を正として取り込む
+  // ---------------------------------------------------------
+  const detailContainer = document.getElementById("candidateDetailContent");
+  if (detailContainer) {
+    // 1. 一般フィールド (data-detail-fieldを持つもの)
+    const inputs = detailContainer.querySelectorAll("[data-detail-field]");
+    inputs.forEach((input) => {
+      // 選考進捗テーブル内のフィールドは後続の処理で扱うためスキップ(二重処理防止)
+      if (input.closest("tr[data-selection-row]")) return;
+
+      const path = input.dataset.detailField;
+      if (!path) return;
+
+      let value;
+      if (input.type === "checkbox") {
+        value = input.checked;
+      } else {
+        value = input.value;
+      }
+
+      // 値の型変換 (handleDetailFieldChangeと同等の簡易処理)
+      if (input.dataset.valueType === "number") {
+        value = value === "" ? "" : Number(value);
+      } else if (input.dataset.valueType === "boolean") {
+        value = value === "true" || value === true;
+      }
+
+      updateCandidateFieldValue(candidate, path, value);
+
+      // 特殊フィールドの同期
+      if (path === "nextActionDate") {
+        candidate.nextActionDate = value;
+        if (!candidate.actionInfo) candidate.actionInfo = {};
+        candidate.actionInfo.nextActionDate = value;
+      }
+      if (path === "nextActionNote") {
+        candidate.nextActionNote = value;
+      }
+    });
+  }
+
+  // ---------------------------------------------------------
+  // 選考進捗の実DOMからの強制同期
+  // ---------------------------------------------------------
+  const selectionRows = document.querySelectorAll("tr[data-selection-row]");
+  if (selectionRows.length > 0) {
+    const newProgress = [];
+    selectionRows.forEach((row) => {
+      const originalIndex = Number(row.dataset.selectionRow);
+      // 元のオブジェクトがあればそれをベースにする（隠しプロパティ維持のため）
+      const originalData = candidate.selectionProgress?.[originalIndex] || {};
+      const newData = { ...originalData };
+
+      const inputs = row.querySelectorAll("[data-detail-field]");
+      let hasInput = false;
+
+      inputs.forEach((input) => {
+        const fieldPath = input.dataset.detailField;
+        if (!fieldPath) return;
+
+        const parts = fieldPath.split(".");
+        const key = parts[parts.length - 1];
+
+        // Lambda(DB)が期待するキー名へ変換
+        const keyMap = {
+          "recommendationDate": "recommendedAt",
+          "firstInterviewAdjustDate": "firstInterviewSetAt",
+          "firstInterviewDate": "firstInterviewAt",
+          "secondInterviewAdjustDate": "secondInterviewSetAt",
+          "secondInterviewDate": "secondInterviewAt",
+          "finalInterviewAdjustDate": "finalInterviewSetAt",
+          "finalInterviewDate": "finalInterviewAt"
+        };
+        const mappedKey = keyMap[key] || key;
+
+        newData[mappedKey] = input.value;
+        if (input.value) hasInput = true;
+      });
+
+      // スネークケース(フォールバック)
+      if (newData.clientId) newData.client_id = newData.clientId;
+      if (newData.companyName) newData.company_name = newData.companyName;
+      newData.selection_status = newData.status || newData.selectionStatus;
+
+      if (newData.clientId || hasInput) {
+        newProgress.push(newData);
+      }
+    });
+
+    candidate.selectionProgress = newProgress;
+  }
+
   normalizeCandidate(candidate);
 
   const payload = includeDetail
     ? buildCandidateDetailPayload(candidate)
     : { id: candidate.id, validApplication: resolveValidApplication(candidate) };
+
+  // ★ Lambdaが必須とするフラグ
+  if (includeDetail) {
+    payload.detailMode = true;
+    payload.selection_progress = candidate.selectionProgress;
+  }
+
+  // ★ Lambdaが必須とするフラグを確実にセット
+  if (includeDetail) {
+    payload.detailMode = true;
+  }
+
   if (payload?.masters) delete payload.masters;
+
+  console.log("Saving payload:", payload); // Debug log
 
   const response = await fetch(candidatesApi(candidateDetailPath(candidate.id)), {
     method: "PUT",
@@ -1534,16 +1923,35 @@ function buildCandidateDetailPayload(candidate) {
     interviewPreferredDate: candidate.interviewPreferredDate,
     recommendationText: candidate.recommendationText,
   };
+  const actionInfo = {
+    ...(candidate.actionInfo || {}),
+    nextActionDate: candidate.nextActionDate || candidate.actionInfo?.nextActionDate || null,
+  };
 
   const payload = {
     id: candidate.id,
     detailMode: true,
     validApplication: resolveValidApplication(candidate),
+
+    // 基本情報
+    candidateName: candidate.candidateName,
+    candidateKana: candidate.candidateKana,
+    gender: candidate.gender,
+    birthDate: candidate.birthday, // Lambda expects birthDate equivalent
     phone: candidate.phone,
     email: candidate.email,
-    birthday: candidate.birthday,
     postalCode: candidate.postalCode,
+    addressPref: candidate.addressPref,
+    addressCity: candidate.addressCity,
+    addressDetail: candidate.addressDetail,
+    education: candidate.education, // finalEducation mapped to education
+
+    // 詳細
+    nationality: candidate.nationality,
+    japaneseLevel: candidate.japaneseLevel,
     contactPreferredTime: candidate.contactPreferredTime || contactTime,
+    nextActionDate: candidate.nextActionDate || actionInfo.nextActionDate || null,
+    nextActionNote: candidate.nextActionNote || null,
     contactTime,
     firstContactPlannedAt: candidate.firstContactPlannedAt,
     scheduleConfirmedAt: candidate.scheduleConfirmedAt,
@@ -1569,10 +1977,10 @@ function buildCandidateDetailPayload(candidate) {
     applicationNote: candidate.applicationNote || remarks,
     firstInterviewNote: candidate.firstInterviewNote || hearingMemo,
     recommendationText: candidate.recommendationText,
-    nationality: candidate.nationality,
-    japaneseLevel: candidate.japaneseLevel,
     advisorUserId: candidate.advisorUserId,
     partnerUserId: candidate.partnerUserId,
+
+    // その他（後方互換性のため残すものもあるが、Lambdaが使うものだけで良い）
     advisorName: candidate.advisorName,
     partnerName: candidate.partnerName,
     companyName,
@@ -1588,13 +1996,14 @@ function buildCandidateDetailPayload(candidate) {
     selectionProgress: candidate.selectionProgress,
     afterAcceptance: candidate.afterAcceptance,
     refundInfo: candidate.refundInfo,
-    actionInfo: candidate.actionInfo,
+    actionInfo,
     csChecklist: candidate.csChecklist,
   };
 
   payload.advisor_user_id = candidate.advisorUserId;
   payload.partner_user_id = candidate.partnerUserId;
   payload.japanese_level = candidate.japaneseLevel;
+  payload.next_action_date = payload.nextActionDate;
 
   return payload;
 }
@@ -1602,24 +2011,45 @@ function buildCandidateDetailPayload(candidate) {
 // -----------------------
 // applyCandidateUpdate
 // -----------------------
-function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
-  if (!updated || !updated.id) return;
+function mergeCandidateUpdate(updated) {
+  if (!updated || !updated.id) return null;
 
   const mergeIntoList = (list) => {
     const index = list.findIndex((item) => String(item.id) === String(updated.id));
     if (index !== -1) {
-      list[index] = { ...list[index], ...updated };
+      Object.assign(list[index], updated);
       return list[index];
     }
     return null;
   };
 
-  const mergedCandidate = mergeIntoList(allCandidates) || mergeIntoList(filteredCandidates) || updated;
+  return mergeIntoList(allCandidates) || mergeIntoList(filteredCandidates) || updated;
+}
+
+function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
+  const mergedCandidate = mergeCandidateUpdate(updated);
+  if (!mergedCandidate) return;
 
   renderCandidatesTable(filteredCandidates);
 
-  if (selectedCandidateId && String(selectedCandidateId) === String(updated.id)) {
+  if (selectedCandidateId && String(selectedCandidateId) === String(mergedCandidate.id)) {
     renderCandidateDetail(mergedCandidate, { preserveEditState: preserveDetailState });
+  }
+  highlightSelectedRow();
+}
+
+function batchApplyCandidateUpdates(
+  updates,
+  { preserveDetailState = true, renderDetail = true } = {}
+) {
+  if (!Array.isArray(updates) || updates.length === 0) return;
+  updates.forEach((updated) => mergeCandidateUpdate(updated));
+  renderCandidatesTable(filteredCandidates);
+  if (renderDetail && selectedCandidateId) {
+    const selected = getSelectedCandidate();
+    if (selected) {
+      renderCandidateDetail(selected, { preserveEditState: preserveDetailState });
+    }
   }
   highlightSelectedRow();
 }
@@ -1791,6 +2221,17 @@ function cleanupCandidatesEventListeners() {
   const toggleButton = document.getElementById("candidatesToggleEdit");
   if (toggleButton) toggleButton.removeEventListener("click", toggleCandidatesEditMode);
 
+  const tabButtons = document.querySelectorAll("[data-candidates-tab]");
+  tabButtons.forEach((button) => {
+    button.removeEventListener("click", handleCandidatesTabClick);
+  });
+  const calendarNavButtons = document.querySelectorAll("[data-calendar-nav]");
+  calendarNavButtons.forEach((button) => {
+    button.removeEventListener("click", handleCalendarNavClick);
+  });
+  const calendarBody = document.getElementById("candidatesCalendarBody");
+  if (calendarBody) calendarBody.removeEventListener("click", handleCalendarEventClick);
+
   const modal = document.getElementById("candidateDetailModal");
   const closeButton = document.getElementById("candidateDetailClose");
 
@@ -1861,31 +2302,62 @@ function syncDetailSectionInputs(sectionKey) {
 }
 
 async function toggleDetailSectionEdit(sectionKey) {
-  if (!sectionKey || !(sectionKey in detailEditState)) return;
+  try {
+    console.log("[toggleDetailSectionEdit] called for:", sectionKey);
+    if (!sectionKey || !(sectionKey in detailEditState)) return;
 
-  const wasEditing = detailEditState[sectionKey];
-  detailEditState[sectionKey] = !detailEditState[sectionKey];
+    const wasEditing = detailEditState[sectionKey];
+    // 切り替え後の状態
+    const nextState = !wasEditing;
 
-  const candidate = getSelectedCandidate();
-  if (!candidate) return;
+    const candidate = getSelectedCandidate();
+    if (!candidate) return;
 
-  if (wasEditing) {
-    syncDetailSectionInputs(sectionKey);
-  }
+    if (wasEditing) {
+      // 編集モード終了時 (保存処理)
 
-  renderCandidateDetail(candidate, { preserveEditState: true });
+      // 1. まず同期 (これでcandidateオブジェクトが更新される)
+      try {
+        syncDetailSectionInputs(sectionKey);
+      } catch (syncError) {
+        console.error("Sync inputs error:", syncError);
+        // エラーでも続行し、下のsaveCandidateRecord内のDOMスクレイピングに賭ける
+      }
 
-  // 編集完了時（OFFに戻ったタイミング）で保存
-  if (wasEditing && !detailEditState[sectionKey]) {
-    try {
-      const updated = await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
-      renderCandidatesTable(filteredCandidates);
-      highlightSelectedRow();
-      renderCandidateDetail(updated, { preserveEditState: false });
-    } catch (error) {
-      console.error("詳細の保存に失敗しました。", error);
-      alert("保存に失敗しました。ネットワーク状態を確認してください。");
+      // 2. 保存実行 (DOMがまだ編集モードの状態で呼ぶ！これによりスクレイピングが機能する)
+      // 状態は保存成功までとりあえず変えないでおく、あるいは保存成功後に変える
+      // ここでは一時的に状態を変えず、保存に成功したら nextState (false) にする
+
+      try {
+        // 保存時はまだ編集モードのDOMが必要
+        const updated = await saveCandidateRecord(candidate, { preserveDetailState: false, includeDetail: true });
+
+        // 3. 成功したら状態を閲覧モードへ
+        detailEditState[sectionKey] = false;
+
+        renderCandidatesTable(filteredCandidates);
+        highlightSelectedRow();
+        renderCandidateDetail(updated, { preserveEditState: false });
+
+      } catch (error) {
+        console.error("詳細の保存に失敗しました。", error);
+        alert(`保存に失敗しました。ネットワーク状態を確認してください。\n${error.message}`);
+        // 保存失敗時は編集モードのままにする (DOMは残っているので何もしなくてよい)
+        // ただし状態変数は戻す必要なし(まだ変えていないから)
+
+        // もし sync で中途半端に更新されていたら？
+        // DOMが残っているのでユーザーは再試行できる。
+      }
+
+    } else {
+      // 編集モード開始時
+      detailEditState[sectionKey] = true;
+      renderCandidateDetail(candidate, { preserveEditState: true });
     }
+
+  } catch (e) {
+    console.error("toggleDetailSectionEdit unexpected error:", e);
+    alert(`予期せぬエラーが発生しました: ${e.message}`);
   }
 }
 
@@ -2028,6 +2500,10 @@ function handleDetailFieldChange(event) {
   if (fieldPath === "applicationNote") {
     candidate.remarks = value;
   }
+  if (fieldPath === "nextActionDate") {
+    candidate.actionInfo = candidate.actionInfo || {};
+    candidate.actionInfo.nextActionDate = value;
+  }
   if (fieldPath === "firstInterviewNote") {
     candidate.hearing = candidate.hearing || {};
     candidate.hearing.memo = value;
@@ -2147,20 +2623,20 @@ function renderAssigneeSection(candidate) {
   const fields = [
     {
       label: "担当CS",
-      value: candidate.advisorUserId,
-      input: "select",
-      options: buildUserOptions(candidate.advisorUserId),
-      path: "advisorUserId",
-      displayFormatter: () => candidate.advisorName || "-",
-      span: 3,
-    },
-    {
-      label: "担当パートナー",
       value: candidate.partnerUserId,
       input: "select",
       options: buildUserOptions(candidate.partnerUserId),
       path: "partnerUserId",
       displayFormatter: () => candidate.partnerName || "-",
+      span: 3,
+    },
+    {
+      label: "担当パートナー",
+      value: candidate.advisorUserId,
+      input: "select",
+      options: buildUserOptions(candidate.advisorUserId),
+      path: "advisorUserId",
+      displayFormatter: () => candidate.advisorName || "-",
       span: 3,
     },
   ];
@@ -2172,16 +2648,18 @@ function renderApplicantInfoSection(candidate) {
   const ageDisplay = age !== null ? `${age} 歳` : candidate.age ? `${candidate.age} 歳` : "-";
   const address = candidate.address || [candidate.addressPref, candidate.addressCity, candidate.addressDetail].filter(Boolean).join("");
   const basicFields = [
-    { label: "求職者名", value: candidate.candidateName, editable: false, span: 3 },
-    { label: "ヨミガナ", value: candidate.candidateKana, editable: false, span: 3 },
-    { label: "性別", value: candidate.gender, editable: false, span: 1 },
+    { label: "求職者名", value: candidate.candidateName, path: "candidateName", span: 3 },
+    { label: "ヨミガナ", value: candidate.candidateKana, path: "candidateKana", span: 3 },
+    { label: "性別", value: candidate.gender, input: "select", options: ["男性", "女性", "未回答"], path: "gender", span: 1 },
     { label: "国籍", value: candidate.nationality, path: "nationality", span: 1 },
     { label: "言語レベル", value: candidate.japaneseLevel, input: "select", options: japaneseLevelOptions, path: "japaneseLevel", span: 1 },
     { label: "生年月日", value: candidate.birthday, type: "date", path: "birthday", displayFormatter: formatDateJP, span: 1 },
     { label: "年齢", value: ageDisplay, editable: false, span: 1 },
     { label: "郵便番号", value: candidate.postalCode, path: "postalCode", span: 1 },
-    { label: "最終学歴", value: candidate.education, editable: false, span: 2 },
-    { label: "現住所", value: address, editable: false, span: "full" },
+    { label: "都道府県", value: candidate.addressPref, path: "addressPref", span: 1 },
+    { label: "市区町村", value: candidate.addressCity, path: "addressCity", span: 1 },
+    { label: "番地・建物", value: candidate.addressDetail, path: "addressDetail", span: "full" },
+    { label: "最終学歴", value: candidate.education, path: "education", span: "full" },
   ];
   const contactFields = [
     { label: "電話番号", value: candidate.phone, type: "tel", path: "phone", span: 2 },
@@ -2257,93 +2735,241 @@ function renderHearingSection(candidate) {
 function renderSelectionProgressSection(candidate) {
   const rows = candidate.selectionProgress || [];
   const editing = detailEditState.selection;
-  const headerAction = editing ? "<th>操作</th>" : "";
   const addButton = editing
     ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress"> 追加</button>`
     : "";
 
+  // ---------------------------------------------------------
+  // 閲覧モード (Visual Flowchart)
+  // ---------------------------------------------------------
+  if (!editing) {
+    if (rows.length === 0) {
+      return `
+        <div class="candidate-detail-empty p-8 text-center bg-slate-50 rounded-lg border border-slate-100">
+          <p class="text-slate-500">企業の進捗は登録されていません。</p>
+        </div>
+      `;
+    }
+
+    const cardsHtml = rows.map((row) => renderSelectionFlowCard(row)).join("");
+    return `
+      <div class="selection-flow-container space-y-6">
+        ${cardsHtml}
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------
+  // 編集モード (Table Input)
+  // ---------------------------------------------------------
+  const headerAction = "<th>操作</th>";
+
   let bodyHtml;
   if (rows.length === 0) {
-    const colspan = editing ? 19 : 18;
-    bodyHtml = `<tr><td colspan="${colspan}" class="detail-empty-row text-center py-3">企業の進捗は登録されていません。</td></tr>`;
+    bodyHtml = `<tr><td colspan="20" class="detail-empty-row text-center py-3">企業の進捗は登録されていません。</td></tr>`;
   } else {
     bodyHtml = rows
       .map((row, index) => {
-        const statusValue = resolveSelectionStageValue(row) || row.status || "";
-        if (editing) {
-          const pathPrefix = `selectionProgress.${index} `;
-          const cells = [
-            `<td>${renderTableSelect(buildClientOptions(row.clientId, row.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
-            `<td>${renderTableInput(row.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
-            // status-pill cell: add nowrap-cell class
-            `<td class="text-center nowrap-cell" data-selection-status>${renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue))}</td>`,
-            `< td > ${renderTableInput(row.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.interviewSetupDate, `${pathPrefix}.interviewSetupDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.interviewDate, `${pathPrefix}.interviewDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.secondInterviewSetupDate, `${pathPrefix}.secondInterviewSetupDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.acceptanceDate, `${pathPrefix}.acceptanceDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.onboardingDate, `${pathPrefix}.onboardingDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.preJoinDeclineDate, `${pathPrefix}.preJoinDeclineDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.preJoinDeclineReason, `${pathPrefix}.preJoinDeclineReason`, "text", "selection")}</td > `,
-            `< td > ${renderTableInput(row.postJoinQuitDate, `${pathPrefix}.postJoinQuitDate`, "date", "selection")}</td > `,
-            `< td > ${renderTableInput(row.postJoinQuitReason, `${pathPrefix}.postJoinQuitReason`, "text", "selection")}</td > `,
-            `< td > ${renderTableInput(row.closeExpectedDate, `${pathPrefix}.closeExpectedDate`, "date", "selection")}</td > `,
-            `< td > <span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span></td > `,
-            `<td>${renderTableTextarea(row.selectionNote, `${pathPrefix}.selectionNote`, "selection")}</td>`,
-          ].join("");
-          const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
-          return `<tr data-selection-row="${index}">${cells}${action}</tr>`;
-        }
+        const pathPrefix = `selectionProgress.${index}`;
+        // キー名をLambdaの返却/期待値に合わせる (編集モード用Normalization)
+        const r = normalizeSelectionRow(row);
+
         const cells = [
-          { value: row.companyName },
-          { value: row.route },
-          { html: renderStatusPill(statusValue || "-", resolveSelectionStatusVariant(statusValue)) },
-          { value: formatDateJP(row.recommendationDate) },
-          { value: formatDateJP(row.interviewSetupDate) },
-          { value: formatDateJP(row.interviewDate) },
-          { value: formatDateJP(row.secondInterviewSetupDate) },
-          { value: formatDateJP(row.secondInterviewDate) },
-          { value: formatDateJP(row.offerDate) },
-          { value: formatDateJP(row.acceptanceDate) },
-          { value: formatDateJP(row.onboardingDate) },
-          { value: formatDateJP(row.preJoinDeclineDate) },
-          { value: row.preJoinDeclineReason },
-          { value: formatDateJP(row.postJoinQuitDate) },
-          { value: row.postJoinQuitReason },
-          { value: formatDateJP(row.closeExpectedDate) },
-          { value: formatMoneyToMan(row.feeAmount) },
-          { value: row.selectionNote },
-        ]
-          .map((cell) => {
-            // Apply nowrap-cell class to date/status columns if needed. 
-            // Here, we just rely on standard table wrap. Status pill is centered.
-            if (cell.html) return `<td class="text-center nowrap-cell">${cell.html}</td>`;
-            return `<td><span class="detail-value">${escapeHtml(formatDisplayValue(cell.value))}</span></td>`;
-          })
-          .join("");
-        return `<tr>${cells}</tr>`;
+          `<td>${renderTableSelect(buildClientOptions(row.clientId, r.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
+          `<td>${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
+          `<td class="text-center nowrap-cell" data-selection-status>${renderStatusPill(row.status || "-", resolveSelectionStatusVariant(row.status))}</td>`,
+          `<td>${renderTableInput(r.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.firstInterviewAdjustDate, `${pathPrefix}.firstInterviewAdjustDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.firstInterviewDate, `${pathPrefix}.firstInterviewDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.secondInterviewAdjustDate, `${pathPrefix}.secondInterviewAdjustDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.finalInterviewAdjustDate, `${pathPrefix}.finalInterviewAdjustDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.finalInterviewDate, `${pathPrefix}.finalInterviewDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.offerAcceptedDate, `${pathPrefix}.offerAcceptedDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.joinedDate, `${pathPrefix}.joinedDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.declinedDate, `${pathPrefix}.declinedDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.declinedReason, `${pathPrefix}.declinedReason`, "text", "selection")}</td>`,
+          `<td>${renderTableInput(r.earlyTurnoverDate, `${pathPrefix}.earlyTurnoverDate`, "date", "selection")}</td>`,
+          `<td>${renderTableInput(r.earlyTurnoverReason, `${pathPrefix}.earlyTurnoverReason`, "text", "selection")}</td>`,
+          `<td>${renderTableInput(r.closingForecastDate, `${pathPrefix}.closingForecastDate`, "date", "selection")}</td>`,
+          `<td><span class="detail-value">${escapeHtml(formatMoneyToMan(r.fee))}</span></td>`,
+          `<td>${renderTableTextarea(r.note, `${pathPrefix}.note`, "selection")}</td>`,
+        ].join("");
+        const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
+        return `<tr data-selection-row="${index}">${cells}${action}</tr>`;
       })
       .join("");
   }
 
   return `
     <div class="repeatable-header">
-      <h5>企業ごとの進捗</h5>
+      <h5>企業ごとの進捗 (編集モード)</h5>
       ${addButton}
     </div>
     <div class="detail-table-wrapper">
       <table class="detail-table detail-table--wide">
         <thead>
           <tr>
-            <th>受験企業名</th><th>応募経路</th><th>選考状況</th><th>推薦日</th><th>一次面接調整日</th><th>一次面接日</th>
-            <th>二次面接調整日</th><th>二次面接日</th><th>内定日</th><th>内定承諾日</th><th>入社日</th><th>内定後辞退日</th><th>内定後辞退理由</th>
-            <th>入社後辞退日</th><th>入社後辞退理由</th><th>クロージング予定日</th><th>FEE</th><th>備考</th>${headerAction}
+            <th>受験企業名</th><th>応募経路</th><th>選考状況</th><th>推薦日</th>
+            <th>一次面接調整日</th><th>一次面接日</th>
+            <th>二次面接調整日</th><th>二次面接日</th>
+            <th>最終面接調整日</th><th>最終面接日</th>
+            <th>内定日</th><th>内定承諾日</th><th>入社日</th>
+            <th>内定後辞退日</th><th>内定後辞退理由</th>
+            <th>入社後辞退日</th><th>入社後辞退理由</th>
+            <th>クロージング予定日</th><th>FEE</th><th>備考</th>
+            ${headerAction}
           </tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
       </table>
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------
+// Helper: Selection Flow Card & Chart
+// ---------------------------------------------------------
+
+function normalizeSelectionRow(row) {
+  return {
+    companyName: row.companyName,
+    route: row.route ?? row.source,
+    status: resolveSelectionStageValue(row) || row.status, // Pill表示用
+    recommendationDate: row.recommendationDate,
+    firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt,
+    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt,
+    secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt,
+    secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt,
+    finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt,
+    finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt,
+    offerDate: row.offerDate ?? row.offerAt,
+    offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.acceptanceDate,
+    joinedDate: row.joinedDate ?? row.joinedAt ?? row.onboardingDate,
+    declinedDate: row.declinedDate ?? row.declinedAfterOfferDate ?? row.preJoinDeclineDate,
+    declinedReason: row.declinedReason ?? row.declinedAfterOfferReason ?? row.preJoinDeclineReason,
+    earlyTurnoverDate: row.earlyTurnoverDate ?? row.earlyTurnoverAt ?? row.postJoinQuitDate,
+    earlyTurnoverReason: row.earlyTurnoverReason ?? row.earlyTurnoverAt ?? row.postJoinQuitReason,
+    closingForecastDate: row.closingForecastDate ?? row.closingForecastAt ?? row.closeExpectedDate,
+    fee: row.fee ?? row.feeAmount,
+    note: row.note ?? row.selectionNote,
+  };
+}
+
+function renderSelectionFlowCard(rawRow) {
+  const r = normalizeSelectionRow(rawRow);
+  const statusVariant = resolveSelectionStatusVariant(r.status);
+  const statusLabel = r.status || "未設定";
+
+  // Flow Steps Definition
+  const steps = [
+    { label: "推薦", date: r.recommendationDate, sub: null, active: true },
+    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null },
+    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null },
+    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null },
+    { label: "内定", date: r.offerDate, sub: null },
+    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null },
+  ];
+
+  // Determine current active step index based on dates
+  // Find the last step that has a confirmed date
+  let lastCompletedIndex = -1;
+  steps.forEach((step, idx) => {
+    if (step.date) lastCompletedIndex = idx;
+  });
+
+  const flowHtml = steps.map((step, idx) => {
+    const isCompleted = idx <= lastCompletedIndex;
+    const isCurrent = idx === lastCompletedIndex;
+    const hasDate = Boolean(step.date);
+
+    // Circle Color
+    let circleClass = "bg-slate-200 text-slate-400"; // default
+    if (isCompleted) circleClass = "bg-indigo-600 text-white ring-2 ring-indigo-100";
+    if (isCurrent) circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+
+    // Bar Color (Connector to next)
+    let barClass = "bg-slate-200";
+    if (idx < steps.length - 1) {
+      if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
+    }
+
+    const dateStr = formatDateJP(step.date);
+    const dateHtml = hasDate ? `<div class="text-[10px] font-bold text-indigo-700 mt-1">${dateStr}</div>` : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+    const subHtml = step.sub ? `<div class="text-[9px] text-slate-400">${step.sub}</div>` : "";
+
+    return `
+      <div class="flex-1 relative group">
+        <!-- Connector Bar -->
+        ${idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : ""}
+        
+        <div class="relative z-10 flex flex-col items-center">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
+            ${idx + 1}
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${step.label}</div>
+          ${dateHtml}
+          ${subHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // 詳細情報 (辞退理由や備考)
+  const details = [];
+  if (r.route) details.push({ label: "経由", value: r.route });
+  if (r.fee) details.push({ label: "FEE", value: formatMoneyToMan(r.fee) });
+  if (r.closingForecastDate) details.push({ label: "着地予定", value: formatDateJP(r.closingForecastDate) });
+
+  // Warning Alerts
+  let alerts = "";
+  if (r.declinedDate || r.declinedReason) {
+    alerts += `
+      <div class="mt-3 text-xs bg-red-50 text-red-700 px-3 py-2 rounded border border-red-100 flex items-start">
+        <span class="font-bold mr-2 whitespace-nowrap">辞退/失注:</span>
+        <div>
+          ${r.declinedDate ? `<span class="mr-2">日: ${formatDateJP(r.declinedDate)}</span>` : ""}
+          <span>理由: ${escapeHtml(r.declinedReason || "不明")}</span>
+        </div>
+      </div>`;
+  }
+  if (r.earlyTurnoverDate || r.earlyTurnoverReason) {
+    alerts += `
+      <div class="mt-2 text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded border border-orange-100 flex items-start">
+        <span class="font-bold mr-2 whitespace-nowrap">早期退職:</span>
+        <div>
+          ${r.earlyTurnoverDate ? `<span class="mr-2">日: ${formatDateJP(r.earlyTurnoverDate)}</span>` : ""}
+          <span>理由: ${escapeHtml(r.earlyTurnoverReason || "不明")}</span>
+        </div>
+      </div>`;
+  }
+
+  // 備考エリア
+  const noteHtml = r.note
+    ? `<div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap"><span class="font-bold text-slate-500 mr-1">備考:</span>${escapeHtml(r.note)}</div>`
+    : "";
+
+  return `
+    <div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <h4 class="text-lg font-bold text-slate-800">${escapeHtml(r.companyName || "企業名未設定")}</h4>
+          ${renderStatusPill(statusLabel, statusVariant)}
+        </div>
+        <div class="flex gap-4 text-xs text-slate-500">
+           ${details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("")}
+        </div>
+      </div>
+      
+      <!-- Flow Chart -->
+      <div class="flex justify-between items-start w-full px-2 mb-2">
+        ${flowHtml}
+      </div>
+
+      <!-- Alerts & Notes -->
+      ${alerts}
+      ${noteHtml}
     </div>
   `;
 }
@@ -2415,7 +3041,7 @@ function renderMoneySection(candidate) {
     `;
       })
       .join("")
-    : `< tr > <td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr > `;
+    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
 
   const refundBody = hasRows
     ? rows
@@ -2555,20 +3181,28 @@ function renderRefundSection(candidate) {
 
 function renderNextActionSection(candidate) {
   const nextAction = pickNextAction(candidate);
-  if (!nextAction) {
-    return `
-    <div class="next-action-card">
-      <span class="next-action-label">次回アクションは未設定です。</span>
-      </div>
-    `;
-  }
-
-  return `
+  const summaryHtml = nextAction
+    ? `
     <div class="next-action-card">
       <span class="next-action-date">次回アクション: ${escapeHtml(formatDateJP(nextAction.date))}</span>
       <span class="next-action-label">(${escapeHtml(nextAction.label)})</span>
     </div>
+    `
+    : `
+    <div class="next-action-card">
+      <span class="next-action-label">次回アクションは未設定です。</span>
+    </div>
     `;
+
+  const fields = [
+    { label: "次回アクション日", value: candidate.nextActionDate, path: "nextActionDate", type: "date", displayFormatter: formatDateJP, span: 3 },
+    { label: "次回アクション内容", value: candidate.nextActionNote, path: "nextActionNote", span: 3 },
+  ];
+
+  return `
+    ${summaryHtml}
+    ${renderDetailGridFields(fields, "nextAction")}
+  `;
 }
 
 function renderCsSection(candidate) {
@@ -2586,6 +3220,7 @@ function renderCsSection(candidate) {
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
     { label: "新規接触予定日", value: candidate.firstContactPlannedAt, path: "firstContactPlannedAt", type: "date" },
+    { label: "次回アクション日", value: candidate.nextActionDate, path: "nextActionDate", type: "date" },
   ];
 
   return `
@@ -2598,7 +3233,7 @@ function renderCsSection(candidate) {
               <div class="cs-summary-value">
                 ${editing && item.path
             ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
-            : item.html || escapeHtml(formatDisplayValue(item.value))
+            : item.html || (item.type === "date" ? formatDateJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
           }
               </div>
             </div>
@@ -2624,9 +3259,18 @@ function pickNextAction(candidate) {
   const pushIfUpcoming = (label, value) => {
     const date = parseDateValue(value);
     if (!date) return;
-    if (date.getTime() < now.getTime()) return;
+    // Include past events to show as expired/warning at the top
     upcoming.push({ label, date });
   };
+
+  const explicitNextAction = parseDateValue(candidate.nextActionDate);
+  if (explicitNextAction) {
+    return {
+      label: "次回アクション日",
+      date: explicitNextAction,
+      note: candidate.nextActionNote || null
+    };
+  }
 
   pushIfUpcoming("新規接触予定", candidate.firstContactPlannedAt);
   pushIfUpcoming("面接希望", candidate.interviewPreferredDate);
