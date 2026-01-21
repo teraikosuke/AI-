@@ -387,8 +387,14 @@ function resolveCandidatePhaseDisplay(candidate) {
 function isValidApplicationCandidate(candidate) {
   const raw = candidate?.validApplication
     ?? candidate?.valid_application
+    ?? candidate?.validApplicationComputed
+    ?? candidate?.valid_application_computed
     ?? candidate?.valid
-    ?? candidate?.isValidApplication;
+    ?? candidate?.isValidApplication
+    ?? candidate?.isEffective
+    ?? candidate?.is_effective
+    ?? candidate?.is_effective_application
+    ?? candidate?.active_flag;
   if (typeof raw === "string") {
     const normalized = raw.trim().toLowerCase();
     if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
@@ -587,7 +593,17 @@ function normalizeCandidateDetail(raw) {
     advisorName: raw.advisorName ?? raw.advisor_name ?? "",
     partnerName: raw.partnerName ?? raw.partner_name ?? "",
     registeredAt: raw.registeredAt ?? raw.createdAt ?? raw.created_at ?? raw.registered_at ?? null,
-    validApplication: raw.validApplication ?? raw.valid_application ?? raw.is_effective_application ?? raw.active_flag ?? null,
+    validApplication:
+      raw.validApplication ??
+      raw.valid_application ??
+      raw.validApplicationComputed ??
+      raw.valid_application_computed ??
+      raw.is_effective_application ??
+      raw.active_flag ??
+      raw.isEffective ??
+      raw.is_effective ??
+      raw.isEffectiveApplication ??
+      null,
     phone: raw.phone ?? raw.phone_number ?? raw.tel ?? "",
     email: raw.email ?? raw.email_address ?? "",
     birthday: raw.birthday ?? raw.birth_date ?? raw.birthDate ?? raw.birthdate ?? "",

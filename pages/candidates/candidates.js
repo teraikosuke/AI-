@@ -1952,6 +1952,7 @@ function buildCandidateDetailPayload(candidate) {
     contactPreferredTime: candidate.contactPreferredTime || contactTime,
     nextActionDate: candidate.nextActionDate || actionInfo.nextActionDate || null,
     nextActionNote: candidate.nextActionNote || null,
+    nextActionLogs: candidate.nextActionLogs || [],
     contactTime,
     firstContactPlannedAt: candidate.firstContactPlannedAt,
     scheduleConfirmedAt: candidate.scheduleConfirmedAt,
@@ -2281,6 +2282,21 @@ function handleDetailContentClick(event) {
       removeBtn.dataset.removeRow,
       Number(removeBtn.dataset.index)
     );
+    return;
+  }
+
+  // 完了登録ボタン
+  const completeBtn = event.target.closest("[data-complete-action]");
+  if (completeBtn) {
+    handleCompleteAction();
+    return;
+  }
+
+  // ログ削除ボタン
+  const deleteLogBtn = event.target.closest("[data-delete-log]");
+  if (deleteLogBtn) {
+    handleDeleteActionLog(Number(deleteLogBtn.dataset.deleteLog));
+    return;
   }
 }
 
@@ -2422,6 +2438,77 @@ function handleDetailRemoveRow(type, index) {
 
   const current = getSelectedCandidate();
   if (current) renderCandidateDetail(current, { preserveEditState: true });
+}
+
+async function handleCompleteAction() {
+  const candidate = getSelectedCandidate();
+  if (!candidate) return;
+
+  // 次回アクション日と内容が両方設定されているか確認
+  if (!candidate.nextActionDate || !candidate.nextActionNote) {
+    alert('次回アクション日と内容の両方を入力してください。');
+    return;
+  }
+
+  try {
+    // ログ配列を初期化（存在しない場合）
+    if (!candidate.nextActionLogs) {
+      candidate.nextActionLogs = [];
+    }
+
+    // 現在のアクションをログに追加
+    const log = {
+      date: candidate.nextActionDate,
+      note: candidate.nextActionNote,
+      completedAt: new Date().toISOString(),
+    };
+
+    // ログの先頭に追加（新しいものが上）
+    candidate.nextActionLogs.unshift(log);
+
+    // 次回アクションをクリア
+    candidate.nextActionDate = null;
+    candidate.nextActionNote = null;
+
+    // 保存してレンダリング
+    await saveCandidateRecord(candidate, { preserveDetailState: true, includeDetail: true });
+    renderCandidatesTable(filteredCandidates);
+    renderCandidateDetail(candidate, { preserveEditState: true });
+    highlightSelectedRow();
+
+  } catch (error) {
+    console.error('アクション完了登録に失敗しました:', error);
+    alert(`完了登録に失敗しました。\n${error.message}`);
+  }
+}
+
+async function handleDeleteActionLog(index) {
+  const candidate = getSelectedCandidate();
+  if (!candidate) return;
+
+  if (!confirm('このアクションログを削除してもよろしいですか？')) {
+    return;
+  }
+
+  try {
+    if (!candidate.nextActionLogs || !candidate.nextActionLogs[index]) {
+      alert('削除対象のログが見つかりません。');
+      return;
+    }
+
+    // ログを削除
+    candidate.nextActionLogs.splice(index, 1);
+
+    // 保存してレンダリング
+    await saveCandidateRecord(candidate, { preserveDetailState: true, includeDetail: true });
+    renderCandidatesTable(filteredCandidates);
+    renderCandidateDetail(candidate, { preserveEditState: true });
+    highlightSelectedRow();
+
+  } catch (error) {
+    console.error('ログ削除に失敗しました:', error);
+    alert(`ログ削除に失敗しました。\n${error.message}`);
+  }
 }
 
 function handleDetailFieldChange(event) {
@@ -3181,16 +3268,27 @@ function renderRefundSection(candidate) {
 
 function renderNextActionSection(candidate) {
   const nextAction = pickNextAction(candidate);
+  const editing = detailEditState.nextAction;
+
+  // サマリー表示
   const summaryHtml = nextAction
     ? `
-    <div class="next-action-card">
-      <span class="next-action-date">次回アクション: ${escapeHtml(formatDateJP(nextAction.date))}</span>
-      <span class="next-action-label">(${escapeHtml(nextAction.label)})</span>
+    <div class="next-action-card bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4 mb-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="next-action-date text-lg font-bold text-indigo-900">次回アクション: ${escapeHtml(formatDateJP(nextAction.date))}</span>
+          <span class="next-action-label text-sm text-indigo-700 ml-2">(${escapeHtml(nextAction.label)})</span>
+        </div>
+        ${candidate.nextActionDate && candidate.nextActionNote
+      ? `<button type="button" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 font-medium" data-complete-action="true">✓ 完了登録</button>`
+      : ''}
+      </div>
+      ${nextAction.note ? `<div class="mt-2 text-sm text-slate-700">${escapeHtml(nextAction.note)}</div>` : ''}
     </div>
     `
     : `
-    <div class="next-action-card">
-      <span class="next-action-label">次回アクションは未設定です。</span>
+    <div class="next-action-card bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
+      <span class="next-action-label text-slate-500">次回アクションは未設定です。</span>
     </div>
     `;
 
@@ -3199,9 +3297,37 @@ function renderNextActionSection(candidate) {
     { label: "次回アクション内容", value: candidate.nextActionNote, path: "nextActionNote", span: 3 },
   ];
 
+  // アクションログ履歴
+  const logs = candidate.nextActionLogs || [];
+  const logsHtml = logs.length > 0
+    ? `
+    <div class="mt-6">
+      <h5 class="text-sm font-semibold text-slate-700 mb-3">📜 アクション履歴</h5>
+      <div class="space-y-2">
+        ${logs.map((log, index) => `
+          <div class="bg-white border border-slate-200 rounded-lg p-3 hover:shadow-sm transition-shadow" data-log-index="${index}">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-sm font-medium text-slate-900">${escapeHtml(formatDateJP(log.date))}</span>
+                  <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">完了</span>
+                </div>
+                <div class="text-sm text-slate-700">${escapeHtml(log.note || '-')}</div>
+                <div class="text-xs text-slate-400 mt-1">完了日時: ${escapeHtml(formatDateTimeJP(log.completedAt))}</div>
+              </div>
+              ${editing ? `<button type="button" class="text-red-500 hover:text-red-700 text-sm" data-delete-log="${index}">削除</button>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    `
+    : '';
+
   return `
     ${summaryHtml}
     ${renderDetailGridFields(fields, "nextAction")}
+    ${logsHtml}
   `;
 }
 
