@@ -19,6 +19,24 @@ const KPI_TARGET_KEYS = [
   'hireRateTarget'
 ];
 
+// ページ別率目標キー（広告管理・架電管理・紹介先実績）
+const PAGE_RATE_TARGET_KEYS = [
+  // 広告管理画面
+  'adValidApplicationRateTarget',
+  'adInitialInterviewRateTarget',
+  'adOfferRateTarget',
+  'adHireRateTarget',
+  'adDecisionRateTarget',
+  'adRetentionRateTarget',
+  // 架電管理画面
+  'teleapoContactRateTarget',
+  'teleapoSetRateTarget',
+  'teleapoShowRateTarget',
+  'teleapoConnectRateTarget',
+  // 紹介先実績管理画面
+  'referralRetentionRateTarget'
+];
+
 const DEFAULT_GOAL_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/goal';
 const GOAL_API_BASE = resolveGoalApiBase();
 
@@ -28,7 +46,8 @@ const cache = {
   evaluationPeriods: [],
   companyTargets: new Map(),
   personalTargets: new Map(),
-  dailyTargets: new Map()
+  dailyTargets: new Map(),
+  pageRateTargets: new Map() // ページ別率目標（periodId -> targets）
 };
 
 cache.evaluationPeriods = buildDefaultPeriods(cache.evaluationRule);
@@ -279,6 +298,26 @@ function normalizeTarget(raw = {}) {
   }, {});
 }
 
+// ページ別率目標の正規化
+function normalizePageRateTarget(raw = {}) {
+  return PAGE_RATE_TARGET_KEYS.reduce((acc, key) => {
+    const value = Number(raw[key]);
+    acc[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+    return acc;
+  }, {});
+}
+
+// ページ別率目標のAPI読み込み
+async function loadPageRateTargetsFromApi(periodId, { force = false } = {}) {
+  if (!periodId) return null;
+  if (!force && cache.pageRateTargets.has(periodId)) return cache.pageRateTargets.get(periodId);
+  const params = new URLSearchParams({ scope: 'page-rate', periodId });
+  const data = await requestJson(`/goal-targets?${params.toString()}`);
+  const target = normalizePageRateTarget(data?.targets || {});
+  cache.pageRateTargets.set(periodId, target);
+  return target;
+}
+
 function getPeriodByDate(dateStr, periods) {
   if (!dateStr) return null;
   const target = new Date(dateStr);
@@ -308,7 +347,7 @@ function normalizeRule(raw) {
         ? 'custom-month'
         : legacy === 'master-monthly'
           ? 'master-month'
-        : legacy;
+          : legacy;
   return { type: mapped || 'monthly', options: {} };
 }
 
@@ -412,9 +451,9 @@ async function loadPersonalTargetsBulkFromApi(periodId, advisorUserIds, { force 
     ? data.items
     : data?.targetsByAdvisor && typeof data.targetsByAdvisor === 'object'
       ? Object.entries(data.targetsByAdvisor).map(([advisorUserId, targets]) => ({
-          advisorUserId,
-          targets
-        }))
+        advisorUserId,
+        targets
+      }))
       : [];
   items.forEach(item => {
     const advisorUserId = Number(item?.advisorUserId ?? item?.advisor_user_id);
@@ -442,9 +481,9 @@ async function loadDailyTargetsBulkFromApi(periodId, advisorUserIds, { force = f
     ? data.items
     : data?.dailyTargetsByAdvisor && typeof data.dailyTargetsByAdvisor === 'object'
       ? Object.entries(data.dailyTargetsByAdvisor).map(([advisorUserId, dailyTargets]) => ({
-          advisorUserId,
-          dailyTargets
-        }))
+        advisorUserId,
+        dailyTargets
+      }))
       : [];
   items.forEach(item => {
     const advisorUserId = Number(item?.advisorUserId ?? item?.advisor_user_id);
@@ -626,6 +665,45 @@ export const goalSettingsService = {
   },
   listKpiTargetKeys() {
     return [...KPI_TARGET_KEYS];
+  },
+  listPageRateTargetKeys() {
+    return [...PAGE_RATE_TARGET_KEYS];
+  },
+  // ページ別率目標の取得
+  getPageRateTargets(periodId) {
+    return cache.pageRateTargets.get(periodId) || null;
+  },
+  // ページ別率目標のロード
+  async loadPageRateTargets(periodId, { force = false } = {}) {
+    try {
+      return await loadPageRateTargetsFromApi(periodId, { force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load page rate targets', error);
+      return this.getPageRateTargets(periodId);
+    }
+  },
+  // ページ別率目標の保存
+  async savePageRateTargets(periodId, targets = {}) {
+    if (!periodId) return null;
+    const normalized = normalizePageRateTarget(targets);
+    await requestJson('/goal-targets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'page-rate', periodId, targets: normalized })
+    });
+    cache.pageRateTargets.set(periodId, normalized);
+    return normalized;
+  },
+  // 目標達成度から色クラスを判定
+  getRateColorClass(actualRate, targetRate, options = {}) {
+    const { highThreshold = 100, midThreshold = 80 } = options;
+    if (!Number.isFinite(targetRate) || targetRate <= 0) {
+      return 'bg-slate-100 text-slate-700'; // 目標未設定
+    }
+    const percentage = (actualRate / targetRate) * 100;
+    if (percentage >= highThreshold) return 'bg-green-100 text-green-700';   // 目標達成
+    if (percentage >= midThreshold) return 'bg-amber-100 text-amber-700';    // 80-99%
+    return 'bg-red-100 text-red-700';                                        // 80%未満
   }
 };
 
