@@ -18,7 +18,8 @@ let selectedCompanyId = null;
 
 let detailEditMode = false;
 
-const CLIENTS_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/clients';
+const CLIENTS_KPI_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/clients';
+const CLIENTS_PROFILE_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/clients';
 const CANDIDATES_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const CANDIDATES_LIST_PATH = '/candidates';
 const CANDIDATES_LIST_LIMIT = 500;
@@ -141,7 +142,7 @@ async function loadReferralData() {
 
 
 
-  const url = new URL(CLIENTS_API_URL);
+  const url = new URL(CLIENTS_KPI_API_URL);
 
   if (from) url.searchParams.set('from', from);
 
@@ -217,9 +218,9 @@ function normalizeReferralItem(item = {}, index = 0) {
   const company = str(['name', 'companyName', 'company'], '-');
 
   const industry = str(['industry'], '-');
-
-  const contact = str(['contactName', 'contact', 'contactPerson'], '-');
-
+  const contactName = str(['contactName', 'contact_name', 'contact', 'contactPerson', 'contact_person'], '');
+  const contactEmail = str(['contactEmail', 'contact_email'], '');
+  const contact = contactName || contactEmail || '-';
   const location = str(['location', 'workLocation'], '-');
 
 
@@ -241,7 +242,10 @@ function normalizeReferralItem(item = {}, index = 0) {
   // 入社数が0の場合は定着率を'-'とする
   const retention = joined === 0 ? '-' : formatRetention(retentionRaw);
 
-  const warrantyPeriod = num(['warrantyPeriod', 'warranty_period'], null);
+  const warrantyPeriodRaw = val(['warrantyPeriod', 'warranty_period'], null);
+  const warrantyPeriod = warrantyPeriodRaw === null || warrantyPeriodRaw === '' ? null : warrantyPeriodRaw;
+  const feeDetails = str(['feeDetails', 'fee_details', 'feeContract', 'fee_contract'], '');
+  const contractNote = str(['contractNote', 'contract_note', 'contractNotes', 'contract_notes'], '');
 
 
 
@@ -269,7 +273,8 @@ function normalizeReferralItem(item = {}, index = 0) {
 
 
 
-  const jobTitle = str(['jobCategories', 'jobTitle', 'job_categories'], '-');
+  const jobCategories = str(['jobCategories', 'jobTitle', 'job_categories'], '-');
+  const jobTitle = jobCategories || '-';
 
   const highlightPosition = str(['highlightPosition', 'highlight'], jobTitle);
 
@@ -314,15 +319,15 @@ function normalizeReferralItem(item = {}, index = 0) {
 
   return {
 
-    id, company, industry, contact, location,
+    id, company, industry, contact, contactName, contactEmail, location,
 
     planHeadcount, joined, remaining,
 
-    retention, warrantyPeriod, refundAmount, leadTime, feeDisplay, feeValue,
+    retention, warrantyPeriod, feeDetails, feeContract: feeDetails, contractNote, contractNotes: contractNote, refundAmount, leadTime, feeDisplay, feeValue,
 
     proposal, docScreen, interview1, interview2, offer,
 
-    jobTitle, highlightPosition,
+    jobTitle, jobCategories, highlightPosition,
 
     prejoinDeclines, prejoinDeclineReason, dropoutCount,
 
@@ -1922,6 +1927,13 @@ function renderCompanyDetail() {
   const retentionClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
   const leadClass = 'bg-amber-50 text-amber-700 border border-amber-100';
   const refundClass = Number(company.refundAmount) > 0 ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-slate-50 text-slate-700 border border-slate-100';
+  const contactNameDisplay = company.contactName || company.contact || '-';
+  const contactEmailDisplay = company.contactEmail || '-';
+  const contactEmailHtml = contactEmailDisplay && contactEmailDisplay !== '-'
+    ? `<a href="mailto:${contactEmailDisplay}" class="text-indigo-600 hover:text-indigo-800 underline">${contactEmailDisplay}</a>`
+    : `<span class="text-slate-400">-</span>`;
+  const feeDetailsDisplay = company.feeDetails || company.feeContract || '';
+  const contractNoteDisplay = company.contractNote || company.contractNotes || '';
   const editing = detailEditMode;
   const desired = company.desiredTalent || {
     salaryRange: [0, 0],
@@ -2106,8 +2118,9 @@ function renderCompanyDetail() {
       <!-- 基本情報 -->
       <div class="space-y-2">
         <!-- 担当者など -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200 w-fit">👤 ${company.contact}</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200 w-fit">👤 ${contactNameDisplay}</span>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 w-fit">✉️ ${contactEmailHtml}</span>
         </div>
         
         <!-- 業種・所在地 -->
@@ -2248,6 +2261,64 @@ function renderCompanyDetail() {
       </div>
 
       <!-- 契約情報 -->
+      <!-- 担当者情報 -->
+      <div class="bg-white/80 rounded-xl p-4 border border-slate-300 shadow-md">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="text-xl">👤</span>
+            <span>担当者情報</span>
+          </h3>
+          <button
+            id="contactInfoEditBtn"
+            class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
+            編集
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              <span>👤</span>
+              <span>担当者名</span>
+            </div>
+            <div id="contactNameDisplay" class="text-sm text-slate-800 min-h-[36px] leading-relaxed">
+              ${contactNameDisplay}
+            </div>
+            <input
+              id="contactNameInput"
+              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="担当者名を入力"
+              value="${company.contactName || ''}">
+          </div>
+          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
+            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              <span>✉️</span>
+              <span>メールアドレス</span>
+            </div>
+            <div id="contactEmailDisplay" class="text-sm text-slate-800 min-h-[36px] leading-relaxed">
+              ${contactEmailHtml}
+            </div>
+            <input
+              id="contactEmailInput"
+              type="email"
+              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="example@company.com"
+              value="${company.contactEmail || ''}">
+          </div>
+        </div>
+        <div id="contactInfoEditActions" class="hidden mt-3 flex gap-2 justify-end">
+          <button
+            id="contactInfoCancelBtn"
+            class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
+            キャンセル
+          </button>
+          <button
+            id="contactInfoSaveBtn"
+            class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 border border-blue-700 rounded-lg transition">
+            保存
+          </button>
+        </div>
+      </div>
+
       <div class="bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 rounded-xl p-4 border border-slate-300 shadow-md">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -2284,12 +2355,12 @@ function renderCompanyDetail() {
               <span>Fee契約内容</span>
             </div>
             <div id="feeContractDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
-              ${company.feeContract || '-'}
+              ${feeDetailsDisplay || '-'}
             </div>
             <textarea 
               id="feeContractInput" 
               class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
-              placeholder="Fee契約の詳細を入力">${company.feeContract || ''}</textarea>
+              placeholder="Fee契約の詳細を入力">${company.feeDetails || company.feeContract || ''}</textarea>
           </div>
 
           <!-- その他契約メモ -->
@@ -2299,12 +2370,12 @@ function renderCompanyDetail() {
               <span>その他</span>
             </div>
             <div id="contractNotesDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
-              ${company.contractNotes || '-'}
+              ${contractNoteDisplay || '-'}
             </div>
             <textarea 
               id="contractNotesInput" 
               class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
-              placeholder="その他の契約に関するメモ">${company.contractNotes || ''}</textarea>
+              placeholder="その他の契約に関するメモ">${company.contractNote || company.contractNotes || ''}</textarea>
           </div>
         </div>
 
@@ -2413,6 +2484,7 @@ function attachDetailEditHandlers(company) {
 
   // Contract information edit handlers
   attachContractInfoEditHandlers(company);
+  attachContactInfoEditHandlers(company);
 
 }
 
@@ -2460,27 +2532,24 @@ function attachContractInfoEditHandlers(company) {
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
       const warrantyPeriod = document.getElementById('warrantyPeriodInput').value.trim();
-      const feeContract = document.getElementById('feeContractInput').value.trim();
-      const contractNotes = document.getElementById('contractNotesInput').value.trim();
+      const feeDetails = document.getElementById('feeContractInput').value.trim();
+      const contractNote = document.getElementById('contractNotesInput').value.trim();
 
-      const payload = {
-        id: company.id,
+      const payload = buildClientProfilePayload(company, {
         warrantyPeriod: warrantyPeriod || null,
-        feeContract: feeContract || null,
-        contractNotes: contractNotes || null
-      };
+        feeDetails: feeDetails || null,
+        contractNote: contractNote || null
+      });
 
       try {
-        // Save to backend (placeholder - adjust based on actual API)
-        console.log('Saving contract info:', payload);
-
-        // Update local data
-        const companyIndex = referralData.findIndex(c => c.id === company.id);
-        if (companyIndex !== -1) {
-          referralData[companyIndex].warrantyPeriod = warrantyPeriod || null;
-          referralData[companyIndex].feeContract = feeContract || null;
-          referralData[companyIndex].contractNotes = contractNotes || null;
-        }
+        await saveClientProfile(payload);
+        applyClientProfileEdits(company.id, {
+          warrantyPeriod: warrantyPeriod || null,
+          feeDetails: feeDetails || null,
+          contractNote: contractNote || null,
+          feeContract: feeDetails || null,
+          contractNotes: contractNote || null
+        });
 
         // Exit edit mode and refresh display
         document.getElementById('warrantyPeriodDisplay').classList.remove('hidden');
@@ -2495,10 +2564,81 @@ function attachContractInfoEditHandlers(company) {
 
         // Refresh the detail view
         renderCompanyDetail();
+        renderTable();
 
         alert('契約情報を保存しました');
       } catch (error) {
         console.error('Failed to save contract info:', error);
+        alert('保存に失敗しました');
+      }
+    });
+  }
+}
+
+function attachContactInfoEditHandlers(company) {
+  const editBtn = document.getElementById('contactInfoEditBtn');
+  const cancelBtn = document.getElementById('contactInfoCancelBtn');
+  const saveBtn = document.getElementById('contactInfoSaveBtn');
+  const editActions = document.getElementById('contactInfoEditActions');
+
+  if (!editBtn) return;
+
+  editBtn.addEventListener('click', () => {
+    document.getElementById('contactNameDisplay').classList.add('hidden');
+    document.getElementById('contactNameInput').classList.remove('hidden');
+    document.getElementById('contactEmailDisplay').classList.add('hidden');
+    document.getElementById('contactEmailInput').classList.remove('hidden');
+
+    editBtn.classList.add('hidden');
+    editActions.classList.remove('hidden');
+  });
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      document.getElementById('contactNameDisplay').classList.remove('hidden');
+      document.getElementById('contactNameInput').classList.add('hidden');
+      document.getElementById('contactEmailDisplay').classList.remove('hidden');
+      document.getElementById('contactEmailInput').classList.add('hidden');
+
+      editBtn.classList.remove('hidden');
+      editActions.classList.add('hidden');
+
+      renderCompanyDetail();
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const contactName = document.getElementById('contactNameInput').value.trim();
+      const contactEmail = document.getElementById('contactEmailInput').value.trim();
+
+      const payload = buildClientProfilePayload(company, {
+        contactName: contactName || null,
+        contactEmail: contactEmail || null
+      });
+
+      try {
+        await saveClientProfile(payload);
+        applyClientProfileEdits(company.id, {
+          contactName: contactName || null,
+          contactEmail: contactEmail || null,
+          contact: contactName || contactEmail || '-'
+        });
+
+        document.getElementById('contactNameDisplay').classList.remove('hidden');
+        document.getElementById('contactNameInput').classList.add('hidden');
+        document.getElementById('contactEmailDisplay').classList.remove('hidden');
+        document.getElementById('contactEmailInput').classList.add('hidden');
+
+        editBtn.classList.remove('hidden');
+        editActions.classList.add('hidden');
+
+        renderCompanyDetail();
+        renderTable();
+
+        alert('担当者情報を保存しました');
+      } catch (error) {
+        console.error('Failed to save contact info:', error);
         alert('保存に失敗しました');
       }
     });
@@ -2585,7 +2725,7 @@ function buildDetailUpdatePayload(companyId, edits) {
 
 async function saveReferralDetail(payload) {
 
-  const res = await fetch(CLIENTS_API_URL, {
+  const res = await fetch(CLIENTS_KPI_API_URL, {
 
     method: 'PUT',
 
@@ -2609,6 +2749,61 @@ async function saveReferralDetail(payload) {
 
   return res.json().catch(() => ({}));
 
+}
+
+function normalizeOptionalText(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  if (!text || text === '-' || text === 'ー') return null;
+  return text;
+}
+
+function buildClientProfilePayload(company, overrides = {}) {
+  const baseName = company?.company || company?.name || '';
+  const payload = {
+    id: company?.id,
+    name: baseName,
+    companyName: baseName,
+    industry: normalizeOptionalText(company?.industry),
+    location: normalizeOptionalText(company?.location),
+    jobCategories: normalizeOptionalText(company?.jobCategories || company?.jobTitle),
+    plannedHiresCount: Number.isFinite(Number(company?.planHeadcount))
+      ? Number(company.planHeadcount)
+      : 0,
+    selectionNote: normalizeOptionalText(company?.selectionNote),
+    contactName: normalizeOptionalText(company?.contactName),
+    contactEmail: normalizeOptionalText(company?.contactEmail),
+    warrantyPeriod: normalizeOptionalText(company?.warrantyPeriod),
+    feeDetails: normalizeOptionalText(company?.feeDetails || company?.feeContract),
+    contractNote: normalizeOptionalText(company?.contractNote || company?.contractNotes)
+  };
+
+  return { ...payload, ...overrides };
+}
+
+async function saveClientProfile(payload) {
+  const res = await fetch(CLIENTS_PROFILE_API_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '');
+    throw new Error(`HTTP Error: ${res.status} ${errorBody}`);
+  }
+
+  return res.json().catch(() => ({}));
+}
+
+function applyClientProfileEdits(companyId, updates = {}) {
+  const applyTo = (list) => {
+    const index = list.findIndex((item) => item.id === companyId);
+    if (index !== -1) Object.assign(list[index], updates);
+  };
+
+  applyTo(allData);
+  applyTo(filteredData);
 }
 
 
@@ -2772,12 +2967,14 @@ function resetCreateForm(clearStatus = false) {
     'referralCreateCompany', 'referralCreateJobTitle', 'referralCreatePlanHeadcount',
 
     'referralCreateIndustry', 'referralCreateLocation', 'referralCreateFee',
+    'referralCreateContactName', 'referralCreateContactEmail',
 
     'referralCreateSalaryMin', 'referralCreateSalaryMax',
 
     'referralCreateMust', 'referralCreateNice', 'referralCreateLocations',
 
     'referralCreatePersonality', 'referralCreateExperiences',
+    'referralCreateWarrantyPeriod', 'referralCreateFeeContract', 'referralCreateContractNotes',
 
     'referralCreateSelectionNote'
 
@@ -2806,6 +3003,8 @@ function collectCreateFormData() {
   const industry = readInputValue('referralCreateIndustry');
 
   const location = readInputValue('referralCreateLocation');
+  const contactName = readInputValue('referralCreateContactName');
+  const contactEmail = readInputValue('referralCreateContactEmail');
 
   const planHeadcount = readOptionalNumberValue('referralCreatePlanHeadcount');
 
@@ -2826,6 +3025,9 @@ function collectCreateFormData() {
   const personality = parseListValue(readInputValue('referralCreatePersonality'));
 
   const experiences = parseListValue(readInputValue('referralCreateExperiences'));
+  const warrantyPeriod = readInputValue('referralCreateWarrantyPeriod');
+  const feeDetails = readInputValue('referralCreateFeeContract');
+  const contractNote = readInputValue('referralCreateContractNotes');
 
 
 
@@ -2877,7 +3079,12 @@ function collectCreateFormData() {
 
     personality,
 
-    experiences
+    experiences,
+    contactName,
+    contactEmail,
+    warrantyPeriod,
+    feeDetails,
+    contractNote
 
   };
 
@@ -2909,6 +3116,13 @@ function buildCreatePayload(data) {
 
     feeAmount: data.feeAmount ?? null,
 
+    contactName: data.contactName || null,
+    contactEmail: data.contactEmail || null,
+
+    warrantyPeriod: data.warrantyPeriod || null,
+    feeDetails: data.feeDetails || null,
+    contractNote: data.contractNote || null,
+
     salaryRange,
 
     mustQualifications: data.mustQualifications ?? [],
@@ -2931,7 +3145,7 @@ function buildCreatePayload(data) {
 
 async function createReferralCompany(payload) {
 
-  const res = await fetch(CLIENTS_API_URL, {
+  const res = await fetch(CLIENTS_PROFILE_API_URL, {
 
     method: 'POST',
 

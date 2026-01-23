@@ -7,6 +7,8 @@ let screeningStatusElement;
 let screeningUpdatedAtElement;
 let screeningEditToggle;
 let screeningEditMode = false;
+let screeningSummaryList;
+let screeningSummaryNote;
 
 const DEFAULT_SCREENING_RULES = {
   minAge: "",
@@ -28,6 +30,8 @@ export function mount() {
   screeningStatusElement = document.getElementById("screeningRulesStatus");
   screeningUpdatedAtElement = document.getElementById("screeningRulesUpdatedAt");
   screeningEditToggle = document.getElementById("screeningRulesEditToggle");
+  screeningSummaryList = document.getElementById("screeningRulesSummaryList");
+  screeningSummaryNote = document.getElementById("screeningRulesSummaryNote");
 
   if (form) {
     form.addEventListener("submit", handleSave);
@@ -287,6 +291,7 @@ function applyScreeningRules(rules) {
 
   updateAgeLimitState();
   setScreeningEditMode(false, { silent: true });
+  updateScreeningSummary(normalized);
 }
 
 function collectCheckedLevels() {
@@ -384,6 +389,54 @@ function normalizeCommaText(value) {
     .map((item) => item.trim())
     .filter(Boolean)
     .join(", ");
+}
+
+function normalizeNationalityLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const normalized = text.toLowerCase();
+  if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
+    return "日本";
+  }
+  if (text === "日本国" || text === "日本国籍" || text === "日本人" || text === "日本国民") return "日本";
+  return text;
+}
+
+function isJapaneseNationalityLabel(value) {
+  return normalizeNationalityLabel(value) === "日本";
+}
+
+function updateScreeningSummary(rules) {
+  if (!screeningSummaryList) return;
+  const minUnlimited = isUnlimitedMinAge(rules.minAge);
+  const maxUnlimited = isUnlimitedMaxAge(rules.maxAge);
+  const ageParts = [];
+  if (!minUnlimited && rules.minAge !== "" && rules.minAge !== null) ageParts.push(`${rules.minAge}歳以上`);
+  if (!maxUnlimited && rules.maxAge !== "" && rules.maxAge !== null) ageParts.push(`${rules.maxAge}歳以下`);
+  const ageText = ageParts.length ? ageParts.join("・") : "制限なし";
+
+  const jlptLevels = (rules.allowedJlptLevels || []).map((level) => String(level).trim()).filter(Boolean);
+  const jlptText = jlptLevels.length
+    ? `言語レベル: ${jlptLevels.join(", ")}`
+    : "言語レベル: 未設定（非日本は全員無効）";
+
+  const nationalities = parseListValue(rules.targetNationalities).map(normalizeNationalityLabel);
+  const nonJapaneseTargets = nationalities.filter((value) => value && !isJapaneseNationalityLabel(value));
+  const nationalityText = nonJapaneseTargets.length
+    ? `非日本国籍の対象: ${nonJapaneseTargets.join(", ")}`
+    : "非日本国籍の対象: 指定なし（すべて対象）";
+
+  const lines = [
+    `年齢条件: ${ageText}`,
+    "日本国籍: 年齢条件のみで有効（言語レベル不要）",
+    `日本以外: 年齢条件 + ${jlptText}`,
+    nationalityText,
+  ];
+
+  screeningSummaryList.innerHTML = lines.map((text) => `<li>${text}</li>`).join("");
+  if (screeningSummaryNote) {
+    screeningSummaryNote.textContent = "※ 対象国籍は非日本国籍の絞り込みに使います。日本国籍は自動で有効判定対象です。";
+  }
 }
 
 function showScreeningStatus(message, type = "info") {

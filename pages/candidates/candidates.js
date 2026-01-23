@@ -105,8 +105,11 @@ let screeningRulesLoading = false;
 let detailAutoSaveTimer = null;
 const nextActionCache = new Map();
 const contactPreferredTimeCache = new Map();
+const validApplicationDetailCache = new Map();
+const validApplicationPrefetchCache = new Set();
 let calendarViewDate = new Date();
 calendarViewDate.setDate(1);
+let candidateCloseWarningTimer = null;
 
 function normalizeContactPreferredTime(value) {
   const text = String(value ?? "").trim();
@@ -137,6 +140,14 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   candidate.candidateKana = candidate.candidateKana ?? candidate.name_kana ?? "";
   candidate.birthday = candidate.birthday ?? candidate.birth_date ?? candidate.birthDate ?? null;
   candidate.age = candidate.age ?? candidate.ageText ?? candidate.age_value ?? null;
+  if (candidate.birthday) {
+    const computedAge = calculateAge(candidate.birthday);
+    if (computedAge !== null) {
+      candidate.age = computedAge;
+      candidate.ageText = computedAge;
+      candidate.age_value = computedAge;
+    }
+  }
   candidate.gender = candidate.gender ?? "";
   candidate.nationality = candidate.nationality ?? candidate.nationality_text ?? candidate.nationality_code ?? "";
   candidate.japaneseLevel = candidate.japaneseLevel ?? candidate.japanese_level ?? candidate.jlpt_level ?? candidate.jlptLevel ?? "";
@@ -268,22 +279,61 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
+  const explicitNextActionDate =
+    candidate.nextActionDate ??
+    candidate.next_action_date ??
+    null;
+  const explicitNextActionNote =
+    candidate.nextActionNote ??
+    candidate.next_action_note ??
+    null;
+  const legacyNextActionDate =
+    candidate.nextActionDateLegacy ??
+    candidate.newActionDate ??
+    candidate.actionInfo?.nextActionDate ??
+    candidate.actionInfo?.next_action_date ??
+    null;
+  const legacyNextActionNote =
+    candidate.actionInfo?.nextActionNote ??
+    candidate.actionInfo?.next_action_note ??
+    candidate.newActionNote ??
+    null;
   const nextActionFromDetail =
     candidate.detail?.actionInfo?.nextActionDate ??
     candidate.detail?.actionInfo?.next_action_date ??
     candidate.detail?.newActionDate ??
     candidate.detail?.new_action_date ??
     null;
-  candidate.nextActionDate =
-    candidate.nextActionDate ??
-    candidate.next_action_date ??
-    candidate.nextActionDateLegacy ??
-    candidate.newActionDate ??
-    candidate.actionInfo?.nextActionDate ??
-    candidate.actionInfo?.next_action_date ??
-    nextActionFromDetail ??
+  const nextActionNoteFromDetail =
+    candidate.detail?.actionInfo?.nextActionNote ??
+    candidate.detail?.actionInfo?.next_action_note ??
+    candidate.detail?.nextActionNote ??
+    candidate.detail?.next_action_note ??
     null;
-  if (candidate.nextActionDate === "") candidate.nextActionDate = null;
+
+  let resolvedNextActionDate = explicitNextActionDate ?? null;
+  let resolvedNextActionNote = explicitNextActionNote ?? null;
+  let nextActionSource = explicitNextActionDate ? "explicit" : "";
+
+  if (!resolvedNextActionDate && source !== "list") {
+    resolvedNextActionDate = legacyNextActionDate ?? null;
+    if (!nextActionSource && legacyNextActionDate) nextActionSource = "legacy";
+    if (!resolvedNextActionNote && legacyNextActionNote) {
+      resolvedNextActionNote = legacyNextActionNote;
+    }
+  }
+
+  if (!resolvedNextActionDate) {
+    resolvedNextActionDate = nextActionFromDetail ?? null;
+    if (!nextActionSource && nextActionFromDetail) nextActionSource = "detail";
+  }
+  if (!resolvedNextActionNote && nextActionNoteFromDetail) {
+    resolvedNextActionNote = nextActionNoteFromDetail;
+  }
+
+  candidate.nextActionDate = resolvedNextActionDate || null;
+  candidate.nextActionNote = resolvedNextActionNote || "";
+  candidate.nextActionSource = nextActionSource || "none";
   const nextActionCacheKey = candidate.id != null ? String(candidate.id) : "";
   if (nextActionCacheKey) {
     if (candidate.nextActionDate) {
@@ -398,7 +448,7 @@ export function mount() {
   initializeDetailContentListeners();
 
   openedFromUrlOnce = false;
-  loadScreeningRulesForCandidates();
+  loadScreeningRulesForCandidates({ force: true });
   // まず一覧ロード
   loadCandidatesData();
 }
@@ -502,6 +552,7 @@ async function loadCandidatesData(filtersOverride = {}) {
       allCandidates.forEach((candidate) => {
         candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
       });
+      prefetchValidApplicationDetails(allCandidates);
     }
     updateFilterSelectOptions(allCandidates);
     filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -611,7 +662,7 @@ function parseCandidateDate(value) {
   if (value instanceof Date) return value;
   const direct = new Date(value);
   if (!Number.isNaN(direct.getTime())) return direct;
-  const match = String(value).match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  const match = String(value).match(/(\d{4})\s*[\/-]\s*(\d{1,2})\s*[\/-]\s*(\d{1,2})/);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;
@@ -620,14 +671,52 @@ function parseCandidateDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function resolveCandidateIdKey(candidate) {
+  if (!candidate) return "";
+  const raw = candidate.id ?? candidate.candidateId ?? candidate.candidate_id ?? candidate.candidateID;
+  const text = String(raw ?? "").trim();
+  return text ? text : "";
+}
+
+function applyValidApplicationDetailCache(candidate, { force = false } = {}) {
+  if (!screeningRules || !candidate) return null;
+  if (!hasValidApplicationInputs(candidate, screeningRules)) return null;
+  const id = resolveCandidateIdKey(candidate);
+  if (!id) return null;
+  if (!force && validApplicationDetailCache.has(id)) {
+    const cached = validApplicationDetailCache.get(id);
+    candidate.validApplicationComputed = cached;
+    return cached;
+  }
+  const computed = computeValidApplication(candidate, screeningRules);
+  if (computed === true || computed === false) {
+    validApplicationDetailCache.set(id, computed);
+    candidate.validApplicationComputed = computed;
+    return computed;
+  }
+  return null;
+}
+
 function resolveValidApplication(candidate) {
-  const computed = candidate?.validApplicationComputed;
-  if (computed === true || computed === false) return computed;
   // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
   // ルールがあれば計算を行う
-  if (screeningRules) {
-    return computeValidApplication(candidate, screeningRules);
+  if (screeningRules && hasValidApplicationInputs(candidate, screeningRules)) {
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) {
+      const id = resolveCandidateIdKey(candidate);
+      if (id) {
+        validApplicationDetailCache.set(id, computed);
+        candidate.validApplicationComputed = computed;
+      }
+      return computed;
+    }
   }
+  const id = resolveCandidateIdKey(candidate);
+  if (id && validApplicationDetailCache.has(id)) {
+    return validApplicationDetailCache.get(id);
+  }
+  const computed = candidate?.validApplicationComputed;
+  if (computed === true || computed === false) return computed;
   const raw =
     candidate.validApplication ??
     candidate.valid_application ??
@@ -706,13 +795,19 @@ function isUnlimitedMaxAge(value) {
 }
 
 function resolveCandidateAgeValue(candidate) {
+  const computed = calculateAge(candidate.birthday);
+  if (computed !== null) return computed;
   const direct = candidate.age ?? candidate.ageText ?? candidate.age_value;
   if (direct !== null && direct !== undefined && direct !== "") {
     const parsed = Number(direct);
     if (Number.isFinite(parsed)) return parsed;
+    const match = String(direct).match(/\d+/);
+    if (match) {
+      const fromText = Number(match[0]);
+      if (Number.isFinite(fromText)) return fromText;
+    }
   }
-  const computed = calculateAge(candidate.birthday);
-  return computed !== null ? computed : null;
+  return null;
 }
 
 function normalizeNationality(value) {
@@ -722,12 +817,23 @@ function normalizeNationality(value) {
   if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
     return "日本";
   }
-  if (text === "日本国") return "日本";
+  if (text === "日本国" || text === "日本国籍" || text === "日本人" || text === "日本国民") return "日本";
   return text;
 }
 
 function isJapaneseNationality(value) {
   return normalizeNationality(value) === "日本";
+}
+
+function hasValidApplicationInputs(candidate, rules) {
+  if (!candidate || !rules) return false;
+  const age = resolveCandidateAgeValue(candidate);
+  if (age === null) return false;
+  const nationality = normalizeNationality(candidate.nationality);
+  if (!nationality) return false;
+  if (isJapaneseNationality(nationality)) return true;
+  const jlpt = String(candidate.japaneseLevel || "").trim();
+  return Boolean(jlpt);
 }
 
 function computeValidApplication(candidate, rules) {
@@ -738,14 +844,17 @@ function computeValidApplication(candidate, rules) {
   if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
 
   const nationality = normalizeNationality(candidate.nationality);
-  const allowedNationalities = (rules.targetNationalitiesList || []).map((value) => normalizeNationality(value));
+  const allowedNationalities = (rules.targetNationalitiesList || [])
+    .map((value) => normalizeNationality(value))
+    .filter((value) => value && !isJapaneseNationality(value));
+
+  if (isJapaneseNationality(nationality)) return true;
+
   if (allowedNationalities.length > 0) {
     if (!nationality) return false;
     const matched = allowedNationalities.some((value) => value === nationality);
     if (!matched) return false;
   }
-
-  if (isJapaneseNationality(nationality)) return true;
 
   const jlpt = String(candidate.japaneseLevel || "").trim();
   if (!jlpt) return false;
@@ -754,10 +863,67 @@ function computeValidApplication(candidate, rules) {
   return allowedJlptLevels.includes(jlpt);
 }
 
+function needsValidApplicationDetail(candidate, rules) {
+  if (!candidate || !rules) return false;
+  const age = resolveCandidateAgeValue(candidate);
+  if (age === null) return true;
+  const nationality = normalizeNationality(candidate.nationality);
+  if (!nationality) return true;
+  if (isJapaneseNationality(nationality)) return false;
+  const jlpt = String(candidate.japaneseLevel || "").trim();
+  return !jlpt;
+}
+
+async function prefetchValidApplicationDetails(candidates) {
+  if (!screeningRules || !Array.isArray(candidates) || candidates.length === 0) return;
+  const targets = candidates.filter((candidate) => {
+    const id = resolveCandidateIdKey(candidate);
+    if (!id) return false;
+    if (validApplicationDetailCache.has(id)) return false;
+    if (validApplicationPrefetchCache.has(id)) return false;
+    return true;
+  });
+  if (!targets.length) return;
+
+  const queue = targets.slice();
+  const updates = [];
+  const concurrency = Math.min(4, queue.length);
+
+  const worker = async () => {
+    while (queue.length) {
+      const candidate = queue.shift();
+      if (!candidate) return;
+      const id = resolveCandidateIdKey(candidate);
+      if (!id) continue;
+      validApplicationPrefetchCache.add(id);
+      try {
+        const detail = await fetchCandidateDetailById(id, { includeMaster: false });
+        if (!detail) continue;
+        applyValidApplicationDetailCache(detail, { force: true });
+        updates.push(detail);
+      } catch (error) {
+        console.error("有効応募判定の補完取得に失敗しました。", error);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, worker));
+
+  if (updates.length > 0) {
+    batchApplyCandidateUpdates(updates, { preserveDetailState: true, renderDetail: true });
+  }
+}
+
 function applyScreeningRulesToCandidates() {
   if (!screeningRules || !allCandidates.length) return;
+  validApplicationPrefetchCache.clear();
+  validApplicationDetailCache.clear();
   allCandidates.forEach((candidate) => {
-    candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+    if (hasValidApplicationInputs(candidate, screeningRules)) {
+      candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+    } else {
+      candidate.validApplicationComputed = null;
+    }
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -765,10 +931,16 @@ function applyScreeningRulesToCandidates() {
   renderCandidatesTable(filteredCandidates);
   updateHeaderSortStyles();
   updateCandidatesCount(filteredCandidates.length);
+  const selected = getSelectedCandidate();
+  if (selected && isCandidateModalOpen()) {
+    renderCandidateDetail(selected, { preserveEditState: true });
+  }
+  prefetchValidApplicationDetails(allCandidates);
 }
 
-async function loadScreeningRulesForCandidates() {
-  if (screeningRulesLoading || screeningRulesLoaded) return;
+async function loadScreeningRulesForCandidates({ force = false } = {}) {
+  if (screeningRulesLoading) return;
+  if (!force && screeningRulesLoaded) return;
   screeningRulesLoading = true;
   try {
     const response = await fetch(SCREENING_RULES_ENDPOINT);
@@ -777,12 +949,12 @@ async function loadScreeningRulesForCandidates() {
     }
     const data = await response.json();
     screeningRules = normalizeScreeningRulesPayload(data);
-    screeningRulesLoaded = true;
   } catch (error) {
     console.error("有効応募判定ルールの取得に失敗しました。", error);
     screeningRules = null;
   } finally {
     screeningRulesLoading = false;
+    screeningRulesLoaded = Boolean(screeningRules);
     applyScreeningRulesToCandidates();
   }
 }
@@ -1452,6 +1624,7 @@ async function fetchCandidateDetailById(id, { includeMaster = true } = {}) {
     updateMastersFromDetail(detail);
   }
   if (detail?.masters) delete detail.masters;
+  applyValidApplicationDetailCache(detail, { force: true });
   return detail;
 }
 
@@ -1463,6 +1636,25 @@ function setCandidateDetailLoading(message = "読み込み中...") {
       <p class="text-sm text-slate-500">${escapeHtml(message)}</p>
     </div>
   `;
+}
+
+function showCandidateCloseWarning(message) {
+  const page = document.getElementById("candidatesPage");
+  if (!page) return;
+  let banner = document.getElementById("candidatesCloseWarning");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "candidatesCloseWarning";
+    banner.className =
+      "mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800";
+    page.prepend(banner);
+  }
+  banner.textContent = message || "";
+  if (candidateCloseWarningTimer) window.clearTimeout(candidateCloseWarningTimer);
+  candidateCloseWarningTimer = window.setTimeout(() => {
+    banner?.remove();
+    candidateCloseWarningTimer = null;
+  }, 4000);
 }
 
 async function openCandidateById(id) {
@@ -2005,6 +2197,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   }
 
   const updated = normalizeCandidate(await response.json());
+  applyValidApplicationDetailCache(updated, { force: true });
   delete pendingInlineUpdates[String(candidate.id)];
   applyCandidateUpdate(updated, { preserveDetailState });
   return updated;
@@ -2253,8 +2446,8 @@ function formatMoneyToMan(value) {
 }
 function calculateAge(birthday) {
   if (!birthday) return null;
-  const birthDate = new Date(birthday);
-  if (Number.isNaN(birthDate.getTime())) return null;
+  const birthDate = parseCandidateDate(birthday);
+  if (!birthDate || Number.isNaN(birthDate.getTime())) return null;
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -2302,9 +2495,11 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
     const candidate = getSelectedCandidate();
     if (candidate) {
       const hasIncompleteTasks = candidate.tasks && candidate.tasks.some(t => !t.isCompleted);
-      if (!hasIncompleteTasks) {
-        alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
-        return;
+      const hasNextActionDate = Boolean(candidate.nextActionDate || candidate.actionInfo?.nextActionDate);
+      if (!hasIncompleteTasks && !hasNextActionDate) {
+        showCandidateCloseWarning(
+          "次回アクションが未設定です。選考継続中なら新規アクションを追加し、選考終了なら「選考完了」を押してください。"
+        );
       }
     }
   }
@@ -3537,45 +3732,35 @@ function parseDateValue(value) {
 }
 
 function pickNextAction(candidate) {
-  const now = new Date();
-  const upcoming = [];
-
-  const pushIfUpcoming = (label, value) => {
-    const date = parseDateValue(value);
-    if (!date) return;
-    // Include past events to show as expired/warning at the top
-    upcoming.push({ label, date });
-  };
+  const tasks = Array.isArray(candidate.tasks) ? candidate.tasks : [];
+  const incompleteTasks = tasks.filter((task) => !task?.isCompleted);
+  if (incompleteTasks.length > 0) {
+    const sorted = [...incompleteTasks].sort((a, b) => {
+      const aDate = parseDateValue(a?.actionDate)?.getTime() ?? Number.POSITIVE_INFINITY;
+      const bDate = parseDateValue(b?.actionDate)?.getTime() ?? Number.POSITIVE_INFINITY;
+      return aDate - bDate;
+    });
+    const nextTask = sorted[0];
+    const taskDate = parseDateValue(nextTask?.actionDate);
+    if (taskDate) {
+      return {
+        label: "次回アクション",
+        date: taskDate,
+        note: nextTask?.actionNote || null
+      };
+    }
+  }
 
   const explicitNextAction = parseDateValue(candidate.nextActionDate);
   if (explicitNextAction) {
     return {
-      label: "次回アクション日",
+      label: "次回アクション",
       date: explicitNextAction,
       note: candidate.nextActionNote || null
     };
   }
 
-  pushIfUpcoming("新規接触予定", candidate.firstContactPlannedAt);
-  pushIfUpcoming("面接希望", candidate.interviewPreferredDate);
-  pushIfUpcoming("共有面談実施日", candidate.firstInterviewDate);
-  pushIfUpcoming("設定日", candidate.scheduleConfirmedAt);
-
-  (candidate.selectionProgress || []).forEach((row) => {
-    const prefix = row.companyName ? `${row.companyName} ` : "";
-    pushIfUpcoming(`${prefix} 面接設定日`, row.interviewSetupDate);
-    pushIfUpcoming(`${prefix} 面接日`, row.interviewDate);
-    pushIfUpcoming(`${prefix} 二次面接調整日`, row.secondInterviewSetupDate);
-    pushIfUpcoming(`${prefix} 二次面接日`, row.secondInterviewDate);
-    pushIfUpcoming(`${prefix} 内定日`, row.offerDate);
-    pushIfUpcoming(`${prefix} 内定承諾日`, row.acceptanceDate);
-    pushIfUpcoming(`${prefix} 入社日`, row.onboardingDate);
-    pushIfUpcoming(`${prefix} クロージング予定日`, row.closeExpectedDate);
-  });
-
-  if (upcoming.length === 0) return null;
-  upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
-  return upcoming[0];
+  return null;
 }
 
 function renderMemoSection(candidate) {
