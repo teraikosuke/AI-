@@ -39,6 +39,38 @@
   gap: 1.25rem;
 }
 
+.settings-screening-summary {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0.85rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.settings-screening-summary-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.settings-screening-summary-list {
+  list-style: disc;
+  padding-left: 1.2rem;
+  color: #475569;
+  font-size: 0.85rem;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.settings-screening-summary-note {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+}
+
 .settings-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
