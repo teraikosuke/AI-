@@ -3,17 +3,19 @@
     <div class="mypage-card-header">
       <div>
         <h3 class="mypage-card-title">今日のタスク</h3>
-        <p class="mypage-card-subtitle">次回アクションが近い候補者</p>
+        <p class="mypage-card-subtitle">本日の次回アクションを表示します。</p>
       </div>
       <span class="mypage-role-badge" id="mypageRoleBadge">advisor</span>
     </div>
     <div class="mypage-table-wrapper" id="mypageTasksTableWrapper">
-      <table class="mypage-table">
+      <table class="mypage-table mypage-tasks-table">
         <thead>
           <tr>
+            <th>次回アクション日</th>
+            <th>アクション名</th>
             <th>求職者名</th>
             <th>フェーズ</th>
-            <th>次回アクション</th>
+            <th>担当CS</th>
           </tr>
         </thead>
         <tbody id="mypageTasksBody"></tbody>
@@ -22,8 +24,58 @@
     <div class="mypage-empty" id="mypageTasksEmpty">タスクはありません。</div>
   </section>
 
-  <section class="mypage-card">
-    <div id="mypageYieldSummary" class="mypage-yield-slot"></div>
+  <section class="mypage-card" id="mypageUpcomingSection">
+    <div class="mypage-card-header">
+      <div>
+        <h3 class="mypage-card-title">予定アクション</h3>
+        <p class="mypage-card-subtitle">未完了の次回アクション一覧を表示します。</p>
+      </div>
+    </div>
+    <div class="mypage-upcoming-tabs">
+      <button type="button" class="mypage-tab is-active" data-upcoming-tab="detail">詳細</button>
+      <button type="button" class="mypage-tab" data-upcoming-tab="calendar">カレンダー</button>
+    </div>
+    <div class="mypage-upcoming-panel is-active" data-upcoming-panel="detail">
+      <div class="mypage-table-wrapper" id="mypageUpcomingTableWrapper">
+        <table class="mypage-table mypage-tasks-table">
+          <thead>
+          <tr>
+            <th>次回アクション日</th>
+            <th>アクション名</th>
+            <th>求職者名</th>
+            <th>フェーズ</th>
+            <th>担当CS</th>
+          </tr>
+          </thead>
+          <tbody id="mypageUpcomingBody"></tbody>
+        </table>
+      </div>
+      <div class="mypage-empty" id="mypageUpcomingEmpty">予定アクションはありません。</div>
+    </div>
+    <div class="mypage-upcoming-panel" data-upcoming-panel="calendar">
+      <div class="mypage-calendar-header">
+        <div class="mypage-calendar-nav">
+          <button type="button" class="mypage-calendar-nav-btn" data-calendar-nav="prev">前月</button>
+          <button type="button" class="mypage-calendar-nav-btn" data-calendar-nav="today">今月</button>
+          <button type="button" class="mypage-calendar-nav-btn" data-calendar-nav="next">翌月</button>
+        </div>
+        <div class="mypage-calendar-month" id="mypageCalendarMonthLabel">-</div>
+        <div class="mypage-calendar-filters">
+          <button type="button" class="mypage-filter-chip is-active" data-calendar-filter="pending">未完了のみ</button>
+          <button type="button" class="mypage-filter-chip" data-calendar-filter="completed">完了も表示</button>
+          <button type="button" class="mypage-filter-chip" data-calendar-filter="progress">進捗も表示</button>
+        </div>
+      </div>
+      <div class="mypage-calendar-legend">
+        <span class="mypage-legend-item is-pending">未完了</span>
+        <span class="mypage-legend-item is-completed">完了</span>
+        <span class="mypage-legend-item is-progress">進捗</span>
+      </div>
+      <div class="mypage-calendar-scroll">
+        <div class="mypage-calendar-grid" id="mypageCalendarGrid"></div>
+      </div>
+      <div class="mypage-empty" id="mypageCalendarEmpty">カレンダーに表示できるアクションがありません。</div>
+    </div>
   </section>
 
   <section class="mypage-card">
@@ -54,15 +106,5 @@
       </table>
     </div>
     <div class="mypage-empty" id="mypageCandidatesEmpty">候補者が見つかりません。</div>
-  </section>
-
-  <section class="mypage-card">
-    <div class="mypage-card-header">
-      <div>
-        <h3 class="mypage-card-title">評価・目標設定</h3>
-        <p class="mypage-card-subtitle">後で移動する想定のため、今はここに表示します。</p>
-      </div>
-    </div>
-    <div id="mypageGoalSettings" class="mypage-goal-slot"></div>
   </section>
 </div>
