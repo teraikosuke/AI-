@@ -79,6 +79,26 @@ function isAdvisorRole(role) {
   return String(role || '').toLowerCase().includes('advisor');
 }
 
+// 部門判定関数
+function getDepartmentFromRole(role) {
+  const r = String(role || '').toLowerCase();
+
+  // CS は caller
+  if (r.includes('caller')) return 'cs';
+
+  // 営業 は advisor
+  if (r.includes('advisor')) return 'sales';
+
+  // マーケ は admin (適当なroleとして設定)
+  if (r.includes('admin') || r.includes('marketing')) return 'marketing';
+
+  return null;
+}
+
+function getMembersByDepartment(members, deptKey) {
+  return (members || []).filter(m => getDepartmentFromRole(m.role) === deptKey);
+}
+
 function normalizeCalcMode(value) {
   return String(value || '').toLowerCase() === 'cohort' ? 'cohort' : 'period';
 }
@@ -903,10 +923,18 @@ const state = {
     dates: [],
     dailyTotals: {},
     companyTarget: {},
+    msTargets: {}, // 部門別・日付別のMS目標値
+    msActuals: {}, // 部門別・日付別のMS実績値
     revenue: {
       actual: 0,
       target: 0
     }
+  },
+  // 個人別MSデータ
+  personalMs: {
+    marketing: { members: [], msTargets: {}, msActuals: {}, dates: [] },
+    cs: { members: [], msTargets: {}, msActuals: {}, dates: [] },
+    sales: { members: [], msTargets: {}, msActuals: {}, dates: [] }
   },
   companySales: {
     metricKeys: {},
@@ -915,22 +943,22 @@ const state = {
   },
   dashboard: {
     personal: {
-    trendMode: 'month',
-    year: DASHBOARD_YEARS[0],
-    month: new Date().getMonth() + 1,
-    charts: {},
-    trendData: null,
-    breakdown: null
-  },
-  company: {
-    trendMode: 'month',
-    year: DASHBOARD_YEARS[0],
-    month: new Date().getMonth() + 1,
-    charts: {},
-    trendData: null,
-    breakdown: null
+      trendMode: 'month',
+      year: DASHBOARD_YEARS[0],
+      month: new Date().getMonth() + 1,
+      charts: {},
+      trendData: null,
+      breakdown: null
+    },
+    company: {
+      trendMode: 'month',
+      year: DASHBOARD_YEARS[0],
+      month: new Date().getMonth() + 1,
+      charts: {},
+      trendData: null,
+      breakdown: null
+    }
   }
-}
 };
 
 let chartJsPromise = null;
@@ -1147,7 +1175,7 @@ export async function mount(root) {
   safe('loadYieldData', loadYieldData);
 }
 
-export function unmount() {}
+export function unmount() { }
 
 function initializeDatePickers() {
   const today = isoDate(new Date());
@@ -2005,7 +2033,7 @@ function renderDailyMatrix({ headerRow, body, dates, dailyData, resolveValues })
     );
     rows.push(
       buildDailyRow(
-        `<td class="daily-type">達成率</td>`,
+        `<td class="daily-type">進捗率</td>`,
         achvCells,
         { rowClass: tripletAlt }
       )
@@ -2173,19 +2201,61 @@ function enumerateDateRange(startDate, endDate) {
 }
 
 function resolveCompanyMsRanges(period) {
+  const emptyRange = { startDate: '', endDate: '' };
+  const emptyResult = {
+    salesRange: emptyRange,
+    revenueRange: emptyRange,
+    marketingRange: emptyRange,
+    csRange: emptyRange
+  };
   if (!period?.startDate || !period?.endDate) {
-    return { salesRange: { startDate: '', endDate: '' }, revenueRange: { startDate: '', endDate: '' } };
+    return emptyResult;
   }
   const baseRange = { startDate: period.startDate, endDate: period.endDate };
   const ruleType = goalSettingsService.getEvaluationRule()?.type;
-  if (ruleType !== 'master-month') return { salesRange: baseRange, revenueRange: baseRange };
+  if (ruleType !== 'master-month') {
+    return {
+      salesRange: baseRange,
+      revenueRange: baseRange,
+      marketingRange: baseRange,
+      csRange: baseRange
+    };
+  }
+  // 期間の終了日から当月を算出
   const end = new Date(period.endDate);
-  if (Number.isNaN(end)) return { salesRange: baseRange, revenueRange: baseRange };
-  const revenueStart = new Date(end.getFullYear(), end.getMonth(), 1);
-  const revenueEnd = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+  if (Number.isNaN(end.getTime())) {
+    return {
+      salesRange: baseRange,
+      revenueRange: baseRange,
+      marketingRange: baseRange,
+      csRange: baseRange
+    };
+  }
+  const currentYear = end.getFullYear();
+  const currentMonth = end.getMonth(); // 0-indexed
+
+  // マーケ: 前月17日 〜 当月20日
+  const marketingStart = new Date(currentYear, currentMonth - 1, 17);
+  const marketingEnd = new Date(currentYear, currentMonth, 20);
+
+  // CS・営業: 前月18日 〜 当月21日
+  const csStart = new Date(currentYear, currentMonth - 1, 18);
+  const csEnd = new Date(currentYear, currentMonth, 21);
+
+  // 売上: 当月1日 〜 当月末日
+  const revenueStart = new Date(currentYear, currentMonth, 1);
+  const revenueEnd = new Date(currentYear, currentMonth + 1, 0);
+
+  // MS全体: 前月17日 〜 当月末日（全事業部をカバー）
+  const msOverallStart = new Date(currentYear, currentMonth - 1, 17);
+  const msOverallEnd = new Date(currentYear, currentMonth + 1, 0);
+
   return {
-    salesRange: baseRange,
-    revenueRange: { startDate: isoDate(revenueStart), endDate: isoDate(revenueEnd) }
+    salesRange: { startDate: isoDate(csStart), endDate: isoDate(csEnd) },
+    revenueRange: { startDate: isoDate(revenueStart), endDate: isoDate(revenueEnd) },
+    marketingRange: { startDate: isoDate(marketingStart), endDate: isoDate(marketingEnd) },
+    csRange: { startDate: isoDate(csStart), endDate: isoDate(csEnd) },
+    msOverallRange: { startDate: isoDate(msOverallStart), endDate: isoDate(msOverallEnd) }
   };
 }
 
@@ -2250,106 +2320,257 @@ function buildCompanyMsDailyTotalsFromEmployees(employees, employeeIds) {
 
 function buildCompanyMsHeaderRow(headerRow, dates) {
   if (!headerRow) return;
-  const cells = dates.map(date => `<th scope="col">${formatDayLabel(date)}</th>`).join('');
+  // スプレッドシート形式: 日付ごとに2列（MS/進捗率 と 実績）
+  const dateCells = dates.map(date => {
+    const dayLabel = formatDayLabel(date);
+    return `<th scope="col" colspan="2" class="ms-date-header">${dayLabel}</th>`;
+  }).join('');
+  const subHeaderCells = dates.map(() => `
+    <th scope="col" class="ms-sub-header">MS</th>
+    <th scope="col" class="ms-sub-header">進捗率</th>
+  `).join('');
+
   headerRow.innerHTML = `
-    <th scope="col" class="kpi-v2-sticky-label">事業部</th>
-    <th scope="col" class="kpi-v2-sticky-label kpi-v2-ms-metric">指標</th>
-    <th scope="col" class="daily-type">区分</th>
-    ${cells}
+    <th scope="col" class="kpi-v2-sticky-label" rowspan="2">事業部</th>
+    <th scope="col" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="2">指標</th>
+    <th scope="col" class="daily-type" rowspan="2">区分</th>
+    ${dateCells}
   `;
+  // サブヘッダー行を追加
+  const subHeaderRow = document.createElement('tr');
+  subHeaderRow.innerHTML = subHeaderCells;
+  headerRow.parentElement?.appendChild(subHeaderRow);
+}
+
+// 日付が部門の開始日より前かどうかを判定
+function isDateBeforeDeptStart(date, deptKey) {
+  const periodId = state.companyMsPeriodId;
+  const period = state.evaluationPeriods.find(p => p.id === periodId);
+  if (!period?.endDate) return false;
+
+  const end = new Date(period.endDate);
+  const currentYear = end.getFullYear();
+  const currentMonth = end.getMonth();
+  const dateObj = new Date(date);
+
+  // 部門別開始日
+  let startDate;
+  switch (deptKey) {
+    case 'marketing':
+      startDate = new Date(currentYear, currentMonth - 1, 17);
+      break;
+    case 'cs':
+    case 'sales':
+      startDate = new Date(currentYear, currentMonth - 1, 18);
+      break;
+    case 'revenue':
+      startDate = new Date(currentYear, currentMonth, 1);
+      break;
+    default:
+      return false;
+  }
+  return dateObj < startDate;
+}
+
+// 日付が部門の終了日より後かどうかを判定
+function isDateAfterDeptEnd(date, deptKey) {
+  const periodId = state.companyMsPeriodId;
+  const period = state.evaluationPeriods.find(p => p.id === periodId);
+  if (!period?.endDate) return false;
+
+  const end = new Date(period.endDate);
+  const currentYear = end.getFullYear();
+  const currentMonth = end.getMonth();
+  const dateObj = new Date(date);
+
+  // 部門別終了日
+  let endDate;
+  switch (deptKey) {
+    case 'marketing':
+      endDate = new Date(currentYear, currentMonth, 20);
+      break;
+    case 'cs':
+    case 'sales':
+      endDate = new Date(currentYear, currentMonth, 21);
+      break;
+    case 'revenue':
+      endDate = new Date(currentYear, currentMonth + 1, 0); // 月末
+      break;
+    default:
+      return false;
+  }
+  return dateObj > endDate;
+}
+
+// MS目標入力ハンドラ
+function handleMsTargetInput(event) {
+  const input = event.target;
+  const { dept, date, metric } = input.dataset;
+  const value = Number(input.value) || 0;
+
+  // stateに保存
+  if (!state.companyMs.msTargets) state.companyMs.msTargets = {};
+  if (!state.companyMs.msTargets[dept]) state.companyMs.msTargets[dept] = {};
+  state.companyMs.msTargets[dept][date] = value;
+
+  // 進捗率を再計算
+  updateMsProgressRate(dept, date);
+}
+
+// 進捗率を更新
+function updateMsProgressRate(dept, date) {
+  const msValue = state.companyMs.msTargets?.[dept]?.[date] || 0;
+  const actualValue = state.companyMs.msActuals?.[dept]?.[date] || 0;
+
+  const rateCell = document.querySelector(`[data-progress-rate][data-dept="${dept}"][data-date="${date}"]`);
+  if (!rateCell) return;
+
+  if (msValue > 0) {
+    const rate = Math.round((actualValue / msValue) * 100);
+    rateCell.textContent = `${rate}%`;
+    rateCell.className = rate >= 100 ? 'ms-rate-good' : rate >= 80 ? 'ms-rate-warn' : 'ms-rate-bad';
+  } else {
+    rateCell.textContent = '-';
+    rateCell.className = '';
+  }
+}
+
+// MS実績入力ハンドラ
+function handleMsActualInput(event) {
+  const input = event.target;
+  const { dept, date } = input.dataset;
+  const value = Number(input.value) || 0;
+
+  // stateに保存
+  if (!state.companyMs.msActuals) state.companyMs.msActuals = {};
+  if (!state.companyMs.msActuals[dept]) state.companyMs.msActuals[dept] = {};
+  state.companyMs.msActuals[dept][date] = value;
+
+  // 進捗率を再計算
+  updateMsProgressRate(dept, date);
 }
 
 function renderCompanyMsTable() {
   const headerRow = document.getElementById('companyMsHeaderRow');
   const body = document.getElementById('companyMsTableBody');
   if (!headerRow || !body) return;
+
   const dates = state.companyMs.dates || [];
   if (!dates.length) {
     headerRow.innerHTML = '';
     body.innerHTML = '';
     return;
   }
+
+  // サブヘッダー行を削除（再レンダリング時）
+  const existingSubHeader = headerRow.parentElement?.querySelector('tr:not(:first-child)');
+  if (existingSubHeader) existingSubHeader.remove();
+
   buildCompanyMsHeaderRow(headerRow, dates);
-  const companyTarget = state.companyMs.companyTarget || {};
+
   const optionsHtml = MS_METRIC_OPTIONS.map(option => `<option value="${option.key}">${option.label}</option>`).join('');
-  const revenueActual = num(state.companyMs.revenue?.actual ?? 0);
-  const revenueTarget = num(state.companyMs.revenue?.target ?? 0);
   const rows = [];
+
   MS_DEPARTMENTS.forEach((dept, index) => {
-    const isSales = dept.key === 'sales';
     const isRevenue = dept.key === 'revenue';
     const metricKey = state.companyMs.metricKeys?.[dept.key];
     const metricOption = metricKey ? getMsMetricOption(metricKey) : null;
-    const metricLabel = isRevenue ? '売上' : metricOption?.label || '';
+    const metricLabel = isRevenue ? '売上（万円）' : metricOption?.label || '';
+
+    // 指標セル（セレクトボックスまたはラベル）
     const metricCell = isRevenue
-      ? `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="3">${metricLabel}</th>`
-      : `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="3">
+      ? `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="2">${metricLabel}</th>`
+      : `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="2">
            <select class="kpi-v2-sort-select company-ms-metric-select" data-dept="${dept.key}">
              ${optionsHtml}
            </select>
          </th>`;
-    const actualNumbers = [];
-    const targetNumbers = [];
-    const achvCells = [];
-    let actualSum = 0;
-    dates.forEach(date => {
-      if (isRevenue) {
-        actualNumbers.push(revenueActual || null);
-        targetNumbers.push(revenueTarget || null);
-        if (revenueTarget > 0) {
-          const percent = Math.round((revenueActual / revenueTarget) * 100);
-          achvCells.push(formatAchievementCell(percent));
-        } else {
-          achvCells.push(formatAchievementCell(null));
-        }
-        return;
+
+    // 各日付のセルを生成
+    const msAndRateCells = dates.map(date => {
+      const isDisabled = isDateBeforeDeptStart(date, dept.key) || isDateAfterDeptEnd(date, dept.key);
+      const disabledClass = isDisabled ? 'ms-cell-disabled' : '';
+
+      if (isDisabled) {
+        return `<td class="${disabledClass}"></td><td class="${disabledClass}"></td>`;
       }
-      if (!isSales || !metricOption) {
-        actualNumbers.push(null);
-        targetNumbers.push(null);
-        achvCells.push('');
-        return;
+
+      const savedMs = state.companyMs.msTargets?.[dept.key]?.[date] || '';
+      const actual = isRevenue
+        ? state.companyMs.revenue?.actual || 0
+        : (state.companyMs.dailyTotals?.[date]?.[metricOption?.key] || 0);
+
+      // 進捗率計算
+      let rateDisplay = '-';
+      let rateClass = '';
+      if (savedMs && Number(savedMs) > 0) {
+        const rate = Math.round((actual / Number(savedMs)) * 100);
+        rateDisplay = `${rate}%`;
+        rateClass = rate >= 100 ? 'ms-rate-good' : rate >= 80 ? 'ms-rate-warn' : 'ms-rate-bad';
       }
-      const raw = state.companyMs.dailyTotals?.[date]?.[metricOption.key];
-      actualSum += num(raw);
-      actualNumbers.push(actualSum);
-      const targetValue = num(companyTarget[metricOption.targetKey] ?? 0);
-      targetNumbers.push(targetValue || null);
-      if (targetValue > 0) {
-        const percent = Math.round((actualSum / targetValue) * 100);
-        achvCells.push(formatAchievementCell(percent));
-      } else {
-        achvCells.push(formatAchievementCell(null));
+
+      return `
+        <td class="ms-target-cell">
+          <input type="number" class="ms-target-input" 
+                 data-dept="${dept.key}" 
+                 data-date="${date}" 
+                 data-metric="${metricKey || ''}"
+                 value="${savedMs}" 
+                 min="0" />
+        </td>
+        <td class="ms-rate-cell ${rateClass}" data-progress-rate data-dept="${dept.key}" data-date="${date}">
+          ${rateDisplay}
+        </td>
+      `;
+    }).join('');
+
+    const actualCells = dates.map(date => {
+      const isDisabled = isDateBeforeDeptStart(date, dept.key) || isDateAfterDeptEnd(date, dept.key);
+      const disabledClass = isDisabled ? 'ms-cell-disabled' : '';
+
+      if (isDisabled) {
+        return `<td class="${disabledClass}" colspan="2"></td>`;
       }
-    });
+
+      // 保存された実績値を取得
+      const savedActual = state.companyMs.msActuals?.[dept.key]?.[date] ?? '';
+
+      return `
+        <td class="ms-actual-cell" colspan="2">
+          <input type="number" class="ms-actual-input" 
+                 data-dept="${dept.key}" 
+                 data-date="${date}" 
+                 value="${savedActual}" 
+                 min="0" 
+                 placeholder="実績" />
+        </td>
+      `;
+    }).join('');
+
     const tripletAlt = index % 2 === 1 ? 'daily-triplet-alt' : '';
-    const actualCells = (isSales || isRevenue) ? actualNumbers.map(formatNumberCell) : dates.map(() => '');
-    const targetCells = (isSales || isRevenue) ? targetNumbers.map(formatNumberCell) : dates.map(() => '');
-    rows.push(
-      buildDailyRow(
-        `<th scope="row" class="kpi-v2-sticky-label" rowspan="3">${dept.label}</th>
-         ${metricCell}
-         <td class="daily-type">実績</td>`,
-        actualCells,
-        { rowClass: tripletAlt }
-      )
-    );
-    rows.push(
-      buildDailyRow(
-        `<td class="daily-type">目標</td>`,
-        targetCells,
-        { rowClass: tripletAlt, cellClass: 'daily-muted' }
-      )
-    );
-    rows.push(
-      buildDailyRow(
-        `<td class="daily-type">達成率</td>`,
-        achvCells,
-        { rowClass: tripletAlt }
-      )
-    );
+
+    // MS/進捗率行
+    rows.push(`
+      <tr class="${tripletAlt}">
+        <th scope="row" class="kpi-v2-sticky-label" rowspan="2">${dept.label}</th>
+        ${metricCell}
+        <td class="daily-type">MS/進捗率</td>
+        ${msAndRateCells}
+      </tr>
+    `);
+
+    // 実績行
+    rows.push(`
+      <tr class="${tripletAlt}">
+        <td class="daily-type">実績</td>
+        ${actualCells}
+      </tr>
+    `);
   });
+
   body.innerHTML = rows.join('');
+
+  // セレクトボックスのイベントバインド
   body.querySelectorAll('.company-ms-metric-select').forEach(select => {
     const deptKey = select.dataset.dept;
     if (!deptKey) return;
@@ -2358,7 +2579,249 @@ function renderCompanyMsTable() {
     select.addEventListener('change', handleCompanyMsMetricChange);
     select.dataset.bound = 'true';
   });
+
+  // MS目標入力のイベントバインド
+  body.querySelectorAll('.ms-target-input').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('change', handleMsTargetInput);
+    input.dataset.bound = 'true';
+  });
+
+  // MS実績入力のイベントバインド
+  body.querySelectorAll('.ms-actual-input').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('change', handleMsActualInput);
+    input.dataset.bound = 'true';
+  });
 }
+
+// ==================== 個人別MSテーブル ====================
+
+// 個人別MS目標入力ハンドラ
+function handlePersonalMsTargetInput(event) {
+  const input = event.target;
+  const { dept, member, date } = input.dataset;
+  const value = Number(input.value) || 0;
+
+  if (!state.personalMs[dept]) return;
+  if (!state.personalMs[dept].msTargets[member]) {
+    state.personalMs[dept].msTargets[member] = {};
+  }
+  state.personalMs[dept].msTargets[member][date] = value;
+
+  updatePersonalMsProgressRate(dept, member, date);
+}
+
+// 個人別MS実績入力ハンドラ
+function handlePersonalMsActualInput(event) {
+  const input = event.target;
+  const { dept, member, date } = input.dataset;
+  const value = Number(input.value) || 0;
+
+  if (!state.personalMs[dept]) return;
+  if (!state.personalMs[dept].msActuals[member]) {
+    state.personalMs[dept].msActuals[member] = {};
+  }
+  state.personalMs[dept].msActuals[member][date] = value;
+
+  updatePersonalMsProgressRate(dept, member, date);
+}
+
+// 個人別MS進捗率を更新
+function updatePersonalMsProgressRate(dept, memberId, date) {
+  const msValue = state.personalMs[dept]?.msTargets?.[memberId]?.[date] || 0;
+  const actualValue = state.personalMs[dept]?.msActuals?.[memberId]?.[date] || 0;
+
+  const rateCell = document.querySelector(
+    `[data-personal-progress-rate][data-dept="${dept}"][data-member="${memberId}"][data-date="${date}"]`
+  );
+  if (!rateCell) return;
+
+  if (msValue > 0) {
+    const rate = Math.round((actualValue / msValue) * 100);
+    rateCell.textContent = `${rate}%`;
+    rateCell.className = `ms-rate-cell ${rate >= 100 ? 'ms-rate-good' : rate >= 80 ? 'ms-rate-warn' : 'ms-rate-bad'}`;
+  } else {
+    rateCell.textContent = '-';
+    rateCell.className = 'ms-rate-cell';
+  }
+}
+
+// 個人別MSテーブルをレンダリング
+function renderPersonalMsTable(deptKey) {
+  const deptConfig = {
+    marketing: { headerRowId: 'marketingPersonalMsHeaderRow', bodyId: 'marketingPersonalMsTableBody' },
+    cs: { headerRowId: 'csPersonalMsHeaderRow', bodyId: 'csPersonalMsTableBody' },
+    sales: { headerRowId: 'salesPersonalMsHeaderRow', bodyId: 'salesPersonalMsTableBody' }
+  };
+
+  const config = deptConfig[deptKey];
+  if (!config) return;
+
+  const headerRow = document.getElementById(config.headerRowId);
+  const body = document.getElementById(config.bodyId);
+  if (!headerRow || !body) return;
+
+  const deptData = state.personalMs[deptKey];
+  if (!deptData) return;
+
+  const dates = deptData.dates || [];
+  const members = deptData.members || [];
+
+  if (!dates.length || !members.length) {
+    headerRow.innerHTML = '';
+    body.innerHTML = '<tr><td colspan="10" class="kpi-v2-empty">該当するメンバーがいません</td></tr>';
+    return;
+  }
+
+  // ヘッダー行を構築
+  const dateCells = dates.map(date => {
+    const dayLabel = formatDayLabel(date);
+    return `<th scope="col" colspan="2" class="ms-date-header">${dayLabel}</th>`;
+  }).join('');
+  const subHeaderCells = dates.map(() => `
+    <th scope="col" class="ms-sub-header">MS</th>
+    <th scope="col" class="ms-sub-header">進捗率</th>
+  `).join('');
+
+  headerRow.innerHTML = `
+    <th scope="col" class="kpi-v2-sticky-label" rowspan="2">メンバー</th>
+    <th scope="col" class="daily-type" rowspan="2">区分</th>
+    ${dateCells}
+  `;
+
+  // サブヘッダー行を追加（既存のものを削除してから）
+  const existingSubHeader = headerRow.parentElement?.querySelector('tr:not(:first-child)');
+  if (existingSubHeader) existingSubHeader.remove();
+  const subHeaderRow = document.createElement('tr');
+  subHeaderRow.innerHTML = subHeaderCells;
+  headerRow.parentElement?.appendChild(subHeaderRow);
+
+  // 各メンバーの行を生成
+  const rows = [];
+  members.forEach((member, index) => {
+    const memberId = String(member.id);
+    const memberName = member.name || `ID:${memberId}`;
+
+    // MS/進捗率行
+    const msAndRateCells = dates.map(date => {
+      const isDisabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
+      const disabledClass = isDisabled ? 'ms-cell-disabled' : '';
+
+      if (isDisabled) {
+        return `<td class="${disabledClass}"></td><td class="${disabledClass}"></td>`;
+      }
+
+      const savedMs = state.personalMs[deptKey]?.msTargets?.[memberId]?.[date] ?? '';
+      const actualValue = state.personalMs[deptKey]?.msActuals?.[memberId]?.[date] || 0;
+
+      let rateDisplay = '-';
+      let rateClass = '';
+      if (savedMs && Number(savedMs) > 0) {
+        const rate = Math.round((actualValue / Number(savedMs)) * 100);
+        rateDisplay = `${rate}%`;
+        rateClass = rate >= 100 ? 'ms-rate-good' : rate >= 80 ? 'ms-rate-warn' : 'ms-rate-bad';
+      }
+
+      return `
+        <td class="ms-target-cell">
+          <input type="number" class="ms-target-input personal-ms-target-input" 
+                 data-dept="${deptKey}" 
+                 data-member="${memberId}" 
+                 data-date="${date}"
+                 value="${savedMs}" 
+                 min="0" />
+        </td>
+        <td class="ms-rate-cell ${rateClass}" data-personal-progress-rate data-dept="${deptKey}" data-member="${memberId}" data-date="${date}">
+          ${rateDisplay}
+        </td>
+      `;
+    }).join('');
+
+    // 実績行
+    const actualCells = dates.map(date => {
+      const isDisabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
+      const disabledClass = isDisabled ? 'ms-cell-disabled' : '';
+
+      if (isDisabled) {
+        return `<td class="${disabledClass}" colspan="2"></td>`;
+      }
+
+      const savedActual = state.personalMs[deptKey]?.msActuals?.[memberId]?.[date] ?? '';
+
+      return `
+        <td class="ms-actual-cell" colspan="2">
+          <input type="number" class="ms-actual-input personal-ms-actual-input" 
+                 data-dept="${deptKey}" 
+                 data-member="${memberId}" 
+                 data-date="${date}"
+                 value="${savedActual}" 
+                 min="0" 
+                 placeholder="実績" />
+        </td>
+      `;
+    }).join('');
+
+    const rowAlt = index % 2 === 1 ? 'daily-triplet-alt' : '';
+
+    rows.push(`
+      <tr class="${rowAlt}">
+        <th scope="row" class="kpi-v2-sticky-label" rowspan="2">${memberName}</th>
+        <td class="daily-type">MS/進捗率</td>
+        ${msAndRateCells}
+      </tr>
+    `);
+    rows.push(`
+      <tr class="${rowAlt}">
+        <td class="daily-type">実績</td>
+        ${actualCells}
+      </tr>
+    `);
+  });
+
+  body.innerHTML = rows.join('');
+
+  // イベントバインド
+  body.querySelectorAll('.personal-ms-target-input').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('change', handlePersonalMsTargetInput);
+    input.dataset.bound = 'true';
+  });
+
+  body.querySelectorAll('.personal-ms-actual-input').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('change', handlePersonalMsActualInput);
+    input.dataset.bound = 'true';
+  });
+}
+
+// 個人別MSテーブルをすべてレンダリング
+function renderAllPersonalMsTables() {
+  ['marketing', 'cs', 'sales'].forEach(deptKey => {
+    renderPersonalMsTable(deptKey);
+  });
+}
+
+// 個人別MSデータを読み込み
+// 個人別MSデータを読み込み
+async function loadPersonalMsData() {
+  const members = await ensureMembersList();
+  const ranges = resolveCompanyMsRanges();
+
+  // 部門別に日付を設定（終了日はMS全体＝末日まで延長）
+  state.personalMs.marketing.dates = enumerateDateRange(ranges.marketingRange?.startDate || '', ranges.msOverallRange?.endDate || '');
+  state.personalMs.cs.dates = enumerateDateRange(ranges.csRange?.startDate || '', ranges.msOverallRange?.endDate || '');
+  state.personalMs.sales.dates = enumerateDateRange(ranges.salesRange?.startDate || '', ranges.msOverallRange?.endDate || '');
+
+  // 部門別にメンバーを振り分け
+  state.personalMs.marketing.members = getMembersByDepartment(members, 'marketing');
+  state.personalMs.cs.members = getMembersByDepartment(members, 'cs');
+  state.personalMs.sales.members = getMembersByDepartment(members, 'sales');
+
+  renderAllPersonalMsTables();
+}
+
+
 
 function buildCompanySalesHeaderRow(headerRow, dates) {
   if (!headerRow) return;
@@ -2436,7 +2899,7 @@ function renderCompanySalesTable() {
     );
     rows.push(
       buildDailyRow(
-        `<td class="daily-type">達成率</td>`,
+        `<td class="daily-type">進捗率</td>`,
         achvCells,
         { rowClass: tripletAlt }
       )
@@ -2498,6 +2961,8 @@ async function loadAndRenderCompanyMs() {
       revenueActual = 0;
     }
   }
+  // 事業部ごとの日付を保存
+  const msOverallRange = ranges.msOverallRange || ranges.salesRange;
   state.companyMs = {
     ...state.companyMs,
     metricKeys: {
@@ -2505,7 +2970,11 @@ async function loadAndRenderCompanyMs() {
       cs: state.companyMs.metricKeys?.cs || MS_METRIC_OPTIONS[0]?.key,
       sales: state.companyMs.metricKeys?.sales || MS_METRIC_OPTIONS[0]?.key
     },
-    dates: enumerateDateRange(ranges.salesRange.startDate, ranges.salesRange.endDate),
+    dates: enumerateDateRange(msOverallRange.startDate, msOverallRange.endDate),
+    marketingDates: enumerateDateRange(ranges.marketingRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
+    csDates: enumerateDateRange(ranges.csRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
+    salesDates: enumerateDateRange(ranges.salesRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
+    revenueDates: enumerateDateRange(ranges.revenueRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
     dailyTotals,
     companyTarget,
     revenue: {
@@ -2519,7 +2988,8 @@ async function loadAndRenderCompanyMs() {
     dates: enumerateDateRange(ranges.salesRange.startDate, ranges.salesRange.endDate)
   };
   renderCompanyMsTable();
-  renderCompanySalesTable();
+  // renderCompanySalesTable(); // 削除
+  await loadPersonalMsData();
 }
 
 function enumeratePeriodDates(period) {
@@ -3185,11 +3655,11 @@ async function reloadDashboardData(scope) {
       }),
       scope === 'company'
         ? fetchYieldBreakdownFromApi({
-            startDate: range.startDate,
-            endDate: range.endDate,
-            scope,
-            dimension: 'media'
-          })
+          startDate: range.startDate,
+          endDate: range.endDate,
+          scope,
+          dimension: 'media'
+        })
         : Promise.resolve(null)
     ]);
 
