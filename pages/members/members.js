@@ -13,6 +13,7 @@ const membersApi = (path) => `${MEMBERS_API_BASE}${path}`;
 
 let membersCache = [];
 let isAdmin = false;
+let currentUserId = '';
 let cleanupHandlers = [];
 
 export function mount() {
@@ -21,8 +22,12 @@ export function mount() {
 
   const session = getSession();
   isAdmin = Boolean(session?.role === 'admin' || session?.roles?.includes('admin'));
+  currentUserId = String(session?.user?.id || session?.id || '').trim();
   const page = document.querySelector('.members-page');
-  if (page) page.classList.toggle('is-admin', isAdmin);
+  if (page) {
+    page.classList.toggle('is-admin', isAdmin);
+    page.classList.toggle('can-self-edit', !isAdmin && Boolean(currentUserId));
+  }
 
   const addButton = document.getElementById('memberAddButton');
   if (addButton) addButton.hidden = !isAdmin;
@@ -119,6 +124,7 @@ function renderMembers(members) {
 }
 
 function renderMemberRow(member) {
+  const isSelf = isSelfMember(member);
   const name = escapeHtml(member.name || '—');
   const email = escapeHtml(member.email || '—');
   const roleLabel = escapeHtml(getRoleLabel(member.role));
@@ -134,7 +140,7 @@ function renderMemberRow(member) {
       <button class="members-action" type="button" data-action="edit">編集</button>
       <button class="members-action members-action--danger" type="button" data-action="delete">削除</button>
     `
-    : '';
+    : (isSelf ? '<button class="members-action" type="button" data-action="edit">自分を編集</button>' : '');
 
   return `
     <tr data-member-id="${id}">
@@ -188,7 +194,6 @@ function renderMembersError(error) {
 }
 
 function handleTableClick(event) {
-  if (!isAdmin) return;
   const button = event.target.closest('[data-action]');
   if (!button) return;
   const row = button.closest('tr');
@@ -200,15 +205,18 @@ function handleTableClick(event) {
 
   const action = button.dataset.action;
   if (action === 'edit') {
+    if (!isAdmin && !isSelfMember(member)) return;
     openMemberModal('edit', member);
   }
   if (action === 'delete') {
+    if (!isAdmin) return;
     handleMemberDelete(member);
   }
 }
 
 function openMemberModal(mode, member = null) {
-  if (!isAdmin) return;
+  const isSelf = isSelfMember(member);
+  if (!isAdmin && !(mode === 'edit' && isSelf)) return;
   const modal = document.getElementById('memberModal');
   const title = document.getElementById('memberModalTitle');
   const form = document.getElementById('memberForm');
@@ -222,10 +230,11 @@ function openMemberModal(mode, member = null) {
   if (!modal || !form || !nameInput || !emailInput || !roleInput || !adminInput || !passwordInput) return;
 
   const isEdit = mode === 'edit';
+  const canEditSelf = isSelf && !isAdmin;
   modal.dataset.mode = mode;
   modal.dataset.memberId = member?.id ?? '';
 
-  title.textContent = isEdit ? 'メンバー編集' : 'メンバー追加';
+  title.textContent = canEditSelf ? '自分のプロフィール編集' : (isEdit ? 'メンバー編集' : 'メンバー追加');
   submit.textContent = isEdit ? '更新する' : '追加する';
 
   nameInput.value = member?.name || '';
@@ -237,6 +246,8 @@ function openMemberModal(mode, member = null) {
 
   populateRoleOptions(roleInput, member?.role);
   roleInput.value = member?.role || ROLE_OPTIONS[0]?.value || '';
+  roleInput.disabled = canEditSelf;
+  adminInput.disabled = canEditSelf;
 
   setFormError('');
 
@@ -261,7 +272,6 @@ function handleEscapeKey(event) {
 
 async function handleMemberSubmit(event) {
   event.preventDefault();
-  if (!isAdmin) return;
   const modal = document.getElementById('memberModal');
   const form = document.getElementById('memberForm');
   const submit = document.getElementById('memberFormSubmit');
@@ -274,10 +284,10 @@ async function handleMemberSubmit(event) {
 
   const mode = modal.dataset.mode || 'create';
   const memberId = modal.dataset.memberId || '';
+  const isSelfEdit = mode === 'edit' && isSelfId(memberId) && !isAdmin;
+  if (!isAdmin && !isSelfEdit) return;
   const payload = {
-    name: nameInput.value.trim(),
-    role: roleInput.value,
-    isAdmin: adminInput.checked
+    name: nameInput.value.trim()
   };
   const password = passwordInput.value;
   const email = emailInput.value.trim();
@@ -293,10 +303,14 @@ async function handleMemberSubmit(event) {
   if (mode === 'create') {
     payload.email = email;
   }
+  if (!isSelfEdit) {
+    payload.role = roleInput.value;
+    payload.isAdmin = adminInput.checked;
+  }
   if (password) {
     payload.password = password;
   }
-  if (!payload.role) {
+  if (!isSelfEdit && !payload.role) {
     setFormError('役割を選択してください。');
     return;
   }
@@ -395,6 +409,14 @@ function setFormError(message) {
   if (!formError) return;
   formError.textContent = message;
   formError.hidden = !message;
+}
+
+function isSelfId(id) {
+  return Boolean(currentUserId && String(id) === String(currentUserId));
+}
+
+function isSelfMember(member) {
+  return Boolean(member?.id && isSelfId(member.id));
 }
 
 function getRoleLabel(role) {

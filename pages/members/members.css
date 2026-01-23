@@ -190,7 +190,7 @@
   font-size: 14px;
 }
 
-.members-page:not(.is-admin) [data-admin-only] {
+.members-page:not(.is-admin):not(.can-self-edit) [data-admin-only] {
   display: none;
 }
 
