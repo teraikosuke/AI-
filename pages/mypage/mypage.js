@@ -11,7 +11,16 @@ const state = {
   closedVisible: false,
   closedCandidates: [],
   candidates: [],
-  toggleHandler: null
+  toggleHandler: null,
+  eventHandlers: [],
+  calendarMonth: null,
+  calendarPending: [],
+  calendarCompleted: [],
+  calendarProgress: [],
+  calendarFilters: {
+    showCompleted: false,
+    showProgress: false
+  }
 };
 
 export async function mount() {
@@ -21,20 +30,11 @@ export async function mount() {
     return;
   }
 
-  ensureStyleLink('mypage-yield-css', '../yield/yield.css');
-  ensureStyleLink('mypage-goal-settings-css', '../goal-settings/goal-settings.css');
-
   state.roleView = resolveRoleView(session);
   updateRoleBadge();
 
-  await injectYieldSummary();
-  await injectGoalSettings();
-
   await loadMypageData(session);
   bindActions();
-
-  mountYield();
-  mountGoalSettings();
 }
 
 export function unmount() {
@@ -43,6 +43,10 @@ export function unmount() {
     toggle.removeEventListener('click', state.toggleHandler);
   }
   state.toggleHandler = null;
+  state.eventHandlers.forEach(({ element, handler }) => {
+    element.removeEventListener('click', handler);
+  });
+  state.eventHandlers = [];
 }
 
 async function ensureSession() {
@@ -67,77 +71,19 @@ function updateRoleBadge() {
   badge.classList.toggle('is-caller', state.roleView === 'caller');
 }
 
-function ensureStyleLink(id, path) {
-  if (document.getElementById(id)) return;
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = 'stylesheet';
-  link.href = new URL(path, import.meta.url).href;
-  document.head.appendChild(link);
-}
-
-async function injectYieldSummary() {
-  const container = document.getElementById('mypageYieldSummary');
-  if (!container) return;
-  container.innerHTML = '';
-
-  try {
-    const url = new URL('../yield/index.html', import.meta.url).href;
-    const res = await fetch(url, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`yield html ${res.status}`);
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const wrapper = doc.querySelector('section[data-kpi="v2"]');
-    const personalSection = wrapper?.querySelector('.kpi-v2-section');
-    if (!personalSection) return;
-
-    const clone = document.importNode(personalSection, true);
-    clone.querySelectorAll('[data-kpi-tab="personal-graphs"], [data-kpi-tab="personal-daily"]').forEach((el) => {
-      el.remove();
-    });
-    clone.querySelectorAll('[data-kpi-tab-panel="personal-graphs"], [data-kpi-tab-panel="personal-daily"]').forEach((el) => {
-      el.remove();
-    });
-
-    const host = document.createElement('section');
-    host.className = 'kpi-v2-wrapper space-y-6';
-    host.appendChild(clone);
-    container.appendChild(host);
-  } catch (error) {
-    console.warn('[mypage] failed to load yield summary', error);
-  }
-}
-
-async function injectGoalSettings() {
-  const container = document.getElementById('mypageGoalSettings');
-  if (!container) return;
-  container.innerHTML = '';
-
-  try {
-    const url = new URL('../goal-settings/index.html', import.meta.url).href;
-    const res = await fetch(url, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`goal settings html ${res.status}`);
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const settings = doc.querySelector('#settingsPage');
-    if (!settings) return;
-    container.appendChild(document.importNode(settings, true));
-  } catch (error) {
-    console.warn('[mypage] failed to load goal settings', error);
-  }
-}
-
-async function loadMypageData(session) {
+async function loadMypageData(session, { monthKey } = {}) {
   const userId = session?.user?.id;
   if (!userId) {
     renderError('ユーザー情報が取得できませんでした。');
     return;
   }
 
+  const resolvedMonthKey = resolveMonthKey(monthKey || state.calendarMonth || getMonthKey(new Date()));
   const url = new URL(`${MYPAGE_API_BASE}${MYPAGE_PATH}`);
   url.searchParams.set('userId', String(userId));
   url.searchParams.set('role', state.roleView);
   url.searchParams.set('limit', '10');
+  url.searchParams.set('month', resolvedMonthKey);
 
   const headers = { Accept: 'application/json' };
   if (session?.token) headers.Authorization = `Bearer ${session.token}`;
@@ -147,7 +93,25 @@ async function loadMypageData(session) {
     if (!res.ok) throw new Error(`mypage HTTP ${res.status}`);
     const data = await res.json();
 
-    renderTasks(data.tasks || []);
+    renderTaskTable({
+      tasks: data.tasksToday || [],
+      sectionId: 'mypageTasksSection',
+      bodyId: 'mypageTasksBody',
+      emptyId: 'mypageTasksEmpty',
+      wrapperId: 'mypageTasksTableWrapper'
+    });
+    renderTaskTable({
+      tasks: data.tasksUpcoming || data.tasks || [],
+      sectionId: 'mypageUpcomingSection',
+      bodyId: 'mypageUpcomingBody',
+      emptyId: 'mypageUpcomingEmpty',
+      wrapperId: 'mypageUpcomingTableWrapper'
+    });
+    state.calendarMonth = data.calendar?.month || resolvedMonthKey;
+    state.calendarPending = data.calendar?.pendingTasks || [];
+    state.calendarCompleted = data.calendar?.completedTasks || [];
+    state.calendarProgress = data.calendar?.progressEvents || [];
+    renderCalendar();
     renderNotifications(data.notifications || []);
     renderCandidates(data.candidates || [], data.closedCandidates || []);
   } catch (error) {
@@ -158,19 +122,100 @@ async function loadMypageData(session) {
 
 function bindActions() {
   const toggle = document.getElementById('mypageCandidatesToggleClosed');
-  if (!toggle) return;
-  state.toggleHandler = () => {
-    state.closedVisible = !state.closedVisible;
-    renderCandidates(state.candidates, state.closedCandidates);
-  };
-  toggle.addEventListener('click', state.toggleHandler);
+  if (toggle) {
+    state.toggleHandler = () => {
+      state.closedVisible = !state.closedVisible;
+      renderCandidates(state.candidates, state.closedCandidates);
+    };
+    toggle.addEventListener('click', state.toggleHandler);
+  }
+
+  ['mypageTasksBody', 'mypageUpcomingBody'].forEach((bodyId) => {
+    const body = document.getElementById(bodyId);
+    if (!body) return;
+    const handler = (event) => {
+      const row = event.target.closest('tr[data-candidate-id]');
+      if (!row) return;
+      const candidateId = row.dataset.candidateId;
+      if (!candidateId) return;
+      navigateToCandidate(candidateId);
+    };
+    body.addEventListener('click', handler);
+    state.eventHandlers.push({ element: body, handler });
+  });
+
+  const upcomingSection = document.getElementById('mypageUpcomingSection');
+  if (upcomingSection) {
+    const handler = (event) => {
+      const tab = event.target.closest('[data-upcoming-tab]');
+      if (tab) {
+        event.preventDefault();
+        setUpcomingTab(tab.dataset.upcomingTab || 'detail');
+        return;
+      }
+
+      const filter = event.target.closest('[data-calendar-filter]');
+      if (filter) {
+        event.preventDefault();
+        toggleCalendarFilter(filter.dataset.calendarFilter || '');
+        return;
+      }
+
+      const nav = event.target.closest('[data-calendar-nav]');
+      if (nav) {
+        event.preventDefault();
+        const nextMonth = shiftMonth(state.calendarMonth || getMonthKey(new Date()), nav.dataset.calendarNav || 'today');
+        loadMypageData(getSession(), { monthKey: nextMonth });
+        return;
+      }
+
+      const calendarItem = event.target.closest('[data-calendar-candidate-id]');
+      if (calendarItem) {
+        const candidateId = calendarItem.dataset.calendarCandidateId;
+        if (candidateId) navigateToCandidate(candidateId);
+      }
+    };
+    upcomingSection.addEventListener('click', handler);
+    state.eventHandlers.push({ element: upcomingSection, handler });
+  }
 }
 
-function renderTasks(tasks) {
-  const section = document.getElementById('mypageTasksSection');
-  const body = document.getElementById('mypageTasksBody');
-  const empty = document.getElementById('mypageTasksEmpty');
-  const tableWrapper = document.getElementById('mypageTasksTableWrapper');
+function navigateToCandidate(candidateId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('candidateId', String(candidateId));
+  url.searchParams.set('openDetail', '1');
+  url.hash = '#/candidates';
+  window.location.href = url.toString();
+}
+
+function normalizeTaskRows(tasks) {
+  const rows = [];
+  (tasks || []).forEach((item) => {
+    if (Array.isArray(item.tasks)) {
+      item.tasks.forEach((action) => {
+        rows.push({ ...item, nextAction: action });
+      });
+      return;
+    }
+    if (item.nextAction) {
+      rows.push(item);
+      return;
+    }
+    if (item.actionDate || item.actionName) {
+      rows.push({
+        ...item,
+        nextAction: { date: item.actionDate, type: item.actionName }
+      });
+    }
+  });
+  return rows;
+}
+
+function renderTaskTable({ tasks, sectionId, bodyId, emptyId, wrapperId }) {
+  const section = document.getElementById(sectionId);
+  const body = document.getElementById(bodyId);
+  const empty = document.getElementById(emptyId);
+  const tableWrapper = document.getElementById(wrapperId);
 
   if (!section || !body || !empty || !tableWrapper) return;
 
@@ -180,7 +225,23 @@ function renderTasks(tasks) {
   }
 
   section.hidden = false;
-  if (!tasks.length) {
+  const taskRows = normalizeTaskRows(tasks);
+  const todayKey = toDateKey(new Date());
+
+  taskRows.sort((a, b) => {
+    const aDateKey = toDateKey(a.nextAction?.date) || '';
+    const bDateKey = toDateKey(b.nextAction?.date) || '';
+    const aIsFuture = aDateKey && todayKey && aDateKey >= todayKey;
+    const bIsFuture = bDateKey && todayKey && bDateKey >= todayKey;
+
+    if (aIsFuture !== bIsFuture) return aIsFuture ? -1 : 1;
+    if (aDateKey && bDateKey && aDateKey !== bDateKey) {
+      return aIsFuture ? (aDateKey < bDateKey ? -1 : 1) : (aDateKey > bDateKey ? -1 : 1);
+    }
+    return String(a.candidateName || '').localeCompare(String(b.candidateName || ''), 'ja');
+  });
+
+  if (!taskRows.length) {
     body.innerHTML = '';
     empty.classList.add('is-visible');
     tableWrapper.hidden = true;
@@ -189,15 +250,207 @@ function renderTasks(tasks) {
 
   tableWrapper.hidden = false;
   empty.classList.remove('is-visible');
-  body.innerHTML = tasks
-    .map((task) => `
-      <tr>
-        <td>${escapeHtml(task.candidateName || '-') }</td>
-        <td>${escapeHtml(task.phase || '-') }</td>
-        <td>${formatAction(task.nextAction)}</td>
-      </tr>
-    `)
+  body.innerHTML = taskRows
+    .map((row) => {
+      const actionDate = row.nextAction?.date ? formatDateJP(row.nextAction.date) : '-';
+      const actionDateKey = row.nextAction?.date ? toDateKey(row.nextAction.date) : null;
+      const isOverdue = actionDateKey && todayKey && actionDateKey < todayKey;
+      const actionName = row.nextAction?.type || row.nextAction?.label || '-';
+      return `
+        <tr class="mypage-task-row${isOverdue ? ' is-overdue' : ''}" data-candidate-id="${escapeHtml(String(row.candidateId || ''))}">
+          <td class="mypage-task-date">${escapeHtml(actionDate)}</td>
+          <td>${escapeHtml(actionName)}</td>
+          <td>${escapeHtml(row.candidateName || '-')}</td>
+          <td><span class="mypage-phase-pill">${escapeHtml(row.phase || '-')}</span></td>
+          <td>${escapeHtml(row.partnerName || '-')}</td>
+        </tr>
+      `;
+    })
     .join('');
+}
+
+function resolveMonthKey(rawMonth) {
+  if (!rawMonth) return getMonthKey(new Date());
+  const text = String(rawMonth).trim();
+  return /^\d{4}-\d{2}$/.test(text) ? text : getMonthKey(new Date());
+}
+
+function getMonthKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function shiftMonth(monthKey, direction) {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) {
+    return getMonthKey(new Date());
+  }
+  const base = new Date(year, monthIndex, 1);
+  if (direction === 'prev') base.setMonth(base.getMonth() - 1);
+  if (direction === 'next') base.setMonth(base.getMonth() + 1);
+  if (direction === 'today') return getMonthKey(new Date());
+  return getMonthKey(base);
+}
+
+function formatMonthLabel(monthKey) {
+  const [year, month] = monthKey.split('-');
+  if (!year || !month) return monthKey;
+  return `${year}年${Number(month)}月`;
+}
+
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value.split('T')[0];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function setUpcomingTab(tabKey) {
+  const tabs = document.querySelectorAll('[data-upcoming-tab]');
+  const panels = document.querySelectorAll('[data-upcoming-panel]');
+  tabs.forEach((tab) => {
+    tab.classList.toggle('is-active', tab.dataset.upcomingTab === tabKey);
+  });
+  panels.forEach((panel) => {
+    panel.classList.toggle('is-active', panel.dataset.upcomingPanel === tabKey);
+  });
+}
+
+function toggleCalendarFilter(filterKey) {
+  if (filterKey === 'pending') {
+    state.calendarFilters.showCompleted = false;
+    state.calendarFilters.showProgress = false;
+  }
+  if (filterKey === 'completed') {
+    state.calendarFilters.showCompleted = !state.calendarFilters.showCompleted;
+  }
+  if (filterKey === 'progress') {
+    state.calendarFilters.showProgress = !state.calendarFilters.showProgress;
+  }
+  renderCalendarFilters();
+  renderCalendar();
+}
+
+function renderCalendarFilters() {
+  const pendingButton = document.querySelector('[data-calendar-filter="pending"]');
+  const completedButton = document.querySelector('[data-calendar-filter="completed"]');
+  const progressButton = document.querySelector('[data-calendar-filter="progress"]');
+  if (pendingButton) {
+    pendingButton.classList.toggle(
+      'is-active',
+      !state.calendarFilters.showCompleted && !state.calendarFilters.showProgress
+    );
+  }
+  if (completedButton) {
+    completedButton.classList.toggle('is-active', state.calendarFilters.showCompleted);
+  }
+  if (progressButton) {
+    progressButton.classList.toggle('is-active', state.calendarFilters.showProgress);
+  }
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('mypageCalendarGrid');
+  const empty = document.getElementById('mypageCalendarEmpty');
+  const label = document.getElementById('mypageCalendarMonthLabel');
+  if (!grid) return;
+
+  const monthKey = state.calendarMonth || getMonthKey(new Date());
+  if (label) label.textContent = formatMonthLabel(monthKey);
+  renderCalendarFilters();
+
+  const events = [];
+  state.calendarPending.forEach((item) => {
+    events.push({ ...item, kind: 'pending' });
+  });
+  if (state.calendarFilters.showCompleted) {
+    state.calendarCompleted.forEach((item) => {
+      events.push({ ...item, kind: 'completed' });
+    });
+  }
+  if (state.calendarFilters.showProgress) {
+    state.calendarProgress.forEach((item) => {
+      events.push({ ...item, kind: 'progress' });
+    });
+  }
+
+  const eventsByDate = new Map();
+  const kindOrder = { pending: 0, completed: 1, progress: 2 };
+  events.forEach((event) => {
+    const key = toDateKey(event.date);
+    if (!key) return;
+    if (!eventsByDate.has(key)) eventsByDate.set(key, []);
+    eventsByDate.get(key).push(event);
+  });
+
+  eventsByDate.forEach((items) => {
+    items.sort((a, b) => {
+      const order = kindOrder[a.kind] - kindOrder[b.kind];
+      if (order !== 0) return order;
+      return String(a.candidateName || '').localeCompare(String(b.candidateName || ''), 'ja');
+    });
+  });
+
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  const startOffset = firstOfMonth.getDay();
+  const gridStart = new Date(year, monthIndex, 1 - startOffset);
+  const todayKey = toDateKey(new Date());
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+
+  const cells = weekdays.map((labelText) => `<div class="mypage-calendar-weekday">${labelText}</div>`);
+
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + i);
+    const key = toDateKey(date);
+    const isOutside = date.getMonth() !== monthIndex;
+    const isToday = key === todayKey;
+    const dayNumber = date.getDate();
+    const eventsForDay = key ? (eventsByDate.get(key) || []) : [];
+    const visible = eventsForDay.slice(0, 3);
+    const overflow = eventsForDay.length - visible.length;
+    const eventsHtml = visible
+      .map((event) => {
+        const labelText = event.kind === 'progress'
+          ? `進捗: ${event.type || ''}`.trim()
+          : event.type || '次回アクション';
+        return `
+          <button type="button" class="mypage-calendar-item is-${event.kind}" data-calendar-candidate-id="${escapeHtml(String(event.candidateId || ''))}" title="${escapeHtml(`${event.candidateName || '-'} / ${labelText}`)}">
+            <span class="mypage-calendar-item-title">${escapeHtml(event.candidateName || '-')}</span>
+            <span class="mypage-calendar-item-meta">${escapeHtml(labelText)}</span>
+          </button>
+        `;
+      })
+      .join('');
+    const overflowHtml = overflow > 0
+      ? `<div class="mypage-calendar-more">+${overflow}件</div>`
+      : '';
+
+    cells.push(`
+      <div class="mypage-calendar-day${isOutside ? ' is-outside' : ''}${isToday ? ' is-today' : ''}">
+        <div class="mypage-calendar-day-number">${dayNumber}</div>
+        <div class="mypage-calendar-events">
+          ${eventsHtml}
+          ${overflowHtml}
+        </div>
+      </div>
+    `);
+  }
+
+  grid.innerHTML = cells.join('');
+  if (empty) {
+    empty.classList.toggle('is-visible', events.length === 0);
+  }
 }
 
 function renderNotifications(notifications) {
@@ -304,9 +557,11 @@ function renderCandidates(candidates, closedCandidates) {
 
 function renderError(message) {
   const tasksEmpty = document.getElementById('mypageTasksEmpty');
+  const upcomingEmpty = document.getElementById('mypageUpcomingEmpty');
+  const calendarEmpty = document.getElementById('mypageCalendarEmpty');
   const notificationsEmpty = document.getElementById('mypageNotificationsEmpty');
   const candidatesEmpty = document.getElementById('mypageCandidatesEmpty');
-  [tasksEmpty, notificationsEmpty, candidatesEmpty].forEach((el) => {
+  [tasksEmpty, upcomingEmpty, calendarEmpty, notificationsEmpty, candidatesEmpty].forEach((el) => {
     if (!el) return;
     el.textContent = message;
     el.classList.add('is-visible');
@@ -325,8 +580,8 @@ function formatDateJP(dateKey) {
 
 function formatAction(action) {
   if (!action?.date) return '-';
-  const date = formatDateJP(action.date);
-  const label = action.type ? ` (${action.type})` : '';
+  const date = escapeHtml(formatDateJP(action.date));
+  const label = action.type ? ` (${escapeHtml(action.type)})` : '';
   return `${date}${label}`;
 }
 
