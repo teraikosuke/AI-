@@ -4,9 +4,71 @@
       <div>
         <p class="members-section__eyebrow">メンバー</p>
         <h2 class="members-section__title">メンバー一覧</h2>
+        <p class="members-section__note">メールアドレスは登録後に変更できません。</p>
       </div>
-      <div class="members-section__meta" id="membersCount"></div>
+      <div class="members-section__actions">
+        <div class="members-section__meta" id="membersCount"></div>
+        <button class="members-add-button" id="memberAddButton" type="button">
+          メンバーを追加
+        </button>
+      </div>
     </div>
-    <div id="membersGrid" class="members-grid" aria-label="メンバー一覧"></div>
+    <div class="members-table-wrap" aria-label="メンバー一覧">
+      <table class="members-table">
+        <thead>
+          <tr>
+            <th>氏名</th>
+            <th>メール</th>
+            <th>役割</th>
+            <th>登録日</th>
+            <th>更新日</th>
+            <th data-admin-only>操作</th>
+          </tr>
+        </thead>
+        <tbody id="membersTableBody"></tbody>
+      </table>
+    </div>
   </div>
 </section>
+
+<div class="members-modal" id="memberModal" aria-hidden="true">
+  <div class="members-modal__card" role="dialog" aria-modal="true" aria-labelledby="memberModalTitle">
+    <button class="members-modal__close" type="button" id="memberModalClose" aria-label="閉じる">
+      ×
+    </button>
+    <div class="members-modal__header">
+      <p class="members-modal__eyebrow">メンバー</p>
+      <h3 class="members-modal__title" id="memberModalTitle">メンバー追加</h3>
+    </div>
+    <form class="members-form" id="memberForm">
+      <div class="members-form__grid">
+        <label class="members-form__field">
+          <span>氏名</span>
+          <input type="text" name="name" id="memberNameInput" required />
+        </label>
+        <label class="members-form__field">
+          <span>メール</span>
+          <input type="email" name="email" id="memberEmailInput" required />
+        </label>
+        <label class="members-form__field">
+          <span>役割</span>
+          <select name="role" id="memberRoleInput" required></select>
+        </label>
+        <label class="members-form__field members-form__checkbox">
+          <span>管理者</span>
+          <input type="checkbox" name="isAdmin" id="memberAdminInput" />
+        </label>
+        <label class="members-form__field">
+          <span>パスワード</span>
+          <input type="password" name="password" id="memberPasswordInput" autocomplete="new-password" />
+          <small class="members-form__helper">編集時は空欄で変更しません。</small>
+        </label>
+      </div>
+      <p class="members-form__error" id="memberFormError" role="alert" hidden></p>
+      <div class="members-form__actions">
+        <button type="button" class="members-action-secondary" id="memberFormCancel">キャンセル</button>
+        <button type="submit" class="members-action-primary" id="memberFormSubmit">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
