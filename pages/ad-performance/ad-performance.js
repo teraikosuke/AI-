@@ -34,7 +34,8 @@ const adState = {
   sortField: 'applications',
   sortDirection: 'desc',
   currentPage: 1,
-  pageSize: 50
+  pageSize: 50,
+  calcMode: 'base' // 'base' | 'step'
 };
 
 const formatNumber = (num) => Number(num || 0).toLocaleString();
@@ -160,8 +161,11 @@ function initializeAdFilters() {
     applyFilters('');
   });
 
+  const calcModeSelect = document.getElementById('adCalcModeSelect');
+  calcModeSelect?.addEventListener('change', handleCalcModeChange);
+
   metricSelect?.addEventListener('change', (e) => {
-    lineMetric = e.target.value || 'decisionRate';
+    lineMetric = e.target.value || 'initialInterviewRate';
     if (metricTitle) {
       const metricLabels = {
         decisionRate: '決定率',
@@ -169,7 +173,7 @@ function initializeAdFilters() {
         retentionWarranty: '定着率（保障期間）',
         retention30: '定着率（保障期間）'
       };
-      const titleLabel = metricLabels[lineMetric] || '決定率';
+      const titleLabel = metricLabels[lineMetric] || '初回面談設定率';
       metricTitle.textContent = `${titleLabel} 月別推移・媒体別`;
     }
     renderAdCharts(lastAggregated, adState.filtered);
@@ -194,6 +198,11 @@ function initializeAdFilters() {
     if (e) e.value = '';
     loadAdPerformanceData();
   });
+}
+
+function handleCalcModeChange(e) {
+  adState.calcMode = e.target.value || 'base';
+  applySortAndRender();
 }
 
 function initializeAdTable() {
@@ -377,11 +386,18 @@ async function loadAdPerformanceData() {
   }
 
   adState.summary = data?.summary ?? null;
-  adState.data = items.map(calcDerivedRates);
+  adState.summary = data?.summary ?? null;
+  // Raw data keeps basic counts. We recalculate rates when rendering/aggregating.
+  // Actually calcDerivedRates was mapping items directly. 
+  // We should NOT bake rates into data permanently if we want to switch modes without reloading.
+  // But wait, applySortAndRender calls getAggregatedSorted which calls aggregateByMedia which calls calcDerivedRates.
+  // So as long as calcDerivedRates uses adState.calcMode, we are good.
+  adState.data = items; // Store raw items logic invoked in aggregate logic
   applyFilters();
 }
 function calcDerivedRates(item) {
   const rate = (num, den) => (den ? (num / den) * 100 : 0);
+
   const cost = Number(item.cost) || 0;
   const hired = Number(item.hired) || 0;
   const refund = Number(item.refund) || 0;
@@ -391,7 +407,7 @@ function calcDerivedRates(item) {
   // ROAS計算：契約費用が0の時は'-'を返す
   const roas = cost > 0 ? (totalSales / cost) * 100 : null;
 
-  return {
+  const result = {
     ...item,
     refund,
     cost,
@@ -399,23 +415,39 @@ function calcDerivedRates(item) {
     roas,
     costPerHire: hired ? cost / hired : 0,
 
-    // 有効応募率 = 有効応募 / 応募
+    // 有効応募率 = 有効応募 / 応募 (モードによらず固定)
     validApplicationRate: rate(item.validApplications, item.applications),
 
-    // 初回面談設定率 = 初回面談 / 有効応募
-    initialInterviewRate: rate(item.initialInterviews, item.validApplications),
-
-    // 内定率 = 内定 / 有効応募
-    offerRate: rate(item.offers, item.validApplications),
-
-    // 入社率 = 入社 / 内定
-    hireRate: rate(item.hired, item.offers),
-
-    // ★修正: 決定率 = 入社数 / 有効応募数 (これまでは item.applications で割っていました)
-    decisionRate: rate(item.hired, item.validApplications),
-
+    // 初期化
+    initialInterviewRate: 0,
+    offerRate: 0,
+    hireRate: 0,
     retentionWarranty
   };
+
+  // 計算モードに応じたレート計算
+  const mode = adState.calcMode;
+
+  if (mode === 'step') {
+    // 段階別基準
+    // 初回面談設定率 = 初回面談(Done) / 有効応募
+    result.initialInterviewRate = rate(item.initialInterviews, item.validApplications);
+
+    // 内定率 = 内定 / 初回面談(Done)
+    result.offerRate = rate(item.offers, item.initialInterviews);
+
+    // 入社率 = 入社 / 内定
+    result.hireRate = rate(item.hired, item.offers);
+
+  } else {
+    // 有効応募数基準 (Default) - 全て有効応募数分母
+    const valid = item.validApplications;
+    result.initialInterviewRate = rate(item.initialInterviews, valid);
+    result.offerRate = rate(item.offers, valid);
+    result.hireRate = rate(item.hired, valid);
+  }
+
+  return result;
 }
 
 function resolveRetentionValue(item) {
@@ -523,7 +555,28 @@ function applySortAndRender() {
   updateAdPagination(aggregatedSorted.length);
   updateSortIndicators();
   updateAdSummary(aggregatedSorted, adState.summary);
+  updateHeaderNotes();
   renderAdCharts(aggregatedSorted, adState.filtered);
+}
+
+function updateHeaderNotes() {
+  const mode = adState.calcMode;
+  const isStep = mode === 'step';
+
+  const setNote = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  if (isStep) {
+    setNote('headerNoteInitialInterviewRate', '（初回面談数/有効応募数）');
+    setNote('headerNoteOfferRate', '（内定数/初回面談数）'); // Step logic
+    setNote('headerNoteHireRate', '（入社数/内定数）'); // Step logic
+  } else {
+    setNote('headerNoteInitialInterviewRate', '（初回面談数/有効応募数）');
+    setNote('headerNoteOfferRate', '（内定数/有効応募数）'); // Base logic
+    setNote('headerNoteHireRate', '（入社数/有効応募数）'); // Base logic
+  }
 }
 
 function aggregateByMedia(items) {
@@ -606,7 +659,7 @@ function renderAdTable(data) {
 
   if (!pageItems.length) {
     // ★修正: 列数が16になったため colspan を 16 に設定
-    tableBody.innerHTML = `<tr><td colspan="16" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="15" class="text-center text-slate-500 py-6">データがありません</td></tr>`;
     return;
   }
 
@@ -630,12 +683,7 @@ function renderAdTable(data) {
           </span>
         </td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
-        <td class="text-right whitespace-nowrap px-2">
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, 'adHireRateTarget')}">
-            ${formatPercent(ad.hireRate)}
-          </span>
-        </td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.decisionRate, 'adDecisionRateTarget')}">${formatPercent(ad.decisionRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, 'adHireRateTarget')}">${formatPercent(ad.hireRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.retentionWarranty, 'adRetentionRateTarget')}">${formatPercent(ad.retentionWarranty)}</span></td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
@@ -669,9 +717,8 @@ function updateAdSummary(data, summary) {
   const totalCost = data.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
   const totalInitialInterviews = data.reduce((sum, d) => sum + (d.initialInterviews || 0), 0);
 
-  // ★修正: 決定率 = 入社数 / 有効応募数 (totalValid)
   // (もし有効応募が0の場合は0%)
-  const decisionRate = rate(totalHired, totalValid);
+  // const decisionRate = rate(totalHired, totalValid); // Removed decision rate logic
 
   const validRate = rate(totalValid, totalApps);
   const interviewDenom = totalValid;
@@ -688,8 +735,19 @@ function updateAdSummary(data, summary) {
   setText('adSummaryValidWithRate', validText);
   setText('adSummaryInitialInterviewRate', interviewDenom ? formatPercent(initialInterviewRate) : '-');
 
-  // 決定率の表示更新
-  setText('adSummaryDecisionRate', totalValid ? formatPercent(decisionRate) : '-');
+  // 入社率の表示更新
+  const hireRate = adState.calcMode === 'step'
+    ? rate(totalHired, Number(summary?.totalOffers || data.reduce((sum, d) => sum + (d.offers || 0), 0))) // Step: Hired / Offers
+    : rate(totalHired, totalValid); // Base: Hired / Valid
+
+  setText('adSummaryHireRate', totalHired || totalValid ? formatPercent(hireRate) : '-');
+
+  const noteEl = document.getElementById('adSummaryHireRateNote');
+  if (noteEl) {
+    noteEl.textContent = adState.calcMode === 'step'
+      ? '内定数に対する入社割合'
+      : '有効応募数に対する入社割合';
+  }
 
   setText('adSummaryRoas', formatPercent(totalRoas));
 }
@@ -729,8 +787,6 @@ function renderAdMainChart(data) {
   if (!data.length) {
     setMainBarChartPlaceholder('データがありません');
     if (pieContainer) pieContainer.classList.add('hidden');
-    // Default to smaller height if no data to avoid huge blank space, or keep large? 
-    // Let's keep small.
     if (barContainer) {
       barContainer.classList.remove('h-[720px]');
       barContainer.classList.add('h-[400px]');
@@ -746,7 +802,10 @@ function renderAdMainChart(data) {
     validApplications: Number(d.validApplications) || 0,
     totalSales: Number(d.totalSales) || 0,
     cost: Number(d.cost) || 0,
-    roas: Number(d.roas) || 0
+    roas: Number(d.roas) || 0,
+    initialInterviewRate: Number(d.initialInterviewRate) || 0,
+    hireRate: Number(d.hireRate) || 0,
+    retentionWarranty: Number(d.retentionWarranty) || 0
   }));
 
   // Layout Dynamic Switching
@@ -759,8 +818,8 @@ function renderAdMainChart(data) {
     }
     if (pieContainer) pieContainer.classList.remove('hidden');
   } else {
-    // Other Mode (e.g. Applications): Bar Only
-    // Expand Bar Chart (720px) to use the space
+    // Other Metrics Mode: Bar Only
+    // Expand Bar Chart (720px)
     if (barContainer) {
       barContainer.classList.remove('h-[400px]');
       barContainer.classList.add('h-[720px]');
@@ -775,7 +834,7 @@ function renderAdMainChart(data) {
   let sorted = normalized;
   let datasets = [];
   let xTickFormatter = (v) => formatNumber(v);
-  let tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.raw)}`;
+  let tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.x || 0)}`;
   let scales = {
     x: {
       beginAtZero: true,
@@ -800,101 +859,36 @@ function renderAdMainChart(data) {
       barPercentage: 0.9
     }];
     xTickFormatter = (v) => formatPercent(v);
-    tooltipFormatter = (ctx) => `ROAS: ${formatPercent(ctx.raw)}`;
-    scales = {
-      x: {
-        beginAtZero: true,
-        grid: { color: '#f1f5f9' },
-        ticks: { callback: xTickFormatter }
-      },
-      y: { grid: { display: false } }
-    };
+    tooltipFormatter = (ctx) => `ROAS: ${formatPercent(ctx.parsed.x || 0)}`;
+    scales.x.ticks.callback = xTickFormatter;
   } else {
-    // For other metrics, we might keep single color or use palette. 
-    // Usually "Applications" is single metric comparison, so keeping single color is standard, 
-    // but user asked for "same color scheme". Let's apply it to "Applications" too if it makes sense?
-    // Actually, usually "Applications" bar chart is one color. 
-    // But let's stick to the request "same color scheme as media-specific time series".
-    // If we apply it to bars, each bar has different color. It might look colorful but matches the wish.
-    sorted = [...normalized].sort((a, b) => b.applications - a.applications);
-    const rates = sorted.map(d => {
-      const total = Number(d.applications) || 0;
-      const valid = Number(d.validApplications) || 0;
-      return total ? (valid / total) * 100 : 0;
-    });
-    datasets = [
-      {
-        label: '応募数',
-        data: sorted.map(d => d.applications),
-        backgroundColor: sorted.map(d => getMediaColor(d.mediaName, allMediaNames)),
-        xAxisID: 'x',
-        maxBarThickness: 20
-      },
-      {
-        label: '有効応募数',
-        data: sorted.map(d => d.validApplications),
-        // Darken or lighten for valid? Or just use same color? 
-        // Using same color makes it hard to distinguish stacked or grouped.
-        // Let's keep valid apps as a distinct color (purple) or just apply palette to "Applications" main bars.
-        // Re-reading: "Color scheme same as media specific time series" implies media-based coloring.
-        // If we have grouped bars, standard chart.js doesn't easily support per-bar colors in grouped datasets cleanly without arrays.
-        // Let's just color the 'Applications' bars by media. 'Valid' can stay purple or similar to show subset.
-        // Or maybe just stick to standard colors for non-ROAS metrics unless strictly requested?
-        // User said "Bar chart and Pie chart (ROAS)". 
-        // Let's assume this applies primarily to the ROAS view where Pie is also present.
-        // For 'Applications', existing gray/purple scheme is functional. 
-        // BUT, if the user explicitly wants "Match colors with right side", the right side IS media-based.
-        // So I will apply it to ROAS bar chart definitively.
-        // For Applications, I will keep existing to avoid confusion unless I hear otherwise.
-        backgroundColor: '#6366f1',
-        xAxisID: 'x',
-        maxBarThickness: 20
-      },
-      {
-        label: '有効応募率',
-        type: 'line',
-        data: rates,
-        borderColor: '#f97316',
-        backgroundColor: '#f97316',
-        xAxisID: 'x1',
-        pointRadius: 3,
-        pointHoverRadius: 4,
-        tension: 0.2
-      }
-    ];
-    // Override Applications color if we want to match. 
-    // But 'Applications' has 2 bars per media. If we color both by media, they merge.
-    // So I will only apply media coloring to ROAS chart where it's 1 bar per media.
-    datasets[0].backgroundColor = '#94a3b8'; // Reset to gray for apps
+    // Metric Chart Logic
+    let metricKey = currentGraphMetric;
+    let label = '';
+    
+    switch (metricKey) {
+      case 'initialInterviewRate': label = '初回面談設定率'; break;
+      case 'hireRate': label = '入社率'; break;
+      case 'retentionWarranty': label = '定着率'; break;
+      default: label = metricKey;
+    }
 
-    xTickFormatter = (v) => formatNumber(v);
-    tooltipFormatter = (ctx) => {
-      const row = sorted[ctx.dataIndex] || {};
-      const total = Number(row.applications) || 0;
-      const valid = Number(row.validApplications) || 0;
-      if (ctx.dataset.label === '有効応募率') {
-        const rate = total ? (valid / total) * 100 : 0;
-        return `有効応募率: ${formatPercent(rate)}`;
-      }
-      if (ctx.dataset.label === '有効応募数') {
-        return `有効応募数: ${formatNumber(valid)}`;
-      }
-      return `応募数: ${formatNumber(total)}`;
-    };
-    scales = {
-      x: {
-        beginAtZero: true,
-        grid: { color: '#f1f5f9' },
-        ticks: { callback: xTickFormatter }
-      },
-      x1: {
-        beginAtZero: true,
-        position: 'top',
-        grid: { drawOnChartArea: false },
-        ticks: { callback: (v) => formatPercent(v) }
-      },
-      y: { grid: { display: false } }
-    };
+    sorted = [...normalized].sort((a, b) => b[metricKey] - a[metricKey]);
+
+    datasets = [{
+      label: label,
+      data: sorted.map(d => d[metricKey]),
+      backgroundColor: sorted.map(d => getMediaColor(d.mediaName, allMediaNames)),
+      maxBarThickness: 20,
+      categoryPercentage: 0.8,
+      barPercentage: 0.9
+    }];
+
+    // Rate formatting
+    xTickFormatter = (v) => formatPercent(v);
+    tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatPercent(ctx.parsed.x || 0)}`;
+    
+    scales.x.ticks.callback = xTickFormatter;
   }
 
   const labels = sorted.map(d => d.mediaName);
@@ -928,6 +922,7 @@ function renderAdMainChart(data) {
     }
   });
 }
+
 
 function renderRoasPieChart(normalizedData) {
   const canvas = document.getElementById('adMainPieChartCanvas');

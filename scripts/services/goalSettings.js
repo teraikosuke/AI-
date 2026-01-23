@@ -32,12 +32,14 @@ const PAGE_RATE_TARGET_KEYS = [
   'teleapoContactRateTarget',
   'teleapoSetRateTarget',
   'teleapoShowRateTarget',
+  'teleapoShowRateTargetWithContact', // 着座率(分母:接触数)
   'teleapoConnectRateTarget',
   // 紹介先実績管理画面
   'referralRetentionRateTarget'
 ];
 
 const DEFAULT_GOAL_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/goal';
+const KPI_TARGET_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev'; // New API Base
 const GOAL_API_BASE = resolveGoalApiBase();
 
 const cache = {
@@ -311,11 +313,27 @@ function normalizePageRateTarget(raw = {}) {
 async function loadPageRateTargetsFromApi(periodId, { force = false } = {}) {
   if (!periodId) return null;
   if (!force && cache.pageRateTargets.has(periodId)) return cache.pageRateTargets.get(periodId);
-  const params = new URLSearchParams({ scope: 'page-rate', periodId });
-  const data = await requestJson(`/goal-targets?${params.toString()}`);
-  const target = normalizePageRateTarget(data?.targets || {});
-  cache.pageRateTargets.set(periodId, target);
-  return target;
+
+  const headers = getAuthHeaders();
+  const url = `${KPI_TARGET_API_BASE}/kpi-targets?period=${periodId}`;
+
+  try {
+    const res = await fetch(url, { headers: { ...headers, Accept: 'application/json' } });
+    if (res.status === 404) {
+      const empty = {};
+      cache.pageRateTargets.set(periodId, empty);
+      return empty;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // API returns { key: value, ... } directly
+    const target = normalizePageRateTarget(data || {});
+    cache.pageRateTargets.set(periodId, target);
+    return target;
+  } catch (error) {
+    console.warn('[goalSettingsService] failed to load page rate targets', error);
+    return {};
+  }
 }
 
 function getPeriodByDate(dateStr, periods) {
@@ -686,11 +704,29 @@ export const goalSettingsService = {
   async savePageRateTargets(periodId, targets = {}) {
     if (!periodId) return null;
     const normalized = normalizePageRateTarget(targets);
-    await requestJson('/goal-targets', {
+
+    // New API: PUT /kpi-targets
+    const url = `${KPI_TARGET_API_BASE}/kpi-targets`;
+    const headers = getAuthHeaders();
+
+    // DB expects 'YYYY-MM' (7 chars). Extract standard month part if ID is longer (e.g. '2026-03-M' -> '2026-03')
+    const targetMonth = (periodId && periodId.length >= 7) ? periodId.substring(0, 7) : periodId;
+
+    const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scope: 'page-rate', periodId, targets: normalized })
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({ period: targetMonth, targets: normalized })
     });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to save targets: ${res.status} ${text}`);
+    }
+
     cache.pageRateTargets.set(periodId, normalized);
     return normalized;
   },

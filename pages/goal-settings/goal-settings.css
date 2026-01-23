@@ -432,23 +432,26 @@
   margin-left: 1rem;
 }
 
+
 .settings-rate-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
 }
+
 
 .settings-rate-field {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 1rem;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   transition: all 0.15s ease;
+  height: 100%;
 }
 
 .settings-rate-field:hover {
@@ -463,15 +466,27 @@
   white-space: nowrap;
 }
 
+
+.settings-rate-note {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin: 0;
+  flex: 1;
+  /* Push input to bottom */
+}
+
 .settings-rate-input-wrap {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.25rem;
 }
 
+
 .settings-rate-input {
-  width: 70px;
+  flex: 1;
   padding: 0.45rem 0.5rem;
   text-align: right;
   border: 1px solid #cbd5e1;

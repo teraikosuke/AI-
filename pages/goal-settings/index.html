@@ -129,12 +129,29 @@
         </div>
 
         <div class="settings-rate-groups">
+          <!-- 紹介先実績管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">紹介先実績管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>定着率（返金発生期間）</span>
+                <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="referralRetentionRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <!-- 広告管理画面 -->
           <div class="settings-rate-group">
             <h5 class="settings-rate-group-title">広告管理画面</h5>
             <div class="settings-rate-grid">
               <label class="settings-rate-field">
                 <span>有効応募率</span>
+                <p class="settings-rate-note">分子：有効応募数 / 分母：応募数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adValidApplicationRateTarget" />
@@ -143,6 +160,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>初回面談設定率</span>
+                <p class="settings-rate-note">分子：初回面談設定数 / 分母：有効応募数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adInitialInterviewRateTarget" />
@@ -151,6 +169,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>内定率</span>
+                <p class="settings-rate-note">分子：内定数 / 分母：初回面談実施数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adOfferRateTarget" />
@@ -159,6 +178,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>入社率</span>
+                <p class="settings-rate-note">分子：入社数 / 分母：内定承諾数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adHireRateTarget" />
@@ -167,6 +187,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>決定率</span>
+                <p class="settings-rate-note">分子：入社数 / 分母：有効応募数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adDecisionRateTarget" />
@@ -174,7 +195,8 @@
                 </div>
               </label>
               <label class="settings-rate-field">
-                <span>定着率（保障期間）</span>
+                <span>定着率（返金発生期間）</span>
+                <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="adRetentionRateTarget" />
@@ -190,6 +212,7 @@
             <div class="settings-rate-grid">
               <label class="settings-rate-field">
                 <span>接触率</span>
+                <p class="settings-rate-note">分子：接触数 / 分母：架電数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="teleapoContactRateTarget" />
@@ -198,6 +221,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>設定率</span>
+                <p class="settings-rate-note">分子：アポイント数 / 分母：接触数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="teleapoSetRateTarget" />
@@ -205,7 +229,8 @@
                 </div>
               </label>
               <label class="settings-rate-field">
-                <span>着座率</span>
+                <span>着座率（分母：設定数）</span>
+                <p class="settings-rate-note">分子：面談実施数 / 分母：アポイント数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="teleapoShowRateTarget" />
@@ -213,25 +238,20 @@
                 </div>
               </label>
               <label class="settings-rate-field">
-                <span>通電率</span>
+                <span>着座率（分母：接触数）</span>
+                <p class="settings-rate-note">分子：面談実施数 / 分母：接触数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="teleapoConnectRateTarget" />
+                    data-rate-key="teleapoShowRateTargetWithContact" />
                   <span class="settings-rate-unit">%</span>
                 </div>
               </label>
-            </div>
-          </div>
-
-          <!-- 紹介先実績管理画面 -->
-          <div class="settings-rate-group">
-            <h5 class="settings-rate-group-title">紹介先実績管理画面</h5>
-            <div class="settings-rate-grid">
               <label class="settings-rate-field">
-                <span>定着率（返金発生期間）</span>
+                <span>通電率</span>
+                <p class="settings-rate-note">分子：通電数 / 分母：架電数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="referralRetentionRateTarget" />
+                    data-rate-key="teleapoConnectRateTarget" />
                   <span class="settings-rate-unit">%</span>
                 </div>
               </label>

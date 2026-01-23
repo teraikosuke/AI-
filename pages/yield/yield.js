@@ -27,7 +27,10 @@ const RATE_CALC_MODE_STORAGE_KEY = 'yieldRateCalcMode.v1';
 
 async function fetchJson(url, params = {}) {
   const query = new URLSearchParams(params);
-  const res = await fetch(`${url}?${query.toString()}`, { headers: { Accept: 'application/json' } });
+  const res = await fetch(`${url}?${query.toString()}`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store'
+  });
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
@@ -181,6 +184,20 @@ function getCalcMode() {
   return normalizeCalcMode(state?.calcMode || DEFAULT_CALC_MODE);
 }
 
+function getCalcModeLabel(mode = getCalcMode()) {
+  return normalizeCalcMode(mode) === 'cohort' ? '応募時期優先' : 'リアルタイム優先';
+}
+
+function buildCalcModeParams() {
+  const mode = getCalcMode();
+  const basis = mode === 'cohort' ? 'application' : 'event';
+  return {
+    calcMode: mode,
+    countBasis: basis,
+    timeBasis: basis
+  };
+}
+
 function normalizeRateCalcMode(value) {
   return String(value || '').toLowerCase() === 'step' ? 'step' : 'base';
 }
@@ -281,7 +298,7 @@ async function fetchPersonalKpiFromApi({ startDate, endDate, planned = false }) 
     advisorUserId,
     granularity: 'summary',
     groupBy: 'none',
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   };
   if (planned) params.planned = '1';
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
@@ -295,7 +312,7 @@ async function fetchCompanyKpiFromApi({ startDate, endDate }) {
     scope: 'company',
     granularity: 'summary',
     groupBy: 'none',
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   });
   return json?.items?.[0]?.kpi || null;
 }
@@ -309,7 +326,7 @@ async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
     scope: 'company',
     granularity: 'day',
     groupBy: 'advisor',
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   };
   console.log('[yield] fetch daily kpi', params);
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
@@ -334,7 +351,7 @@ async function fetchYieldTrendFromApi({ startDate, endDate, scope, advisorUserId
     to: endDate,
     scope,
     granularity,
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   };
   if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
     params.advisorUserId = advisorUserId;
@@ -353,7 +370,7 @@ async function fetchYieldBreakdownFromApi({ startDate, endDate, scope, advisorUs
     to: endDate,
     scope,
     dimension,
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   };
   if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
     params.advisorUserId = advisorUserId;
@@ -373,7 +390,7 @@ async function fetchCompanyEmployeeKpis({ startDate, endDate }) {
     scope: 'company',
     granularity: 'summary',
     groupBy: 'advisor',
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   });
   const items = Array.isArray(json?.items) ? json.items : [];
   return mergeMembersWithKpiItems(items);
@@ -388,7 +405,7 @@ async function fetchCompanyEmployeePlannedKpis({ baseDate }) {
     granularity: 'summary',
     groupBy: 'advisor',
     planned: '1',
-    calcMode: getCalcMode()
+    ...buildCalcModeParams()
   });
   const items = Array.isArray(json?.items) ? json.items : [];
   return mergeMembersWithKpiItems(items);
@@ -458,7 +475,7 @@ async function ensureDailyYieldData(periodId) {
   const period = state.evaluationPeriods.find(item => item.id === periodId);
   if (!period) return null;
   const advisorUserId = resolveAdvisorUserId();
-  const cacheKey = `${periodId}:${advisorUserId || 'none'}`;
+  const cacheKey = `${periodId}:${advisorUserId || 'none'}:${getCalcMode()}`;
   if (dailyYieldCache.has(cacheKey)) return dailyYieldCache.get(cacheKey);
   try {
     const payload = await fetchDailyYieldFromApi({
@@ -1135,6 +1152,18 @@ function isoDate(date) {
   return date.toISOString().split('T')[0];
 }
 
+function formatPeriodMonthLabel(period) {
+  if (!period) return '';
+  if (period.startDate) {
+    const [year, month] = String(period.startDate).split('-');
+    if (year && month) return `${year}年${month}月`;
+  }
+  const id = String(period.id || '');
+  const match = id.match(/^(\d{4})-(\d{2})/);
+  if (match) return `${match[1]}年${match[2]}月`;
+  return period.label || id || '';
+}
+
 function safe(name, fn) {
   try {
     return fn();
@@ -1216,7 +1245,9 @@ function seedMonthlyGoalsFromSettings() {
 
 function seedTodayGoalsFromSettings() {
   const todayStr = isoDate(new Date());
-  const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(todayStr) || state.personalEvaluationPeriodId;
+  const todayPeriodId =
+    goalSettingsService.resolvePeriodIdByDate(todayStr, state.evaluationPeriods) ||
+    state.personalEvaluationPeriodId;
   const dailyTargets = todayPeriodId
     ? goalSettingsService.getPersonalDailyTargets(todayPeriodId, getAdvisorName())
     : {};
@@ -1262,6 +1293,9 @@ function initializeCalcModeControls() {
       const next = normalizeCalcMode(select.value);
       if (next === state.calcMode) return;
       state.calcMode = next;
+      dailyYieldCache.clear();
+      state.personalDailyData = {};
+      state.companyDailyData = {};
       selects.forEach(other => {
         if (other !== select) other.value = next;
       });
@@ -1622,7 +1656,9 @@ function renderDeltaBadges(section, data, diffOverrides = {}, { includeRates = f
 function computeTodayDiffsFromDaily() {
   const todayStr = isoDate(new Date());
   const periodId =
-    goalSettingsService.resolvePeriodIdByDate(todayStr) || state.personalDailyPeriodId || state.personalEvaluationPeriodId;
+    goalSettingsService.resolvePeriodIdByDate(todayStr, state.evaluationPeriods) ||
+    state.personalDailyPeriodId ||
+    state.personalEvaluationPeriodId;
   if (!periodId) return {};
   const periodData = state.personalDailyData[periodId];
   if (!periodData) return {};
@@ -1725,6 +1761,7 @@ function renderPersonalKpis(todayData, summaryData, periodData) {
 
   renderPersonalSummary(monthly, monthly);
   updatePersonalPeriodLabels();
+  syncEvaluationPeriodLabels();
 }
 
 function renderCompanyMonthly(data) {
@@ -2370,6 +2407,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       return { actual: actual[field.dataKey], target: expected };
     }
   });
+  if (labelEl) labelEl.textContent = `評価期間：${formatPeriodMonthLabel(period) || '--'}`;
 }
 
 async function loadAndRenderCompanyDaily() {
@@ -2432,6 +2470,7 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
       return { actual: actual[field.dataKey], target: expected };
     }
   });
+  if (labelEl) labelEl.textContent = `評価期間：${formatPeriodMonthLabel(period) || '--'}`;
 }
 
 function getMsMetricOption(metricKey) {
@@ -3785,7 +3824,7 @@ function writeRateDetailInline(cardEl, labelA, valA, labelB, valB) {
       }
     }
   }
-  const modeLabel = getCalcMode() === 'cohort' ? 'コホート' : '';
+  const modeLabel = getCalcModeLabel();
   const prefix = modeLabel ? `${modeLabel} ` : '';
   subtext.textContent = `${prefix}${labelA} ${num(valA)} / ${labelB} ${num(valB)}`;
 }
@@ -3823,13 +3862,12 @@ function initializeEvaluationPeriods() {
 }
 
 function loadEvaluationPeriods() {
-  const periods = goalSettingsService.getEvaluationPeriods();
-  state.evaluationPeriods = Array.isArray(periods) ? periods : [];
-  if (!state.evaluationPeriods.length) {
-    state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(goalSettingsService.getEvaluationRule());
-    goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
-  }
-  const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(isoDate(new Date()));
+  state.evaluationPeriods = goalSettingsService.generateDefaultPeriods({ type: 'monthly' });
+  goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
+  const todayPeriodId = goalSettingsService.resolvePeriodIdByDate(
+    isoDate(new Date()),
+    state.evaluationPeriods
+  );
   const first = state.evaluationPeriods[0];
   const hasPersonal = state.evaluationPeriods.some(period => period.id === state.personalEvaluationPeriodId);
   const hasCompany = state.evaluationPeriods.some(period => period.id === state.companyEvaluationPeriodId);
@@ -3850,7 +3888,7 @@ function loadEvaluationPeriods() {
 
 function renderEvaluationSelectors() {
   const options = state.evaluationPeriods
-    .map(period => `<option value="${period.id}">${goalSettingsService.formatPeriodLabel(period)}</option>`)
+    .map(period => `<option value="${period.id}">${formatPeriodMonthLabel(period)}</option>`)
     .join('');
   const personalSelect = document.getElementById('personalEvaluationPeriodSelect');
   const companySelect = document.getElementById('companyEvaluationPeriodSelect');
@@ -3888,6 +3926,7 @@ function renderEvaluationSelectors() {
     companyDailyEmployeeSelect.value = state.companyDailyEmployeeId;
   }
   updatePersonalPeriodLabels();
+  syncEvaluationPeriodLabels();
 }
 
 function renderCompanyDailyEmployeeOptions() {
@@ -3965,6 +4004,7 @@ function applyPersonalEvaluationPeriod(shouldReload = true) {
   refreshAchievements('today');
   refreshAchievements('monthly');
   updatePersonalPeriodLabels();
+  syncEvaluationPeriodLabels();
   if (shouldReload) {
     loadYieldData();
     loadAndRenderPersonalDaily();
@@ -3990,6 +4030,22 @@ function updatePersonalPeriodLabels() {
     }
   } else {
     if (dailyLabel) dailyLabel.textContent = '評価期間：--';
+  }
+}
+
+function syncEvaluationPeriodLabels() {
+  const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
+  const dailyPeriod = state.evaluationPeriods.find(item => item.id === state.personalDailyPeriodId);
+  const titleEl = document.getElementById('personalSummaryTitle');
+  const dailyLabel = document.getElementById('personalDailyPeriodLabel');
+  const labelText = formatPeriodMonthLabel(period);
+  if (titleEl) {
+    titleEl.textContent = labelText ? `${labelText}の実績サマリー` : '今月の実績サマリー';
+  }
+  if (dailyLabel) {
+    dailyLabel.textContent = dailyPeriod
+      ? `評価期間：${formatPeriodMonthLabel(dailyPeriod) || '--'}`
+      : '評価期間：--';
   }
 }
 

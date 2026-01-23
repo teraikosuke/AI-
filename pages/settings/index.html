@@ -1,71 +1,7 @@
 <div class="section-shell space-y-6" id="settingsPage">
-  <div class="settings-card">
-    <div class="settings-card-header">
-      <div>
-        <h3>kintone連携設定</h3>
-        <p class="text-sm text-slate-500">
-          kintone 候補者アプリの接続情報を入力すると、ATS からレコードを取得できます。
-        </p>
-      </div>
-      <div class="settings-header-meta">
-        <span class="text-xs text-slate-500"
-          >最終更新: <span id="kintoneSettingsUpdatedAt">-</span></span
-        >
-        <button
-          id="kintoneTestButton"
-          type="button"
-          class="settings-btn subtle"
-        >
-          接続テスト
-        </button>
-      </div>
-    </div>
-    <form id="kintoneSettingsForm" class="settings-form">
-      <div class="settings-form-grid">
-        <label class="settings-field">
-          <span>サブドメイン</span>
-          <input
-            type="text"
-            id="kintoneSubdomain"
-            name="kintoneSubdomain"
-            class="settings-input"
-            placeholder="例: example"
-            required
-          />
-          <small>https://<strong>サブドメイン</strong>.cybozu.com の「サブドメイン」部分です。</small>
-        </label>
-        <label class="settings-field">
-          <span>アプリID</span>
-          <input
-            type="text"
-            id="kintoneAppId"
-            name="kintoneAppId"
-            class="settings-input"
-            placeholder="例: 123"
-            required
-          />
-          <small>kintone 候補者アプリの URL に表示される ID (app=xxx)。</small>
-        </label>
-        <label class="settings-field full">
-          <span>APIトークン</span>
-          <input
-            type="password"
-            id="kintoneApiToken"
-            name="kintoneApiToken"
-            class="settings-input"
-            placeholder="kintone の API トークン"
-          />
-          <small>読み取り権限を付与した API トークンを入力してください。</small>
-        </label>
-      </div>
-      <div class="settings-form-footer">
-        <p id="kintoneSettingsStatus" class="text-sm text-slate-500"></p>
-        <div class="flex items-center gap-2">
-          <button type="submit" class="settings-btn primary">保存</button>
-        </div>
-      </div>
-    </form>
-  </div>
+
+  <!-- Removed Kintone Settings Card -->
+
   <div class="settings-card">
     <div class="settings-card-header">
       <div>
@@ -75,14 +11,8 @@
         </p>
       </div>
       <div class="settings-header-meta">
-        <span class="text-xs text-slate-500"
-          >最終更新: <span id="screeningRulesUpdatedAt">-</span></span
-        >
-        <button
-          id="screeningRulesEditToggle"
-          type="button"
-          class="settings-btn subtle"
-        >
+        <span class="text-xs text-slate-500">最終更新: <span id="screeningRulesUpdatedAt">-</span></span>
+        <button id="screeningRulesEditToggle" type="button" class="settings-btn subtle">
           編集
         </button>
       </div>
@@ -97,21 +27,10 @@
         <label class="settings-field">
           <span>年齢 下限</span>
           <div class="settings-inline-row">
-            <input
-              type="number"
-              id="screeningMinAge"
-              name="screeningMinAge"
-              class="settings-input"
-              placeholder="例: 20"
-              min="0"
-              data-screening-field
-            />
+            <input type="number" id="screeningMinAge" name="screeningMinAge" class="settings-input" placeholder="例: 20"
+              min="0" data-screening-field />
             <label class="settings-inline-toggle">
-              <input
-                type="checkbox"
-                id="screeningMinAgeUnlimited"
-                data-screening-field
-              />
+              <input type="checkbox" id="screeningMinAgeUnlimited" data-screening-field />
               <span>制限なし</span>
             </label>
           </div>
@@ -119,35 +38,18 @@
         <label class="settings-field">
           <span>年齢 上限</span>
           <div class="settings-inline-row">
-            <input
-              type="number"
-              id="screeningMaxAge"
-              name="screeningMaxAge"
-              class="settings-input"
-              placeholder="例: 45"
-              min="0"
-              data-screening-field
-            />
+            <input type="number" id="screeningMaxAge" name="screeningMaxAge" class="settings-input" placeholder="例: 45"
+              min="0" data-screening-field />
             <label class="settings-inline-toggle">
-              <input
-                type="checkbox"
-                id="screeningMaxAgeUnlimited"
-                data-screening-field
-              />
+              <input type="checkbox" id="screeningMaxAgeUnlimited" data-screening-field />
               <span>制限なし</span>
             </label>
           </div>
         </label>
         <label class="settings-field full">
           <span>対象国籍（カンマ区切り）</span>
-          <input
-            type="text"
-            id="screeningNationalities"
-            name="screeningNationalities"
-            class="settings-input"
-            placeholder="例: 日本, ベトナム, 中国"
-            data-screening-field
-          />
+          <input type="text" id="screeningNationalities" name="screeningNationalities" class="settings-input"
+            placeholder="例: 日本, ベトナム, 中国" data-screening-field />
           <small>
             未入力の場合は国籍による制限なし。日本国籍は言語レベル不問で有効応募として扱う想定です。
           </small>
