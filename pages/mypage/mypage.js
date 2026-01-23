@@ -1,5 +1,7 @@
 import { getSession } from '../../scripts/auth.js';
 import { authRepo } from '../../scripts/api/repositories/auth.js';
+import { mount as mountYield } from '../yield/yield.js?v=20260322_01';
+import { mount as mountGoalSettings } from '../goal-settings/goal-settings.js';
 
 const MYPAGE_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const MYPAGE_PATH = '/mypage';

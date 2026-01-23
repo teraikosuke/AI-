@@ -6,7 +6,7 @@
       <h3 class="kpi-v2-title">自分の実績サマリー</h3>
     </div>
     <div class="kpi-tab-group" data-kpi-tab-group="personal">
-      <button type="button" class="kpi-tab is-active" data-kpi-tab="personal-metrics">選考転換率</button>
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="personal-metrics">KPI</button>
       <button type="button" class="kpi-tab" data-kpi-tab="personal-graphs">推移グラフ</button>
       <button type="button" class="kpi-tab" data-kpi-tab="personal-daily">日別実績一覧</button>
     </div>
@@ -62,6 +62,11 @@
                 <option value="cohort">コホート（期間内スタート）</option>
                 <option value="period">期間内イベント</option>
               </select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>率の計算</span>
+              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle aria-pressed="false">設定変更</button>
+              <span class="kpi-v2-inline-hint" data-rate-mode-label>新規面談数を分母</span>
             </label>
           </div>
         </div>
@@ -332,9 +337,9 @@
         <p class="kpi-v2-note">※括弧内は前月からの繰越件数です。</p>
       </div>
 
-      <!-- 期間別の選考転換率 -->
+      <!-- 期間別のKPI -->
       <div class="kpi-v2-subsection">
-        <h4 class="kpi-v2-subtitle">期間別の選考転換率</h4>
+        <h4 class="kpi-v2-subtitle">期間別のKPI</h4>
         <div class="kpi-v2-header">
           <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
           <div class="kpi-v2-range-picker">
@@ -440,12 +445,12 @@
             <div class="dashboard-card" data-chart-card="personalTrend">
               <div class="dashboard-card-header">
                 <div>
-                  <p class="dashboard-card-title">選考転換率推移</p>
+                  <p class="dashboard-card-title">KPI推移</p>
                   <p class="dashboard-card-subtext">1ヶ月/1年の切り替えが可能です</p>
                 </div>
               </div>
               <div class="dashboard-chart">
-                <canvas id="personalTrendChart" aria-label="個人選考転換率推移"></canvas>
+                <canvas id="personalTrendChart" aria-label="個人KPI推移"></canvas>
               </div>
             </div>
 
@@ -522,10 +527,10 @@
       <h3 class="kpi-v2-title">全社KPIサマリー</h3>
     </div>
     <div class="kpi-tab-group" data-kpi-tab-group="company">
-      <button type="button" class="kpi-tab is-active" data-kpi-tab="company-metrics">選考転換率</button>
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="company-metrics">KPI</button>
       <button type="button" class="kpi-tab" data-kpi-tab="company-graphs">推移グラフ</button>
       <button type="button" class="kpi-tab" data-kpi-tab="company-daily">日別成績一覧</button>
-      <button type="button" class="kpi-tab" data-kpi-tab="company-period">期間別の選考転換率</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-period">期間別のKPI</button>
       <button type="button" class="kpi-tab" data-kpi-tab="company-ms">MS</button>
     </div>
     <div class="kpi-tab-panel" data-kpi-tab-panel="company-metrics">
@@ -545,6 +550,11 @@
                 <option value="cohort">コホート（期間内スタート）</option>
                 <option value="period">期間内イベント</option>
               </select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>率の計算</span>
+              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle aria-pressed="false">設定変更</button>
+              <span class="kpi-v2-inline-hint" data-rate-mode-label>新規面談数を分母</span>
             </label>
           </div>
         </div>
@@ -954,12 +964,12 @@
             <div class="dashboard-card" data-chart-card="companyTrend">
               <div class="dashboard-card-header">
                 <div>
-                  <p class="dashboard-card-title">全社選考転換率推移</p>
+                  <p class="dashboard-card-title">全社KPI推移</p>
                   <p class="dashboard-card-subtext">期間ベースのモックチャート</p>
                 </div>
               </div>
               <div class="dashboard-chart">
-                <canvas id="companyTrendChart" aria-label="社内選考転換率推移"></canvas>
+                <canvas id="companyTrendChart" aria-label="社内KPI推移"></canvas>
               </div>
             </div>
 
@@ -1016,7 +1026,7 @@
 
     </div>
 
-    <!-- 期間別の選考転換率（全社） -->
+    <!-- 期間別のKPI（全社） -->
     <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-period">
       <!-- <div class="kpi-v2-subsection">
         <h4 class="kpi-v2-subtitle">本日の活動状況</h4>

@@ -2104,6 +2104,11 @@ function renderCompanyDetail() {
       <div class="flex items-start justify-between gap-4">
         <div class="flex-1 min-w-0">
           <h2 class="text-2xl font-bold text-indigo-900">${company.company}</h2>
+          <div class="mt-1 text-xs text-slate-500">
+            担当者: <span class="font-semibold text-slate-600">${contactNameDisplay}</span>
+            <span class="mx-1 text-slate-300">/</span>
+            ${contactEmailHtml}
+          </div>
         </div>
         <button
           id="closeCompanyDetail"
@@ -2117,12 +2122,6 @@ function renderCompanyDetail() {
 
       <!-- 基本情報 -->
       <div class="space-y-2">
-        <!-- 担当者など -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200 w-fit">👤 ${contactNameDisplay}</span>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 w-fit">✉️ ${contactEmailHtml}</span>
-        </div>
-        
         <!-- 業種・所在地 -->
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs">🏢 ${company.industry}</span>
@@ -2782,8 +2781,10 @@ function buildClientProfilePayload(company, overrides = {}) {
 }
 
 async function saveClientProfile(payload) {
+  // Lambda側で ID の有無を見て 新規/更新 を判断するため
+  // メソッドは常に 'POST' を使用します
   const res = await fetch(CLIENTS_PROFILE_API_URL, {
-    method: 'PUT',
+    method: 'POST', // ★ PUT から POST に変更
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(payload)
   });

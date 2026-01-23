@@ -97,6 +97,29 @@
   -webkit-appearance: none;
 }
 
+[data-kpi="v2"] .kpi-v2-inline-toggle {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  background: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+[data-kpi="v2"] .kpi-v2-inline-toggle[aria-pressed="true"] {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #3730a3;
+}
+
+[data-kpi="v2"] .kpi-v2-inline-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 [data-kpi="v2"] .kpi-v2-inline-select.readonly {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -1529,4 +1552,54 @@
 
 .ms-save-button:active {
   transform: translateY(0);
+}
+
+/* MSテーブル Stickyカラム設定 */
+.kpi-v2-ms-table .kpi-v2-sticky-label {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background-color: #fff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.kpi-v2-ms-table thead .kpi-v2-sticky-label {
+  z-index: 20;
+  background-color: #f8fafc;
+}
+
+.kpi-v2-ms-table th:nth-child(1),
+.kpi-v2-ms-table td:nth-child(1) {
+  min-width: 140px;
+  max-width: 140px;
+  width: 140px;
+}
+
+.kpi-v2-ms-table .kpi-v2-ms-metric {
+  left: 140px;
+  min-width: 110px;
+  max-width: 110px;
+  width: 110px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.kpi-v2-ms-table td,
+.kpi-v2-ms-table th {
+  position: relative;
+  z-index: 1;
+}
+
+.personal-ms-metric-select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0.25rem;
+  font-size: 0.75rem;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.personal-ms-metric-select:focus {
+  border-color: #3b82f6;
+  outline: none;
 }

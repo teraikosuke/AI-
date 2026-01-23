@@ -19,13 +19,49 @@ const MEMBERS_LIST_PATH = '/members';
 const KPI_YIELD_PATH = '/yield';
 const KPI_YIELD_TREND_PATH = '/yield/trend';
 const KPI_YIELD_BREAKDOWN_PATH = '/yield/breakdown';
+const KPI_TARGETS_PATH = '/kpi-targets';
 const DEFAULT_ADVISOR_USER_ID = 30;
 const DEFAULT_CALC_MODE = 'cohort';
+const DEFAULT_RATE_CALC_MODE = 'base';
+const RATE_CALC_MODE_STORAGE_KEY = 'yieldRateCalcMode.v1';
 
 async function fetchJson(url, params = {}) {
   const query = new URLSearchParams(params);
   const res = await fetch(`${url}?${query.toString()}`, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+async function fetchKpiTargetsFromApi(period) {
+  try {
+    const session = getSession();
+    const headers = { Accept: 'application/json' };
+    if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+    const res = await fetch(`${MEMBERS_API_BASE}${KPI_TARGETS_PATH}?period=${period}`, { headers });
+    if (res.status === 404) return {};
+    if (!res.ok) throw new Error(`kpi targets error ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('[yield] fetchKpiTargets failed', err);
+    return {};
+  }
+}
+
+async function saveKpiTargetsToApi(period, targets) {
+  const session = getSession();
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json'
+  };
+  if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+
+  const payload = { period, targets };
+  const res = await fetch(`${MEMBERS_API_BASE}${KPI_TARGETS_PATH}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(`save kpi targets error ${res.status}`);
   return res.json();
 }
 
@@ -36,14 +72,27 @@ function normalizeMembers(payload) {
   const raw = Array.isArray(payload)
     ? payload
     : (payload?.items || payload?.members || payload?.users || []);
-  if (!Array.isArray(raw)) return [];
-  return raw
+
+  if (!Array.isArray(raw)) {
+    console.warn('[DEBUG] normalizeMembers: raw payload is not an array', payload);
+    return [];
+  }
+
+  const normalized = raw
     .map(member => ({
       id: member.id ?? member.user_id ?? member.userId,
       name: member.name || member.fullName || member.displayName || '',
-      role: member.role || (member.is_admin ? 'admin' : 'member')
+      role: member.role || (member.is_admin ? 'admin' : 'member'),
+      raw: member // for debugging
     }))
-    .filter(member => Number.isFinite(Number(member.id)));
+    .filter(member => member.id != null && member.id !== '');
+
+  console.log('[DEBUG] normalizeMembers input count:', raw.length);
+  console.log('[DEBUG] normalizeMembers output count:', normalized.length);
+  if (raw.length > 0 && normalized.length === 0) {
+    console.warn('[DEBUG] All members were filtered out! Sample raw member:', raw[0]);
+  }
+  return normalized;
 }
 
 async function ensureMembersList({ force = false } = {}) {
@@ -79,6 +128,26 @@ function isAdvisorRole(role) {
   return String(role || '').toLowerCase().includes('advisor');
 }
 
+// 部門別指標定義
+const MS_MARKETING_METRICS = [
+  { key: 'valid_applications', label: '有効応募数', targetKey: 'validApplications' }
+];
+
+const MS_CS_METRICS = [
+  { key: 'appointments', label: '設定数', targetKey: 'appointments' },
+  { key: 'sitting', label: '着座数', targetKey: 'sitting' }
+];
+
+const MS_SALES_METRICS = [
+  { key: 'new_interviews', label: '新規面談数', targetKey: 'newInterviews' },
+  { key: 'proposals', label: '提案数', targetKey: 'proposals' },
+  { key: 'recommendations', label: '推薦数', targetKey: 'recommendations' },
+  { key: 'interview_settings', label: '面接設定数', targetKey: 'interviewSettings' },
+  { key: 'interview_executions', label: '面接実施数', targetKey: 'interviewExecutions' },
+  { key: 'offers', label: '内定数', targetKey: 'offers' },
+  { key: 'acceptances', label: '承諾数', targetKey: 'acceptances' }
+];
+
 // 部門判定関数
 function getDepartmentFromRole(role) {
   const r = String(role || '').toLowerCase();
@@ -86,17 +155,22 @@ function getDepartmentFromRole(role) {
   // CS は caller
   if (r.includes('caller')) return 'cs';
 
-  // 営業 は advisor
-  if (r.includes('advisor')) return 'sales';
+  // 営業 は advisor または sales
+  if (r.includes('advisor') || r.includes('sales')) return 'sales';
 
-  // マーケ は admin (適当なroleとして設定)
-  if (r.includes('admin') || r.includes('marketing')) return 'marketing';
+  // マーケ は marketer, marketing, admin
+  if (r.includes('marketer') || r.includes('marketing') || r.includes('admin')) return 'marketing';
 
-  return null;
+  // それ以外は暫定的にすべて営業（sales）として扱う（メンバーが表示されない問題を回避するため）
+  return 'sales';
 }
 
 function getMembersByDepartment(members, deptKey) {
-  return (members || []).filter(m => getDepartmentFromRole(m.role) === deptKey);
+  const result = (members || []).filter(m => getDepartmentFromRole(m.role) === deptKey);
+  if (result.length === 0 && members && members.length > 0) {
+    console.warn(`[DEBUG] No members found for ${deptKey}. Sample roles:`, members.slice(0, 5).map(m => `${m.name}:${m.role}`));
+  }
+  return result;
 }
 
 function normalizeCalcMode(value) {
@@ -105,6 +179,18 @@ function normalizeCalcMode(value) {
 
 function getCalcMode() {
   return normalizeCalcMode(state?.calcMode || DEFAULT_CALC_MODE);
+}
+
+function normalizeRateCalcMode(value) {
+  return String(value || '').toLowerCase() === 'step' ? 'step' : 'base';
+}
+
+function getRateCalcMode() {
+  return normalizeRateCalcMode(state?.rateCalcMode || DEFAULT_RATE_CALC_MODE);
+}
+
+function getRateCalcModeLabel(mode = getRateCalcMode()) {
+  return mode === 'step' ? '前段階を分母' : '新規面談数を分母';
 }
 
 async function mergeMembersWithDailyItems(items) {
@@ -331,6 +417,7 @@ function applyDailyYieldResponse(periodId, payload) {
   }
 
   const employees = Array.isArray(payload?.employees) ? payload.employees : [];
+  console.log('[DEBUG] applyDailyYieldResponse employees count:', employees.length, 'sample:', employees[0]);
   if (employees.length) {
     state.companyDailyEmployees = employees
       .map(emp => {
@@ -418,6 +505,41 @@ const TODAY_GOAL_KEY = 'todayGoals.v1';
 const MONTHLY_GOAL_KEY = 'monthlyGoals.v1';
 const goalCache = {};
 const RATE_KEYS = ['提案率', '推薦率', '面接設定率', '面接実施率', '内定率', '承諾率', '入社決定率'];
+const RATE_COUNT_LABELS = {
+  newInterviews: '新規面談数',
+  proposals: '提案数',
+  recommendations: '推薦数',
+  interviewsScheduled: '面接設定数',
+  interviewsHeld: '面接実施数',
+  offers: '内定数',
+  accepts: '承諾数',
+  hires: '入社数'
+};
+const RATE_CALC_STEPS = [
+  { rateKey: 'proposalRate', numerator: 'proposals', stepDenom: 'newInterviews' },
+  { rateKey: 'recommendationRate', numerator: 'recommendations', stepDenom: 'proposals' },
+  { rateKey: 'interviewScheduleRate', numerator: 'interviewsScheduled', stepDenom: 'recommendations' },
+  { rateKey: 'interviewHeldRate', numerator: 'interviewsHeld', stepDenom: 'interviewsScheduled' },
+  { rateKey: 'offerRate', numerator: 'offers', stepDenom: 'interviewsHeld' },
+  { rateKey: 'acceptRate', numerator: 'accepts', stepDenom: 'offers' },
+  { rateKey: 'hireRate', numerator: 'hires', stepDenom: 'accepts' }
+];
+
+function buildRateDetailPipeline(denomMode) {
+  const useStep = normalizeRateCalcMode(denomMode) === 'step';
+  return RATE_CALC_STEPS.map(step => {
+    const denomKey = useStep ? step.stepDenom : 'newInterviews';
+    return {
+      labelA: RATE_COUNT_LABELS[step.numerator] || step.numerator,
+      keyA: step.numerator,
+      labelB: RATE_COUNT_LABELS[denomKey] || denomKey,
+      keyB: denomKey
+    };
+  });
+}
+
+const RATE_DETAIL_PIPELINE_BASE = buildRateDetailPipeline('base');
+const RATE_DETAIL_PIPELINE_STEP = buildRateDetailPipeline('step');
 const DASHBOARD_YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2];
 const DASHBOARD_MONTHS = Array.from({ length: 12 }, (_, idx) => idx + 1);
 const DASHBOARD_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899'];
@@ -802,15 +924,9 @@ const GOAL_CONFIG = {
   }
 };
 
-const RATE_DETAIL_PIPELINE = [
-  { labelA: '提案数', keyA: 'proposals', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' },
-  { labelA: '推薦数', keyA: 'recommendations', labelB: '提案数', keyB: 'proposals', prevKey: 'prevProposals' },
-  { labelA: '面接設定数', keyA: 'interviewsScheduled', labelB: '推薦数', keyB: 'recommendations', prevKey: 'prevRecommendations' },
-  { labelA: '面接実施数', keyA: 'interviewsHeld', labelB: '面接設定数', keyB: 'interviewsScheduled', prevKey: 'prevInterviewsScheduled' },
-  { labelA: '内定数', keyA: 'offers', labelB: '面接実施数', keyB: 'interviewsHeld', prevKey: 'prevInterviewsHeld' },
-  { labelA: '承諾数', keyA: 'accepts', labelB: '内定数', keyB: 'offers', prevKey: 'prevOffers' },
-  { labelA: '入社数', keyA: 'hires', labelB: '新規面談数', keyB: 'newInterviews', prevKey: 'prevNewInterviews' }
-];
+function getRateDetailPipeline() {
+  return getRateCalcMode() === 'step' ? RATE_DETAIL_PIPELINE_STEP : RATE_DETAIL_PIPELINE_BASE;
+}
 
 const COHORT_NUMERATOR_MAP = {
   proposals: 'cohortProposals',
@@ -879,6 +995,8 @@ const state = {
   yieldScope: 'all',
   isAdmin: false,
   calcMode: DEFAULT_CALC_MODE,
+  rateCalcMode: DEFAULT_RATE_CALC_MODE,
+  kpiTargets: {}, // New field
   kpi: {
     today: {},
     monthly: {},
@@ -932,9 +1050,9 @@ const state = {
   },
   // 個人別MSデータ
   personalMs: {
-    marketing: { members: [], msTargets: {}, msActuals: {}, dates: [] },
-    cs: { members: [], msTargets: {}, msActuals: {}, dates: [] },
-    sales: { members: [], msTargets: {}, msActuals: {}, dates: [] }
+    marketing: { members: [], msTargets: {}, msActuals: {}, dates: [], metricKeys: {} },
+    cs: { members: [], msTargets: {}, msActuals: {}, dates: [], metricKeys: {} },
+    sales: { members: [], msTargets: {}, msActuals: {}, dates: [], metricKeys: {} }
   },
   companySales: {
     metricKeys: {},
@@ -973,8 +1091,9 @@ function isYieldScope(scope) {
 }
 
 function getCurrentMonthRange() {
-  const end = new Date();
-  const start = new Date(end.getFullYear(), end.getMonth(), 1);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   return {
     startDate: isoDate(start),
     endDate: isoDate(end)
@@ -1153,6 +1272,45 @@ function initializeCalcModeControls() {
   });
 }
 
+function updateRateModeLabels() {
+  const label = getRateCalcModeLabel();
+  document.querySelectorAll('[data-rate-mode-label]').forEach(el => {
+    el.textContent = label;
+  });
+  document.querySelectorAll('[data-rate-mode-toggle]').forEach(el => {
+    el.setAttribute('aria-pressed', getRateCalcMode() === 'step' ? 'true' : 'false');
+  });
+}
+
+function initializeRateModeControls() {
+  const toggles = Array.from(document.querySelectorAll('[data-rate-mode-toggle]'));
+  const labels = Array.from(document.querySelectorAll('[data-rate-mode-label]'));
+  if (!toggles.length && !labels.length) return;
+  let stored = null;
+  try {
+    stored = localStorage.getItem(RATE_CALC_MODE_STORAGE_KEY);
+  } catch (error) {
+    console.warn('[yield] rate calc mode storage unavailable', error);
+  }
+  state.rateCalcMode = normalizeRateCalcMode(stored || state.rateCalcMode || DEFAULT_RATE_CALC_MODE);
+  updateRateModeLabels();
+  toggles.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const next = getRateCalcMode() === 'step' ? 'base' : 'step';
+      state.rateCalcMode = next;
+      try {
+        localStorage.setItem(RATE_CALC_MODE_STORAGE_KEY, next);
+      } catch (error) {
+        console.warn('[yield] failed to persist rate calc mode', error);
+      }
+      updateRateModeLabels();
+      loadYieldData();
+      reloadDashboardData('personal');
+      reloadDashboardData('company');
+    });
+  });
+}
+
 export async function mount(root) {
   state.yieldScope = resolveYieldScope(root);
   syncAccessRole();
@@ -1172,25 +1330,24 @@ export async function mount(root) {
   safe('initializeKpiTabs', initializeKpiTabs);
   safe('initializeEvaluationPeriods', initializeEvaluationPeriods);
   safe('initializeCalcModeControls', initializeCalcModeControls);
+  safe('initializeRateModeControls', initializeRateModeControls);
   safe('loadYieldData', loadYieldData);
 }
 
 export function unmount() { }
 
 function initializeDatePickers() {
-  const today = isoDate(new Date());
-  const thirtyDaysAgo = isoDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
-  const ninetyDaysAgo = isoDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
+  const monthRange = getCurrentMonthRange();
 
   const personalRangeStart = document.getElementById('personalRangeStart');
   const personalRangeEnd = document.getElementById('personalRangeEnd');
   const companyPeriodStart = document.getElementById('companyPeriodStart');
   const companyPeriodEnd = document.getElementById('companyPeriodEnd');
 
-  if (personalRangeStart) personalRangeStart.value = thirtyDaysAgo;
-  if (personalRangeEnd) personalRangeEnd.value = today;
-  if (companyPeriodStart) companyPeriodStart.value = ninetyDaysAgo;
-  if (companyPeriodEnd) companyPeriodEnd.value = today;
+  if (personalRangeStart) personalRangeStart.value = monthRange.startDate;
+  if (personalRangeEnd) personalRangeEnd.value = monthRange.endDate;
+  if (companyPeriodStart) companyPeriodStart.value = monthRange.startDate;
+  if (companyPeriodEnd) companyPeriodEnd.value = monthRange.endDate;
 
   state.ranges.personal = { startDate: personalRangeStart?.value, endDate: personalRangeEnd?.value };
   state.ranges.company = { startDate: companyPeriodStart?.value, endDate: companyPeriodEnd?.value };
@@ -1498,8 +1655,10 @@ function renderRateDetails(section, data) {
   const cardIds = RATE_CARD_IDS[section];
   if (!cardIds) return;
   const isCohort = getCalcMode() === 'cohort';
+  const pipeline = getRateDetailPipeline();
   cardIds.forEach((cardId, index) => {
-    const detail = RATE_DETAIL_PIPELINE[index];
+    const detail = pipeline[index];
+    if (!detail) return;
     const card = document.getElementById(cardId)?.closest('.kpi-v2-card');
     const numeratorKey = isCohort ? COHORT_NUMERATOR_MAP[detail.keyA] : null;
     const numeratorValue =
@@ -1575,6 +1734,7 @@ function renderCompanyMonthly(data) {
   renderRateDetails('companyMonthly', state.kpi.companyMonthly);
   renderDeltaBadges('companyMonthly', state.kpi.companyMonthly, {}, { includeRates: true });
   renderCompanyTargets();
+  renderCompanyRateGoals();
 }
 
 function renderCompanyPeriod(data) {
@@ -1627,6 +1787,90 @@ function renderCompanyGoalCards(target = {}, actuals = {}) {
   });
 }
 
+function renderCompanyRateGoals() {
+  const targets = state.kpiTargets || {};
+  const rateKeys = [
+    'proposalRate', 'recommendationRate', 'interviewScheduleRate',
+    'interviewHeldRate', 'offerRate', 'acceptRate', 'hireRate'
+  ];
+
+  rateKeys.forEach(key => {
+    // 目標値表示
+    const goalRef = `companyGoal-${key}`;
+    const el = document.querySelector(`[data-ref="${goalRef}"]`);
+    if (el) {
+      const val = targets[key];
+      const hasVal = val !== undefined && val !== null;
+      el.textContent = hasVal ? `${val}%` : '--';
+
+      // 編集機能
+      el.style.cursor = 'pointer';
+      el.style.textDecoration = 'underline dotted';
+      el.title = 'クリックして目標設定';
+      el.onclick = (e) => handleRateGoalClick(e, key, val);
+    }
+
+    // 達成率表示
+    const achvRef = `companyAchv-${key}`;
+    const achvEl = document.querySelector(`[data-ref="${achvRef}"]`);
+    if (achvEl) {
+      const actual = num(state.kpi.companyMonthly?.[key]);
+      const targetVal = num(targets[key]);
+      if (targetVal > 0) {
+        const rate = Math.round((actual / targetVal) * 100);
+        achvEl.textContent = `${rate}%`;
+        setCardAchievementProgress(achvEl, rate);
+      } else {
+        achvEl.textContent = '--%';
+        setCardAchievementProgress(achvEl, 0);
+      }
+    }
+  });
+}
+
+function handleRateGoalClick(e, key, currentVal) {
+  const el = e.target;
+  // input作成
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.value = currentVal !== undefined && currentVal !== null ? currentVal : '';
+  input.style.width = '60px';
+  input.style.fontSize = 'inherit';
+  input.style.textAlign = 'right';
+  input.onclick = (ev) => ev.stopPropagation(); // バブリング防止
+
+  const save = async () => {
+    const newVal = input.value.trim();
+    if (newVal === '') {
+      delete state.kpiTargets[key];
+    } else {
+      state.kpiTargets[key] = Number(newVal);
+    }
+
+    // 再描画
+    renderCompanyRateGoals();
+
+    // API保存
+    try {
+      await saveKpiTargetsToApi(state.companyEvaluationPeriodId, state.kpiTargets);
+    } catch (err) {
+      console.error('Save failed', err);
+      alert('目標の保存に失敗しました');
+    }
+  };
+
+  input.onblur = save;
+  input.onkeydown = (ev) => {
+    if (ev.key === 'Enter') {
+      input.blur();
+    }
+  };
+
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+}
+
 async function loadYieldData() {
   try {
     const wantsPersonal = isYieldScope('personal');
@@ -1637,6 +1881,11 @@ async function loadYieldData() {
     if (wantsCompany) {
       preloadTasks.push(
         goalSettingsService.loadCompanyPeriodTarget(state.companyEvaluationPeriodId, { force: true })
+      );
+      preloadTasks.push(
+        fetchKpiTargetsFromApi(state.companyEvaluationPeriodId).then(data => {
+          state.kpiTargets = data || {};
+        })
       );
     }
     if (wantsPersonal) {
@@ -1695,8 +1944,9 @@ async function loadYieldData() {
 
 async function loadPersonalKPIData() {
   try {
-    const startDate = state.ranges.personal.startDate || '2025-01-01';
-    const endDate = state.ranges.personal.endDate || isoDate(new Date());
+    const fallbackRange = getCurrentMonthRange();
+    const startDate = state.ranges.personal.startDate || fallbackRange.startDate;
+    const endDate = state.ranges.personal.endDate || fallbackRange.endDate;
     if (!startDate || !endDate) return null;
     const kpi = await fetchPersonalKpiFromApi({ startDate, endDate });
     if (kpi) return { period: kpi };
@@ -2188,6 +2438,28 @@ function getMsMetricOption(metricKey) {
   return MS_METRIC_OPTIONS.find(option => option.key === metricKey) || MS_METRIC_OPTIONS[0];
 }
 
+// 自動計算された実績値を取得
+function getAutoCalculatedActual(memberId, date, metricKey) {
+  // 部門別指標定義からtargetKeyを探す
+  const allMetrics = [...MS_MARKETING_METRICS, ...MS_CS_METRICS, ...MS_SALES_METRICS];
+  const metricDef = allMetrics.find(m => m.key === metricKey);
+  const dataKey = metricDef ? metricDef.targetKey : metricKey; // targetKey (e.g. newInterviews)
+
+  // APIデータはスネークケースの場合もあるので対応
+  const snakeKey = dataKey.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
+  const periodId = state.companyMsPeriodId;
+  const dailyData = state.companyDailyData[String(memberId)]?.[periodId]?.[date];
+
+  if (dailyData) {
+    // データがあれば返す。優先順位: camelCase -> snake_case
+    const val = dailyData[dataKey] ?? dailyData[snakeKey];
+    if (val !== undefined && Math.random() < 0.05) console.log(`[DEBUG] AutoCalc hit for ${memberId}/${date}/${metricKey}:`, { dataKey, snakeKey, val, dailyData });
+    return val !== undefined ? Number(val) : 0;
+  }
+  return 0;
+}
+
 function enumerateDateRange(startDate, endDate) {
   if (!startDate || !endDate) return [];
   const dates = [];
@@ -2468,14 +2740,29 @@ function renderCompanyMsTable() {
 
   buildCompanyMsHeaderRow(headerRow, dates);
 
-  const optionsHtml = MS_METRIC_OPTIONS.map(option => `<option value="${option.key}">${option.label}</option>`).join('');
+
   const rows = [];
 
   MS_DEPARTMENTS.forEach((dept, index) => {
     const isRevenue = dept.key === 'revenue';
-    const metricKey = state.companyMs.metricKeys?.[dept.key];
-    const metricOption = metricKey ? getMsMetricOption(metricKey) : null;
+    const deptMetrics = getMetricsForDept(dept.key);
+
+    // 現在選択中の指標（なければデフォルト）
+    let metricKey = state.companyMs.metricKeys?.[dept.key];
+    if (!metricKey && deptMetrics.length > 0) {
+      metricKey = deptMetrics[0].key;
+      // stateも更新しておく
+      if (!state.companyMs.metricKeys) state.companyMs.metricKeys = {};
+      state.companyMs.metricKeys[dept.key] = metricKey;
+    }
+
+    const metricOption = metricKey ? deptMetrics.find(m => m.key === metricKey) : null;
     const metricLabel = isRevenue ? '売上（万円）' : metricOption?.label || '';
+
+    // 指標セレクトボックスHTML
+    const optionsHtml = deptMetrics.map(option =>
+      `<option value="${option.key}" ${option.key === metricKey ? 'selected' : ''}>${option.label}</option>`
+    ).join('');
 
     // 指標セル（セレクトボックスまたはラベル）
     const metricCell = isRevenue
@@ -2597,43 +2884,73 @@ function renderCompanyMsTable() {
 
 // ==================== 個人別MSテーブル ====================
 
+// 部門キーから指標定義を取得
+function getMetricsForDept(deptKey) {
+  if (deptKey === 'marketing') return MS_MARKETING_METRICS;
+  if (deptKey === 'cs') return MS_CS_METRICS;
+  if (deptKey === 'sales') return MS_SALES_METRICS;
+  return [];
+}
+
+// 指標変更ハンドラ
+function handlePersonalMsMetricChange(event) {
+  const select = event.target;
+  const { dept, member } = select.dataset;
+  const value = select.value;
+
+  if (!state.personalMs[dept]) return;
+  if (!state.personalMs[dept].metricKeys) {
+    state.personalMs[dept].metricKeys = {};
+  }
+  state.personalMs[dept].metricKeys[member] = value;
+
+  // テーブル再レンダリング
+  renderPersonalMsTable(dept);
+}
+
 // 個人別MS目標入力ハンドラ
 function handlePersonalMsTargetInput(event) {
   const input = event.target;
-  const { dept, member, date } = input.dataset;
+  const { dept, member, date, metric } = input.dataset;
   const value = Number(input.value) || 0;
 
   if (!state.personalMs[dept]) return;
   if (!state.personalMs[dept].msTargets[member]) {
     state.personalMs[dept].msTargets[member] = {};
   }
-  state.personalMs[dept].msTargets[member][date] = value;
+  if (!state.personalMs[dept].msTargets[member][metric]) {
+    state.personalMs[dept].msTargets[member][metric] = {};
+  }
+  state.personalMs[dept].msTargets[member][metric][date] = value;
 
-  updatePersonalMsProgressRate(dept, member, date);
+  updatePersonalMsProgressRate(dept, member, date, metric);
 }
 
 // 個人別MS実績入力ハンドラ
 function handlePersonalMsActualInput(event) {
   const input = event.target;
-  const { dept, member, date } = input.dataset;
+  const { dept, member, date, metric } = input.dataset;
   const value = Number(input.value) || 0;
 
   if (!state.personalMs[dept]) return;
   if (!state.personalMs[dept].msActuals[member]) {
     state.personalMs[dept].msActuals[member] = {};
   }
-  state.personalMs[dept].msActuals[member][date] = value;
+  if (!state.personalMs[dept].msActuals[member][metric]) {
+    state.personalMs[dept].msActuals[member][metric] = {};
+  }
+  state.personalMs[dept].msActuals[member][metric][date] = value;
 
-  updatePersonalMsProgressRate(dept, member, date);
+  updatePersonalMsProgressRate(dept, member, date, metric);
 }
 
 // 個人別MS進捗率を更新
-function updatePersonalMsProgressRate(dept, memberId, date) {
-  const msValue = state.personalMs[dept]?.msTargets?.[memberId]?.[date] || 0;
-  const actualValue = state.personalMs[dept]?.msActuals?.[memberId]?.[date] || 0;
+function updatePersonalMsProgressRate(dept, memberId, date, metricKey) {
+  const msValue = state.personalMs[dept]?.msTargets?.[memberId]?.[metricKey]?.[date] || 0;
+  const actualValue = state.personalMs[dept]?.msActuals?.[memberId]?.[metricKey]?.[date] || 0;
 
   const rateCell = document.querySelector(
-    `[data-personal-progress-rate][data-dept="${dept}"][data-member="${memberId}"][data-date="${date}"]`
+    `[data-personal-progress-rate][data-dept="${dept}"][data-member="${memberId}"][data-date="${date}"][data-metric="${metricKey}"]`
   );
   if (!rateCell) return;
 
@@ -2667,10 +2984,12 @@ function renderPersonalMsTable(deptKey) {
 
   const dates = deptData.dates || [];
   const members = deptData.members || [];
+  const metrics = getMetricsForDept(deptKey);
+  const defaultMetricKey = metrics[0]?.key;
 
-  if (!dates.length || !members.length) {
+  if (!dates.length || !members.length || !metrics.length) {
     headerRow.innerHTML = '';
-    body.innerHTML = '<tr><td colspan="10" class="kpi-v2-empty">該当するメンバーがいません</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="kpi-v2-empty">該当するメンバーまたデータがありません</td></tr>';
     return;
   }
 
@@ -2686,6 +3005,7 @@ function renderPersonalMsTable(deptKey) {
 
   headerRow.innerHTML = `
     <th scope="col" class="kpi-v2-sticky-label" rowspan="2">メンバー</th>
+    <th scope="col" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="2">指標</th>
     <th scope="col" class="daily-type" rowspan="2">区分</th>
     ${dateCells}
   `;
@@ -2703,6 +3023,25 @@ function renderPersonalMsTable(deptKey) {
     const memberId = String(member.id);
     const memberName = member.name || `ID:${memberId}`;
 
+    // 現在選択されている指標（なければデフォルト）
+    const currentMetricKey = state.personalMs[deptKey].metricKeys?.[memberId] || defaultMetricKey;
+
+    // 指標セレクトボックスHTML
+    const metricOptionsHtml = metrics.map(m =>
+      `<option value="${m.key}" ${m.key === currentMetricKey ? 'selected' : ''}>${m.label}</option>`
+    ).join('');
+
+    // マーケは1つしかないので固定表示でもいいが、統一感のためdisabledなselectまたは単一optionにする
+    const metricCell = `
+      <th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="2">
+        <select class="kpi-v2-sort-select personal-ms-metric-select" 
+                data-dept="${deptKey}" 
+                data-member="${memberId}">
+          ${metricOptionsHtml}
+        </select>
+      </th>
+    `;
+
     // MS/進捗率行
     const msAndRateCells = dates.map(date => {
       const isDisabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
@@ -2712,8 +3051,11 @@ function renderPersonalMsTable(deptKey) {
         return `<td class="${disabledClass}"></td><td class="${disabledClass}"></td>`;
       }
 
-      const savedMs = state.personalMs[deptKey]?.msTargets?.[memberId]?.[date] ?? '';
-      const actualValue = state.personalMs[deptKey]?.msActuals?.[memberId]?.[date] || 0;
+      const savedMs = state.personalMs[deptKey]?.msTargets?.[memberId]?.[currentMetricKey]?.[date] ?? '';
+
+      const autoValue = getAutoCalculatedActual(memberId, date, currentMetricKey);
+      const savedActual = state.personalMs[deptKey]?.msActuals?.[memberId]?.[currentMetricKey]?.[date];
+      const actualValue = (savedActual !== undefined && savedActual !== '') ? Number(savedActual) : autoValue;
 
       let rateDisplay = '-';
       let rateClass = '';
@@ -2729,10 +3071,15 @@ function renderPersonalMsTable(deptKey) {
                  data-dept="${deptKey}" 
                  data-member="${memberId}" 
                  data-date="${date}"
+                 data-metric="${currentMetricKey}"
                  value="${savedMs}" 
                  min="0" />
         </td>
-        <td class="ms-rate-cell ${rateClass}" data-personal-progress-rate data-dept="${deptKey}" data-member="${memberId}" data-date="${date}">
+        <td class="ms-rate-cell ${rateClass}" data-personal-progress-rate 
+            data-dept="${deptKey}" 
+            data-member="${memberId}" 
+            data-date="${date}"
+            data-metric="${currentMetricKey}">
           ${rateDisplay}
         </td>
       `;
@@ -2747,7 +3094,9 @@ function renderPersonalMsTable(deptKey) {
         return `<td class="${disabledClass}" colspan="2"></td>`;
       }
 
-      const savedActual = state.personalMs[deptKey]?.msActuals?.[memberId]?.[date] ?? '';
+      const autoValue = getAutoCalculatedActual(memberId, date, currentMetricKey);
+      const savedActual = state.personalMs[deptKey]?.msActuals?.[memberId]?.[currentMetricKey]?.[date];
+      const displayValue = (savedActual !== undefined && savedActual !== '') ? savedActual : autoValue;
 
       return `
         <td class="ms-actual-cell" colspan="2">
@@ -2755,9 +3104,10 @@ function renderPersonalMsTable(deptKey) {
                  data-dept="${deptKey}" 
                  data-member="${memberId}" 
                  data-date="${date}"
-                 value="${savedActual}" 
+                 data-metric="${currentMetricKey}"
+                 value="${displayValue}" 
                  min="0" 
-                 placeholder="実績" />
+                 placeholder="${autoValue}" />
         </td>
       `;
     }).join('');
@@ -2767,6 +3117,7 @@ function renderPersonalMsTable(deptKey) {
     rows.push(`
       <tr class="${rowAlt}">
         <th scope="row" class="kpi-v2-sticky-label" rowspan="2">${memberName}</th>
+        ${metricCell}
         <td class="daily-type">MS/進捗率</td>
         ${msAndRateCells}
       </tr>
@@ -2782,6 +3133,12 @@ function renderPersonalMsTable(deptKey) {
   body.innerHTML = rows.join('');
 
   // イベントバインド
+  body.querySelectorAll('.personal-ms-metric-select').forEach(select => {
+    if (select.dataset.bound) return;
+    select.addEventListener('change', handlePersonalMsMetricChange);
+    select.dataset.bound = 'true';
+  });
+
   body.querySelectorAll('.personal-ms-target-input').forEach(input => {
     if (input.dataset.bound) return;
     input.addEventListener('change', handlePersonalMsTargetInput);
@@ -3080,6 +3437,47 @@ function normalizeCounts(src = {}) {
   };
 }
 
+function calcRate(numerator, denominator) {
+  const denom = num(denominator);
+  if (denom <= 0) return 0;
+  return Math.round((num(numerator) / denom) * 100);
+}
+
+function computeRateValues(counts = {}, mode = getRateCalcMode()) {
+  const normalizedMode = normalizeRateCalcMode(mode);
+  return RATE_CALC_STEPS.reduce((acc, step) => {
+    const denomKey = normalizedMode === 'step' ? step.stepDenom : 'newInterviews';
+    acc[step.rateKey] = calcRate(counts?.[step.numerator], counts?.[denomKey]);
+    return acc;
+  }, {});
+}
+
+function buildPrevCounts(prev = {}) {
+  return {
+    newInterviews: num(prev.prevNewInterviews),
+    proposals: num(prev.prevProposals),
+    recommendations: num(prev.prevRecommendations),
+    interviewsScheduled: num(prev.prevInterviewsScheduled),
+    interviewsHeld: num(prev.prevInterviewsHeld),
+    offers: num(prev.prevOffers),
+    accepts: num(prev.prevAccepts),
+    hires: num(prev.prevAccepts)
+  };
+}
+
+function computePrevRateValues(prevCounts = {}, mode = getRateCalcMode()) {
+  const rates = computeRateValues(prevCounts, mode);
+  return {
+    prevProposalRate: rates.proposalRate,
+    prevRecommendationRate: rates.recommendationRate,
+    prevInterviewScheduleRate: rates.interviewScheduleRate,
+    prevInterviewHeldRate: rates.interviewHeldRate,
+    prevOfferRate: rates.offerRate,
+    prevAcceptRate: rates.acceptRate,
+    prevHireRate: rates.hireRate
+  };
+}
+
 function normalizeRates(src = {}) {
   return {
     proposalRate: num(src.proposalRate),
@@ -3112,10 +3510,16 @@ function normalizePrev(src = {}) {
 }
 
 function normalizeKpi(src = {}) {
+  const counts = normalizeCounts(src);
+  const prev = normalizePrev(src);
+  const computedRates = computeRateValues(counts, getRateCalcMode());
+  const computedPrevRates = computePrevRateValues(buildPrevCounts(prev), getRateCalcMode());
   return {
-    ...normalizeCounts(src),
+    ...counts,
     ...normalizeRates(src),
-    ...normalizePrev(src)
+    ...computedRates,
+    ...prev,
+    ...computedPrevRates
   };
 }
 
