@@ -2534,14 +2534,14 @@ function attachContractInfoEditHandlers(company) {
       const feeDetails = document.getElementById('feeContractInput').value.trim();
       const contractNote = document.getElementById('contractNotesInput').value.trim();
 
-      const payload = buildClientProfilePayload(company, {
+      const payload = buildContractUpdatePayload(company, {
         warrantyPeriod: warrantyPeriod || null,
         feeDetails: feeDetails || null,
         contractNote: contractNote || null
       });
 
       try {
-        await saveClientProfile(payload);
+        await saveContractInfo(payload);
         applyClientProfileEdits(company.id, {
           warrantyPeriod: warrantyPeriod || null,
           feeDetails: feeDetails || null,
@@ -2611,13 +2611,13 @@ function attachContactInfoEditHandlers(company) {
       const contactName = document.getElementById('contactNameInput').value.trim();
       const contactEmail = document.getElementById('contactEmailInput').value.trim();
 
-      const payload = buildClientProfilePayload(company, {
+      const payload = buildContactUpdatePayload(company, {
         contactName: contactName || null,
         contactEmail: contactEmail || null
       });
 
       try {
-        await saveClientProfile(payload);
+        await saveContactInfo(payload);
         applyClientProfileEdits(company.id, {
           contactName: contactName || null,
           contactEmail: contactEmail || null,
@@ -2722,9 +2722,9 @@ function buildDetailUpdatePayload(companyId, edits) {
 
 
 
-async function saveReferralDetail(payload) {
+async function saveCompanyDetail(payload) {
 
-  const res = await fetch(CLIENTS_KPI_API_URL, {
+  const res = await fetch(CLIENTS_PROFILE_API_URL, {
 
     method: 'PUT',
 
@@ -2757,34 +2757,34 @@ function normalizeOptionalText(value) {
   return text;
 }
 
-function buildClientProfilePayload(company, overrides = {}) {
-  const baseName = company?.company || company?.name || '';
-  const payload = {
+function buildContactUpdatePayload(company, updates = {}) {
+  return {
     id: company?.id,
-    name: baseName,
-    companyName: baseName,
-    industry: normalizeOptionalText(company?.industry),
-    location: normalizeOptionalText(company?.location),
-    jobCategories: normalizeOptionalText(company?.jobCategories || company?.jobTitle),
-    plannedHiresCount: Number.isFinite(Number(company?.planHeadcount))
-      ? Number(company.planHeadcount)
-      : 0,
-    selectionNote: normalizeOptionalText(company?.selectionNote),
-    contactName: normalizeOptionalText(company?.contactName),
-    contactEmail: normalizeOptionalText(company?.contactEmail),
-    warrantyPeriod: normalizeOptionalText(company?.warrantyPeriod),
-    feeDetails: normalizeOptionalText(company?.feeDetails || company?.feeContract),
-    contractNote: normalizeOptionalText(company?.contractNote || company?.contractNotes)
+    contactName: normalizeOptionalText(updates.contactName),
+    contactEmail: normalizeOptionalText(updates.contactEmail)
   };
-
-  return { ...payload, ...overrides };
 }
 
-async function saveClientProfile(payload) {
-  // Lambda側で ID の有無を見て 新規/更新 を判断するため
-  // メソッドは常に 'POST' を使用します
+function buildContractUpdatePayload(company, updates = {}) {
+  return {
+    id: company?.id,
+    warrantyPeriod: updates.warrantyPeriod ?? null,
+    feeDetails: normalizeOptionalText(updates.feeDetails),
+    contractNote: normalizeOptionalText(updates.contractNote)
+  };
+}
+
+async function saveContactInfo(payload) {
+  return saveClientUpdate(payload);
+}
+
+async function saveContractInfo(payload) {
+  return saveClientUpdate(payload);
+}
+
+async function saveClientUpdate(payload) {
   const res = await fetch(CLIENTS_PROFILE_API_URL, {
-    method: 'POST', // ★ PUT から POST に変更
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(payload)
   });
@@ -2839,7 +2839,7 @@ async function handleDetailSave(company) {
 
   try {
 
-    await saveReferralDetail(payload);
+    await saveCompanyDetail(payload);
 
     applyDetailEdits(company, edits);
 
@@ -2939,6 +2939,14 @@ function initializeCreateForm() {
 
   document.getElementById('referralCreateReset')?.addEventListener('click', () => resetCreateForm(true));
 
+}
+
+function updateUI() {
+  renderTable();
+  renderCompanyDetail();
+  updatePaginationInfo();
+  updateFilterCount();
+  updateReferralSortIndicators();
 }
 
 
@@ -3649,13 +3657,13 @@ export async function mount(appElement) {
 
   try {
 
-    await loadReferralData();
-
-    await loadCandidateSummaries();
-
     initializeCreateForm();
 
     initReferralCandidateModal();
+
+    await loadReferralData();
+
+    await loadCandidateSummaries();
 
     updateUI();
 
