@@ -9,6 +9,8 @@ const TELEAPO_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws
 const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
+const SETTINGS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
 // Candidate detail URL (hash router + query)
 const CANDIDATE_ID_PARAM = 'candidateId';
 const TARGET_CANDIDATE_STORAGE_KEY = 'target_candidate_id';
@@ -30,6 +32,13 @@ let candidatePhoneToId = new Map();
 let candidateEmailToId = new Map();
 let candidateDetailCache = new Map();
 let candidateDetailRequests = new Map();
+let screeningRules = null;
+let screeningRulesLoaded = false;
+let screeningRulesLoading = false;
+let validApplicationDetailCache = new Map();
+let validApplicationQueue = [];
+let validApplicationQueueSet = new Set();
+let validApplicationQueueActive = false;
 let missingInfoQueue = [];
 let missingInfoQueueSet = new Set();
 let missingInfoQueueActive = false;
@@ -42,7 +51,10 @@ let contactTimeQueueSet = new Set();
 let contactTimeQueueActive = false;
 const CONTACT_TIME_FETCH_BATCH = 10;
 const CONTACT_TIME_FETCH_DELAY_MS = 200;
+const VALID_APPLICATION_FETCH_BATCH = 10;
+const VALID_APPLICATION_FETCH_DELAY_MS = 200;
 let candidateDetailRefreshTimer = null;
+let validApplicationRefreshTimer = null;
 let teleapoSummaryByCandidateId = new Map();
 let teleapoSummaryByName = new Map();
 let csTaskExpanded = false;
@@ -111,6 +123,14 @@ function scheduleCandidateDetailRefresh() {
     candidateDetailRefreshTimer = null;
     renderLogTable();
     renderCsTaskTable(teleapoCsTaskCandidates);
+  }, 200);
+}
+
+function scheduleValidApplicationRefresh() {
+  if (validApplicationRefreshTimer) return;
+  validApplicationRefreshTimer = window.setTimeout(() => {
+    validApplicationRefreshTimer = null;
+    rebuildCsTaskCandidates();
   }, 200);
 }
 
@@ -195,6 +215,45 @@ function prefetchContactTimeForLogs(logs) {
   logs.forEach((log) => {
     const resolvedId = resolveCandidateIdFromLog(log);
     if (resolvedId) enqueueContactTimeFetch(resolvedId);
+  });
+}
+
+function enqueueValidApplicationFetch(candidateId) {
+  if (!screeningRules) return;
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return;
+  if (validApplicationDetailCache.has(idNum)) return;
+  if (validApplicationQueueSet.has(idNum)) return;
+  if (candidateDetailRequests.has(idNum)) return;
+  validApplicationQueueSet.add(idNum);
+  validApplicationQueue.push(idNum);
+  if (!validApplicationQueueActive) processValidApplicationQueue();
+}
+
+function processValidApplicationQueue() {
+  if (!validApplicationQueue.length) {
+    validApplicationQueueActive = false;
+    return;
+  }
+  validApplicationQueueActive = true;
+  const batch = validApplicationQueue.splice(0, VALID_APPLICATION_FETCH_BATCH);
+  batch.forEach((idNum) => validApplicationQueueSet.delete(idNum));
+  Promise.all(batch.map((idNum) => fetchCandidateDetailInfo(idNum)))
+    .finally(() => {
+      setTimeout(processValidApplicationQueue, VALID_APPLICATION_FETCH_DELAY_MS);
+    });
+}
+
+function prefetchValidApplicationForCandidates(list) {
+  if (!screeningRules || !Array.isArray(list) || !list.length) return;
+  list.forEach((candidate) => {
+    const candidateId =
+      candidate?.candidateId ??
+      candidate?.candidate_id ??
+      candidate?.id ??
+      candidate?.candidateID ??
+      null;
+    enqueueValidApplicationFetch(candidateId);
   });
 }
 
@@ -403,7 +462,174 @@ function resolveCandidatePhaseDisplay(candidate) {
   return "未接触";
 }
 
+function parseRuleNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseListValue(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (value === null || value === undefined) return [];
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeScreeningRulesPayload(payload) {
+  const source = payload?.rules || payload?.item || payload?.data || payload || {};
+  const minAge = parseRuleNumber(source.minAge ?? source.min_age);
+  const maxAge = parseRuleNumber(source.maxAge ?? source.max_age);
+  const nationalitiesRaw =
+    source.targetNationalities ??
+    source.target_nationalities ??
+    source.allowedNationalities ??
+    source.allowed_nationalities ??
+    source.nationalities ??
+    "";
+  const allowedJlptRaw =
+    source.allowedJlptLevels ??
+    source.allowed_jlpt_levels ??
+    source.allowed_japanese_levels ??
+    [];
+  return {
+    minAge,
+    maxAge,
+    targetNationalitiesList: parseListValue(nationalitiesRaw),
+    allowedJlptLevels: parseListValue(allowedJlptRaw),
+  };
+}
+
+function normalizeNationality(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const normalized = text.toLowerCase();
+  if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
+    return "日本";
+  }
+  if (text === "日本国" || text === "日本国籍" || text === "日本人" || text === "日本国民") return "日本";
+  return text;
+}
+
+function isJapaneseNationality(value) {
+  return normalizeNationality(value) === "日本";
+}
+
+function hasValidApplicationInputs(candidate, rules) {
+  if (!candidate || !rules) return false;
+  const age = resolveCandidateAgeValue(candidate);
+  if (age === null) return false;
+  const nationality = normalizeNationality(candidate?.nationality ?? "");
+  if (!nationality) return false;
+  if (isJapaneseNationality(nationality)) return true;
+  const jlpt = String(candidate?.japaneseLevel ?? candidate?.japanese_level ?? "").trim();
+  return Boolean(jlpt);
+}
+
+function resolveCandidateAgeValue(candidate) {
+  const birthday =
+    candidate?.birthday ??
+    candidate?.birth_date ??
+    candidate?.birthDate ??
+    candidate?.birthdate ??
+    "";
+  const computed = calculateAgeFromBirthday(birthday);
+  if (computed !== null) return computed;
+  const direct = candidate?.age ?? candidate?.age_years ?? candidate?.ageYears;
+  if (direct !== null && direct !== undefined && direct !== "") {
+    const parsed = Number(direct);
+    if (Number.isFinite(parsed)) return parsed;
+    const match = String(direct).match(/\d+/);
+    if (match) {
+      const fromText = Number(match[0]);
+      if (Number.isFinite(fromText)) return fromText;
+    }
+  }
+  return null;
+}
+
+function computeValidApplication(candidate, rules) {
+  if (!candidate || !rules) return null;
+  const age = resolveCandidateAgeValue(candidate);
+  if (age === null) return false;
+  if (rules.minAge !== null && rules.minAge !== undefined && rules.minAge > 0 && age < rules.minAge) return false;
+  if (rules.maxAge !== null && rules.maxAge !== undefined && rules.maxAge < 100 && age > rules.maxAge) return false;
+
+  const nationality = normalizeNationality(candidate?.nationality ?? "");
+  const allowedNationalities = (rules.targetNationalitiesList || [])
+    .map((value) => normalizeNationality(value))
+    .filter((value) => value && !isJapaneseNationality(value));
+
+  if (isJapaneseNationality(nationality)) return true;
+
+  if (allowedNationalities.length > 0) {
+    if (!nationality) return false;
+    const matched = allowedNationalities.some((value) => value === nationality);
+    if (!matched) return false;
+  }
+
+  const jlpt = String(candidate?.japaneseLevel ?? candidate?.japanese_level ?? "").trim();
+  if (!jlpt) return false;
+  const allowedJlptLevels = rules.allowedJlptLevels || [];
+  if (!allowedJlptLevels.length) return false;
+  return allowedJlptLevels.includes(jlpt);
+}
+
+function resolveCandidateIdValue(candidate) {
+  const raw =
+    candidate?.candidateId ??
+    candidate?.candidate_id ??
+    candidate?.id ??
+    candidate?.candidateID ??
+    null;
+  const idNum = Number(raw);
+  if (Number.isFinite(idNum) && idNum > 0) return idNum;
+  return null;
+}
+
+function updateValidApplicationDetailCache(candidate, { force = false } = {}) {
+  if (!screeningRules || !candidate) return null;
+  if (!hasValidApplicationInputs(candidate, screeningRules)) return null;
+  const idNum = resolveCandidateIdValue(candidate);
+  if (!Number.isFinite(idNum)) return null;
+  if (!force && validApplicationDetailCache.has(idNum)) {
+    const cached = validApplicationDetailCache.get(idNum);
+    candidate.validApplicationComputed = cached;
+    return cached;
+  }
+  const computed = computeValidApplication(candidate, screeningRules);
+  if (computed === true || computed === false) {
+    const prev = validApplicationDetailCache.get(idNum);
+    validApplicationDetailCache.set(idNum, computed);
+    candidate.validApplicationComputed = computed;
+    if (prev !== computed) {
+      scheduleValidApplicationRefresh();
+    }
+    return computed;
+  }
+  return null;
+}
+
+function resolveValidApplicationFromDetail(candidate) {
+  const idNum = resolveCandidateIdValue(candidate);
+  if (!Number.isFinite(idNum)) return null;
+  if (validApplicationDetailCache.has(idNum)) {
+    return validApplicationDetailCache.get(idNum);
+  }
+  return null;
+}
+
 function isValidApplicationCandidate(candidate) {
+  if (screeningRules && hasValidApplicationInputs(candidate, screeningRules)) {
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) {
+      updateValidApplicationDetailCache(candidate, { force: true });
+      return computed;
+    }
+  }
+  const detailValue = resolveValidApplicationFromDetail(candidate);
+  if (detailValue === true || detailValue === false) return detailValue;
   const raw = candidate?.validApplication
     ?? candidate?.valid_application
     ?? candidate?.validApplicationComputed
@@ -561,6 +787,7 @@ function fetchCandidateDetailInfo(candidateId) {
         normalized.firstInterviewDate = firstInterviewDate;
       }
       normalized.contactPreferredTimeFetched = true;
+      updateValidApplicationDetailCache(normalized, { force: true });
 
       candidateDetailCache.set(idNum, normalized);
       candidateDetailRequests.delete(idNum);
@@ -588,6 +815,37 @@ function fetchCandidateDetailInfo(candidateId) {
   return req;
 }
 
+function applyScreeningRulesToTeleapoCandidates() {
+  validApplicationDetailCache.clear();
+  validApplicationQueue = [];
+  validApplicationQueueSet.clear();
+  validApplicationQueueActive = false;
+  if (!screeningRules || !teleapoCandidateMaster.length) return;
+  prefetchValidApplicationForCandidates(teleapoCandidateMaster);
+  rebuildCsTaskCandidates();
+}
+
+async function loadScreeningRulesForTeleapo({ force = false } = {}) {
+  if (screeningRulesLoading) return;
+  if (!force && screeningRulesLoaded) return;
+  screeningRulesLoading = true;
+  try {
+    const response = await fetch(SCREENING_RULES_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    screeningRules = normalizeScreeningRulesPayload(data);
+  } catch (error) {
+    console.error("有効応募判定ルールの取得に失敗しました。", error);
+    screeningRules = null;
+  } finally {
+    screeningRulesLoading = false;
+    screeningRulesLoaded = Boolean(screeningRules);
+    applyScreeningRulesToTeleapoCandidates();
+  }
+}
+
 function fetchCandidatePhone(candidateId) {
   const idNum = Number(candidateId);
   if (!Number.isFinite(idNum) || idNum <= 0) return Promise.resolve(null);
@@ -612,7 +870,7 @@ async function updateCandidateFirstInterview(candidateId, interviewAt) {
 
 function normalizeCandidateDetail(raw) {
   if (!raw) return raw;
-  return {
+  const normalized = {
     ...raw,
     candidateId: raw.candidateId ?? raw.candidate_id ?? raw.id ?? null,
     candidateName: raw.candidateName ?? raw.candidate_name ?? raw.name ?? "",
@@ -634,6 +892,8 @@ function normalizeCandidateDetail(raw) {
     email: raw.email ?? raw.email_address ?? "",
     birthday: raw.birthday ?? raw.birth_date ?? raw.birthDate ?? raw.birthdate ?? "",
     age: raw.age ?? raw.age_years ?? raw.ageYears ?? null,
+    nationality: raw.nationality ?? raw.nationality_text ?? raw.nationality_code ?? "",
+    japaneseLevel: raw.japaneseLevel ?? raw.japanese_level ?? raw.jlpt_level ?? raw.jlptLevel ?? "",
     applyCompanyName: raw.applyCompanyName ?? raw.apply_company_name ?? raw.companyName ?? raw.company_name ?? "",
     applyJobName: raw.applyJobName ?? raw.apply_job_name ?? raw.jobName ?? raw.job_name ?? "",
     applyRouteText: raw.applyRouteText ?? raw.apply_route_text ?? raw.source ?? "",
@@ -653,6 +913,15 @@ function normalizeCandidateDetail(raw) {
     csSummary: raw.csSummary ?? raw.cs_summary ?? {},
     phases: raw.phases ?? raw.phaseList ?? raw.phase ?? ""
   };
+  if (normalized.birthday) {
+    const computedAge = calculateAgeFromBirthday(normalized.birthday);
+    if (computedAge !== null) {
+      normalized.age = computedAge;
+      normalized.age_years = computedAge;
+      normalized.ageYears = computedAge;
+    }
+  }
+  return normalized;
 }
 
 
@@ -744,6 +1013,7 @@ function syncCandidateCaches(candidateId, detail) {
     contactPreferredTime,
     contactPreferredTimeFetched: true
   });
+  updateValidApplicationDetailCache({ ...detail, candidateId: idNum }, { force: true });
 
   if (phone) candidatePhoneCache.set(idNum, phone);
   registerCandidateContactMaps(idNum, { phone, email: detail.email ?? "" });
@@ -854,7 +1124,7 @@ function renderCandidateQuickView(detail) {
   setCandidateQuickViewTitle(name ? `${name} の詳細` : "候補者詳細");
 
   const phaseBadges = buildCandidatePhaseBadges(candidate);
-  const validBadge = buildValidApplicationPill(candidate.validApplication);
+  const validBadge = buildValidApplicationPill(isValidApplicationCandidate(candidate));
 
   const csSummary = candidate.csSummary || {};
   const csConnected = csSummary.hasConnected ?? candidate.phoneConnected ?? false;
@@ -1349,10 +1619,24 @@ function renderCsTaskTable(list, state = {}) {
   scheduleCandidatePhoneFetch(list);
 }
 
+function parseCandidateDateValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) return direct;
+  const match = String(value).match(/(\d{4})\s*[\/-]\s*(\d{1,2})\s*[\/-]\s*(\d{1,2})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const parsed = new Date(year, month, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function calculateAgeFromBirthday(value) {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseCandidateDateValue(value);
+  if (!date || Number.isNaN(date.getTime())) return null;
   const today = new Date();
   let age = today.getFullYear() - date.getFullYear();
   const monthDiff = today.getMonth() - date.getMonth();
@@ -3607,6 +3891,7 @@ async function loadCandidates() {
     refreshCandidateDatalist(); // datalist更新
 
     teleapoCandidateMaster = items;
+    prefetchValidApplicationForCandidates(teleapoCandidateMaster);
     rebuildCsTaskCandidates();
     const hydrated = hydrateLogCandidateIds(teleapoLogData);
     if (hydrated) {
@@ -3687,6 +3972,7 @@ export function mount() {
   initDialForm(); // 本番用フォーム（POST対応版）
 
   // データロード開始
+  loadScreeningRulesForTeleapo();
   // 1. 候補者マスタ取得 (datalist用)
   loadCandidates();
 

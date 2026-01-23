@@ -35,7 +35,8 @@ const state = {
   evaluationPeriods: [],
   selectedCompanyPeriodId: '',
   selectedPersonalPeriodId: '',
-  selectedPersonalDailyPeriodId: ''
+  selectedPersonalDailyPeriodId: '',
+  selectedPageRatePeriodId: '' // ページ別率目標用
 };
 
 export async function mount() {
@@ -51,10 +52,11 @@ export async function mount() {
   await renderCompanyTargets();
   await renderPersonalTargets();
   await renderDailyTargets();
+  await renderPageRateTargets(); // ページ別率目標
   bindEvents();
 }
 
-export function unmount() {}
+export function unmount() { }
 
 function hydrateInitialState() {
   const rule = goalSettingsService.getEvaluationRule();
@@ -77,6 +79,7 @@ function hydrateInitialState() {
   state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
   state.selectedPersonalPeriodId = state.selectedCompanyPeriodId;
   state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
+  state.selectedPageRatePeriodId = todayId || firstPeriod?.id || ''; // ページ別率目標
 }
 
 function bindEvents() {
@@ -103,6 +106,9 @@ function bindEvents() {
   document.getElementById('customStartDayInput')?.addEventListener('input', event => {
     updateCustomEndLabel(event.target.value);
   });
+  // ページ別率目標
+  document.getElementById('pageRatePeriodSelect')?.addEventListener('change', handlePageRatePeriodChange);
+  document.getElementById('savePageRateTargetsButton')?.addEventListener('click', handleSavePageRateTargets);
 }
 
 function initializeTabs() {
@@ -247,6 +253,58 @@ function renderPeriodSelects() {
       personalDailySelect.value = state.selectedPersonalDailyPeriodId;
     }
   }
+
+  // ページ別率目標
+  const hasPageRate = state.evaluationPeriods.some(period => period.id === state.selectedPageRatePeriodId);
+  if (!hasPageRate && (todayId || firstPeriod)) state.selectedPageRatePeriodId = todayId || firstPeriod?.id || '';
+  const pageRateSelect = document.getElementById('pageRatePeriodSelect');
+  if (pageRateSelect) {
+    pageRateSelect.innerHTML = optionsHtml;
+    if (!state.selectedPageRatePeriodId && state.evaluationPeriods[0]) {
+      state.selectedPageRatePeriodId = state.evaluationPeriods[0].id;
+    }
+    if (state.selectedPageRatePeriodId) {
+      pageRateSelect.value = state.selectedPageRatePeriodId;
+    }
+  }
+}
+
+// ページ別率目標の期間変更ハンドラ
+async function handlePageRatePeriodChange(event) {
+  state.selectedPageRatePeriodId = event.target.value || '';
+  await renderPageRateTargets();
+}
+
+// ページ別率目標のレンダリング
+async function renderPageRateTargets() {
+  if (state.selectedPageRatePeriodId) {
+    await goalSettingsService.loadPageRateTargets(state.selectedPageRatePeriodId);
+  }
+  const target = goalSettingsService.getPageRateTargets(state.selectedPageRatePeriodId) || {};
+
+  document.querySelectorAll('input[data-rate-key]').forEach(input => {
+    const key = input.dataset.rateKey;
+    const value = Number(target[key]);
+    input.value = Number.isFinite(value) && value > 0 ? value : '';
+  });
+}
+
+// ページ別率目標の保存ハンドラ
+async function handleSavePageRateTargets() {
+  if (!state.selectedPageRatePeriodId) return;
+  const targets = {};
+  document.querySelectorAll('input[data-rate-key]').forEach(input => {
+    const key = input.dataset.rateKey;
+    const value = Number(input.value);
+    targets[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+  });
+  try {
+    await goalSettingsService.savePageRateTargets(state.selectedPageRatePeriodId, targets);
+    showSaveStatus('pageRateTargetSaveStatus', 'ページ別率目標を保存しました');
+  } catch (error) {
+    console.error('[goal-settings] failed to save page rate targets', error);
+    showSaveStatus('pageRateTargetSaveStatus', '保存に失敗しました');
+  }
 }
 
 async function renderCompanyTargets() {
@@ -355,9 +413,9 @@ async function renderDailyTargets() {
         <tr data-date="${date}">
           <td>${date}</td>
           ${DAILY_FIELDS.map(field => {
-            const value = numberOrEmpty(saved[field.key]);
-            return `<td><input type="number" min="0" class="settings-target-input" data-field="${field.key}" value="${value}" /></td>`;
-          }).join('')}
+        const value = numberOrEmpty(saved[field.key]);
+        return `<td><input type="number" min="0" class="settings-target-input" data-field="${field.key}" value="${value}" /></td>`;
+      }).join('')}
         </tr>
       `;
     })
@@ -493,7 +551,7 @@ function normalizeRule(raw) {
         ? 'custom-month'
         : legacy === 'master-monthly'
           ? 'master-month'
-        : legacy;
+          : legacy;
   return { type: mapped || 'monthly', options: {} };
 }
 

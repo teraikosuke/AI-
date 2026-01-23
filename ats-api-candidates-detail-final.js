@@ -38,6 +38,17 @@ const toBooleanOrNull = (v) => {
     return null;
 };
 
+const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const date = new Date(birthDate);
+    if (Number.isNaN(date.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age -= 1;
+    return age;
+};
+
 async function fetchMasters(client) {
     const [clientsRes, usersRes] = await Promise.all([
         client.query("SELECT id, name FROM clients ORDER BY name ASC"),
@@ -152,6 +163,7 @@ async function fetchCandidateDetail(client, candidateId, includeMaster = false) 
         else if ((b.max_call_no || 0) > 0) phase = "架電中";
     }
 
+    const computedAge = calculateAge(b.birth_date);
     const detail = {
         id: String(b.id),
         candidateName: b.name ?? "",
@@ -159,7 +171,7 @@ async function fetchCandidateDetail(client, candidateId, includeMaster = false) 
         phone: b.phone ?? "",
         email: b.email ?? "",
         birthday: b.birth_date ?? null,
-        age: b.age ?? null,
+        age: computedAge ?? b.age ?? null,
         gender: b.gender ?? "",
         postalCode: b.postal_code ?? "",
         addressPref: b.address_pref ?? "",

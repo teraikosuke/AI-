@@ -1,5 +1,10 @@
 ﻿// Ad Performance Page JavaScript Module (RDS integrated)
 
+import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+
+// 目標値キャッシュ
+let adRateTargets = {};
+
 // ===== RDS API（あなたが作成した /dev/kpi/ads を利用）=====
 const ADS_KPI_API_URL = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/ads';
 // groupBy は route 固定（apply_route）。必要なら route_mid に変更可
@@ -73,11 +78,42 @@ function formatContractDateValue(value) {
 
 const ADS_CHART_PALETTE = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6', '#38bdf8', '#ef4444', '#10b981'];
 
-export function mount() {
+export async function mount() {
   initializeAdFilters();
   initializeAdTable();
   initializePagination();
+  // 目標値をロード
+  await loadAdRateTargets();
   loadAdPerformanceData();
+}
+
+// 目標値をロードする関数
+async function loadAdRateTargets() {
+  try {
+    await goalSettingsService.load();
+    const periods = goalSettingsService.getEvaluationPeriods();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentPeriod = goalSettingsService.getPeriodByDate(todayStr, periods);
+    if (currentPeriod?.id) {
+      adRateTargets = await goalSettingsService.loadPageRateTargets(currentPeriod.id) || {};
+    }
+  } catch (error) {
+    console.warn('[ad-performance] failed to load rate targets', error);
+    adRateTargets = {};
+  }
+}
+
+// 目標達成度に応じた色クラスを取得
+function getRateBadgeClass(actualRate, targetKey) {
+  const targetRate = Number(adRateTargets[targetKey]);
+  if (!Number.isFinite(targetRate) || targetRate <= 0) {
+    // 目標未設定時はデフォルト色
+    return 'bg-slate-100 text-slate-700';
+  }
+  const percentage = (actualRate / targetRate) * 100;
+  if (percentage >= 100) return 'bg-green-100 text-green-700';  // 目標達成
+  if (percentage >= 80) return 'bg-amber-100 text-amber-700';   // 80-99%
+  return 'bg-red-100 text-red-700';                             // 80%未満
 }
 
 function getMediaColor(mediaName, allMediaNames) {
@@ -574,12 +610,6 @@ function renderAdTable(data) {
     return;
   }
 
-  const badgeClass = (val) => {
-    if (val >= 90) return 'bg-green-100 text-green-700';
-    if (val >= 80) return 'bg-amber-100 text-amber-700';
-    return 'bg-red-100 text-red-700';
-  };
-
   // ROAS用のバッジスタイル (例: 100%以上なら緑、などの基準があればここで調整可能)
   // 今回は単純に数値表示とします
 
@@ -590,23 +620,23 @@ function renderAdTable(data) {
         </td>
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatNumber(ad.applications)}</td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.validApplications)}</td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.validApplicationRate)}">${formatPercent(ad.validApplicationRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.validApplicationRate, 'adValidApplicationRateTarget')}">${formatPercent(ad.validApplicationRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.initialInterviews)}</td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.initialInterviewRate)}">${formatPercent(ad.initialInterviewRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.initialInterviewRate, 'adInitialInterviewRateTarget')}">${formatPercent(ad.initialInterviewRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.offers)}</td>
         <td class="text-right whitespace-nowrap px-2">
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.offerRate)}">
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.offerRate, 'adOfferRateTarget')}">
             ${formatPercent(ad.offerRate)}
           </span>
         </td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
         <td class="text-right whitespace-nowrap px-2">
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.hireRate)}">
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, 'adHireRateTarget')}">
             ${formatPercent(ad.hireRate)}
           </span>
         </td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.decisionRate)}">${formatPercent(ad.decisionRate)}</span></td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(ad.retentionWarranty)}">${formatPercent(ad.retentionWarranty)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.decisionRate, 'adDecisionRateTarget')}">${formatPercent(ad.decisionRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.retentionWarranty, 'adRetentionRateTarget')}">${formatPercent(ad.retentionWarranty)}</span></td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
         

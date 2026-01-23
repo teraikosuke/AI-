@@ -113,6 +113,143 @@
           <span class="settings-save-status" id="companyTargetSaveStatus" aria-live="polite"></span>
         </div>
       </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">ページ別率目標設定</h4>
+            <p class="settings-muted">各画面で表示される「率」の目標値を設定します。目標に対する達成度に応じて表示色が変わります。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="pageRatePeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-rate-groups">
+          <!-- 広告管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">広告管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>有効応募率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adValidApplicationRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>初回面談設定率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adInitialInterviewRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>内定率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adOfferRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>入社率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adHireRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>決定率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adDecisionRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>定着率（保障期間）</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="adRetentionRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 架電管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">架電管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>接触率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoContactRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>設定率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoSetRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>着座率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoShowRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>通電率</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoConnectRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 紹介先実績管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">紹介先実績管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>定着率（返金発生期間）</span>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="referralRetentionRateTarget" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-rate-legend">
+          <span class="settings-rate-legend-item settings-rate-legend-green">目標達成（100%以上）</span>
+          <span class="settings-rate-legend-item settings-rate-legend-amber">目標80%〜99%</span>
+          <span class="settings-rate-legend-item settings-rate-legend-red">目標80%未満</span>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="savePageRateTargetsButton" class="settings-primary-button">ページ別率目標を保存</button>
+          <span class="settings-save-status" id="pageRateTargetSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
     </div>
 
     <div class="settings-tab-panel is-hidden" data-settings-tab-panel="personal-settings">
