@@ -2458,24 +2458,40 @@ function calculateAge(birthday) {
 // -----------------------
 // モーダル
 // -----------------------
+function warnOnMissingNextAction(candidate) {
+  if (!candidate) return;
+  const hasIncompleteTasks = candidate.tasks && candidate.tasks.some((t) => !t.isCompleted);
+  const hasNextActionDate = Boolean(candidate.nextActionDate || candidate.actionInfo?.nextActionDate);
+  if (!hasIncompleteTasks && !hasNextActionDate) {
+    showCandidateCloseWarning(
+      "次回アクションが未設定です。選考継続中なら新規アクションを追加し、選考終了なら「選考完了」を押してください。"
+    );
+  }
+}
+
+function requestCandidateModalClose({ clearSelection = true } = {}) {
+  warnOnMissingNextAction(getSelectedCandidate());
+  closeCandidateModal({ clearSelection, force: true });
+}
+
 function initializeDetailModal() {
   const modal = document.getElementById("candidateDetailModal");
   const closeButton = document.getElementById("candidateDetailClose");
 
   if (modal) {
     modalHandlers.overlay = (event) => {
-      if (event.target === modal) closeCandidateModal();
+      if (event.target === modal) requestCandidateModalClose();
     };
     modal.addEventListener("click", modalHandlers.overlay);
   }
 
   if (closeButton) {
-    modalHandlers.closeButton = () => closeCandidateModal();
+    modalHandlers.closeButton = () => requestCandidateModalClose();
     closeButton.addEventListener("click", modalHandlers.closeButton);
   }
 
   modalHandlers.keydown = (event) => {
-    if (event.key === "Escape" && isCandidateModalOpen()) closeCandidateModal();
+    if (event.key === "Escape" && isCandidateModalOpen()) requestCandidateModalClose();
   };
   document.addEventListener("keydown", modalHandlers.keydown);
 }
