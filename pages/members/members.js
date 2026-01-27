@@ -1,4 +1,5 @@
 import { getSession } from '../../scripts/auth.js';
+import { mockUsers } from '../../scripts/mock/users.js';
 
 const MEMBERS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const MEMBERS_LIST_PATH = '/members';
@@ -66,7 +67,26 @@ async function loadMembers() {
   try {
     const session = getSession();
     const headers = { Accept: 'application/json' };
+    console.log('[members] loadMembers session:', session);
+
     if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+
+    if (session?.token === 'mock') {
+      console.log('[members] Using mock data');
+      // モックデータを使用（少し遅延させてロード感を出す）
+      await new Promise(resolve => setTimeout(resolve, 500));
+      membersCache = mockUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isAdmin: user.role === 'admin',
+        createdAt: '2024-01-01T10:00:00Z',
+        updatedAt: '2024-01-15T15:30:00Z'
+      }));
+      renderMembers(membersCache);
+      return;
+    }
 
     const response = await fetch(membersApi(MEMBERS_LIST_PATH), { headers });
     const payload = await readJson(response);

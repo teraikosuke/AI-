@@ -38,7 +38,7 @@ export const handler = async (event) => {
   const limit = toInt(qs.limit, 50);
   const offset = toInt(qs.offset, 0);
   const keyword = (qs.keyword || "").trim();
-  
+
   // 検索フィルター用ID
   const advisorId = toInt(qs.advisorUserId, 0);
   const partnerId = toInt(qs.partnerUserId, 0);
@@ -99,6 +99,7 @@ export const handler = async (event) => {
         c.japanese_level,
         
         c.apply_route_text,
+        c.contact_preferred_time,
 
         -- DB上のカラム定義
         c.advisor_user_id,         -- DB上のアドバイザーID
@@ -159,26 +160,29 @@ export const handler = async (event) => {
         gender: r.gender,
         registeredAt: r.created_at,
         isEffective: r.is_effective_application,
-        
+
         nationality: r.nationality || '-',
         japaneseLevel: r.japanese_level || '-',
 
         // ★修正: 表示マッピングを入れ替え
         // フロントの「担当CS (advisorName)」列に、DBの「パートナー(CS)情報」を表示
-        advisorUserId: r.partner_user_id, 
-        advisorName: r.db_partner_name || '', 
+        advisorUserId: r.partner_user_id,
+        advisorName: r.db_partner_name || '',
 
         // フロントの「担当パートナー (partnerName)」列に、DBの「アドバイザー情報」を表示
         partnerUserId: r.advisor_user_id,
         partnerName: r.db_advisor_name || '',
 
         phase: r.stage_current || '未接触',
-        
+
         media: mediaValue,
         route: mediaValue,
         source: mediaValue,
         applyRoute: mediaValue,
-        
+
+        contactPreferredTime: r.contact_preferred_time || '',
+        contact_preferred_time: r.contact_preferred_time || '',
+
         applyCompany: r.client_name || '-'
       };
     });

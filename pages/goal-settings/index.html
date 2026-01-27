@@ -148,61 +148,82 @@
           <!-- 広告管理画面 -->
           <div class="settings-rate-group">
             <h5 class="settings-rate-group-title">広告管理画面</h5>
-            <div class="settings-rate-grid">
-              <label class="settings-rate-field">
-                <span>有効応募率</span>
-                <p class="settings-rate-note">分子：有効応募数 / 分母：応募数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adValidApplicationRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
-              <label class="settings-rate-field">
-                <span>初回面談設定率</span>
-                <p class="settings-rate-note">分子：初回面談設定数 / 分母：有効応募数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adInitialInterviewRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
-              <label class="settings-rate-field">
-                <span>内定率</span>
-                <p class="settings-rate-note">分子：内定数 / 分母：初回面談実施数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adOfferRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
-              <label class="settings-rate-field">
-                <span>入社率</span>
-                <p class="settings-rate-note">分子：入社数 / 分母：内定承諾数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adHireRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
-              <label class="settings-rate-field">
-                <span>決定率</span>
-                <p class="settings-rate-note">分子：入社数 / 分母：有効応募数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adDecisionRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
-              <label class="settings-rate-field">
-                <span>定着率（返金発生期間）</span>
-                <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
-                <div class="settings-rate-input-wrap">
-                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
-                    data-rate-key="adRetentionRateTarget" />
-                  <span class="settings-rate-unit">%</span>
-                </div>
-              </label>
+
+            <div class="settings-rate-subgroup">
+              <h6 class="settings-rate-subgroup-title">共通・有効応募数基準</h6>
+              <div class="settings-rate-grid">
+                <label class="settings-rate-field">
+                  <span>有効応募率</span>
+                  <p class="settings-rate-note">分子：有効応募数 / 分母：応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adValidApplicationRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>初回面談設定率</span>
+                  <p class="settings-rate-note">分子：初回面談設定数 / 分母：有効応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adInitialInterviewRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>内定率（有効応募数基準）</span>
+                  <p class="settings-rate-note">分子：内定数 / 分母：有効応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adOfferRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>入社率（有効応募数基準）</span>
+                  <p class="settings-rate-note">分子：入社数 / 分母：有効応募数（決定率）</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adHireRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>定着率（返金発生期間）</span>
+                  <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adRetentionRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <!-- 決定率は入社率（有効応募数基準）と重複するため削除または統合 -->
+                <input type="hidden" data-rate-key="adDecisionRateTarget" />
+              </div>
+            </div>
+
+            <div class="settings-rate-subgroup" style="margin-top: 16px;">
+              <h6 class="settings-rate-subgroup-title">段階別基準（Step）</h6>
+              <div class="settings-rate-grid">
+                <label class="settings-rate-field">
+                  <span>内定率（段階別基準）</span>
+                  <p class="settings-rate-note">分子：内定数 / 分母：初回面談実施数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adOfferRateTargetStep" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>入社率（段階別基準）</span>
+                  <p class="settings-rate-note">分子：入社数 / 分母：内定承諾数（または内定数）</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adHireRateTargetStep" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -221,7 +242,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>設定率</span>
-                <p class="settings-rate-note">分子：アポイント数 / 分母：接触数</p>
+                <p class="settings-rate-note">分子：設定数 / 分母：接触数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="teleapoSetRateTarget" />
@@ -230,7 +251,7 @@
               </label>
               <label class="settings-rate-field">
                 <span>着座率（分母：設定数）</span>
-                <p class="settings-rate-note">分子：面談実施数 / 分母：アポイント数</p>
+                <p class="settings-rate-note">分子：面談実施数 / 分母：設定数</p>
                 <div class="settings-rate-input-wrap">
                   <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
                     data-rate-key="teleapoShowRateTarget" />

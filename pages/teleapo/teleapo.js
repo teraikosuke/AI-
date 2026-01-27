@@ -1,4 +1,6 @@
 ﻿// teleapo.js (clean)
+import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+
 console.log('teleapo.js loaded');
 
 const ROUTE_TEL = 'tel';
@@ -65,6 +67,7 @@ let attendanceQueueActive = false;
 let attendanceRefreshTimer = null;
 let teleapoRateMode = TELEAPO_RATE_MODE_CONTACT;
 let teleapoQuickEditState = { candidateId: null, detail: null, editMode: false, saving: false };
+let teleapoRateTargets = {}; // 目標値キャッシュ
 const ATTENDANCE_FETCH_BATCH = 10;
 const ATTENDANCE_FETCH_DELAY_MS = 200;
 const CONTACT_TIME_PLACEHOLDERS = new Set([
@@ -1224,7 +1227,7 @@ function renderCandidateQuickView(detail) {
         </div>
       </div>
       <button 
-        onclick="navigateToCandidateDetail('${candidate.id}', '${escapeHtml(name)}')" 
+        onclick="window.location.href = window.location.pathname + '?candidateId=${candidate.id}&openDetail=1#/candidates'" 
         class="px-3 py-2 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-500 shadow-sm whitespace-nowrap">
         詳細画面へ
       </button>
@@ -2461,17 +2464,21 @@ function renderSummary(logs, titleText, scopeLabelText) {
   setText('teleapoSummaryScopeLabel', scopeLabelText || '全体');
   updateRateModeUI();
 
-  setText('teleapoKpiContactRateTel', formatRate(telRates.contactRate));
-  setText('teleapoKpiContactRateOther', formatRate(otherRates.contactRate));
-  setText('teleapoKpiContactRateTotal', formatRate(totalRates.contactRate));
+  setTextWithRateColor('teleapoKpiContactRateTel', telRates.contactRate, 'teleapoContactRateTarget');
+  setTextWithRateColor('teleapoKpiContactRateOther', otherRates.contactRate, 'teleapoContactRateTarget');
+  setTextWithRateColor('teleapoKpiContactRateTotal', totalRates.contactRate, 'teleapoContactRateTarget');
 
-  setText('teleapoKpiSetRateTel', formatRate(telRates.setRate));
-  setText('teleapoKpiSetRateOther', formatRate(otherRates.setRate));
-  setText('teleapoKpiSetRateTotal', formatRate(totalRates.setRate));
+  setTextWithRateColor('teleapoKpiSetRateTel', telRates.setRate, 'teleapoSetRateTarget');
+  setTextWithRateColor('teleapoKpiSetRateOther', otherRates.setRate, 'teleapoSetRateTarget');
+  setTextWithRateColor('teleapoKpiSetRateTotal', totalRates.setRate, 'teleapoSetRateTarget');
 
-  setText('teleapoKpiShowRateTel', formatRate(telRates.showRate));
-  setText('teleapoKpiShowRateOther', formatRate(otherRates.showRate));
-  setText('teleapoKpiShowRateTotal', formatRate(totalRates.showRate));
+  const showRateTargetKey = teleapoRateMode === TELEAPO_RATE_MODE_STEP
+    ? 'teleapoShowRateTarget'
+    : 'teleapoShowRateTargetWithContact';
+
+  setTextWithRateColor('teleapoKpiShowRateTel', telRates.showRate, showRateTargetKey);
+  setTextWithRateColor('teleapoKpiShowRateOther', otherRates.showRate, showRateTargetKey);
+  setTextWithRateColor('teleapoKpiShowRateTotal', totalRates.showRate, showRateTargetKey);
 
   setText('teleapoKpiDialsTel', kpi.tel.attempts.toLocaleString());
   setText('teleapoKpiContactsTel', kpi.tel.contacts.toLocaleString());
@@ -2483,6 +2490,27 @@ function renderSummary(logs, titleText, scopeLabelText) {
   setText('teleapoKpiShowsTel', kpi.tel.shows.toLocaleString());
   setText('teleapoKpiShowsOther', kpi.other.shows.toLocaleString());
   setText('teleapoKpiShowsTotal', kpi.total.shows.toLocaleString());
+}
+
+function setTextWithRateColor(id, rate, targetKey) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = formatRate(rate);
+  el.textContent = text;
+  el.classList.remove('text-green-700', 'text-amber-600', 'text-red-600', 'text-slate-900', 'text-slate-800');
+  if (rate == null || Number.isNaN(rate)) {
+    el.classList.add('text-slate-900');
+    return;
+  }
+  const targetRate = Number(teleapoRateTargets[targetKey]);
+  if (!Number.isFinite(targetRate) || targetRate <= 0) {
+    el.classList.add('text-slate-900');
+    return;
+  }
+  const percentage = (rate / targetRate) * 100;
+  if (percentage >= 100) el.classList.add('text-green-700');
+  else if (percentage >= 80) el.classList.add('text-amber-600');
+  else el.classList.add('text-red-600');
 }
 
 function computeEmployeeMetrics(logs) {
@@ -3947,6 +3975,21 @@ async function loadTeleapoData() {
   }
 }
 
+async function loadTeleapoRateTargets() {
+  try {
+    await goalSettingsService.load();
+    const periods = goalSettingsService.getEvaluationPeriods();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentPeriod = goalSettingsService.getPeriodByDate(todayStr, periods);
+    if (currentPeriod?.id) {
+      teleapoRateTargets = await goalSettingsService.loadPageRateTargets(currentPeriod.id) || {};
+    }
+  } catch (error) {
+    console.warn('[teleapo] failed to load rate targets', error);
+    teleapoRateTargets = {};
+  }
+}
+
 // 既存の mount をこれで上書き
 export function mount() {
   ensureLogHighlightStyles();
@@ -3964,7 +4007,7 @@ export function mount() {
   initMissingInfoTableActions();
   initMissingInfoToggle();
   initLogToggle();
-  initCandidateQuickView();
+  initCandidateQuickView(); // 既存の初期化関数を使用
   initRateModeToggle();
 
   // initLogForm(); // ← ★削除またはコメントアウト（モック用フォームはもう不要）
@@ -3972,6 +4015,10 @@ export function mount() {
   initDialForm(); // 本番用フォーム（POST対応版）
 
   // データロード開始
+  // 目標値をロード
+  loadTeleapoRateTargets().then(() => {
+    // データロード後に目標値があれば再描画されるが、ここでもロードしておく
+  });
   loadScreeningRulesForTeleapo();
   // 1. 候補者マスタ取得 (datalist用)
   loadCandidates();
@@ -3979,6 +4026,9 @@ export function mount() {
   // 2. ログデータ取得 (一覧用)
   loadTeleapoData();
 }
+
+
+
 
 function localDateTimeToRfc3339(localValue) {
   // localValue: "YYYY-MM-DDTHH:mm"
@@ -3997,21 +4047,6 @@ function localDateTimeToRfc3339(localValue) {
 
   const pad2 = (n) => String(n).padStart(2, "0");
   return `${y}-${pad2(m)}-${pad2(d)}T${pad2(hh)}:${pad2(mm)}:00${sign}${tzH}:${tzM}`;
-}
-
-export function unmount() {
-  // cleanup if needed
-}
-
-// 単独HTMLで読み込まれた場合も初期化できるようにする（ルーターがあれば二重実行を避ける）
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    const pageEl = document.querySelector('[data-page="teleapo"]');
-    if (!pageEl) return;
-    if (window.__teleapoMounted) return;
-    window.__teleapoMounted = true;
-    mount();
-  });
 }
 
 // ★ ここを実際のAPI Gatewayに合わせる（teleapo GETと同じでOK）
@@ -4340,3 +4375,7 @@ function initDialForm() {
   bindDialForm();
 }
 
+// Override navigation to open modal instead of page transition
+window.navigateToCandidateDetail = function (candidateId, candidateName) {
+  openCandidateQuickView(candidateId, candidateName);
+};

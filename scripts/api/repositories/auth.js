@@ -110,16 +110,7 @@ export const authRepo = {
    * @returns {Promise<Session>}
    */
   async login(email, password) {
-    // 1. 完全一致のモックユーザー照合（デモ環境用）
-    const mockExact = mockUsers.find(u => u.email === email && u.password === password);
-    if (mockExact) {
-      console.log('Using mock login for:', email);
-      const session = createSessionFromUser(mockExact);
-      setSession(session);
-      return session;
-    }
-
-    // 2. APIログイン試行
+    // 1. APIログイン試行
     try {
       const url = buildAuthUrl('/login');
       const data = await requestJson(url, {
@@ -136,11 +127,20 @@ export const authRepo = {
     } catch (apiError) {
       console.warn('API login failed, falling back to mock check:', apiError);
 
+      // 2. API失敗時のフォールバック：完全一致のモックユーザー照合
+      const mockExact = mockUsers.find(u => u.email === email && u.password === password);
+      if (mockExact) {
+        console.log('Using mock login fallback (exact match) for:', email);
+        const session = createSessionFromUser(mockExact);
+        setSession(session);
+        return session;
+      }
+
       // 3. API失敗時のフォールバック：メールアドレスだけでモックユーザー検索
       // （デモサイトなので、API接続できない環境でも動作させるため）
       const mockFallback = mockUsers.find(u => u.email === email);
       if (mockFallback) {
-        console.log('API failed. Dealing as mock user for:', email);
+        console.log('API failed. Dealing as mock user fallback (email match) for:', email);
         const session = createSessionFromUser(mockFallback);
         setSession(session);
         return session;

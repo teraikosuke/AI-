@@ -12,7 +12,7 @@ const routes = {
   login: () => import("../pages/login/login.js"),
   mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
-  yield: () => import("../pages/yield/yield.js?v=20260322_06"),
+  yield: () => import("../pages/yield/yield.js?v=20260322_09"),
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
   "yield-company": () => import("../pages/yield-company/yield-company.js"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
@@ -90,30 +90,30 @@ function loadPageCSS(page) {
 }
 
 /**
- * 繝翫ン繧ｲ繝ｼ繧ｷ繝ｧ繝ｳ蜑阪・繝ｫ繝ｼ繧ｿ繝ｼ繧ｬ繝ｼ繝・
- * - 譛ｪ繝ｭ繧ｰ繧､繝ｳ譎ゅ・菫晁ｭｷ繝ｫ繝ｼ繝医い繧ｯ繧ｻ繧ｹ 竊・login 縺ｸ
- * - 繝ｭ繝ｼ繝ｫ荳崎ｶｳ縺ｮ繝ｫ繝ｼ繝医い繧ｯ繧ｻ繧ｹ 竊・yield 縺ｸ
+ * ナビゲーション前のルーターガード
+ * - 未ログイン時の保護ルートアクセス → loginへ
+ * - ロール不許可のルートアクセス → yieldへ
  * @param {string} page
- * @returns {string} 螳滄圀縺ｫ驕ｷ遘ｻ縺吶∋縺阪・繝ｼ繧ｸID
+ * @returns {string} 実際に遷移すべきページID
  */
 export function beforeNavigate(page) {
   if (page === "yield") return "yield-personal";
   const session = getSession();
   const meta = routeMeta[page];
 
-  // 譛ｪ繝ｭ繧ｰ繧､繝ｳ縺九▽菫晁ｭｷ繝ｫ繝ｼ繝医・蝣ｴ蜷医・ login 縺ｸ隱伜ｰ・
+  // 未ログインかつ保護ルートの場合は login へ誘導
   if (!meta?.public && !session) {
     if (page !== "login") {
       try {
         sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, page);
       } catch {
-        // sessionStorage 縺御ｽｿ縺医↑縺・腸蠅・〒縺ｯ蜊倡ｴ斐↓login縺ｸ驕ｷ遘ｻ
+        // sessionStorage が使えない環境では単にloginへ遷移
       }
       return "login";
     }
   }
 
-  // 繝ｭ繝ｼ繝ｫ荳崎ｶｳ縺ｮ蝣ｴ蜷医・ yield 縺ｸ繝輔か繝ｼ繝ｫ繝舌ャ繧ｯ
+  // ロール不許可の場合は yield へフォールバック
   if (meta?.roles && !hasRole(meta.roles)) {
     return "yield";
   }
@@ -122,7 +122,7 @@ export function beforeNavigate(page) {
 }
 
 /**
- * 繝ｭ繧ｰ繧､繝ｳ蜑阪↓繧｢繧ｯ繧ｻ繧ｹ縺励ｈ縺・→縺励※縺・◆菫晁ｭｷ繝ｫ繝ｼ繝医ｒ蜿門ｾ励＠縺ｦ遐ｴ譽・☆繧・
+ * ログイン前にアクセスしようとしていた保護ルートを取得して破棄する
  * @returns {string|null}
  */
 export function consumePostLoginRedirect() {
@@ -144,11 +144,11 @@ export async function navigate(to) {
     .filter(Boolean);
   const rawPage = to || segments[0] || "candidates";
 
-  // 繝ｫ繝ｼ繧ｿ繝ｼ繧ｬ繝ｼ繝会ｼ・eforeNavigate・峨〒螳滄圀縺ｫ陦ｨ遉ｺ縺吶∋縺阪・繝ｼ繧ｸ繧呈ｱｺ螳・
+  // ルーターガード（beforeNavigate）で実際に表示すべきページを決定
   const guardedPage = beforeNavigate(rawPage);
 
   if (guardedPage !== rawPage) {
-    // 繝上ャ繧ｷ繝･繧呈嶌縺肴鋤縺医※譌ｩ譛溘Μ繧ｿ繝ｼ繝ｳ・亥ｮ滄圀縺ｮ謠冗判縺ｯ谺｡縺ｮnavigate蜻ｼ縺ｳ蜃ｺ縺励〒陦後≧・・
+    // ハッシュを書き換えて早期リターン（実際の描画は次のnavigate呼び出しで行う）
     location.hash = `#/${guardedPage}`;
     return;
   }
@@ -302,7 +302,7 @@ function setupSidebarToggle() {
 export function boot() {
   // Initial navigation
   addEventListener("DOMContentLoaded", async () => {
-    // 繧ｵ繝ｼ繝舌・荳翫・繧ｻ繝・す繝ｧ繝ｳ縺九ｉ繝ｭ繝ｼ繧ｫ繝ｫ繧ｻ繝・す繝ｧ繝ｳ繧貞ｾｩ蜈・
+    // サーバー上のセッションからローカルセッションを復元
     await authRepo.me();
     await navigate();
     setupSidebarToggle();
@@ -424,3 +424,5 @@ function updateUserBadgeText(badge) {
     badge.setAttribute("aria-label", "ログインページへ移動");
   }
 }
+
+
