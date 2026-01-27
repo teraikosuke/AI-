@@ -666,7 +666,12 @@ function renderAdTable(data) {
   // ROAS用のバッジスタイル (例: 100%以上なら緑、などの基準があればここで調整可能)
   // 今回は単純に数値表示とします
 
-  tableBody.innerHTML = pageItems.map(ad => `
+  tableBody.innerHTML = pageItems.map(ad => {
+    const isStep = adState.calcMode === 'step';
+    const offerTargetKey = isStep ? 'adOfferRateTargetStep' : 'adOfferRateTarget';
+    const hireTargetKey = isStep ? 'adHireRateTargetStep' : 'adHireRateTarget';
+
+    return `
       <tr class="ad-item hover:bg-slate-50" data-ad-id="${ad.id ?? ''}">
         <td class="sticky left-0 bg-white font-medium text-slate-900 z-30 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
           ${ad.mediaName}
@@ -678,12 +683,12 @@ function renderAdTable(data) {
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.initialInterviewRate, 'adInitialInterviewRateTarget')}">${formatPercent(ad.initialInterviewRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.offers)}</td>
         <td class="text-right whitespace-nowrap px-2">
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.offerRate, 'adOfferRateTarget')}">
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.offerRate, offerTargetKey)}">
             ${formatPercent(ad.offerRate)}
           </span>
         </td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, 'adHireRateTarget')}">${formatPercent(ad.hireRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, hireTargetKey)}">${formatPercent(ad.hireRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.retentionWarranty, 'adRetentionRateTarget')}">${formatPercent(ad.retentionWarranty)}</span></td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
@@ -694,7 +699,8 @@ function renderAdTable(data) {
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.refund)}</td>
       </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateAdSummary(data, summary) {
@@ -865,7 +871,7 @@ function renderAdMainChart(data) {
     // Metric Chart Logic
     let metricKey = currentGraphMetric;
     let label = '';
-    
+
     switch (metricKey) {
       case 'initialInterviewRate': label = '初回面談設定率'; break;
       case 'hireRate': label = '入社率'; break;
@@ -887,7 +893,7 @@ function renderAdMainChart(data) {
     // Rate formatting
     xTickFormatter = (v) => formatPercent(v);
     tooltipFormatter = (ctx) => `${ctx.dataset.label}: ${formatPercent(ctx.parsed.x || 0)}`;
-    
+
     scales.x.ticks.callback = xTickFormatter;
   }
 

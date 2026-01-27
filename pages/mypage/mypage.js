@@ -88,6 +88,49 @@ async function loadMypageData(session, { monthKey } = {}) {
   const headers = { Accept: 'application/json' };
   if (session?.token) headers.Authorization = `Bearer ${session.token}`;
 
+  if (session?.token === 'mock') {
+    console.log('[mypage] Using mock data');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const mockData = {
+      tasksToday: [],
+      tasksUpcoming: [],
+      calendar: {
+        month: resolvedMonthKey,
+        pendingTasks: [],
+        completedTasks: [],
+        progressEvents: []
+      },
+      notifications: [
+        { date: new Date().toISOString(), label: 'デモ通知', candidateName: 'テスト候補者' }
+      ],
+      candidates: [],
+      closedCandidates: []
+    };
+
+    renderTaskTable({
+      tasks: mockData.tasksToday,
+      sectionId: 'mypageTasksSection',
+      bodyId: 'mypageTasksBody',
+      emptyId: 'mypageTasksEmpty',
+      wrapperId: 'mypageTasksTableWrapper'
+    });
+    renderTaskTable({
+      tasks: mockData.tasksUpcoming,
+      sectionId: 'mypageUpcomingSection',
+      bodyId: 'mypageUpcomingBody',
+      emptyId: 'mypageUpcomingEmpty',
+      wrapperId: 'mypageUpcomingTableWrapper'
+    });
+    state.calendarMonth = mockData.calendar.month;
+    state.calendarPending = mockData.calendar.pendingTasks;
+    state.calendarCompleted = mockData.calendar.completedTasks;
+    state.calendarProgress = mockData.calendar.progressEvents;
+    renderCalendar();
+    renderNotifications(mockData.notifications);
+    renderCandidates(mockData.candidates, mockData.closedCandidates);
+    return;
+  }
+
   try {
     const res = await fetch(url.toString(), { headers });
     if (!res.ok) throw new Error(`mypage HTTP ${res.status}`);
@@ -538,8 +581,8 @@ function renderCandidates(candidates, closedCandidates) {
       if (isAdvisor) {
         return `
           <tr>
-            <td>${escapeHtml(candidate.candidateName || '-') }</td>
-            <td>${escapeHtml(candidate.phase || '-') }</td>
+            <td>${escapeHtml(candidate.candidateName || '-')}</td>
+            <td>${escapeHtml(candidate.phase || '-')}</td>
             <td>${formatAction(candidate.lastAction)}</td>
             <td>${formatAction(candidate.nextAction)}</td>
           </tr>
@@ -547,7 +590,7 @@ function renderCandidates(candidates, closedCandidates) {
       }
       return `
         <tr>
-          <td>${escapeHtml(candidate.candidateName || '-') }</td>
+          <td>${escapeHtml(candidate.candidateName || '-')}</td>
           <td>${formatAction(candidate.lastAction)}</td>
         </tr>
       `;

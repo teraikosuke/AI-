@@ -5,37 +5,44 @@
 export const mockUsers = [
   {
     id: 'mock-admin',
-    name: '佐藤アドバイザー',
+    name: '高橋 智也',
     email: 'admin@example.com',
     password: 'admin123',
     role: 'admin'
   },
   {
-    id: 'mock-member-a',
-    name: '新田悠真',
-    email: 'yuma.nitta@example.com',
+    id: 'mock-member-1',
+    name: '佐々木 美咲',
+    email: 'member@example.com',
     password: 'member123',
     role: 'member'
   },
   {
-    id: 'mock-member-b',
-    name: '高橋葵',
-    email: 'aoi.takahashi@example.com',
-    password: 'member123',
+    id: 'mock-analyst',
+    name: '田中 修平',
+    email: 'analyst@example.com',
+    password: 'analyst123',
     role: 'member'
   },
   {
-    id: 'mock-member-c',
-    name: '鈴木光',
-    email: 'hikaru.suzuki@example.com',
-    password: 'member123',
+    id: 'mock-sales',
+    name: '山本 拓海',
+    email: 'sales@example.com',
+    password: 'sales123',
     role: 'member'
   },
   {
-    id: 'mock-member-d',
-    name: '山本未来',
-    email: 'mirai.yamamoto@example.com',
-    password: 'member123',
+    id: 'mock-designer',
+    name: '石川 花蓮',
+    email: 'designer@example.com',
+    password: 'designer123',
+    role: 'member'
+  },
+  {
+    id: 'mock-hr',
+    name: '斎藤 萌',
+    email: 'hr@example.com',
+    password: 'hr123',
     role: 'member'
   }
 ];

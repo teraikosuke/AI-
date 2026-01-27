@@ -25,7 +25,9 @@ const PAGE_RATE_TARGET_KEYS = [
   'adValidApplicationRateTarget',
   'adInitialInterviewRateTarget',
   'adOfferRateTarget',
+  'adOfferRateTargetStep', // 追加: 内定率（段階別）
   'adHireRateTarget',
+  'adHireRateTargetStep', // 追加: 入社率（段階別）
   'adDecisionRateTarget',
   'adRetentionRateTarget',
   // 架電管理画面
@@ -315,7 +317,9 @@ async function loadPageRateTargetsFromApi(periodId, { force = false } = {}) {
   if (!force && cache.pageRateTargets.has(periodId)) return cache.pageRateTargets.get(periodId);
 
   const headers = getAuthHeaders();
-  const url = `${KPI_TARGET_API_BASE}/kpi-targets?period=${periodId}`;
+  // DB expects 'YYYY-MM' (7 chars). Match save logic.
+  const targetMonth = (periodId && periodId.length >= 7) ? periodId.substring(0, 7) : periodId;
+  const url = `${KPI_TARGET_API_BASE}/kpi-targets?period=${targetMonth}`;
 
   try {
     const res = await fetch(url, { headers: { ...headers, Accept: 'application/json' } });
