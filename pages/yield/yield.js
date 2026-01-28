@@ -603,6 +603,20 @@ async function ensureDailyYieldData(periodId) {
   }
 }
 
+function buildDailyTotalsAllMetrics(periodId) {
+  const totals = {};
+  Object.values(state.companyDailyData || {}).forEach(periodMap => {
+    const series = periodMap?.[periodId] || {};
+    Object.entries(series).forEach(([date, counts]) => {
+      if (!totals[date]) totals[date] = {};
+      Object.entries(counts || {}).forEach(([key, value]) => {
+        totals[date][key] = num(totals[date][key]) + num(value);
+      });
+    });
+  });
+  return totals;
+}
+
 let candidateDataset = [];
 let candidateLoadedAt = null;
 const getAdvisorName = () => getSession()?.user?.name || null;
@@ -838,7 +852,8 @@ const DAILY_FIELDS = [
   { targetKey: 'interviewsScheduledTarget', dataKey: 'interviewsScheduled' },
   { targetKey: 'interviewsHeldTarget', dataKey: 'interviewsHeld' },
   { targetKey: 'offersTarget', dataKey: 'offers' },
-  { targetKey: 'acceptsTarget', dataKey: 'accepts' }
+  { targetKey: 'acceptsTarget', dataKey: 'accepts' },
+  { targetKey: 'revenueTarget', dataKey: 'revenue' }
 ];
 
 const DAILY_LABELS = {
@@ -848,7 +863,8 @@ const DAILY_LABELS = {
   interviewsScheduled: '面接設定数',
   interviewsHeld: '面接実施数',
   offers: '内定数',
-  accepts: '承諾数'
+  accepts: '承諾数',
+  revenue: '売上'
 };
 
 const MS_DEPARTMENTS = [
@@ -1147,8 +1163,8 @@ const state = {
   companyDailyData: {},
   companyDailyEmployees: [],
   ranges: {
-    personal: {},
-    company: {},
+    personalPeriod: {},
+    companyPeriod: {},
     employee: getCurrentMonthRange()
   },
   employees: {
@@ -1437,14 +1453,42 @@ function initializeCalcModeControls() {
 
 function updateRateModeLabels() {
   const mode = getRateCalcMode();
+  const label = getRateCalcModeLabel(mode);
   document.querySelectorAll('[data-rate-calc-mode-select]').forEach(el => {
     el.value = mode;
   });
+  document.querySelectorAll('[data-rate-mode-label]').forEach(el => {
+    el.textContent = label;
+  });
+  document.querySelectorAll('[data-rate-mode-toggle]').forEach(button => {
+    button.setAttribute('aria-pressed', mode === 'step' ? 'true' : 'false');
+  });
+}
+
+function applyRateMode(nextMode, { syncSelects = true } = {}) {
+  const next = normalizeRateCalcMode(nextMode);
+  if (next === state.rateCalcMode) return;
+  state.rateCalcMode = next;
+  try {
+    localStorage.setItem(RATE_CALC_MODE_STORAGE_KEY, next);
+  } catch (error) {
+    console.warn('[yield] failed to persist rate calc mode', error);
+  }
+  if (syncSelects) {
+    document.querySelectorAll('[data-rate-calc-mode-select]').forEach(select => {
+      select.value = next;
+    });
+  }
+  updateRateModeLabels();
+  loadYieldData();
+  reloadDashboardData('personal');
+  reloadDashboardData('company');
 }
 
 function initializeRateModeControls() {
   const selects = Array.from(document.querySelectorAll('[data-rate-calc-mode-select]'));
-  if (!selects.length) return;
+  const toggles = Array.from(document.querySelectorAll('[data-rate-mode-toggle]'));
+  if (!selects.length && !toggles.length) return;
   let stored = null;
   try {
     stored = localStorage.getItem(RATE_CALC_MODE_STORAGE_KEY);
@@ -1455,23 +1499,20 @@ function initializeRateModeControls() {
   updateRateModeLabels();
   selects.forEach(select => {
     select.addEventListener('change', (e) => {
-      const next = normalizeRateCalcMode(e.target.value);
-      state.rateCalcMode = next;
-      try {
-        localStorage.setItem(RATE_CALC_MODE_STORAGE_KEY, next);
-      } catch (error) {
-        console.warn('[yield] failed to persist rate calc mode', error);
-      }
-
+      applyRateMode(e.target.value, { syncSelects: false });
       // Update other selects
       selects.forEach(other => {
-        if (other !== select) other.value = next;
+        if (other !== select) other.value = state.rateCalcMode;
       });
-
-      loadYieldData();
-      reloadDashboardData('personal');
-      reloadDashboardData('company');
     });
+  });
+  toggles.forEach(button => {
+    if (button.dataset.bound) return;
+    button.addEventListener('click', () => {
+      const next = state.rateCalcMode === 'step' ? 'base' : 'step';
+      applyRateMode(next);
+    });
+    button.dataset.bound = 'true';
   });
 }
 
@@ -1547,25 +1588,24 @@ function initializeDatePickers() {
   if (companyPeriodStart) companyPeriodStart.value = monthRange.startDate;
   if (companyPeriodEnd) companyPeriodEnd.value = monthRange.endDate;
 
-  state.ranges.personal = { startDate: personalRangeStart?.value, endDate: personalRangeEnd?.value };
-  state.ranges.company = { startDate: companyPeriodStart?.value, endDate: companyPeriodEnd?.value };
+  state.ranges.personalPeriod = { startDate: personalRangeStart?.value, endDate: personalRangeEnd?.value };
+  state.ranges.companyPeriod = { startDate: companyPeriodStart?.value, endDate: companyPeriodEnd?.value };
 
   const handlePersonalChange = () => {
     const nextRange = { startDate: personalRangeStart?.value, endDate: personalRangeEnd?.value };
     if (isValidRange(nextRange)) {
       state.personalDisplayMode = 'range';
-      state.ranges.personal = nextRange;
+      state.ranges.personalPeriod = nextRange;
       loadYieldData();
     }
   };
   [personalRangeStart, personalRangeEnd].forEach(input => input?.addEventListener('change', handlePersonalChange));
 
-  const handleCompanyChange = () => {
+  const handleCompanyChange = async () => {
     const nextRange = { startDate: companyPeriodStart?.value, endDate: companyPeriodEnd?.value };
     if (isValidRange(nextRange)) {
-      state.companyDisplayMode = 'range';
-      state.ranges.company = nextRange;
-      loadCompanyKPIData().then(kpi => kpi && renderCompanyMonthly(kpi));
+      state.ranges.companyPeriod = nextRange;
+      await loadCompanyPeriodKPIData();
     }
   };
   [companyPeriodStart, companyPeriodEnd].forEach(input => input?.addEventListener('change', handleCompanyChange));
@@ -1610,7 +1650,7 @@ function initPersonalPeriodPreset() {
     endInputId: 'personalRangeEnd',
     onApply: (startDate, endDate) => {
       state.personalDisplayMode = 'range';
-      state.ranges.personal = { startDate, endDate };
+      state.ranges.personalPeriod = { startDate, endDate };
       loadYieldData();
     }
   });
@@ -1622,9 +1662,8 @@ function initCompanyPeriodPreset() {
     startInputId: 'companyPeriodStart',
     endInputId: 'companyPeriodEnd',
     onApply: (startDate, endDate) => {
-      state.companyDisplayMode = 'range';
-      state.ranges.company = { startDate, endDate };
-      loadCompanyKPIData().then(kpi => kpi && renderCompanyMonthly(kpi));
+      state.ranges.companyPeriod = { startDate, endDate };
+      loadCompanyPeriodKPIData();
     }
   });
 }
@@ -1891,14 +1930,12 @@ function renderPersonalSummary(rangeData, monthOverride) {
       rangeData?.revenueTarget
     )
   };
-  if (state.personalDisplayMode !== 'range') {
-    const periodTarget = goalSettingsService.getPersonalPeriodTarget(
-      state.personalEvaluationPeriodId,
-      getAdvisorName()
-    );
-    if (periodTarget?.revenueTarget !== undefined) {
-      summary.targetAmount = num(periodTarget.revenueTarget);
-    }
+  const periodTarget = goalSettingsService.getPersonalPeriodTarget(
+    state.personalEvaluationPeriodId,
+    getAdvisorName()
+  );
+  if (periodTarget?.revenueTarget !== undefined) {
+    summary.targetAmount = num(periodTarget.revenueTarget);
   }
   if (summary.targetAmount > 0) {
     summary.achievementRate = Math.round((summary.currentAmount / summary.targetAmount) * 100);
@@ -1923,7 +1960,6 @@ function renderPersonalKpis(todayData, summaryData, periodData) {
   const today = normalizeTodayKpi(todayData);
   const monthly = normalizeKpi(summaryData?.monthly || summaryData || {});
   const period = normalizeKpi(periodData?.period || periodData || {});
-  const display = state.personalDisplayMode === 'range' ? period : monthly;
 
   state.kpi.today = today;
   state.kpi.monthly = monthly;
@@ -1934,13 +1970,17 @@ function renderPersonalKpis(todayData, summaryData, periodData) {
 
   renderCounts('today', today);
 
-  renderCounts('personalMonthly', display);
-  renderRates('personalMonthly', display);
-  renderRateDetails('personalMonthly', display);
-  renderGoalProgress('monthly', display);
-  renderDeltaBadges('personalMonthly', display, {}, { includeRates: true });
+  renderCounts('personalMonthly', monthly);
+  renderRates('personalMonthly', monthly);
+  renderRateDetails('personalMonthly', monthly);
+  renderGoalProgress('monthly', monthly);
+  renderDeltaBadges('personalMonthly', monthly, {}, { includeRates: true });
 
-  renderPersonalSummary(display, display);
+  renderCounts('personalPeriod', period);
+  renderRates('personalPeriod', period);
+  renderRateDetails('personalPeriod', period);
+
+  renderPersonalSummary(monthly, monthly);
   updatePersonalPeriodLabels();
   syncEvaluationPeriodLabels();
 }
@@ -2134,6 +2174,7 @@ async function loadYieldData() {
     if (wantsCompany) {
       const companyKPI = await loadCompanyKPIData();
       if (companyKPI) renderCompanyMonthly(companyKPI);
+      await loadCompanyPeriodKPIData();
       // Load MS for Company scope too
       await loadAndRenderCompanyMs();
     }
@@ -2167,8 +2208,8 @@ async function loadYieldData() {
 async function loadPersonalKPIData() {
   try {
     const fallbackRange = getCurrentMonthRange();
-    const startDate = state.ranges.personal.startDate || fallbackRange.startDate;
-    const endDate = state.ranges.personal.endDate || fallbackRange.endDate;
+    const startDate = state.ranges.personalPeriod.startDate || fallbackRange.startDate;
+    const endDate = state.ranges.personalPeriod.endDate || fallbackRange.endDate;
     if (!startDate || !endDate) return null;
     const kpi = await fetchPersonalKpiFromApi({ startDate, endDate });
     if (kpi) return { period: kpi };
@@ -2284,8 +2325,8 @@ async function loadCompanyKPIData() {
 
 async function loadCompanyPeriodKPIData() {
   try {
-    const startDate = state.ranges.company.startDate;
-    const endDate = state.ranges.company.endDate;
+    const startDate = state.ranges.companyPeriod.startDate;
+    const endDate = state.ranges.companyPeriod.endDate;
     if (!startDate || !endDate) return null;
 
     const kpi = await fetchCompanyKpiFromApi({ startDate, endDate });
@@ -2428,8 +2469,8 @@ async function loadAndRenderPersonalDaily() {
   if (isMonthlyMode) {
     if (periodSelectLabel) periodSelectLabel.style.display = 'none';
 
-    const startDate = state.ranges.personal?.startDate;
-    const endDate = state.ranges.personal?.endDate;
+    const startDate = state.ranges.personalPeriod?.startDate;
+    const endDate = state.ranges.personalPeriod?.endDate;
     if (!startDate || !endDate) return;
 
     const months = enumerateMonthsInRange(startDate, endDate);
@@ -2853,6 +2894,10 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
   }
 
   const deptKey = state.personalDailyMs.departmentKey || getDepartmentFromRole(getSession()?.user?.role || '');
+  const useDeptTotals = deptKey === 'marketing';
+  const effectiveDailyData = useDeptTotals
+    ? buildDailyTotalsAllMetrics(periodId)
+    : dailyData;
   const range = resolvePersonalDailyDateRange(periodId, deptKey);
   const dates = enumerateDateRange(range.startDate, range.endDate);
   const advisorName = getAdvisorName();
@@ -2861,7 +2906,8 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
 
   const targetDepts = [];
   if (deptKey) targetDepts.push(deptKey);
-  if (!targetDepts.includes('revenue')) targetDepts.push('revenue');
+  const includeRevenue = deptKey !== 'marketing' && deptKey !== 'cs';
+  if (includeRevenue && !targetDepts.includes('revenue')) targetDepts.push('revenue');
 
   const dateCells = dates.map(date => `<th scope="col" class="ms-date-header">${formatDayLabel(date)}</th>`).join('');
   headerRow.innerHTML = `
@@ -2959,7 +3005,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
           dailyActuals.push(null);
           return;
         }
-        const dayCounts = dailyData?.[date] || {};
+        const dayCounts = effectiveDailyData?.[date] || {};
         const value = getDailyMetricValue(dayCounts, metricOption, metricKey);
         actualSum += num(value);
         dailyActuals.push(num(value));
@@ -3306,9 +3352,8 @@ function buildCompanyMsDailyTotals(periodId, employeeIds) {
     const series = state.companyDailyData[id]?.[periodId] || {};
     Object.entries(series).forEach(([date, counts]) => {
       if (!totals[date]) totals[date] = {};
-      DAILY_FIELDS.forEach(field => {
-        const key = field.dataKey;
-        totals[date][key] = num(totals[date][key]) + num(counts?.[key]);
+      Object.entries(counts || {}).forEach(([key, value]) => {
+        totals[date][key] = num(totals[date][key]) + num(value);
       });
     });
   });
@@ -3325,9 +3370,8 @@ function buildCompanyMsDailyTotalsFromEmployees(employees, employeeIds) {
     const series = emp?.daily || emp?.dailyData || emp?.series || {};
     Object.entries(series).forEach(([date, counts]) => {
       if (!totals[date]) totals[date] = {};
-      DAILY_FIELDS.forEach(field => {
-        const key = field.dataKey;
-        totals[date][key] = num(totals[date][key]) + num(counts?.[key]);
+      Object.entries(counts || {}).forEach(([key, value]) => {
+        totals[date][key] = num(totals[date][key]) + num(value);
       });
     });
   });
@@ -4224,7 +4268,7 @@ function renderPersonalMsTable(deptKey) {
 
 // 個人別MSテーブルをすべてレンダリング
 function renderAllPersonalMsTables() {
-  ['marketing', 'cs', 'sales'].forEach(deptKey => {
+  ['cs', 'sales'].forEach(deptKey => {
     renderPersonalMsTable(deptKey);
   });
 }
@@ -4234,6 +4278,8 @@ function renderAllPersonalMsTables() {
 async function loadPersonalMsData() {
   const periodId = state.companyMsPeriodId;
   const period = state.evaluationPeriods.find(item => item.id === periodId);
+  const marketingSection = document.querySelector('[data-personal-ms="marketing"]');
+  if (marketingSection) marketingSection.hidden = true;
   if (!period) {
     state.personalMs.marketing.dates = [];
     state.personalMs.cs.dates = [];
@@ -4261,7 +4307,7 @@ async function loadPersonalMsData() {
   state.personalMs.sales.members = getMembersByDepartment(members, 'sales');
 
   // 重要指標を取得してマッピング
-  const deptKeys = ['marketing', 'cs', 'sales'];
+  const deptKeys = ['cs', 'sales'];
   if (!state.personalMs.importantMetrics) state.personalMs.importantMetrics = {};
   deptKeys.forEach(deptKey => {
     state.personalMs.importantMetrics[deptKey] = {};
@@ -4435,12 +4481,18 @@ async function loadAndRenderCompanyMs() {
     .filter(item => item.id);
   const effectiveAdvisors = advisors.length ? advisors : fallbackAdvisors;
   const advisorIds = effectiveAdvisors.map(item => item.id).filter(id => id);
+  const allEmployeeIds = (payload?.employees || [])
+    .map(emp => String(emp?.advisorUserId ?? emp?.id ?? ''))
+    .filter(id => id);
   const dailyTotalsFromPayload = payload?.employees?.length
-    ? buildCompanyMsDailyTotalsFromEmployees(payload.employees, advisorIds)
+    ? buildCompanyMsDailyTotalsFromEmployees(payload.employees, allEmployeeIds)
     : {};
+  const fallbackIds = allEmployeeIds.length
+    ? allEmployeeIds
+    : getCompanyDailyEmployees().map(emp => String(emp?.id ?? '')).filter(id => id);
   const dailyTotals = Object.keys(dailyTotalsFromPayload).length
     ? dailyTotalsFromPayload
-    : buildCompanyMsDailyTotals(periodId, advisorIds);
+    : buildCompanyMsDailyTotals(periodId, fallbackIds);
   await goalSettingsService.loadCompanyPeriodTarget(periodId);
   const companyTarget = goalSettingsService.getCompanyPeriodTarget(periodId) || {};
   if (typeof goalSettingsService.loadPersonalPeriodTargetsBulk === 'function') {
@@ -4504,9 +4556,6 @@ function enumeratePeriodDates(period) {
 }
 
 function getCompanySummaryRange() {
-  if (state.companyDisplayMode === 'range' && state.ranges.company.startDate && state.ranges.company.endDate) {
-    return state.ranges.company;
-  }
   const period = state.evaluationPeriods.find(item => item.id === state.companyEvaluationPeriodId);
   if (period?.startDate && period?.endDate) {
     return { startDate: period.startDate, endDate: period.endDate };
@@ -5099,7 +5148,6 @@ function handlePersonalPeriodChange(event) {
 
 async function handleCompanyPeriodChange(event) {
   state.companyEvaluationPeriodId = event.target.value || '';
-  state.companyDisplayMode = 'period';
   await goalSettingsService.loadCompanyPeriodTarget(state.companyEvaluationPeriodId);
   renderCompanyTargets();
   loadCompanySummaryKPI();
@@ -5148,12 +5196,11 @@ function syncPersonalRangeToEvaluationPeriod() {
   const endInput = document.getElementById('personalRangeEnd');
   if (startInput) startInput.value = period.startDate;
   if (endInput) endInput.value = period.endDate;
-  state.ranges.personal = { startDate: period.startDate, endDate: period.endDate };
+  state.ranges.personalPeriod = { startDate: period.startDate, endDate: period.endDate };
 }
 
 function applyPersonalEvaluationPeriod(shouldReload = true) {
   state.personalDisplayMode = 'monthly';
-  syncPersonalRangeToEvaluationPeriod();
   seedGoalDefaultsFromSettings();
   initGoalInputs('today');
   initGoalInputs('monthly');
@@ -5169,13 +5216,6 @@ function applyPersonalEvaluationPeriod(shouldReload = true) {
 
 
 function getPersonalSummaryTitleText() {
-  if (state.personalDisplayMode === 'range') {
-    const startDate = state.ranges.personal?.startDate;
-    const endDate = state.ranges.personal?.endDate;
-    if (startDate && endDate) {
-      return `${startDate}〜${endDate}の実績サマリー`;
-    }
-  }
   const period = state.evaluationPeriods.find(item => item.id === state.personalEvaluationPeriodId);
   const labelText = formatPeriodMonthLabel(period);
   return labelText ? `${labelText}の実績サマリー` : '今月の実績サマリー';
@@ -5209,15 +5249,6 @@ function syncEvaluationPeriodLabels() {
 }
 
 function getCompanySummaryTitleText() {
-  if (state.companyDisplayMode === 'range') {
-    const start = state.ranges.company.startDate;
-    const end = state.ranges.company.endDate;
-    if (start && end) {
-      const startDate = start.replace(/-/g, '/');
-      const endDate = end.replace(/-/g, '/');
-      return `${startDate}〜${endDate}の実績サマリー`;
-    }
-  }
   const period = state.evaluationPeriods.find(item => item.id === state.companyEvaluationPeriodId);
   const labelText = formatPeriodMonthLabel(period);
   return labelText ? `${labelText}の実績サマリー` : '今月の実績サマリー';

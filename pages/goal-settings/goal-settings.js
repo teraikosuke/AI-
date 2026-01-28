@@ -25,7 +25,8 @@ const DAILY_FIELD_KEYS = [
   'interviewsScheduledTarget',
   'interviewsHeldTarget',
   'offersTarget',
-  'acceptsTarget'
+  'acceptsTarget',
+  'revenueTarget'
 ];
 
 const DAILY_FIELDS = KPI_FIELDS.filter(field => DAILY_FIELD_KEYS.includes(field.key));

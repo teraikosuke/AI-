@@ -1527,8 +1527,10 @@
 
 .kpi-v2-ms-table .daily-type {
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   min-width: 80px;
+  color: #0f172a;
 }
 
 /* MS保存ボタン */
@@ -1596,8 +1598,11 @@
   z-index: 1;
 }
 
-.personal-ms-metric-select {
+.personal-ms-metric-select,
+.company-ms-metric-select {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   padding: 0.25rem;
@@ -1606,7 +1611,8 @@
   cursor: pointer;
 }
 
-.personal-ms-metric-select:focus {
+.personal-ms-metric-select:focus,
+.company-ms-metric-select:focus {
   border-color: #3b82f6;
   outline: none;
 }
@@ -1616,6 +1622,9 @@
   flex-direction: column;
   gap: 6px;
   align-items: flex-start;
+  width: 100%;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
 .ms-distribute-btn {

@@ -230,21 +230,21 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     clientId: row.clientId ?? row.client_id ?? null,
     companyName: row.companyName ?? row.company_name ?? "",
     route: row.route ?? row.applyRoute ?? row.apply_route ?? row.mediaName ?? row.media_name ?? "",
+    proposalDate: row.proposalDate ?? row.proposal_date ?? null,
     recommendationDate: row.recommendationDate ?? row.recommended_at ?? null,
-    interviewSetupDate: row.interviewSetupDate ?? row.first_interview_set_at ?? null,
-    interviewDate: row.interviewDate ?? row.first_interview_at ?? null,
-    secondInterviewSetupDate: row.secondInterviewSetupDate ?? row.second_interview_set_at ?? null,
-    secondInterviewDate: row.secondInterviewDate ?? row.second_interview_at ?? null,
-    offerDate: row.offerDate ?? row.offer_date ?? null,
-    acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? null,
-    onboardingDate: row.onboardingDate ?? row.join_date ?? null,
+    firstInterviewDate: row.firstInterviewDate ?? row.first_interview_at ?? row.interviewDate ?? row.firstInterviewAt ?? null,
+    secondInterviewDate: row.secondInterviewDate ?? row.second_interview_at ?? row.secondInterviewAt ?? null,
+    finalInterviewDate: row.finalInterviewDate ?? row.final_interview_at ?? row.finalInterviewAt ?? null,
+    offerDate: row.offerDate ?? row.offer_date ?? row.offerAt ?? null,
+    acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? row.offerAcceptedDate ?? row.offerAcceptedAt ?? null,
+    onboardingDate: row.onboardingDate ?? row.join_date ?? row.joinDate ?? row.joinedAt ?? null,
     preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date ?? null,
     preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason ?? "",
     postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
     postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason ?? "",
-    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? null,
+    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closingForecastDate ?? row.closingForecastAt ?? null,
     feeAmount: row.feeAmount ?? row.fee_amount ?? "",
-    selectionNote: row.selectionNote ?? row.selection_note ?? "",
+    selectionNote: row.selectionNote ?? row.selection_note ?? row.note ?? "",
     status: row.status ?? row.stage_current ?? "",
   }));
 
@@ -268,6 +268,8 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     companyName: row.companyName ?? row.company_name ?? "",
     feeAmount: row.feeAmount ?? row.fee_amount ?? "",
     refundAmount: row.refundAmount ?? row.refund_amount ?? "",
+    orderDate: row.orderDate ?? row.order_date ?? null,
+    withdrawDate: row.withdrawDate ?? row.withdraw_date ?? null,
     joinDate: row.joinDate ?? row.join_date ?? null,
     preJoinWithdrawDate: row.preJoinWithdrawDate ?? row.pre_join_withdraw_date ?? null,
     postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
@@ -2007,23 +2009,23 @@ function renderBooleanPill(value, { trueLabel = "はい", falseLabel = "いい�
 function resolveSelectionStatusVariant(status) {
   const value = String(status || "");
   if (!value) return "muted";
-  if (value.includes("内定") || value.includes("入社")) return "success";
   if (value.includes("辞退") || value.includes("退社") || value.includes("クローズ")) return "muted";
+  if (value.includes("内定") || value.includes("入社") || value.includes("承諾")) return "success";
   return "warning";
 }
 
 function resolveSelectionStageValue(row = {}) {
   if (row.postJoinQuitDate) return "入社後辞退";
-  if (row.onboardingDate) return "入社";
   if (row.preJoinDeclineDate) return "内定後辞退";
-  if (row.acceptanceDate) return "内定承諾済み";
-  if (row.offerDate) return "内定承諾待ち";
+  if (row.closeExpectedDate) return "クロージング";
+  if (row.onboardingDate) return "入社";
+  if (row.acceptanceDate) return "承諾";
+  if (row.offerDate) return "内定";
+  if (row.finalInterviewDate) return "最終面接";
   if (row.secondInterviewDate) return "二次面接";
-  if (row.secondInterviewSetupDate) return "二次面接調整";
-  if (row.interviewDate) return "一次面接";
-  if (row.interviewSetupDate) return "一次面接調整";
-  // ★追加: 推薦日が入っていたら「書類選考」にする
-  if (row.recommendationDate) return "書類選考";
+  if (row.firstInterviewDate) return "一次面接";
+  if (row.recommendationDate) return "推薦";
+  if (row.proposalDate) return "提案";
   return "";
 }
 
@@ -2080,7 +2082,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
     const inputs = detailContainer.querySelectorAll("[data-detail-field]");
     inputs.forEach((input) => {
       // 選考進捗テーブル内のフィールドは後続の処理で扱うためスキップ(二重処理防止)
-      if (input.closest("tr[data-selection-row]")) return;
+      if (input.closest("[data-selection-row]")) return;
 
       const path = input.dataset.detailField;
       if (!path) return;
@@ -2116,7 +2118,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   // ---------------------------------------------------------
   // 選考進捗の実DOMからの強制同期
   // ---------------------------------------------------------
-  const selectionRows = document.querySelectorAll("tr[data-selection-row]");
+  const selectionRows = document.querySelectorAll("[data-selection-row]");
   if (selectionRows.length > 0) {
     const newProgress = [];
     selectionRows.forEach((row) => {
@@ -2136,15 +2138,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
         const key = parts[parts.length - 1];
 
         // Lambda(DB)が期待するキー名へ変換
-        const keyMap = {
-          "recommendationDate": "recommendedAt",
-          "firstInterviewAdjustDate": "firstInterviewSetAt",
-          "firstInterviewDate": "firstInterviewAt",
-          "secondInterviewAdjustDate": "secondInterviewSetAt",
-          "secondInterviewDate": "secondInterviewAt",
-          "finalInterviewAdjustDate": "finalInterviewSetAt",
-          "finalInterviewDate": "finalInterviewAt"
-        };
+        const keyMap = {};
         const mappedKey = keyMap[key] || key;
 
         newData[mappedKey] = input.value;
@@ -2308,6 +2302,7 @@ function buildCandidateDetailPayload(candidate) {
     selectionProgress: candidate.selectionProgress,
     afterAcceptance: candidate.afterAcceptance,
     refundInfo: candidate.refundInfo,
+    moneyInfo: candidate.moneyInfo,
     actionInfo,
     csChecklist: candidate.csChecklist,
   };
@@ -3155,92 +3150,31 @@ function renderSelectionProgressSection(candidate) {
   const addButton = editing
     ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress"> 追加</button>`
     : "";
+  const emptyHtml = `
+    <div class="candidate-detail-empty p-8 text-center bg-slate-50 rounded-lg border border-slate-100">
+      <p class="text-slate-500">企業の進捗は登録されていません。</p>
+    </div>
+  `;
 
-  // ---------------------------------------------------------
-  // 閲覧モード (Visual Flowchart)
-  // ---------------------------------------------------------
-  if (!editing) {
-    if (rows.length === 0) {
-      return `
-        <div class="candidate-detail-empty p-8 text-center bg-slate-50 rounded-lg border border-slate-100">
-          <p class="text-slate-500">企業の進捗は登録されていません。</p>
-        </div>
-      `;
-    }
+  const cardsHtml = rows
+    .map((row, index) => renderSelectionFlowCard(row, { editing, index }))
+    .join("");
 
-    const cardsHtml = rows.map((row) => renderSelectionFlowCard(row)).join("");
+  if (editing) {
     return `
+      <div class="repeatable-header">
+        <h5>企業ごとの進捗 (編集モード)</h5>
+        ${addButton}
+      </div>
       <div class="selection-flow-container space-y-6">
-        ${cardsHtml}
+        ${rows.length ? cardsHtml : emptyHtml}
       </div>
     `;
   }
 
-  // ---------------------------------------------------------
-  // 編集モード (Table Input)
-  // ---------------------------------------------------------
-  const headerAction = "<th>操作</th>";
-
-  let bodyHtml;
-  if (rows.length === 0) {
-    bodyHtml = `<tr><td colspan="20" class="detail-empty-row text-center py-3">企業の進捗は登録されていません。</td></tr>`;
-  } else {
-    bodyHtml = rows
-      .map((row, index) => {
-        const pathPrefix = `selectionProgress.${index}`;
-        // キー名をLambdaの返却/期待値に合わせる (編集モード用Normalization)
-        const r = normalizeSelectionRow(row);
-
-        const cells = [
-          `<td>${renderTableSelect(buildClientOptions(row.clientId, r.companyName), `${pathPrefix}.clientId`, "selection")}</td>`,
-          `<td>${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}</td>`,
-          `<td class="text-center nowrap-cell" data-selection-status>${renderStatusPill(row.status || "-", resolveSelectionStatusVariant(row.status))}</td>`,
-          `<td>${renderTableInput(r.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.firstInterviewAdjustDate, `${pathPrefix}.firstInterviewAdjustDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.firstInterviewDate, `${pathPrefix}.firstInterviewDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.secondInterviewAdjustDate, `${pathPrefix}.secondInterviewAdjustDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.finalInterviewAdjustDate, `${pathPrefix}.finalInterviewAdjustDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.finalInterviewDate, `${pathPrefix}.finalInterviewDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.offerAcceptedDate, `${pathPrefix}.offerAcceptedDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.joinedDate, `${pathPrefix}.joinedDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.declinedDate, `${pathPrefix}.declinedDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.declinedReason, `${pathPrefix}.declinedReason`, "text", "selection")}</td>`,
-          `<td>${renderTableInput(r.earlyTurnoverDate, `${pathPrefix}.earlyTurnoverDate`, "date", "selection")}</td>`,
-          `<td>${renderTableInput(r.earlyTurnoverReason, `${pathPrefix}.earlyTurnoverReason`, "text", "selection")}</td>`,
-          `<td>${renderTableInput(r.closingForecastDate, `${pathPrefix}.closingForecastDate`, "date", "selection")}</td>`,
-          `<td><span class="detail-value">${escapeHtml(formatMoneyToMan(r.fee))}</span></td>`,
-          `<td>${renderTableTextarea(r.note, `${pathPrefix}.note`, "selection")}</td>`,
-        ].join("");
-        const action = `<td class="detail-table-actions text-center"><button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button></td>`;
-        return `<tr data-selection-row="${index}">${cells}${action}</tr>`;
-      })
-      .join("");
-  }
-
   return `
-    <div class="repeatable-header">
-      <h5>企業ごとの進捗 (編集モード)</h5>
-      ${addButton}
-    </div>
-    <div class="detail-table-wrapper">
-      <table class="detail-table detail-table--wide">
-        <thead>
-          <tr>
-            <th>受験企業名</th><th>応募経路</th><th>選考状況</th><th>推薦日</th>
-            <th>一次面接調整日</th><th>一次面接日</th>
-            <th>二次面接調整日</th><th>二次面接日</th>
-            <th>最終面接調整日</th><th>最終面接日</th>
-            <th>内定日</th><th>内定承諾日</th><th>入社日</th>
-            <th>内定後辞退日</th><th>内定後辞退理由</th>
-            <th>入社後辞退日</th><th>入社後辞退理由</th>
-            <th>クロージング予定日</th><th>FEE</th><th>備考</th>
-            ${headerAction}
-          </tr>
-        </thead>
-        <tbody>${bodyHtml}</tbody>
-      </table>
+    <div class="selection-flow-container space-y-6">
+      ${rows.length ? cardsHtml : emptyHtml}
     </div>
   `;
 }
@@ -3254,39 +3188,60 @@ function normalizeSelectionRow(row) {
     companyName: row.companyName,
     route: row.route ?? row.source,
     status: resolveSelectionStageValue(row) || row.status, // Pill表示用
-    recommendationDate: row.recommendationDate,
-    firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt,
-    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt,
-    secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt,
-    secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt,
-    finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt,
-    finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt,
-    offerDate: row.offerDate ?? row.offerAt,
-    offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.acceptanceDate,
-    joinedDate: row.joinedDate ?? row.joinedAt ?? row.onboardingDate,
-    declinedDate: row.declinedDate ?? row.declinedAfterOfferDate ?? row.preJoinDeclineDate,
-    declinedReason: row.declinedReason ?? row.declinedAfterOfferReason ?? row.preJoinDeclineReason,
-    earlyTurnoverDate: row.earlyTurnoverDate ?? row.earlyTurnoverAt ?? row.postJoinQuitDate,
-    earlyTurnoverReason: row.earlyTurnoverReason ?? row.earlyTurnoverAt ?? row.postJoinQuitReason,
-    closingForecastDate: row.closingForecastDate ?? row.closingForecastAt ?? row.closeExpectedDate,
+    proposalDate: row.proposalDate ?? row.proposal_date,
+    recommendationDate: row.recommendationDate ?? row.recommendedAt ?? row.recommended_at,
+    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.interviewDate ?? row.first_interview_at,
+    secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt ?? row.second_interview_at,
+    finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt ?? row.final_interview_at,
+    offerDate: row.offerDate ?? row.offerAt ?? row.offer_date,
+    offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.offerAcceptDate ?? row.offer_accept_date ?? row.acceptanceDate,
+    joinedDate: row.joinedDate ?? row.joinedAt ?? row.joinDate ?? row.join_date ?? row.onboardingDate,
+    preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date,
+    preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason,
+    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date,
+    postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason,
+    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closingForecastDate ?? row.closingForecastAt,
     fee: row.fee ?? row.feeAmount,
-    note: row.note ?? row.selectionNote,
+    note: row.note ?? row.selectionNote ?? row.selection_note,
   };
 }
 
-function renderSelectionFlowCard(rawRow) {
+function renderSelectionNodeDate(value, path, editing) {
+  if (!editing) {
+    const dateStr = formatDateJP(value);
+    const className = value ? "text-indigo-700 font-bold" : "text-slate-300";
+    return `<div class="text-[10px] ${className} mt-1">${escapeHtml(dateStr)}</div>`;
+  }
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="selection"` : "";
+  const inputValue = value === 0 ? "0" : formatInputValue(value, "date");
+  return `<input type="date" class="detail-inline-input selection-node-input" value="${escapeHtmlAttr(inputValue)}" ${dataset}>`;
+}
+
+function renderSelectionNodeText(value, path, editing, placeholder = "") {
+  if (!editing) {
+    return `<div class="text-[10px] text-slate-500 mt-1">${escapeHtml(value || "-")}</div>`;
+  }
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="selection"` : "";
+  return `<input type="text" class="detail-inline-input selection-node-input selection-node-reason" value="${escapeHtmlAttr(value || "")}" placeholder="${escapeHtmlAttr(placeholder)}" ${dataset}>`;
+}
+
+function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
   const r = normalizeSelectionRow(rawRow);
   const statusVariant = resolveSelectionStatusVariant(r.status);
   const statusLabel = r.status || "未設定";
+  const pathPrefix = `selectionProgress.${index}`;
 
   // Flow Steps Definition
   const steps = [
-    { label: "推薦", date: r.recommendationDate, sub: null, active: true },
-    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null },
-    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null },
-    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null },
-    { label: "内定", date: r.offerDate, sub: null },
-    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null },
+    { key: "proposalDate", label: "提案", date: r.proposalDate },
+    { key: "recommendationDate", label: "推薦", date: r.recommendationDate },
+    { key: "firstInterviewDate", label: "一次面接", date: r.firstInterviewDate },
+    { key: "secondInterviewDate", label: "二次面接", date: r.secondInterviewDate },
+    { key: "finalInterviewDate", label: "最終面接", date: r.finalInterviewDate },
+    { key: "offerDate", label: "内定", date: r.offerDate },
+    { key: "acceptanceDate", label: "承諾", date: r.offerAcceptedDate },
+    { key: "onboardingDate", label: "入社", date: r.joinedDate },
+    { key: "closeExpectedDate", label: "クロージング", date: r.closeExpectedDate },
   ];
 
   // Determine current active step index based on dates
@@ -3312,9 +3267,7 @@ function renderSelectionFlowCard(rawRow) {
       if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
     }
 
-    const dateStr = formatDateJP(step.date);
-    const dateHtml = hasDate ? `<div class="text-[10px] font-bold text-indigo-700 mt-1">${dateStr}</div>` : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
-    const subHtml = step.sub ? `<div class="text-[9px] text-slate-400">${step.sub}</div>` : "";
+    const dateHtml = renderSelectionNodeDate(step.date, `${pathPrefix}.${step.key}`, editing);
 
     return `
       <div class="flex-1 relative group">
@@ -3325,67 +3278,105 @@ function renderSelectionFlowCard(rawRow) {
           <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
             ${idx + 1}
           </div>
-          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${step.label}</div>
+          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${idx + 1}${step.label}</div>
           ${dateHtml}
-          ${subHtml}
         </div>
       </div>
     `;
   }).join("");
 
-  // 詳細情報 (辞退理由や備考)
   const details = [];
   if (r.route) details.push({ label: "経由", value: r.route });
   if (r.fee) details.push({ label: "FEE", value: formatMoneyToMan(r.fee) });
-  if (r.closingForecastDate) details.push({ label: "着地予定", value: formatDateJP(r.closingForecastDate) });
-
-  // Warning Alerts
-  let alerts = "";
-  if (r.declinedDate || r.declinedReason) {
-    alerts += `
-      <div class="mt-3 text-xs bg-red-50 text-red-700 px-3 py-2 rounded border border-red-100 flex items-start">
-        <span class="font-bold mr-2 whitespace-nowrap">辞退/失注:</span>
-        <div>
-          ${r.declinedDate ? `<span class="mr-2">日: ${formatDateJP(r.declinedDate)}</span>` : ""}
-          <span>理由: ${escapeHtml(r.declinedReason || "不明")}</span>
-        </div>
-      </div>`;
-  }
-  if (r.earlyTurnoverDate || r.earlyTurnoverReason) {
-    alerts += `
-      <div class="mt-2 text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded border border-orange-100 flex items-start">
-        <span class="font-bold mr-2 whitespace-nowrap">早期退職:</span>
-        <div>
-          ${r.earlyTurnoverDate ? `<span class="mr-2">日: ${formatDateJP(r.earlyTurnoverDate)}</span>` : ""}
-          <span>理由: ${escapeHtml(r.earlyTurnoverReason || "不明")}</span>
-        </div>
-      </div>`;
-  }
 
   // 備考エリア
-  const noteHtml = r.note
-    ? `<div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap"><span class="font-bold text-slate-500 mr-1">備考:</span>${escapeHtml(r.note)}</div>`
-    : "";
+  const noteHtml = editing
+    ? `
+      <div class="mt-3">
+        <div class="text-xs text-slate-400 mb-1">備考</div>
+        ${renderTableTextarea(r.note, `${pathPrefix}.selectionNote`, "selection")}
+      </div>
+    `
+    : r.note
+      ? `<div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap"><span class="font-bold text-slate-500 mr-1">備考:</span>${escapeHtml(r.note)}</div>`
+      : "";
 
-  return `
-    <div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <h4 class="text-lg font-bold text-slate-800">${escapeHtml(r.companyName || "企業名未設定")}</h4>
+  const declineNodes = [
+    {
+      label: "内定後辞退",
+      date: r.preJoinDeclineDate,
+      reason: r.preJoinDeclineReason,
+      datePath: `${pathPrefix}.preJoinDeclineDate`,
+      reasonPath: `${pathPrefix}.preJoinDeclineReason`,
+    },
+    {
+      label: "入社後辞退",
+      date: r.postJoinQuitDate,
+      reason: r.postJoinQuitReason,
+      datePath: `${pathPrefix}.postJoinQuitDate`,
+      reasonPath: `${pathPrefix}.postJoinQuitReason`,
+    },
+  ];
+  const declineHtml = declineNodes
+    .map((node) => `
+      <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+        <div class="text-xs font-semibold text-slate-700">${node.label}</div>
+        ${renderSelectionNodeDate(node.date, node.datePath, editing)}
+        ${renderSelectionNodeText(node.reason, node.reasonPath, editing, "辞退理由")}
+      </div>
+    `)
+    .join("");
+
+  const headerLeft = editing
+    ? `
+      <div class="flex flex-wrap items-start gap-3">
+        <div class="min-w-[180px]">
+          <div class="text-[10px] text-slate-400 mb-1">企業名</div>
+          ${renderTableSelect(buildClientOptions(rawRow.clientId, r.companyName), `${pathPrefix}.clientId`, "selection")}
+        </div>
+        <div class="min-w-[140px]">
+          <div class="text-[10px] text-slate-400 mb-1">応募経路</div>
+          ${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}
+        </div>
+        <div class="flex items-center gap-2 pt-4" data-selection-status>
           ${renderStatusPill(statusLabel, statusVariant)}
         </div>
-        <div class="flex gap-4 text-xs text-slate-500">
-           ${details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("")}
-        </div>
+      </div>
+    `
+    : `
+      <div class="flex items-center gap-3">
+        <h4 class="text-lg font-bold text-slate-800">${escapeHtml(r.companyName || "企業名未設定")}</h4>
+        <div data-selection-status>${renderStatusPill(statusLabel, statusVariant)}</div>
+      </div>
+    `;
+
+  const headerRight = editing
+    ? `<button type="button" class="repeatable-remove-btn" data-remove-row="selectionProgress" data-index="${index}">削除</button>`
+    : `
+      <div class="flex gap-4 text-xs text-slate-500">
+         ${details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("")}
+      </div>
+    `;
+
+  const rowAttr = editing ? `data-selection-row="${index}"` : "";
+  return `
+    <div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow" ${rowAttr}>
+      <div class="flex items-center justify-between mb-4">
+        ${headerLeft}
+        ${headerRight}
       </div>
       
       <!-- Flow Chart -->
-      <div class="flex justify-between items-start w-full px-2 mb-2">
-        ${flowHtml}
+      <div class="flex flex-col lg:flex-row lg:items-start gap-4">
+        <div class="flex-1 flex justify-between items-start w-full px-2 mb-2">
+          ${flowHtml}
+        </div>
+        <div class="flex flex-col gap-3 min-w-[160px]">
+          ${declineHtml}
+        </div>
       </div>
 
       <!-- Alerts & Notes -->
-      ${alerts}
       ${noteHtml}
     </div>
   `;
@@ -3446,6 +3437,9 @@ function renderMoneySection(candidate) {
         const feeCell = canEdit
           ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
           : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span>`;
+        const orderDateCell = canEdit
+          ? renderTableInput(row.orderDate, `moneyInfo.${index}.orderDate`, "date", "money")
+          : `<span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(row.orderDate)))}</span>`;
         const reportCell = canEdit
           ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
           : renderBooleanPill(row.orderReported);
@@ -3453,12 +3447,13 @@ function renderMoneySection(candidate) {
     <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${feeCell}</td>
+            <td>${orderDateCell}</td>
             <td class="text-center">${reportCell}</td>
           </tr>
     `;
       })
       .join("")
-    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
+    : `<tr><td colspan="4" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
 
   const refundBody = hasRows
     ? rows
@@ -3475,6 +3470,9 @@ function renderMoneySection(candidate) {
         const refundAmountCell = canEdit
           ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
           : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.refundAmount))}</span>`;
+        const withdrawDateCell = canEdit
+          ? renderTableInput(row.withdrawDate, `moneyInfo.${index}.withdrawDate`, "date", "money")
+          : `<span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(row.withdrawDate)))}</span>`;
         const refundReportCell = canEdit
           ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
           : renderBooleanPill(row.refundReported);
@@ -3482,6 +3480,7 @@ function renderMoneySection(candidate) {
     <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${refundAmountCell}</td>
+            <td>${withdrawDateCell}</td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(retirementDate)))}</span></td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(refundType))}</span></td>
             <td class="text-center">${refundReportCell}</td>
@@ -3489,13 +3488,13 @@ function renderMoneySection(candidate) {
     `;
       })
       .join("")
-    : `<tr><td colspan="5" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>`;
+    : `<tr><td colspan="6" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>`;
 
   const orderTable = `
     <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>受注金額（税抜）</th><th>受注報告</th></tr>
+          <tr><th>企業名</th><th>受注金額（税抜）</th><th>受注日</th><th>受注報告</th></tr>
         </thead>
         <tbody>${orderBody}</tbody>
       </table>
@@ -3506,7 +3505,7 @@ function renderMoneySection(candidate) {
     <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>返金・減額（税抜）</th><th>退職日</th><th>返金区分</th><th>返金報告</th></tr>
+          <tr><th>企業名</th><th>返金・減額（税抜）</th><th>辞退日</th><th>退職日</th><th>返金区分</th><th>返金報告</th></tr>
         </thead>
         <tbody>${refundBody}</tbody>
       </table>
@@ -3951,5 +3950,3 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
-
