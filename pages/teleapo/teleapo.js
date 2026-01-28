@@ -2360,9 +2360,13 @@ function addDaysToDateString(dateStr, days) {
   dt.setDate(dt.getDate() + days);
   return `${dt.getFullYear()}-${zeroPad(dt.getMonth() + 1)}-${zeroPad(dt.getDate())}`;
 }
-function rateClass(rate) {
-  if (rate >= 70) return 'text-green-700';
-  if (rate >= 40) return 'text-amber-600';
+function rateClass(rate, targetKey) {
+  if (!targetKey || !teleapoRateTargets[targetKey]) return 'text-slate-900';
+  const targetRate = Number(teleapoRateTargets[targetKey]);
+  if (!Number.isFinite(targetRate) || targetRate <= 0) return 'text-slate-900';
+  const percentage = (rate / targetRate) * 100;
+  if (percentage >= 100) return 'text-green-700';
+  if (percentage >= 80) return 'text-amber-600';
   return 'text-red-600';
 }
 
@@ -2464,17 +2468,17 @@ function renderSummary(logs, titleText, scopeLabelText) {
   setText('teleapoSummaryScopeLabel', scopeLabelText || '全体');
   updateRateModeUI();
 
-  setTextWithRateColor('teleapoKpiContactRateTel', telRates.contactRate, 'teleapoContactRateTarget');
-  setTextWithRateColor('teleapoKpiContactRateOther', otherRates.contactRate, 'teleapoContactRateTarget');
-  setTextWithRateColor('teleapoKpiContactRateTotal', totalRates.contactRate, 'teleapoContactRateTarget');
+  setTextWithRateColor('teleapoKpiContactRateTel', telRates.contactRate, 'teleapoConnectionRate');
+  setTextWithRateColor('teleapoKpiContactRateOther', otherRates.contactRate, 'teleapoConnectionRate');
+  setTextWithRateColor('teleapoKpiContactRateTotal', totalRates.contactRate, 'teleapoConnectionRate');
 
-  setTextWithRateColor('teleapoKpiSetRateTel', telRates.setRate, 'teleapoSetRateTarget');
-  setTextWithRateColor('teleapoKpiSetRateOther', otherRates.setRate, 'teleapoSetRateTarget');
-  setTextWithRateColor('teleapoKpiSetRateTotal', totalRates.setRate, 'teleapoSetRateTarget');
+  setTextWithRateColor('teleapoKpiSetRateTel', telRates.setRate, 'teleapoSetupRate');
+  setTextWithRateColor('teleapoKpiSetRateOther', otherRates.setRate, 'teleapoSetupRate');
+  setTextWithRateColor('teleapoKpiSetRateTotal', totalRates.setRate, 'teleapoSetupRate');
 
   const showRateTargetKey = teleapoRateMode === TELEAPO_RATE_MODE_STEP
-    ? 'teleapoShowRateTarget'
-    : 'teleapoShowRateTargetWithContact';
+    ? 'teleapoAttendanceRate'
+    : 'teleapoAttendanceRateContact';
 
   setTextWithRateColor('teleapoKpiShowRateTel', telRates.showRate, showRateTargetKey);
   setTextWithRateColor('teleapoKpiShowRateOther', otherRates.showRate, showRateTargetKey);
@@ -2542,9 +2546,9 @@ function renderEmployeeTable(metrics) {
   const sortedMetrics = sortEmployeeMetrics(metrics, `${teleapoEmployeeSortState.key}-${teleapoEmployeeSortState.dir}`);
 
   tbody.innerHTML = sortedMetrics.map(emp => {
-    const connectClass = rateClass(emp.connectRate);
-    const setClass = rateClass(emp.setRate);
-    const showClass = rateClass(emp.showRate);
+    const connectClass = rateClass(emp.connectRate, 'teleapoConnectionRate');
+    const setClass = rateClass(emp.setRate, 'teleapoSetupRate');
+    const showClass = rateClass(emp.showRate, 'teleapoAttendanceRate');
     return `
       <tr class="teleapo-employee-row hover:bg-slate-50 cursor-pointer" data-employee-name="${emp.name}">
         <td class="font-medium text-slate-800">${emp.name}</td>
@@ -3200,15 +3204,15 @@ function renderEmployeeTrendTable(points, mode) {
         <td>${escapeHtml(p.label)}</td>
         <td class="text-right">${p.dials}</td>
         <td class="text-right">
-          <div class="teleapo-employee-table-rate">${formatRate(p.connectRate)}</div>
+          <div class="teleapo-employee-table-rate ${rateClass(p.connectRate, 'teleapoConnectionRate')}">${formatRate(p.connectRate)}</div>
           <div class="teleapo-employee-table-detail">${connectDetail}</div>
         </td>
         <td class="text-right">
-          <div class="teleapo-employee-table-rate">${formatRate(p.setRate)}</div>
+          <div class="teleapo-employee-table-rate ${rateClass(p.setRate, 'teleapoSetupRate')}">${formatRate(p.setRate)}</div>
           <div class="teleapo-employee-table-detail">${setDetail}</div>
         </td>
         <td class="text-right">
-          <div class="teleapo-employee-table-rate">${formatRate(p.showRate)}</div>
+          <div class="teleapo-employee-table-rate ${rateClass(p.showRate, 'teleapoAttendanceRate')}">${formatRate(p.showRate)}</div>
           <div class="teleapo-employee-table-detail">${showDetail}</div>
         </td>
       </tr>
@@ -3979,7 +3983,11 @@ async function loadTeleapoRateTargets() {
   try {
     await goalSettingsService.load();
     const periods = goalSettingsService.getEvaluationPeriods();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
     const currentPeriod = goalSettingsService.getPeriodByDate(todayStr, periods);
     if (currentPeriod?.id) {
       teleapoRateTargets = await goalSettingsService.loadPageRateTargets(currentPeriod.id) || {};
