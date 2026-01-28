@@ -93,7 +93,11 @@ async function loadAdRateTargets() {
   try {
     await goalSettingsService.load();
     const periods = goalSettingsService.getEvaluationPeriods();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
     const currentPeriod = goalSettingsService.getPeriodByDate(todayStr, periods);
     if (currentPeriod?.id) {
       adRateTargets = await goalSettingsService.loadPageRateTargets(currentPeriod.id) || {};
@@ -678,9 +682,9 @@ function renderAdTable(data) {
         </td>
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatNumber(ad.applications)}</td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.validApplications)}</td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.validApplicationRate, 'adValidApplicationRateTarget')}">${formatPercent(ad.validApplicationRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.validApplicationRate, 'adValidAppRate')}">${formatPercent(ad.validApplicationRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.initialInterviews)}</td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.initialInterviewRate, 'adInitialInterviewRateTarget')}">${formatPercent(ad.initialInterviewRate)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.initialInterviewRate, 'adInterviewSetupRate')}">${formatPercent(ad.initialInterviewRate)}</span></td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.offers)}</td>
         <td class="text-right whitespace-nowrap px-2">
           <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.offerRate, offerTargetKey)}">
@@ -689,7 +693,7 @@ function renderAdTable(data) {
         </td>
         <td class="text-right whitespace-nowrap px-2">${formatNumber(ad.hired)}</td>
         <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.hireRate, hireTargetKey)}">${formatPercent(ad.hireRate)}</span></td>
-        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.retentionWarranty, 'adRetentionRateTarget')}">${formatPercent(ad.retentionWarranty)}</span></td>
+        <td class="text-right whitespace-nowrap px-2"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRateBadgeClass(ad.retentionWarranty, 'adRetentionRate')}">${formatPercent(ad.retentionWarranty)}</span></td>
         
         <td class="text-right font-semibold whitespace-nowrap px-2">${formatCurrency(ad.totalSales)}</td>
         

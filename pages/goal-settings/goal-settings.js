@@ -298,6 +298,7 @@ async function handleSavePageRateTargets() {
     const value = Number(input.value);
     targets[key] = Number.isFinite(value) && value >= 0 ? value : 0;
   });
+  console.log('[DEBUG] Saving Page Rate Targets:', targets);
   try {
     await goalSettingsService.savePageRateTargets(state.selectedPageRatePeriodId, targets);
     showSaveStatus('pageRateTargetSaveStatus', 'ページ別率目標を保存しました');
