@@ -51,6 +51,8 @@ const cache = {
   companyTargets: new Map(),
   personalTargets: new Map(),
   dailyTargets: new Map(),
+  msTargets: new Map(),
+  importantMetrics: new Map(),
   pageRateTargets: new Map() // ページ別率目標（periodId -> targets）
 };
 
@@ -74,6 +76,12 @@ function buildGoalUrl(path) {
   if (!GOAL_API_BASE) return path;
   const suffix = path.startsWith('/') ? path : `/${path}`;
   return `${GOAL_API_BASE}${suffix}`;
+}
+
+function buildApiUrl(base, path) {
+  if (!base) return path;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base.replace(/\/$/, '')}${suffix}`;
 }
 
 function getAuthHeaders() {
@@ -105,11 +113,117 @@ async function requestJson(path, options = {}) {
   return data;
 }
 
+async function requestJsonWithBase(base, path, options = {}) {
+  const res = await fetch(buildApiUrl(base, path), {
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers || {}),
+      ...getAuthHeaders()
+    },
+    ...options
+  });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    const message = data?.error || data?.message || `HTTP ${res.status}`;
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
+  }
+  return data;
+}
+
 function isoDate(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function makeMsKey({ scope, departmentKey, metricKey, periodId, advisorUserId }) {
+  const advisor = Number.isFinite(advisorUserId) ? advisorUserId : 0;
+  return [scope, departmentKey, metricKey, periodId, advisor].join(':');
+}
+
+function makeImportantMetricKey({ departmentKey, userId }) {
+  const user = Number.isFinite(userId) ? userId : 0;
+  return [departmentKey || 'all', user].join(':');
+}
+
+async function loadImportantMetricsFromApi({ departmentKey, userId, force = false } = {}) {
+  const key = makeImportantMetricKey({ departmentKey, userId });
+  if (!force && cache.importantMetrics.has(key)) {
+    return cache.importantMetrics.get(key);
+  }
+  const params = new URLSearchParams();
+  if (departmentKey) params.set('departmentKey', departmentKey);
+  if (Number.isFinite(userId) && userId > 0) params.set('userId', String(userId));
+  const data = await requestJsonWithBase(KPI_TARGET_API_BASE, `/important-metrics?${params.toString()}`);
+  const items = Array.isArray(data?.items) ? data.items : [];
+  cache.importantMetrics.set(key, items);
+  return items;
+}
+
+async function saveImportantMetricToApi({ departmentKey, userId, metricKey }) {
+  if (!departmentKey || !userId || !metricKey) return null;
+  await requestJsonWithBase(KPI_TARGET_API_BASE, '/important-metrics', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ departmentKey, userId, metricKey })
+  });
+  return { departmentKey, userId, metricKey };
+}
+
+async function loadMsTargetsFromApi({ scope, departmentKey, metricKey, periodId, advisorUserId, force = false }) {
+  if (!scope || !departmentKey || !metricKey || !periodId) return null;
+  const key = makeMsKey({ scope, departmentKey, metricKey, periodId, advisorUserId });
+  if (!force && cache.msTargets.has(key)) {
+    return cache.msTargets.get(key);
+  }
+  const params = new URLSearchParams({
+    scope,
+    departmentKey,
+    metricKey,
+    periodId
+  });
+  if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
+    params.set('advisorUserId', String(advisorUserId));
+  }
+  const data = await requestJsonWithBase(KPI_TARGET_API_BASE, `/ms-targets?${params.toString()}`);
+  const normalized = {
+    targetTotal: Number(data?.targetTotal || 0),
+    dailyTargets: data?.dailyTargets || {}
+  };
+  cache.msTargets.set(key, normalized);
+  return normalized;
+}
+
+async function saveMsTargetsToApi({ scope, departmentKey, metricKey, periodId, advisorUserId, targetTotal, dailyTargets }) {
+  if (!scope || !departmentKey || !metricKey || !periodId) return null;
+  await requestJsonWithBase(KPI_TARGET_API_BASE, '/ms-targets', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      scope,
+      departmentKey,
+      metricKey,
+      periodId,
+      advisorUserId: Number.isFinite(advisorUserId) ? advisorUserId : null,
+      targetTotal: Number(targetTotal || 0),
+      dailyTargets: dailyTargets || {}
+    })
+  });
+  const key = makeMsKey({ scope, departmentKey, metricKey, periodId, advisorUserId });
+  const normalized = {
+    targetTotal: Number(targetTotal || 0),
+    dailyTargets: dailyTargets || {}
+  };
+  cache.msTargets.set(key, normalized);
+  return normalized;
 }
 
 function padMonth(value) {
@@ -669,6 +783,56 @@ export const goalSettingsService = {
     });
     cache.dailyTargets.set(key, normalized);
     return normalized;
+  },
+  getMsTargets({ scope, departmentKey, metricKey, periodId, advisorUserId }) {
+    const key = makeMsKey({ scope, departmentKey, metricKey, periodId, advisorUserId });
+    return cache.msTargets.get(key) || null;
+  },
+  async loadMsTargets({ scope, departmentKey, metricKey, periodId, advisorUserId, force = false } = {}) {
+    try {
+      return await loadMsTargetsFromApi({ scope, departmentKey, metricKey, periodId, advisorUserId, force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load ms targets', error);
+      return this.getMsTargets({ scope, departmentKey, metricKey, periodId, advisorUserId });
+    }
+  },
+  async saveMsTargets({ scope, departmentKey, metricKey, periodId, advisorUserId, targetTotal, dailyTargets } = {}) {
+    try {
+      return await saveMsTargetsToApi({ scope, departmentKey, metricKey, periodId, advisorUserId, targetTotal, dailyTargets });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to save ms targets', error);
+      return null;
+    }
+  },
+  getImportantMetrics({ departmentKey, userId } = {}) {
+    const key = makeImportantMetricKey({ departmentKey, userId });
+    return cache.importantMetrics.get(key) || [];
+  },
+  async loadImportantMetrics({ departmentKey, userId, force = false } = {}) {
+    try {
+      return await loadImportantMetricsFromApi({ departmentKey, userId, force });
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to load important metrics', error);
+      return this.getImportantMetrics({ departmentKey, userId });
+    }
+  },
+  async saveImportantMetric({ departmentKey, userId, metricKey } = {}) {
+    try {
+      const saved = await saveImportantMetricToApi({ departmentKey, userId, metricKey });
+      const key = makeImportantMetricKey({ departmentKey, userId });
+      cache.importantMetrics.set(key, [saved]);
+      const deptKey = makeImportantMetricKey({ departmentKey });
+      const current = Array.isArray(cache.importantMetrics.get(deptKey))
+        ? cache.importantMetrics.get(deptKey)
+        : [];
+      const next = current.filter(item => Number(item?.userId || item?.user_id) !== Number(userId));
+      next.push(saved);
+      cache.importantMetrics.set(deptKey, next);
+      return saved;
+    } catch (error) {
+      console.warn('[goalSettingsService] failed to save important metric', error);
+      return null;
+    }
   },
   getPeriodByDate(dateStr, periods) {
     return getPeriodByDate(dateStr, periods || cache.evaluationPeriods);
