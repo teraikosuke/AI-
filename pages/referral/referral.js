@@ -360,7 +360,7 @@ function formatRetention(val, targetKey) {
     const n = parseFloat(val);
     if (!isNaN(n)) {
       const display = n <= 1 ? `${Math.round(n * 100)}%` : `${n}%`;
-      const badgeClass = getRateBadgeClass(n <= 1 ? n * 100 : n, targetKey);
+      const badgeClass = getRateBadgeClass(n <= 1 ? n * 100 : n, 'clientRetentionRate');
       return `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass}">${display}</span>`;
     }
     if (typeof val === 'string' && val.includes('%')) return val;
@@ -383,7 +383,11 @@ async function loadReferralRateTargets() {
   try {
     await goalSettingsService.load();
     const periods = goalSettingsService.getEvaluationPeriods();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
     const currentPeriod = goalSettingsService.getPeriodByDate(todayStr, periods);
     if (currentPeriod?.id) {
       referralRateTargets = await goalSettingsService.loadPageRateTargets(currentPeriod.id) || {};
