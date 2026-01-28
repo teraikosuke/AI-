@@ -53,7 +53,7 @@ let mainBarChart = null;
 let mainPieChart = null;
 let chartJsLoading = null;
 let lastAggregated = [];
-let lineMetric = 'decisionRate';
+let lineMetric = 'initialInterviewRate';
 let currentGraphMetric = 'roas';
 let contractInfoCache = new Map();
 let contractFetchInFlight = new Map();
@@ -172,13 +172,13 @@ function initializeAdFilters() {
     lineMetric = e.target.value || 'initialInterviewRate';
     if (metricTitle) {
       const metricLabels = {
-        decisionRate: '決定率',
         initialInterviewRate: '初回面談設定率',
-        retentionWarranty: '定着率（保障期間）',
-        retention30: '定着率（保障期間）'
+        hireRate: '入社率',
+        retentionWarranty: '定着率',
+        roas: 'ROAS'
       };
-      const titleLabel = metricLabels[lineMetric] || '初回面談設定率';
-      metricTitle.textContent = `${titleLabel} 月別推移・媒体別`;
+      const titleLabel = metricLabels[lineMetric] || '指標';
+      metricTitle.textContent = `${titleLabel}（月別推移・媒体別）`;
     }
     renderAdCharts(lastAggregated, adState.filtered);
   });
@@ -805,6 +805,8 @@ function renderAdMainChart(data) {
   }
 
   setMainBarChartPlaceholder('');
+  console.log('[DEBUG] renderAdMainChart calling with metric:', currentGraphMetric, 'Data length:', data.length);
+
 
   const normalized = data.map(d => ({
     mediaName: d.mediaName,
@@ -1000,7 +1002,7 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
     ensureChartJs().then(() => renderAdCharts(aggregatedData, rawData));
     return;
   }
-
+  console.log('[DEBUG] renderAdCharts invoked. Calling sub-renders.');
   renderAdMainChart(aggregatedData);
 
   if (!aggregatedData.length) {
@@ -1012,12 +1014,16 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
     return;
   }
 
-  const labels = Array.from(new Set(rawData.map(d => d.period))).sort();
+  // ★修正: rawData は API生データなので、レート計算が含まれていない。
+  // ここで calcDerivedRates を通して計算済みデータに変換する
+  const enrichedData = rawData.map(d => calcDerivedRates(d));
+
+  const labels = Array.from(new Set(enrichedData.map(d => d.period))).sort();
   // Determine all unique media names available in the raw data for consistent coloring
-  const allMediaNames = Array.from(new Set(rawData.map(d => d.mediaName)));
+  const allMediaNames = Array.from(new Set(enrichedData.map(d => d.mediaName)));
 
   const mediaMap = {};
-  rawData.forEach(d => {
+  enrichedData.forEach(d => {
     if (!mediaMap[d.mediaName]) mediaMap[d.mediaName] = {};
     mediaMap[d.mediaName][d.period] = d[lineMetric];
   });
@@ -1054,12 +1060,12 @@ function renderAdCharts(aggregatedData, rawData = adState.filtered) {
   lineCanvas.height = 380;
 
   const metricLabels = {
-    decisionRate: '決定率',
     initialInterviewRate: '初回面談設定率',
-    retentionWarranty: '定着率（保障期間）',
-    retention30: '定着率（保障期間）'
+    hireRate: '入社率',
+    retentionWarranty: '定着率',
+    roas: 'ROAS'
   };
-  const metricLabel = metricLabels[lineMetric] || '決定率';
+  const metricLabel = metricLabels[lineMetric] || '';
 
   decisionLineChart = new Chart(lineCanvas.getContext('2d'), {
     type: 'line',

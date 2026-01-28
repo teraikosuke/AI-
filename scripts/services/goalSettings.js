@@ -22,22 +22,21 @@ const KPI_TARGET_KEYS = [
 // ページ別率目標キー（広告管理・架電管理・紹介先実績）
 const PAGE_RATE_TARGET_KEYS = [
   // 広告管理画面
-  'adValidApplicationRateTarget',
-  'adInitialInterviewRateTarget',
+  'adValidAppRate',
+  'adInterviewSetupRate',
   'adOfferRateTarget',
-  'adOfferRateTargetStep', // 追加: 内定率（段階別）
+  'adOfferRateTargetStep',
   'adHireRateTarget',
-  'adHireRateTargetStep', // 追加: 入社率（段階別）
-  'adDecisionRateTarget',
-  'adRetentionRateTarget',
+  'adHireRateTargetStep',
+  'adRetentionRate',
   // 架電管理画面
-  'teleapoContactRateTarget',
-  'teleapoSetRateTarget',
-  'teleapoShowRateTarget',
-  'teleapoShowRateTargetWithContact', // 着座率(分母:接触数)
-  'teleapoConnectRateTarget',
+  'teleapoContactRate',
+  'teleapoSetupRate',
+  'teleapoAttendanceRate',
+  'teleapoAttendanceRateContact',
+  'teleapoConnectionRate',
   // 紹介先実績管理画面
-  'referralRetentionRateTarget'
+  'clientRetentionRate'
 ];
 
 const DEFAULT_GOAL_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/goal';
@@ -302,11 +301,56 @@ function normalizeTarget(raw = {}) {
   }, {});
 }
 
-// ページ別率目標の正規化
+const KEY_VARIANTS = {
+  adValidAppRate: ['adValidAppRate', 'adValidApplicationRateTarget', 'ad_valid_application_rate_target', 'validApplicationRateTarget'],
+  adInterviewSetupRate: ['adInterviewSetupRate', 'adInitialInterviewRateTarget', 'ad_initial_interview_rate_target', 'initialInterviewRateTarget'],
+  adOfferRateTarget: [
+    'offerRateTarget', 'offer_rate_target',
+    'adOfferRateTarget', 'ad_offer_rate_target',
+    'adOfferTarget', 'ad_offer_target',
+    'adOfferRate', 'ad_offer_rate',
+    'adProvisionalOfferRateTarget', 'ad_provisional_offer_rate_target',
+    'adInformalOfferRateTarget', 'ad_informal_offer_rate_target'
+  ],
+  adOfferRateTargetStep: ['adOfferRateTargetStep', 'ad_offer_rate_target_step'],
+  adHireRateTarget: [
+    'hireRateTarget', 'hire_rate_target',
+    'adHireRateTarget', 'ad_hire_rate_target',
+    'adHireTarget', 'ad_hire_target',
+    'adHireRate', 'ad_hire_rate',
+    'adDecisionRateTarget', 'ad_decision_rate_target',
+    'decisionRateTarget', 'decision_rate_target',
+    'adEmploymentRateTarget', 'ad_employment_rate_target'
+  ],
+  adHireRateTargetStep: ['adHireRateTargetStep', 'ad_hire_rate_target_step'],
+  adRetentionRate: ['adRetentionRate', 'adRetentionRateTarget', 'ad_retention_rate_target', 'retentionRateTarget'],
+  teleapoContactRate: ['teleapoContactRate', 'teleapoContactRateTarget', 'teleapo_contact_rate_target'],
+  teleapoSetupRate: ['teleapoSetupRate', 'teleapoSetRateTarget', 'teleapo_set_rate_target'],
+  teleapoAttendanceRate: ['teleapoAttendanceRate', 'teleapoShowRateTarget', 'teleapo_show_rate_target'],
+  teleapoAttendanceRateContact: ['teleapoAttendanceRateContact', 'teleapoShowRateTargetWithContact', 'teleapo_show_rate_target_with_contact'],
+  teleapoConnectionRate: ['teleapoConnectionRate', 'teleapoConnectRateTarget', 'teleapo_connect_rate_target'],
+  clientRetentionRate: ['clientRetentionRate', 'referralRetentionRateTarget', 'referral_retention_rate_target']
+};
+
+// ページ別率目標の正規化 (Polyfill)
 function normalizePageRateTarget(raw = {}) {
-  return PAGE_RATE_TARGET_KEYS.reduce((acc, key) => {
-    const value = Number(raw[key]);
-    acc[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+  // Use PAGE_RATE_TARGET_KEYS as canonical list
+  return PAGE_RATE_TARGET_KEYS.reduce((acc, canonicalKey) => {
+    let value = 0;
+    const variants = KEY_VARIANTS[canonicalKey] || [canonicalKey];
+
+    // Try to find a valid number in any variant
+    for (const variant of variants) {
+      if (raw[variant] !== undefined && raw[variant] !== null && raw[variant] !== '') {
+        const parsed = Number(raw[variant]);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          value = parsed;
+          break; // Found a valid value
+        }
+      }
+    }
+
+    acc[canonicalKey] = value;
     return acc;
   }, {});
 }
@@ -709,6 +753,16 @@ export const goalSettingsService = {
     if (!periodId) return null;
     const normalized = normalizePageRateTarget(targets);
 
+    // Polyfill: Expand keys to all variants
+    const expandedPayload = {};
+    Object.entries(normalized).forEach(([canonicalKey, value]) => {
+      // Use KEY_VARIANTS defined earlier scope
+      const variants = KEY_VARIANTS[canonicalKey] || [canonicalKey];
+      variants.forEach(variant => {
+        expandedPayload[variant] = value;
+      });
+    });
+
     // New API: PUT /kpi-targets
     const url = `${KPI_TARGET_API_BASE}/kpi-targets`;
     const headers = getAuthHeaders();
@@ -723,7 +777,7 @@ export const goalSettingsService = {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
-      body: JSON.stringify({ period: targetMonth, targets: normalized })
+      body: JSON.stringify({ period: targetMonth, targets: expandedPayload })
     });
 
     if (!res.ok) {
