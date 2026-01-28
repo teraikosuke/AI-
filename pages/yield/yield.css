@@ -1575,6 +1575,13 @@
   width: 140px;
 }
 
+.kpi-v2-personal-ms-table th.kpi-v2-ms-metric,
+.kpi-v2-personal-ms-table td.kpi-v2-ms-metric {
+  min-width: 160px;
+  max-width: 160px;
+  width: 160px;
+}
+
 .kpi-v2-ms-table .kpi-v2-ms-metric {
   left: 140px;
   min-width: 110px;
@@ -1615,4 +1622,17 @@
   font-size: 12px;
   padding: 2px 8px;
   line-height: 1.4;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .ms-important-row td,
+[data-kpi="v2"] .kpi-v2-daily-table .ms-important-row th {
+  background-color: #fff7e0 !important;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .ms-important-row .ms-cell-disabled {
+  background: #475569 !important;
+}
+
+[data-kpi="v2"] .kpi-v2-daily-table .ms-important-row .ms-dept-cell {
+  background-color: #fff !important;
 }

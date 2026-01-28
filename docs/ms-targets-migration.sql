@@ -33,3 +33,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS ms_daily_targets_uq
 
 CREATE INDEX IF NOT EXISTS ms_daily_targets_period_idx
   ON ms_daily_targets (period_id, department_key, metric_key);
+
+-- User-specific important metric per department
+CREATE TABLE IF NOT EXISTS user_important_metrics (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  department_key TEXT NOT NULL, -- marketing | cs | sales
+  metric_key TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_important_metrics_uq
+  ON user_important_metrics (user_id, department_key);
+
+CREATE INDEX IF NOT EXISTS user_important_metrics_dept_idx
+  ON user_important_metrics (department_key);

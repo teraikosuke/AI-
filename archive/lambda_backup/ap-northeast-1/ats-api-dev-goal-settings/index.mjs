@@ -159,6 +159,37 @@ async function upsertDailyTargets(client, { advisorUserId, periodId, items }) {
   }
 }
 
+async function getImportantMetrics(client, { departmentKey, userId }) {
+  const params = [];
+  let where = "TRUE";
+  if (departmentKey) {
+    params.push(departmentKey);
+    where += ` AND department_key=$${params.length}`;
+  }
+  if (Number.isFinite(userId) && userId > 0) {
+    params.push(userId);
+    where += ` AND user_id=$${params.length}`;
+  }
+  const res = await client.query(
+    `SELECT user_id, department_key, metric_key
+     FROM user_important_metrics
+     WHERE ${where}
+     ORDER BY user_id ASC`,
+    params
+  );
+  return res.rows || [];
+}
+
+async function upsertImportantMetric(client, { userId, departmentKey, metricKey }) {
+  await client.query(
+    `INSERT INTO user_important_metrics (user_id, department_key, metric_key)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, department_key)
+     DO UPDATE SET metric_key = EXCLUDED.metric_key, updated_at = now()`,
+    [userId, departmentKey, metricKey]
+  );
+}
+
 function buildMsWhere({ scope, departmentKey, metricKey, periodId, advisorUserId }) {
   const params = [scope, departmentKey, metricKey, periodId];
   let clause = "scope=$1 AND department_key=$2 AND metric_key=$3 AND period_id=$4";
@@ -330,6 +361,22 @@ export const handler = async (event) => {
       }
 
       await upsertDailyTargets(client, { advisorUserId, periodId, items });
+      return json({ ok: true }, 200, headers);
+    }
+
+    if (method === "GET" && path.endsWith("/important-metrics")) {
+      const departmentKey = qs.departmentKey ? String(qs.departmentKey) : "";
+      const userId = qs.userId ? Number(qs.userId) : null;
+      const rows = await getImportantMetrics(client, { departmentKey, userId });
+      return json({ items: rows }, 200, headers);
+    }
+
+    if (method === "PUT" && path.endsWith("/important-metrics")) {
+      const { userId, departmentKey, metricKey } = body;
+      if (!userId || !departmentKey || !metricKey) {
+        return json({ error: "userId, departmentKey, metricKey are required" }, 400, headers);
+      }
+      await upsertImportantMetric(client, { userId: Number(userId), departmentKey, metricKey });
       return json({ ok: true }, 200, headers);
     }
 
