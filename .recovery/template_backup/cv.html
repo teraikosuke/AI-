@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>職務経歴書 - {{candidateName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "メイリオ", sans-serif;
+            font-size: 11px;
+            line-height: 1.6;
+            padding: 15mm;
+            background: white;
+        }
+
+        h1 {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            letter-spacing: 8px;
+        }
+
+        .date {
+            text-align: right;
+            margin-bottom: 5px;
+            font-size: 10px;
+        }
+
+        .name {
+            text-align: right;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            background: #2c3e50;
+            color: white;
+            padding: 6px 10px;
+            margin-bottom: 10px;
+        }
+
+        .summary-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-left: 3px solid #3498db;
+            margin-bottom: 15px;
+        }
+
+        .work-entry {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ccc;
+        }
+
+        .work-entry:last-child {
+            border-bottom: none;
+        }
+
+        .work-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .company-name {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .period {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .position {
+            font-size: 11px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            font-size: 11px;
+            white-space: pre-wrap;
+            background: #fafafa;
+            padding: 10px;
+            border: 1px solid #eee;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f5f5f5;
+            width: 100px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>職 務 経 歴 書</h1>
+    <div class="date">{{currentDate}} 現在</div>
+    <div class="name">氏名: {{candidateName}}</div>
+
+    <div class="section">
+        <div class="section-title">職務要約</div>
+        <div class="summary-box">
+            {{workExperience}}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">職務経歴</div>
+        {{#workHistories}}
+        <div class="work-entry">
+            <div class="work-header">
+                <span class="company-name">{{companyName}}</span>
+                <span class="period">{{joinDate}} ～
+                    {{#isCurrent}}現在{{/isCurrent}}{{^isCurrent}}{{leaveDate}}{{/isCurrent}}</span>
+            </div>
+            <div class="position">部署: {{department}} ｜ 役職: {{position}}</div>
+            <div class="description">{{jobDescription}}</div>
+        </div>
+        {{/workHistories}}
+        {{^workHistories}}
+        <p style="color: #999; text-align: center; padding: 20px;">職歴が登録されていません</p>
+        {{/workHistories}}
+    </div>
+
+    <div class="section">
+        <div class="section-title">スキル・強み</div>
+        <table>
+            <tr>
+                <th>強み</th>
+                <td>{{strengths}}</td>
+            </tr>
+            <tr>
+                <th>性格</th>
+                <td>{{personality}}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">転職理由・キャリアビジョン</div>
+        <table>
+            <tr>
+                <th>転職理由</th>
+                <td>{{reasonForChange}}</td>
+            </tr>
+            <tr>
+                <th>将来ビジョン</th>
+                <td>{{futureVision}}</td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>
