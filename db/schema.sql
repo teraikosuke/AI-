@@ -219,6 +219,10 @@ CREATE TABLE IF NOT EXISTS candidate_applications (
   pre_join_decline_at TIMESTAMPTZ,
   post_join_quit_at TIMESTAMPTZ,
   selection_note TEXT,
+  fee_amount TEXT,
+  closing_plan_date DATE,
+  declined_reason TEXT,
+  early_turnover_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -271,6 +275,36 @@ CREATE TABLE IF NOT EXISTS stamp_reads (
   user_id INTEGER,
   read_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 学歴テーブル
+CREATE TABLE IF NOT EXISTS candidate_educations (
+  id BIGSERIAL PRIMARY KEY,
+  candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+  school_name TEXT,
+  department TEXT,
+  admission_date DATE,
+  graduation_date DATE,
+  graduation_status TEXT,
+  sequence INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 職歴テーブル
+CREATE TABLE IF NOT EXISTS candidate_work_histories (
+  id BIGSERIAL PRIMARY KEY,
+  candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+  company_name TEXT,
+  department TEXT,
+  position TEXT,
+  join_date DATE,
+  leave_date DATE,
+  is_current BOOLEAN DEFAULT FALSE,
+  job_description TEXT,
+  sequence INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_cand_registered ON candidates (registered_date);

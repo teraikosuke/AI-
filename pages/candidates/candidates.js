@@ -52,6 +52,7 @@ const detailSectionKeys = [
   "cs",
   "teleapoLogs",
   "money",
+  "documents",
 ];
 
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
@@ -1684,6 +1685,7 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     { key: "hearing", label: "📝 面談メモ", icon: "" },
     { key: "teleapo", label: "📞 架電結果", icon: "" },
     { key: "money", label: "💰 売上・返金", icon: "" },
+    { key: "documents", label: "📄 書類作成", icon: "" },
   ];
 
   const tabNav = `
@@ -1750,6 +1752,11 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     case "money":
       tabContent = `
         ${renderDetailSection("売上・返金", renderMoneySection(candidate), "money")}
+      `;
+      break;
+    case "documents":
+      tabContent = `
+        ${renderDetailSection("書類作成", renderDocumentsSection(candidate), "documents")}
       `;
       break;
     default:
@@ -2359,7 +2366,9 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
     const candidate = getSelectedCandidate();
     if (candidate) {
       const hasIncompleteTasks = candidate.tasks && candidate.tasks.some(t => !t.isCompleted);
-      if (!hasIncompleteTasks) {
+      const hasNextActionDate = !!candidate.nextActionDate; // Check direct field
+
+      if (!hasIncompleteTasks && !hasNextActionDate) {
         alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
         return;
       }
@@ -2499,6 +2508,25 @@ function handleDetailContentClick(event) {
   if (selectionCompleteBtn) {
     if (confirm("選考を完了として画面を閉じますか？")) {
       closeCandidateModal({ force: true });
+    }
+    return;
+  }
+
+  // PDF ダウンロードボタン
+  const resumeBtn = event.target.closest("[data-download-resume]");
+  if (resumeBtn) {
+    const candidate = getSelectedCandidate();
+    if (candidate && candidate.id) {
+      window.open(`/api/candidates/${candidate.id}/resume.pdf`, "_blank");
+    }
+    return;
+  }
+
+  const cvBtn = event.target.closest("[data-download-cv]");
+  if (cvBtn) {
+    const candidate = getSelectedCandidate();
+    if (candidate && candidate.id) {
+      window.open(`/api/candidates/${candidate.id}/cv.pdf`, "_blank");
     }
     return;
   }
@@ -3537,18 +3565,29 @@ function renderNextActionSection(candidate) {
   const currentTask = incompleteTasks.length > 0 ? incompleteTasks[0] : null;
 
   // サマリー表示
-  const summaryHtml = currentTask
+  let displayTask = currentTask;
+  if (!displayTask && candidate.nextActionDate) {
+    displayTask = {
+      actionDate: candidate.nextActionDate,
+      actionNote: candidate.nextActionContent || candidate.nextActionNote || "（内容未設定）",
+      id: null // 仮想タスク
+    };
+  }
+
+  const summaryHtml = displayTask
     ? `
     <div class="next-action-card bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4 mb-4">
       <div class="flex items-center justify-between">
         <div>
-          <span class="next-action-date text-lg font-bold text-indigo-900">次回アクション: ${escapeHtml(formatDateJP(currentTask.actionDate))}</span>
+          <span class="next-action-date text-lg font-bold text-indigo-900">次回アクション: ${escapeHtml(formatDateJP(displayTask.actionDate))}</span>
         </div>
-        <button type="button" class="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 font-medium shadow-sm transition-colors" data-complete-task-id="${currentTask.id}">
+        ${displayTask.id ? `
+        <button type="button" class="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 font-medium shadow-sm transition-colors" data-complete-task-id="${displayTask.id}">
           ✓ 完了登録
         </button>
+        ` : ''}
       </div>
-      <div class="mt-2 text-sm text-slate-700">${escapeHtml(currentTask.actionNote || '-')}</div>
+      <div class="mt-2 text-sm text-slate-700">${escapeHtml(displayTask.actionNote || '-')}</div>
     </div>
     `
     : `
@@ -3576,8 +3615,8 @@ function renderNextActionSection(candidate) {
   `;
 
   const fields = [
-    { label: "新規アクション日", value: candidate.nextActionDate || "", path: "nextActionDate", type: "date", displayFormatter: formatDateJP, span: 3 },
-    { label: "新規アクション内容", value: candidate.nextActionNote || "", path: "nextActionNote", span: 3 },
+    { label: "次回アクション日", value: candidate.nextActionDate || "", path: "nextActionDate", type: "date", displayFormatter: formatDateJP, span: 3 },
+    { label: "次回アクション内容", value: candidate.nextActionNote || "", path: "nextActionNote", span: 3 },
   ];
 
   // 未完了タスク一覧（現在のもの以外）
@@ -3646,8 +3685,7 @@ function renderCsSection(candidate) {
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
     { label: "新規接触予定日", value: candidate.firstContactPlannedAt, path: "firstContactPlannedAt", type: "date" },
-    { label: "次回アクション日", value: candidate.nextActionDate, path: "nextActionDate", type: "date" },
-    { label: "次回アクション内容", value: candidate.nextActionContent, path: "nextActionContent", type: "text", span: 2 },
+
   ];
 
   return `
@@ -3670,6 +3708,137 @@ function renderCsSection(candidate) {
     }
     </div>
     `;
+}
+
+// ========== 書類作成セクション ==========
+function renderDocumentsSection(candidate) {
+  const editing = detailEditState.documents;
+  const educations = candidate.educations || [];
+  const workHistories = candidate.workHistories || [];
+
+  const renderEducationRow = (edu, index) => {
+    if (editing) {
+      return `
+        <div class="education-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-education-index="${index}">
+          <div class="col-span-2">
+            <label class="block text-xs text-slate-500 mb-1">学校名</label>
+            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="schoolName" value="${escapeHtml(edu.schoolName || edu.school_name || '')}">
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs text-slate-500 mb-1">学部・学科</label>
+            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="department" value="${escapeHtml(edu.department || '')}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">入学年月</label>
+            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="admissionDate" value="${formatMonthValue(edu.admissionDate || edu.admission_date)}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">卒業年月</label>
+            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="graduationDate" value="${formatMonthValue(edu.graduationDate || edu.graduation_date)}">
+          </div>
+          <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-education="${index}">削除</button>
+        </div>
+      `;
+    }
+    return `
+      <tr>
+        <td class="px-3 py-2 text-sm">${escapeHtml(edu.schoolName || edu.school_name || '-')}</td>
+        <td class="px-3 py-2 text-sm">${escapeHtml(edu.department || '-')}</td>
+        <td class="px-3 py-2 text-sm">${formatMonthJP(edu.admissionDate || edu.admission_date)}</td>
+        <td class="px-3 py-2 text-sm">${formatMonthJP(edu.graduationDate || edu.graduation_date)}</td>
+      </tr>
+    `;
+  };
+
+  const renderWorkRow = (work, index) => {
+    if (editing) {
+      return `
+        <div class="work-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-work-index="${index}">
+          <div class="col-span-2">
+            <label class="block text-xs text-slate-500 mb-1">会社名</label>
+            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="companyName" value="${escapeHtml(work.companyName || work.company_name || '')}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">部署・職種</label>
+            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="department" value="${escapeHtml(work.department || '')}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">役職</label>
+            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="position" value="${escapeHtml(work.position || '')}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">入社年月</label>
+            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-work-field="joinDate" value="${formatMonthValue(work.joinDate || work.join_date)}">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">退職年月</label>
+            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-work-field="leaveDate" value="${formatMonthValue(work.leaveDate || work.leave_date)}">
+          </div>
+          <div class="col-span-6">
+            <label class="block text-xs text-slate-500 mb-1">業務内容</label>
+            <textarea class="w-full px-2 py-1 border rounded text-sm" rows="2" data-work-field="jobDescription">${escapeHtml(work.jobDescription || work.job_description || '')}</textarea>
+          </div>
+          <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-work="${index}">削除</button>
+        </div>
+      `;
+    }
+    return `
+      <tr>
+        <td class="px-3 py-2 text-sm">${escapeHtml(work.companyName || work.company_name || '-')}</td>
+        <td class="px-3 py-2 text-sm">${escapeHtml(work.department || '-')}</td>
+        <td class="px-3 py-2 text-sm">${escapeHtml(work.position || '-')}</td>
+        <td class="px-3 py-2 text-sm">${formatMonthJP(work.joinDate || work.join_date)}</td>
+        <td class="px-3 py-2 text-sm">${formatMonthJP(work.leaveDate || work.leave_date) || '現職'}</td>
+      </tr>
+    `;
+  };
+
+  const educationHtml = editing
+    ? `<div id="educationRepeater">${educations.map((e, i) => renderEducationRow(e, i)).join('')}</div>
+       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-education>+ 学歴を追加</button>`
+    : `<table class="w-full text-left border-collapse">
+         <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">学校名</th><th class="px-3 py-2 text-xs font-medium">学部・学科</th><th class="px-3 py-2 text-xs font-medium">入学</th><th class="px-3 py-2 text-xs font-medium">卒業</th></tr></thead>
+         <tbody>${educations.length ? educations.map((e, i) => renderEducationRow(e, i)).join('') : '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
+       </table>`;
+
+  const workHtml = editing
+    ? `<div id="workRepeater">${workHistories.map((w, i) => renderWorkRow(w, i)).join('')}</div>
+       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-work>+ 職歴を追加</button>`
+    : `<table class="w-full text-left border-collapse">
+         <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">会社名</th><th class="px-3 py-2 text-xs font-medium">部署</th><th class="px-3 py-2 text-xs font-medium">役職</th><th class="px-3 py-2 text-xs font-medium">入社</th><th class="px-3 py-2 text-xs font-medium">退職</th></tr></thead>
+         <tbody>${workHistories.length ? workHistories.map((w, i) => renderWorkRow(w, i)).join('') : '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
+       </table>`;
+
+  return `
+    <div class="space-y-6">
+      <div>
+        <h5 class="text-md font-semibold text-slate-700 mb-3">📚 学歴</h5>
+        ${educationHtml}
+      </div>
+      <div>
+        <h5 class="text-md font-semibold text-slate-700 mb-3">💼 職歴</h5>
+        ${workHtml}
+      </div>
+      <div class="flex gap-3 pt-4 border-t border-slate-200">
+        <button type="button" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500" data-download-resume>📄 履歴書をダウンロード</button>
+        <button type="button" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-500" data-download-cv>📝 職務経歴書をダウンロード</button>
+      </div>
+    </div>
+  `;
+}
+
+function formatMonthValue(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatMonthJP(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '-';
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
 }
 
 function parseDateValue(value) {

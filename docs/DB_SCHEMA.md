@@ -64,6 +64,7 @@
 | `sms_confirmed` | BOOLEAN | SMS確認フラグ | - | DEFAULT FALSE |
 | `attendance_confirmed` | BOOLEAN | 出席確認フラグ | - | DEFAULT FALSE |
 | `next_action_date` | DATE | 次回アクション日 | - | |
+| `next_action_content` | TEXT | 次回アクション内容 | - | |
 | `final_result` | TEXT | 最終結果 | - | |
 | `order_amount` | TEXT | 受注金額 | - | |
 | `after_acceptance_job_type` | TEXT | 内定後職種 | - | |
@@ -232,6 +233,14 @@
 | `reason_for_change` | TEXT | 転職理由 | |
 | `strengths` | TEXT | 強み | |
 | `personality` | TEXT | 性格 | |
+| `job_change_axis` | TEXT | 転職軸 | |
+| `job_change_timing` | TEXT | 転職時期 | |
+| `future_vision` | TEXT | 将来のビジョン・叶えたいこと | |
+| `recommendation_text` | TEXT | 推薦文 | |
+| `other_selection_status` | TEXT | 他社選考状態 | |
+| `desired_interview_dates` | TEXT | 面接希望日 | |
+| `mandatory_interview_items` | TEXT | 新規面談マスト項目 | |
+| `shared_interview_date` | TEXT | 共有面談実施日 | |
 | `carrier_summary_sheet_url` | TEXT | キャリアサマリーシートURL | |
 | `resume_url` | TEXT | 履歴書URL | |
 | `created_at` | TIMESTAMPTZ | 作成日時 | DEFAULT NOW() |

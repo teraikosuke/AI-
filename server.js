@@ -1,8 +1,10 @@
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { Pool } = require("pg");
+const puppeteer = require("puppeteer");
 
 dotenv.config();
 
@@ -46,6 +48,42 @@ app.get("/api/clients", async (_req, res) => {
       ADD COLUMN IF NOT EXISTS future_vision TEXT,
       ADD COLUMN IF NOT EXISTS mandatory_interview_items TEXT,
       ADD COLUMN IF NOT EXISTS shared_interview_date TEXT;
+
+    ALTER TABLE candidate_applications
+      ADD COLUMN IF NOT EXISTS closing_plan_date DATE,
+      ADD COLUMN IF NOT EXISTS fee_amount TEXT,
+      ADD COLUMN IF NOT EXISTS declined_reason TEXT,
+      ADD COLUMN IF NOT EXISTS early_turnover_reason TEXT;
+
+    -- 学歴テーブル
+    CREATE TABLE IF NOT EXISTS candidate_educations (
+      id BIGSERIAL PRIMARY KEY,
+      candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+      school_name TEXT,
+      department TEXT,
+      admission_date DATE,
+      graduation_date DATE,
+      graduation_status TEXT,
+      sequence INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    -- 職歴テーブル
+    CREATE TABLE IF NOT EXISTS candidate_work_histories (
+      id BIGSERIAL PRIMARY KEY,
+      candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+      company_name TEXT,
+      department TEXT,
+      position TEXT,
+      join_date DATE,
+      leave_date DATE,
+      is_current BOOLEAN DEFAULT FALSE,
+      job_description TEXT,
+      sequence INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     `);
 
     client.release();
@@ -511,9 +549,13 @@ async function replaceCandidateApplications(client, candidateId, rows = []) {
           joined_at,
           pre_join_decline_at,
           post_join_quit_at,
-          selection_note
+          selection_note,
+          closing_plan_date,
+          fee_amount,
+          declined_reason,
+          early_turnover_reason
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
         )
       `,
       [
@@ -525,18 +567,22 @@ async function replaceCandidateApplications(client, candidateId, rows = []) {
         row.feeRate || null,
         row.status || null, // selection_status
         normalizeDateTime(row.recommendationDate),
-        normalizeDateTime(row.interviewSetupDate),
-        normalizeDateTime(row.interviewDate),
-        normalizeDateTime(row.secondInterviewSetupDate),
-        normalizeDateTime(row.secondInterviewDate),
-        normalizeDateTime(row.finalInterviewSetupDate),
-        normalizeDateTime(row.finalInterviewDate),
-        normalizeDateTime(row.offerDate),
-        normalizeDateTime(row.acceptanceDate),
-        normalizeDateTime(row.onboardingDate),
-        normalizeDateTime(row.preJoinDeclineDate),
-        normalizeDateTime(row.postJoinQuitDate),
+        normalizeDateTime(row.firstInterviewSetAt || row.firstInterviewAdjustDate || row.interviewSetupDate),
+        normalizeDateTime(row.firstInterviewAt || row.firstInterviewDate || row.interviewDate),
+        normalizeDateTime(row.secondInterviewSetAt || row.secondInterviewAdjustDate || row.secondInterviewSetupDate),
+        normalizeDateTime(row.secondInterviewAt || row.secondInterviewDate),
+        normalizeDateTime(row.finalInterviewSetAt || row.finalInterviewAdjustDate || row.finalInterviewSetupDate),
+        normalizeDateTime(row.finalInterviewAt || row.finalInterviewDate),
+        normalizeDateTime(row.offerAt || row.offerDate),
+        normalizeDateTime(row.offerAcceptedAt || row.offerAcceptedDate || row.acceptanceDate),
+        normalizeDateTime(row.joinedAt || row.joinedDate || row.onboardingDate),
+        normalizeDateTime(row.preJoinDeclineDate || row.declinedDate),
+        normalizeDateTime(row.postJoinQuitDate || row.earlyTurnoverDate),
         row.selectionNote || row.note || null,
+        normalizeDateTime(row.closingPlanDate || row.closingForecastDate),
+        row.feeAmount || row.fee || null,
+        row.declinedReason || null,
+        row.earlyTurnoverReason || null,
       ]
     );
   }
@@ -1066,6 +1112,262 @@ app.put("/api/settings/kintone", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// ========== 学歴 API ==========
+app.get("/api/candidates/:id/educations", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM candidate_educations WHERE candidate_id = $1 ORDER BY sequence, admission_date`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Failed to fetch educations", error);
+    res.status(500).json({ error: "学歴の取得に失敗しました" });
+  }
+});
+
+app.put("/api/candidates/:id/educations", async (req, res) => {
+  const { id } = req.params;
+  const rows = req.body || [];
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM candidate_educations WHERE candidate_id = $1", [id]);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      await client.query(
+        `INSERT INTO candidate_educations
+         (candidate_id, school_name, department, admission_date, graduation_date, graduation_status, sequence)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [id, r.schoolName || null, r.department || null, r.admissionDate || null, r.graduationDate || null, r.graduationStatus || null, i]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Failed to save educations", error);
+    res.status(500).json({ error: "学歴の保存に失敗しました" });
+  } finally {
+    client.release();
+  }
+});
+
+// ========== 職歴 API ==========
+app.get("/api/candidates/:id/work-histories", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM candidate_work_histories WHERE candidate_id = $1 ORDER BY sequence, join_date`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Failed to fetch work histories", error);
+    res.status(500).json({ error: "職歴の取得に失敗しました" });
+  }
+});
+
+app.put("/api/candidates/:id/work-histories", async (req, res) => {
+  const { id } = req.params;
+  const rows = req.body || [];
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM candidate_work_histories WHERE candidate_id = $1", [id]);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      await client.query(
+        `INSERT INTO candidate_work_histories
+         (candidate_id, company_name, department, position, join_date, leave_date, is_current, job_description, sequence)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [id, r.companyName || null, r.department || null, r.position || null, r.joinDate || null, r.leaveDate || null, r.isCurrent || false, r.jobDescription || null, i]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Failed to save work histories", error);
+    res.status(500).json({ error: "職歴の保存に失敗しました" });
+  } finally {
+    client.release();
+  }
+});
+
+// ========== PDF生成 API ==========
+async function generatePdf(templateName, data) {
+  const templatePath = path.join(__dirname, "server", "templates", `${templateName}.html`);
+  let html = fs.readFileSync(templatePath, "utf-8");
+
+  // 単純なテンプレート置換
+  Object.entries(data).forEach(([key, value]) => {
+    const regex = new RegExp(`{{${key}}}`, "g");
+    html = html.replace(regex, value ?? "");
+  });
+
+  // 配列データ用のセクション処理
+  const processArraySection = (sectionName, items) => {
+    const sectionRegex = new RegExp(`{{#${sectionName}}}([\\s\\S]*?){{/${sectionName}}}`, "g");
+    const emptyRegex = new RegExp(`{{\\^${sectionName}}}([\\s\\S]*?){{/${sectionName}}}`, "g");
+
+    if (items && items.length > 0) {
+      html = html.replace(sectionRegex, (_, template) => {
+        return items.map(item => {
+          let row = template;
+          Object.entries(item).forEach(([k, v]) => {
+            row = row.replace(new RegExp(`{{${k}}}`, "g"), v ?? "");
+          });
+          // isCurrent フラグ処理
+          row = row.replace(/{{#isCurrent}}([\s\S]*?){{\/isCurrent}}/g, item.isCurrent ? "$1" : "");
+          row = row.replace(/\{{\^isCurrent}}([\s\S]*?){{\/isCurrent}}/g, item.isCurrent ? "" : "$1");
+          return row;
+        }).join("");
+      });
+      html = html.replace(emptyRegex, "");
+    } else {
+      html = html.replace(sectionRegex, "");
+      html = html.replace(emptyRegex, "$1");
+    }
+  };
+
+  processArraySection("educations", data.educationsArray);
+  processArraySection("workHistories", data.workHistoriesArray);
+
+  const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "networkidle0" });
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
+  });
+  await browser.close();
+  return pdfBuffer;
+}
+
+function formatDateJPForPdf(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+}
+
+app.get("/api/candidates/:id/resume.pdf", async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    const { rows: candidates } = await client.query("SELECT * FROM candidates WHERE id = $1", [id]);
+    if (!candidates.length) {
+      res.status(404).json({ error: "候補者が見つかりません" });
+      return;
+    }
+    const c = candidates[0];
+
+    const { rows: profile } = await client.query("SELECT * FROM candidate_app_profile WHERE candidate_id = $1", [id]);
+    const p = profile[0] || {};
+
+    const { rows: educations } = await client.query("SELECT * FROM candidate_educations WHERE candidate_id = $1 ORDER BY sequence", [id]);
+    const { rows: workHistories } = await client.query("SELECT * FROM candidate_work_histories WHERE candidate_id = $1 ORDER BY sequence", [id]);
+
+    const data = {
+      candidateName: c.candidate_name || "",
+      candidateKana: c.candidate_kana || "",
+      birthday: c.birthday ? formatDateJPForPdf(c.birthday) : "",
+      age: c.age || "",
+      postalCode: c.postal_code || p.address_pref || "",
+      address: [p.address_pref, p.address_city, p.address_detail].filter(Boolean).join(" ") || c.address || "",
+      phone: c.phone || "",
+      email: c.email || "",
+      reasonForChange: p.reason_for_change || "",
+      currentDate: formatDateJPForPdf(new Date()),
+      educationsArray: educations.map(e => ({
+        schoolName: e.school_name || "",
+        department: e.department || "",
+        admissionDate: formatDateJPForPdf(e.admission_date),
+        graduationDate: formatDateJPForPdf(e.graduation_date),
+        graduationStatus: e.graduation_status || "卒業",
+      })),
+      workHistoriesArray: workHistories.map(w => ({
+        companyName: w.company_name || "",
+        department: w.department || "",
+        position: w.position || "",
+        joinDate: formatDateJPForPdf(w.join_date),
+        leaveDate: formatDateJPForPdf(w.leave_date),
+        isCurrent: w.is_current,
+      })),
+    };
+
+    const pdfBuffer = await generatePdf("resume", data);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="resume_${c.candidate_name || id}.pdf"`,
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Failed to generate resume PDF", error);
+    res.status(500).json({ error: "履歴書PDFの生成に失敗しました" });
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/candidates/:id/cv.pdf", async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    const { rows: candidates } = await client.query("SELECT * FROM candidates WHERE id = $1", [id]);
+    if (!candidates.length) {
+      res.status(404).json({ error: "候補者が見つかりません" });
+      return;
+    }
+    const c = candidates[0];
+
+    const { rows: profile } = await client.query("SELECT * FROM candidate_app_profile WHERE candidate_id = $1", [id]);
+    const p = profile[0] || {};
+
+    const { rows: workHistories } = await client.query("SELECT * FROM candidate_work_histories WHERE candidate_id = $1 ORDER BY sequence", [id]);
+
+    const data = {
+      candidateName: c.candidate_name || "",
+      workExperience: p.work_experience || "",
+      strengths: p.strengths || "",
+      personality: p.personality || "",
+      reasonForChange: p.reason_for_change || "",
+      futureVision: p.future_vision || "",
+      currentDate: formatDateJPForPdf(new Date()),
+      workHistoriesArray: workHistories.map(w => ({
+        companyName: w.company_name || "",
+        department: w.department || "",
+        position: w.position || "",
+        joinDate: formatDateJPForPdf(w.join_date),
+        leaveDate: formatDateJPForPdf(w.leave_date),
+        jobDescription: w.job_description || "",
+        isCurrent: w.is_current,
+      })),
+    };
+
+    const pdfBuffer = await generatePdf("cv", data);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="cv_${c.candidate_name || id}.pdf"`,
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Failed to generate CV PDF", error);
+    res.status(500).json({ error: "職務経歴書PDFの生成に失敗しました" });
+  } finally {
+    client.release();
+  }
+});
+
+// ========== 設定 API ==========
+app.get("/api/settings/screening-rules", (req, res) => {
+  // TODO: DBから取得するように実装
+  res.json([]);
 });
 
 app.listen(PORT, () => {
