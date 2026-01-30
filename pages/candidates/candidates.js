@@ -106,11 +106,8 @@ let screeningRulesLoading = false;
 let detailAutoSaveTimer = null;
 const nextActionCache = new Map();
 const contactPreferredTimeCache = new Map();
-const validApplicationDetailCache = new Map();
-const validApplicationPrefetchCache = new Set();
 let calendarViewDate = new Date();
 calendarViewDate.setDate(1);
-let candidateCloseWarningTimer = null;
 
 function normalizeContactPreferredTime(value) {
   const text = String(value ?? "").trim();
@@ -141,14 +138,6 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   candidate.candidateKana = candidate.candidateKana ?? candidate.name_kana ?? "";
   candidate.birthday = candidate.birthday ?? candidate.birth_date ?? candidate.birthDate ?? null;
   candidate.age = candidate.age ?? candidate.ageText ?? candidate.age_value ?? null;
-  if (candidate.birthday) {
-    const computedAge = calculateAge(candidate.birthday);
-    if (computedAge !== null) {
-      candidate.age = computedAge;
-      candidate.ageText = computedAge;
-      candidate.age_value = computedAge;
-    }
-  }
   candidate.gender = candidate.gender ?? "";
   candidate.nationality = candidate.nationality ?? candidate.nationality_text ?? candidate.nationality_code ?? "";
   candidate.japaneseLevel = candidate.japaneseLevel ?? candidate.japanese_level ?? candidate.jlpt_level ?? candidate.jlptLevel ?? "";
@@ -238,21 +227,104 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     clientId: row.clientId ?? row.client_id ?? null,
     companyName: row.companyName ?? row.company_name ?? "",
     route: row.route ?? row.applyRoute ?? row.apply_route ?? row.mediaName ?? row.media_name ?? "",
-    proposalDate: row.proposalDate ?? row.proposal_date ?? null,
     recommendationDate: row.recommendationDate ?? row.recommended_at ?? null,
-    firstInterviewDate: row.firstInterviewDate ?? row.first_interview_at ?? row.interviewDate ?? row.firstInterviewAt ?? null,
-    secondInterviewDate: row.secondInterviewDate ?? row.second_interview_at ?? row.secondInterviewAt ?? null,
-    finalInterviewDate: row.finalInterviewDate ?? row.final_interview_at ?? row.finalInterviewAt ?? null,
-    offerDate: row.offerDate ?? row.offer_date ?? row.offerAt ?? null,
-    acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? row.offerAcceptedDate ?? row.offerAcceptedAt ?? null,
-    onboardingDate: row.onboardingDate ?? row.join_date ?? row.joinDate ?? row.joinedAt ?? null,
-    preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date ?? null,
-    preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason ?? "",
-    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
-    postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason ?? "",
-    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closingForecastDate ?? row.closingForecastAt ?? null,
+    interviewSetupDate: row.interviewSetupDate ?? row.first_interview_set_at ?? null,
+    interviewDate: row.interviewDate ?? row.first_interview_at ?? null,
+    firstInterviewAdjustDate:
+      row.firstInterviewAdjustDate ??
+      row.firstInterviewSetAt ??
+      row.first_interview_set_at ??
+      row.interviewSetupDate ??
+      null,
+    firstInterviewDate:
+      row.firstInterviewDate ??
+      row.firstInterviewAt ??
+      row.first_interview_at ??
+      row.interviewDate ??
+      null,
+    secondInterviewSetupDate: row.secondInterviewSetupDate ?? row.second_interview_set_at ?? null,
+    secondInterviewAdjustDate:
+      row.secondInterviewAdjustDate ??
+      row.secondInterviewSetAt ??
+      row.second_interview_set_at ??
+      row.secondInterviewSetupDate ??
+      null,
+    secondInterviewDate:
+      row.secondInterviewDate ??
+      row.secondInterviewAt ??
+      row.second_interview_at ??
+      null,
+    finalInterviewAdjustDate:
+      row.finalInterviewAdjustDate ??
+      row.finalInterviewSetAt ??
+      row.final_interview_set_at ??
+      row.finalInterviewSetupDate ??
+      null,
+    finalInterviewDate:
+      row.finalInterviewDate ??
+      row.finalInterviewAt ??
+      row.final_interview_at ??
+      null,
+    offerDate: row.offerDate ?? row.offer_date ?? null,
+    acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? null,
+    onboardingDate: row.onboardingDate ?? row.join_date ?? null,
+    preJoinDeclineDate:
+      row.preJoinDeclineDate ??
+      row.declinedDate ??
+      row.pre_join_decline_at ??
+      row.pre_join_withdraw_date ??
+      null,
+    declinedDate:
+      row.declinedDate ??
+      row.preJoinDeclineDate ??
+      row.pre_join_decline_at ??
+      row.pre_join_withdraw_date ??
+      null,
+    declinedReason:
+      row.declinedReason ??
+      row.declined_reason ??
+      row.preJoinDeclineReason ??
+      row.pre_join_withdraw_reason ??
+      "",
+    preJoinDeclineReason:
+      row.preJoinDeclineReason ??
+      row.declinedReason ??
+      row.declined_reason ??
+      row.pre_join_withdraw_reason ??
+      "",
+    postJoinQuitDate:
+      row.postJoinQuitDate ??
+      row.earlyTurnoverDate ??
+      row.post_join_quit_at ??
+      row.post_join_quit_date ??
+      null,
+    earlyTurnoverDate:
+      row.earlyTurnoverDate ??
+      row.postJoinQuitDate ??
+      row.post_join_quit_at ??
+      row.post_join_quit_date ??
+      null,
+    postJoinQuitReason:
+      row.postJoinQuitReason ??
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.post_join_quit_reason ??
+      "",
+    earlyTurnoverReason:
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.postJoinQuitReason ??
+      row.post_join_quit_reason ??
+      "",
+    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closing_plan_date ?? null,
+    closingForecastDate:
+      row.closingForecastDate ??
+      row.closingForecastAt ??
+      row.closeExpectedDate ??
+      row.closing_plan_date ??
+      null,
     feeAmount: row.feeAmount ?? row.fee_amount ?? "",
-    selectionNote: row.selectionNote ?? row.selection_note ?? row.note ?? "",
+    selectionNote: row.selectionNote ?? row.selection_note ?? "",
     status: row.status ?? row.stage_current ?? "",
   }));
 
@@ -276,8 +348,6 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     companyName: row.companyName ?? row.company_name ?? "",
     feeAmount: row.feeAmount ?? row.fee_amount ?? "",
     refundAmount: row.refundAmount ?? row.refund_amount ?? "",
-    orderDate: row.orderDate ?? row.order_date ?? null,
-    withdrawDate: row.withdrawDate ?? row.withdraw_date ?? null,
     joinDate: row.joinDate ?? row.join_date ?? null,
     preJoinWithdrawDate: row.preJoinWithdrawDate ?? row.pre_join_withdraw_date ?? null,
     postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
@@ -289,62 +359,27 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   candidate.afterAcceptance = candidate.afterAcceptance || {};
   candidate.refundInfo = candidate.refundInfo || {};
   candidate.actionInfo = candidate.actionInfo || {};
-  const explicitNextActionDate =
-    candidate.nextActionDate ??
-    candidate.next_action_date ??
-    null;
-  const explicitNextActionNote =
-    candidate.nextActionNote ??
-    candidate.next_action_note ??
-    null;
-  const legacyNextActionDate =
-    candidate.nextActionDateLegacy ??
-    candidate.newActionDate ??
-    candidate.actionInfo?.nextActionDate ??
-    candidate.actionInfo?.next_action_date ??
-    null;
-  const legacyNextActionNote =
-    candidate.actionInfo?.nextActionNote ??
-    candidate.actionInfo?.next_action_note ??
-    candidate.newActionNote ??
-    null;
   const nextActionFromDetail =
     candidate.detail?.actionInfo?.nextActionDate ??
     candidate.detail?.actionInfo?.next_action_date ??
     candidate.detail?.newActionDate ??
     candidate.detail?.new_action_date ??
     null;
-  const nextActionNoteFromDetail =
+  candidate.nextActionNote =
+    candidate.nextActionNote ??
+    candidate.actionInfo?.nextActionNote ??
     candidate.detail?.actionInfo?.nextActionNote ??
-    candidate.detail?.actionInfo?.next_action_note ??
-    candidate.detail?.nextActionNote ??
-    candidate.detail?.next_action_note ??
+    "";
+  candidate.nextActionDate =
+    candidate.nextActionDate ??
+    candidate.next_action_date ??
+    candidate.nextActionDateLegacy ??
+    candidate.newActionDate ??
+    candidate.actionInfo?.nextActionDate ??
+    candidate.actionInfo?.next_action_date ??
+    nextActionFromDetail ??
     null;
-  null;
-
-  let resolvedNextActionDate = explicitNextActionDate ?? null;
-  let resolvedNextActionNote = explicitNextActionNote ?? null;
-  let nextActionSource = explicitNextActionDate ? "explicit" : "";
-
-  if (!resolvedNextActionDate && source !== "list") {
-    resolvedNextActionDate = legacyNextActionDate ?? null;
-    if (!nextActionSource && legacyNextActionDate) nextActionSource = "legacy";
-    if (!resolvedNextActionNote && legacyNextActionNote) {
-      resolvedNextActionNote = legacyNextActionNote;
-    }
-  }
-
-  if (!resolvedNextActionDate) {
-    resolvedNextActionDate = nextActionFromDetail ?? null;
-    if (!nextActionSource && nextActionFromDetail) nextActionSource = "detail";
-  }
-  if (!resolvedNextActionNote && nextActionNoteFromDetail) {
-    resolvedNextActionNote = nextActionNoteFromDetail;
-  }
-
-  candidate.nextActionDate = resolvedNextActionDate || null;
-  candidate.nextActionNote = resolvedNextActionNote || "";
-  candidate.nextActionSource = nextActionSource || "none";
+  if (candidate.nextActionDate === "") candidate.nextActionDate = null;
   const nextActionCacheKey = candidate.id != null ? String(candidate.id) : "";
   if (nextActionCacheKey) {
     if (candidate.nextActionDate) {
@@ -459,7 +494,7 @@ export function mount() {
   initializeDetailContentListeners();
 
   openedFromUrlOnce = false;
-  loadScreeningRulesForCandidates({ force: true });
+  loadScreeningRulesForCandidates();
   // まず一覧ロード
   loadCandidatesData();
 }
@@ -563,7 +598,6 @@ async function loadCandidatesData(filtersOverride = {}) {
       allCandidates.forEach((candidate) => {
         candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
       });
-      prefetchValidApplicationDetails(allCandidates);
     }
     updateFilterSelectOptions(allCandidates);
     filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -673,7 +707,7 @@ function parseCandidateDate(value) {
   if (value instanceof Date) return value;
   const direct = new Date(value);
   if (!Number.isNaN(direct.getTime())) return direct;
-  const match = String(value).match(/(\d{4})\s*[\/-]\s*(\d{1,2})\s*[\/-]\s*(\d{1,2})/);
+  const match = String(value).match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;
@@ -682,52 +716,14 @@ function parseCandidateDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function resolveCandidateIdKey(candidate) {
-  if (!candidate) return "";
-  const raw = candidate.id ?? candidate.candidateId ?? candidate.candidate_id ?? candidate.candidateID;
-  const text = String(raw ?? "").trim();
-  return text ? text : "";
-}
-
-function applyValidApplicationDetailCache(candidate, { force = false } = {}) {
-  if (!screeningRules || !candidate) return null;
-  if (!hasValidApplicationInputs(candidate, screeningRules)) return null;
-  const id = resolveCandidateIdKey(candidate);
-  if (!id) return null;
-  if (!force && validApplicationDetailCache.has(id)) {
-    const cached = validApplicationDetailCache.get(id);
-    candidate.validApplicationComputed = cached;
-    return cached;
-  }
-  const computed = computeValidApplication(candidate, screeningRules);
-  if (computed === true || computed === false) {
-    validApplicationDetailCache.set(id, computed);
-    candidate.validApplicationComputed = computed;
-    return computed;
-  }
-  return null;
-}
-
 function resolveValidApplication(candidate) {
-  // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
-  // ルールがあれば計算を行う
-  if (screeningRules && hasValidApplicationInputs(candidate, screeningRules)) {
-    const computed = computeValidApplication(candidate, screeningRules);
-    if (computed === true || computed === false) {
-      const id = resolveCandidateIdKey(candidate);
-      if (id) {
-        validApplicationDetailCache.set(id, computed);
-        candidate.validApplicationComputed = computed;
-      }
-      return computed;
-    }
-  }
-  const id = resolveCandidateIdKey(candidate);
-  if (id && validApplicationDetailCache.has(id)) {
-    return validApplicationDetailCache.get(id);
-  }
   const computed = candidate?.validApplicationComputed;
   if (computed === true || computed === false) return computed;
+  // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
+  // ルールがあれば計算を行う
+  if (screeningRules) {
+    return computeValidApplication(candidate, screeningRules);
+  }
   const raw =
     candidate.validApplication ??
     candidate.valid_application ??
@@ -806,19 +802,13 @@ function isUnlimitedMaxAge(value) {
 }
 
 function resolveCandidateAgeValue(candidate) {
-  const computed = calculateAge(candidate.birthday);
-  if (computed !== null) return computed;
   const direct = candidate.age ?? candidate.ageText ?? candidate.age_value;
   if (direct !== null && direct !== undefined && direct !== "") {
     const parsed = Number(direct);
     if (Number.isFinite(parsed)) return parsed;
-    const match = String(direct).match(/\d+/);
-    if (match) {
-      const fromText = Number(match[0]);
-      if (Number.isFinite(fromText)) return fromText;
-    }
   }
-  return null;
+  const computed = calculateAge(candidate.birthday);
+  return computed !== null ? computed : null;
 }
 
 function normalizeNationality(value) {
@@ -828,23 +818,12 @@ function normalizeNationality(value) {
   if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
     return "日本";
   }
-  if (text === "日本国" || text === "日本国籍" || text === "日本人" || text === "日本国民") return "日本";
+  if (text === "日本国") return "日本";
   return text;
 }
 
 function isJapaneseNationality(value) {
   return normalizeNationality(value) === "日本";
-}
-
-function hasValidApplicationInputs(candidate, rules) {
-  if (!candidate || !rules) return false;
-  const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return false;
-  const nationality = normalizeNationality(candidate.nationality);
-  if (!nationality) return false;
-  if (isJapaneseNationality(nationality)) return true;
-  const jlpt = String(candidate.japaneseLevel || "").trim();
-  return Boolean(jlpt);
 }
 
 function computeValidApplication(candidate, rules) {
@@ -855,17 +834,14 @@ function computeValidApplication(candidate, rules) {
   if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
 
   const nationality = normalizeNationality(candidate.nationality);
-  const allowedNationalities = (rules.targetNationalitiesList || [])
-    .map((value) => normalizeNationality(value))
-    .filter((value) => value && !isJapaneseNationality(value));
-
-  if (isJapaneseNationality(nationality)) return true;
-
+  const allowedNationalities = (rules.targetNationalitiesList || []).map((value) => normalizeNationality(value));
   if (allowedNationalities.length > 0) {
     if (!nationality) return false;
     const matched = allowedNationalities.some((value) => value === nationality);
     if (!matched) return false;
   }
+
+  if (isJapaneseNationality(nationality)) return true;
 
   const jlpt = String(candidate.japaneseLevel || "").trim();
   if (!jlpt) return false;
@@ -874,67 +850,10 @@ function computeValidApplication(candidate, rules) {
   return allowedJlptLevels.includes(jlpt);
 }
 
-function needsValidApplicationDetail(candidate, rules) {
-  if (!candidate || !rules) return false;
-  const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return true;
-  const nationality = normalizeNationality(candidate.nationality);
-  if (!nationality) return true;
-  if (isJapaneseNationality(nationality)) return false;
-  const jlpt = String(candidate.japaneseLevel || "").trim();
-  return !jlpt;
-}
-
-async function prefetchValidApplicationDetails(candidates) {
-  if (!screeningRules || !Array.isArray(candidates) || candidates.length === 0) return;
-  const targets = candidates.filter((candidate) => {
-    const id = resolveCandidateIdKey(candidate);
-    if (!id) return false;
-    if (validApplicationDetailCache.has(id)) return false;
-    if (validApplicationPrefetchCache.has(id)) return false;
-    return true;
-  });
-  if (!targets.length) return;
-
-  const queue = targets.slice();
-  const updates = [];
-  const concurrency = Math.min(4, queue.length);
-
-  const worker = async () => {
-    while (queue.length) {
-      const candidate = queue.shift();
-      if (!candidate) return;
-      const id = resolveCandidateIdKey(candidate);
-      if (!id) continue;
-      validApplicationPrefetchCache.add(id);
-      try {
-        const detail = await fetchCandidateDetailById(id, { includeMaster: false });
-        if (!detail) continue;
-        applyValidApplicationDetailCache(detail, { force: true });
-        updates.push(detail);
-      } catch (error) {
-        console.error("有効応募判定の補完取得に失敗しました。", error);
-      }
-    }
-  };
-
-  await Promise.all(Array.from({ length: concurrency }, worker));
-
-  if (updates.length > 0) {
-    batchApplyCandidateUpdates(updates, { preserveDetailState: true, renderDetail: true });
-  }
-}
-
 function applyScreeningRulesToCandidates() {
   if (!screeningRules || !allCandidates.length) return;
-  validApplicationPrefetchCache.clear();
-  validApplicationDetailCache.clear();
   allCandidates.forEach((candidate) => {
-    if (hasValidApplicationInputs(candidate, screeningRules)) {
-      candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
-    } else {
-      candidate.validApplicationComputed = null;
-    }
+    candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -942,16 +861,10 @@ function applyScreeningRulesToCandidates() {
   renderCandidatesTable(filteredCandidates);
   updateHeaderSortStyles();
   updateCandidatesCount(filteredCandidates.length);
-  const selected = getSelectedCandidate();
-  if (selected && isCandidateModalOpen()) {
-    renderCandidateDetail(selected, { preserveEditState: true });
-  }
-  prefetchValidApplicationDetails(allCandidates);
 }
 
-async function loadScreeningRulesForCandidates({ force = false } = {}) {
-  if (screeningRulesLoading) return;
-  if (!force && screeningRulesLoaded) return;
+async function loadScreeningRulesForCandidates() {
+  if (screeningRulesLoading || screeningRulesLoaded) return;
   screeningRulesLoading = true;
   try {
     const response = await fetch(SCREENING_RULES_ENDPOINT);
@@ -960,12 +873,12 @@ async function loadScreeningRulesForCandidates({ force = false } = {}) {
     }
     const data = await response.json();
     screeningRules = normalizeScreeningRulesPayload(data);
+    screeningRulesLoaded = true;
   } catch (error) {
     console.error("有効応募判定ルールの取得に失敗しました。", error);
     screeningRules = null;
   } finally {
     screeningRulesLoading = false;
-    screeningRulesLoaded = Boolean(screeningRules);
     applyScreeningRulesToCandidates();
   }
 }
@@ -1635,7 +1548,6 @@ async function fetchCandidateDetailById(id, { includeMaster = true } = {}) {
     updateMastersFromDetail(detail);
   }
   if (detail?.masters) delete detail.masters;
-  applyValidApplicationDetailCache(detail, { force: true });
   return detail;
 }
 
@@ -1647,25 +1559,6 @@ function setCandidateDetailLoading(message = "読み込み中...") {
       <p class="text-sm text-slate-500">${escapeHtml(message)}</p>
     </div>
   `;
-}
-
-function showCandidateCloseWarning(message) {
-  const page = document.getElementById("candidatesPage");
-  if (!page) return;
-  let banner = document.getElementById("candidatesCloseWarning");
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "candidatesCloseWarning";
-    banner.className =
-      "mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800";
-    page.prepend(banner);
-  }
-  banner.textContent = message || "";
-  if (candidateCloseWarningTimer) window.clearTimeout(candidateCloseWarningTimer);
-  candidateCloseWarningTimer = window.setTimeout(() => {
-    banner?.remove();
-    candidateCloseWarningTimer = null;
-  }, 4000);
 }
 
 async function openCandidateById(id) {
@@ -2056,23 +1949,23 @@ function renderBooleanPill(value, { trueLabel = "はい", falseLabel = "いい�
 function resolveSelectionStatusVariant(status) {
   const value = String(status || "");
   if (!value) return "muted";
+  if (value.includes("内定") || value.includes("入社")) return "success";
   if (value.includes("辞退") || value.includes("退社") || value.includes("クローズ")) return "muted";
-  if (value.includes("内定") || value.includes("入社") || value.includes("承諾")) return "success";
   return "warning";
 }
 
 function resolveSelectionStageValue(row = {}) {
   if (row.postJoinQuitDate) return "入社後辞退";
-  if (row.preJoinDeclineDate) return "内定後辞退";
-  if (row.closeExpectedDate) return "クロージング";
   if (row.onboardingDate) return "入社";
-  if (row.acceptanceDate) return "承諾";
-  if (row.offerDate) return "内定";
-  if (row.finalInterviewDate) return "最終面接";
+  if (row.preJoinDeclineDate) return "内定後辞退";
+  if (row.acceptanceDate) return "内定承諾済み";
+  if (row.offerDate) return "内定承諾待ち";
   if (row.secondInterviewDate) return "二次面接";
-  if (row.firstInterviewDate) return "一次面接";
-  if (row.recommendationDate) return "推薦";
-  if (row.proposalDate) return "提案";
+  if (row.secondInterviewSetupDate) return "二次面接調整";
+  if (row.interviewDate) return "一次面接";
+  if (row.interviewSetupDate) return "一次面接調整";
+  // ★追加: 推薦日が入っていたら「書類選考」にする
+  if (row.recommendationDate) return "書類選考";
   return "";
 }
 
@@ -2129,7 +2022,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
     const inputs = detailContainer.querySelectorAll("[data-detail-field]");
     inputs.forEach((input) => {
       // 選考進捗テーブル内のフィールドは後続の処理で扱うためスキップ(二重処理防止)
-      if (input.closest("[data-selection-row]")) return;
+      if (input.closest("tr[data-selection-row]")) return;
 
       const path = input.dataset.detailField;
       if (!path) return;
@@ -2163,11 +2056,55 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   }
 
   // ---------------------------------------------------------
-  // 選考進捗の実DOMからの強制同期 (Card Layout)
+  // 選考進捗の実DOMからの強制同期
   // ---------------------------------------------------------
-  // Card Layoutの場合、data-detail-fieldを持つinputは上記の「一般フィールド」処理で
-  // 既に candidate.selectionProgress[i].xxxx に同期されています。
-  // 古い Table Layout 用の処理 (tr[data-selection-row]) は不要なため削除しました。
+  const selectionRows = document.querySelectorAll("tr[data-selection-row]");
+  if (selectionRows.length > 0) {
+    const newProgress = [];
+    selectionRows.forEach((row) => {
+      const originalIndex = Number(row.dataset.selectionRow);
+      // 元のオブジェクトがあればそれをベースにする（隠しプロパティ維持のため）
+      const originalData = candidate.selectionProgress?.[originalIndex] || {};
+      const newData = { ...originalData };
+
+      const inputs = row.querySelectorAll("[data-detail-field]");
+      let hasInput = false;
+
+      inputs.forEach((input) => {
+        const fieldPath = input.dataset.detailField;
+        if (!fieldPath) return;
+
+        const parts = fieldPath.split(".");
+        const key = parts[parts.length - 1];
+
+        // Lambda(DB)が期待するキー名へ変換
+        const keyMap = {
+          "recommendationDate": "recommendedAt",
+          "firstInterviewAdjustDate": "firstInterviewSetAt",
+          "firstInterviewDate": "firstInterviewAt",
+          "secondInterviewAdjustDate": "secondInterviewSetAt",
+          "secondInterviewDate": "secondInterviewAt",
+          "finalInterviewAdjustDate": "finalInterviewSetAt",
+          "finalInterviewDate": "finalInterviewAt"
+        };
+        const mappedKey = keyMap[key] || key;
+
+        newData[mappedKey] = input.value;
+        if (input.value) hasInput = true;
+      });
+
+      // スネークケース(フォールバック)
+      if (newData.clientId) newData.client_id = newData.clientId;
+      if (newData.companyName) newData.company_name = newData.companyName;
+      newData.selection_status = newData.status || newData.selectionStatus;
+
+      if (newData.clientId || hasInput) {
+        newProgress.push(newData);
+      }
+    });
+
+    candidate.selectionProgress = newProgress;
+  }
 
   normalizeCandidate(candidate);
 
@@ -2202,7 +2139,6 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   }
 
   const updated = normalizeCandidate(await response.json());
-  applyValidApplicationDetailCache(updated, { force: true });
   delete pendingInlineUpdates[String(candidate.id)];
   applyCandidateUpdate(updated, { preserveDetailState });
   return updated;
@@ -2326,7 +2262,6 @@ function buildCandidateDetailPayload(candidate) {
     selectionProgress: candidate.selectionProgress,
     afterAcceptance: candidate.afterAcceptance,
     refundInfo: candidate.refundInfo,
-    moneyInfo: candidate.moneyInfo,
     actionInfo,
     csChecklist: candidate.csChecklist,
   };
@@ -2465,8 +2400,8 @@ function formatMoneyToMan(value) {
 }
 function calculateAge(birthday) {
   if (!birthday) return null;
-  const birthDate = parseCandidateDate(birthday);
-  if (!birthDate || Number.isNaN(birthDate.getTime())) return null;
+  const birthDate = new Date(birthday);
+  if (Number.isNaN(birthDate.getTime())) return null;
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -2477,40 +2412,24 @@ function calculateAge(birthday) {
 // -----------------------
 // モーダル
 // -----------------------
-function warnOnMissingNextAction(candidate) {
-  if (!candidate) return;
-  const hasIncompleteTasks = candidate.tasks && candidate.tasks.some((t) => !t.isCompleted);
-  const hasNextActionDate = Boolean(candidate.nextActionDate || candidate.actionInfo?.nextActionDate);
-  if (!hasIncompleteTasks && !hasNextActionDate) {
-    showCandidateCloseWarning(
-      "次回アクションが未設定です。選考継続中なら新規アクションを追加し、選考終了なら「選考完了」を押してください。"
-    );
-  }
-}
-
-function requestCandidateModalClose({ clearSelection = true } = {}) {
-  warnOnMissingNextAction(getSelectedCandidate());
-  closeCandidateModal({ clearSelection, force: true });
-}
-
 function initializeDetailModal() {
   const modal = document.getElementById("candidateDetailModal");
   const closeButton = document.getElementById("candidateDetailClose");
 
   if (modal) {
     modalHandlers.overlay = (event) => {
-      if (event.target === modal) requestCandidateModalClose();
+      if (event.target === modal) closeCandidateModal();
     };
     modal.addEventListener("click", modalHandlers.overlay);
   }
 
   if (closeButton) {
-    modalHandlers.closeButton = () => requestCandidateModalClose();
+    modalHandlers.closeButton = () => closeCandidateModal();
     closeButton.addEventListener("click", modalHandlers.closeButton);
   }
 
   modalHandlers.keydown = (event) => {
-    if (event.key === "Escape" && isCandidateModalOpen()) requestCandidateModalClose();
+    if (event.key === "Escape" && isCandidateModalOpen()) closeCandidateModal();
   };
   document.addEventListener("keydown", modalHandlers.keydown);
 }
@@ -2530,22 +2449,22 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
     const candidate = getSelectedCandidate();
     if (candidate) {
       const hasIncompleteTasks = candidate.tasks && candidate.tasks.some(t => !t.isCompleted);
-      const hasNextActionDate = Boolean(candidate.nextActionDate || candidate.actionInfo?.nextActionDate);
+      const hasNextActionDate = !!candidate.nextActionDate; // Check direct field
+
       if (!hasIncompleteTasks && !hasNextActionDate) {
-        showCandidateCloseWarning(
-          "次回アクションが未設定です。選考継続中なら新規アクションを追加し、選考終了なら「選考完了」を押してください。"
-        );
+        alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
+        return;
       }
     }
   }
 
-const wasOpen = modal.classList.contains("is-open");
-modal.classList.remove("is-open");
-modal.setAttribute("aria-hidden", "true");
-if (wasOpen) setCandidateDetailPlaceholder();
-document.body.classList.remove("has-modal-open");
-if (clearSelection) selectedCandidateId = null;
-highlightSelectedRow();
+  const wasOpen = modal.classList.contains("is-open");
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  if (wasOpen) setCandidateDetailPlaceholder();
+  document.body.classList.remove("has-modal-open");
+  if (clearSelection) selectedCandidateId = null;
+  highlightSelectedRow();
 }
 function isCandidateModalOpen() {
   const modal = document.getElementById("candidateDetailModal");
@@ -3190,31 +3109,180 @@ function renderSelectionProgressSection(candidate) {
   const addButton = editing
     ? `<button type="button" class="repeatable-add-btn" data-add-row="selectionProgress"> 追加</button>`
     : "";
-  const emptyHtml = `
-    <div class="candidate-detail-empty p-8 text-center bg-slate-50 rounded-lg border border-slate-100">
-      <p class="text-slate-500">企業の進捗は登録されていません。</p>
-    </div>
-  `;
 
-  const cardsHtml = rows
-    .map((row, index) => renderSelectionFlowCard(row, { editing, index }))
-    .join("");
+  // ---------------------------------------------------------
+  // 閲覧モード (Visual Flowchart)
+  // ---------------------------------------------------------
+  if (!editing) {
+    if (rows.length === 0) {
+      return `
+        <div class="candidate-detail-empty p-8 text-center bg-slate-50 rounded-lg border border-slate-100">
+          <p class="text-slate-500">企業の進捗は登録されていません。</p>
+        </div>
+      `;
+    }
 
-  if (editing) {
+    const cardsHtml = rows.map((row) => renderSelectionFlowCard(row)).join("");
     return `
-      <div class="repeatable-header">
-        <h5>企業ごとの進捗 (編集モード)</h5>
-        ${addButton}
-      </div>
       <div class="selection-flow-container space-y-6">
-        ${rows.length ? cardsHtml : emptyHtml}
+        ${cardsHtml}
       </div>
     `;
   }
 
+  // ---------------------------------------------------------
+  // 編集モード (Table Input)
+  // ---------------------------------------------------------
+  // ---------------------------------------------------------
+  // 編集モード (Card Layout)
+  // ---------------------------------------------------------
+  const cardsHtml = rows.map((row, index) => {
+    const pathPrefix = `selectionProgress.${index}`;
+    const r = normalizeSelectionRow(row);
+    const deleteBtn = `<button type="button" class="text-red-600 hover:text-red-800 text-sm font-medium" data-remove-row="selectionProgress" data-index="${index}">削除</button>`;
+
+    return `
+      <div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-4 relative">
+        <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-2">
+          <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">申込 ${index + 1}</span>
+            ${escapeHtml(r.companyName || "企業未設定")}
+          </h4>
+          ${deleteBtn}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+          <!-- 基本情報 (3 cols) -->
+          <div class="lg:col-span-3 space-y-3">
+            <div class="form-group">
+              <label class="block text-xs font-medium text-slate-500 mb-1">企業名</label>
+              ${renderTableInput(r.companyName, `${pathPrefix}.companyName`, "text", "selection", null, "client-list")}
+            </div>
+            <div class="form-group">
+              <label class="block text-xs font-medium text-slate-500 mb-1">応募経路</label>
+              ${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}
+            </div>
+            <div class="form-group">
+              <label class="block text-xs font-medium text-slate-500 mb-1">選考状況</label>
+              <div class="flex items-center gap-2">
+                 ${renderTableInput(row.status, `${pathPrefix}.status`, "text", "selection")}
+                 <!-- Note: Status might be better as select, but keeping text to match existing input type behavior (or maybe it was free text?) -->
+                 <!-- Original used row.status, normalizing function uses row.status as well. -->
+              </div>
+            </div>
+          </div>
+
+          <!-- スケジュール (7 cols) -->
+          <div class="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded">
+             <div class="col-span-2 md:col-span-1">
+                <label class="block text-xs font-medium text-slate-500 mb-1">推薦日</label>
+                ${renderTableInput(r.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}
+             </div>
+             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
+             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
+             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
+
+             <!-- 1次 -->
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">一次面接調整日時</label>
+                ${renderTableInput(r.firstInterviewAdjustDate, `${pathPrefix}.firstInterviewAdjustDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">一次面接日時</label>
+                ${renderTableInput(r.firstInterviewDate, `${pathPrefix}.firstInterviewDate`, "date", "selection")}
+             </div>
+
+             <!-- 2次 -->
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">二次面接調整日時</label>
+                ${renderTableInput(r.secondInterviewAdjustDate, `${pathPrefix}.secondInterviewAdjustDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">二次面接日時</label>
+                ${renderTableInput(r.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}
+             </div>
+
+             <!-- 最終 -->
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">最終面接調整日時</label>
+                ${renderTableInput(r.finalInterviewAdjustDate, `${pathPrefix}.finalInterviewAdjustDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">最終面接日時</label>
+                ${renderTableInput(r.finalInterviewDate, `${pathPrefix}.finalInterviewDate`, "date", "selection")}
+             </div>
+             <div class="col-span-2"></div>
+          </div>
+
+          <!-- 成果 (2 cols) -->
+          <div class="lg:col-span-2 space-y-3">
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">FEE (万円)</label>
+                <div class="relative">
+                  ${renderTableInput(r.fee, `${pathPrefix}.fee`, "number", "selection")}
+                  <span class="absolute right-2 top-1.5 text-xs text-slate-400">万</span>
+                </div>
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Closing予定</label>
+                ${renderTableInput(r.closingForecastDate, `${pathPrefix}.closingForecastDate`, "date", "selection")}
+             </div>
+          </div>
+          
+          <!-- Outcome Row (Full Width in Grid) -->
+          <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3 border-t border-slate-100 pt-3 mt-1">
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">内定</label>
+                ${renderTableInput(r.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">承諾</label>
+                ${renderTableInput(r.offerAcceptedDate, `${pathPrefix}.offerAcceptedDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">入社</label>
+                ${renderTableInput(r.joinedDate, `${pathPrefix}.joinedDate`, "date", "selection")}
+             </div>
+             <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">辞退日</label>
+                ${renderTableInput(r.declinedDate, `${pathPrefix}.declinedDate`, "date", "selection")}
+             </div>
+             <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">辞退理由</label>
+                ${renderTableInput(r.declinedReason, `${pathPrefix}.declinedReason`, "text", "selection")}
+             </div>
+          </div>
+
+           <!-- Turnover -->
+          <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3 border-t border-slate-100 pt-3">
+             <div>
+                <label class="block text-xs font-medium text-red-400 mb-1">短期離職</label>
+                ${renderTableInput(r.earlyTurnoverDate, `${pathPrefix}.earlyTurnoverDate`, "date", "selection")}
+             </div>
+             <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-red-400 mb-1">離職理由</label>
+                ${renderTableInput(r.earlyTurnoverReason, `${pathPrefix}.earlyTurnoverReason`, "text", "selection")}
+             </div>
+             <div class="md:col-span-3">
+                <label class="block text-xs font-medium text-slate-500 mb-1">備考</label>
+                ${renderTableTextarea(r.note, `${pathPrefix}.note`, "selection")}
+             </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
   return `
-    <div class="selection-flow-container space-y-6">
-      ${rows.length ? cardsHtml : emptyHtml}
+    <div class="repeatable-header flex justify-between items-center mb-4">
+      <h5 class="text-lg font-bold text-slate-800">企業ごとの進捗 (編集モード)</h5>
+      ${addButton}
+    </div>
+    <div class="selection-card-container">
+      <datalist id="client-list">
+        ${clientList.map(c => `<option value="${escapeHtml(c.name)}"></option>`).join("")}
+      </datalist>
+      ${cardsHtml || `<div class="p-8 text-center text-slate-400 bg-slate-50 rounded border border-dashed border-slate-300">企業進捗が登録されていません。<br>「追加」ボタンから登録してください。</div>`}
     </div>
   `;
 }
@@ -3228,60 +3296,53 @@ function normalizeSelectionRow(row) {
     companyName: row.companyName,
     route: row.route ?? row.source,
     status: resolveSelectionStageValue(row) || row.status, // Pill表示用
-    proposalDate: row.proposalDate ?? row.proposal_date,
-    recommendationDate: row.recommendationDate ?? row.recommendedAt ?? row.recommended_at,
-    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.interviewDate ?? row.first_interview_at,
-    secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt ?? row.second_interview_at,
-    finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt ?? row.final_interview_at,
-    offerDate: row.offerDate ?? row.offerAt ?? row.offer_date,
-    offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.offerAcceptDate ?? row.offer_accept_date ?? row.acceptanceDate,
-    joinedDate: row.joinedDate ?? row.joinedAt ?? row.joinDate ?? row.join_date ?? row.onboardingDate,
-    preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date,
-    preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason,
-    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date,
-    postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason,
-    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closingForecastDate ?? row.closingForecastAt,
-    fee: row.fee ?? row.feeAmount,
-    note: row.note ?? row.selectionNote ?? row.selection_note,
+    recommendationDate: row.recommendationDate,
+    firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt ?? row.interviewSetupDate,
+    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.interviewDate,
+    secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt ?? row.secondInterviewSetupDate,
+    secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt,
+    finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt ?? row.finalInterviewSetupDate,
+    finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt,
+    offerDate: row.offerDate ?? row.offerAt,
+    offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.acceptanceDate,
+    joinedDate: row.joinedDate ?? row.joinedAt ?? row.onboardingDate,
+    declinedDate:
+      row.declinedDate ??
+      row.declinedAfterOfferDate ??
+      row.preJoinDeclineDate,
+    declinedReason:
+      row.declinedReason ??
+      row.declined_reason ??
+      row.declinedAfterOfferReason ??
+      row.preJoinDeclineReason,
+    earlyTurnoverDate:
+      row.earlyTurnoverDate ??
+      row.earlyTurnoverAt ??
+      row.postJoinQuitDate,
+    earlyTurnoverReason:
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.earlyTurnoverAt ??
+      row.postJoinQuitReason,
+    closingForecastDate: row.closingForecastDate ?? row.closingForecastAt ?? row.closeExpectedDate ?? row.closingPlanDate,
+    fee: row.fee ?? row.feeAmount ?? row.fee_amount,
+    note: row.note ?? row.selectionNote,
   };
 }
 
-function renderSelectionNodeDate(value, path, editing) {
-  if (!editing) {
-    const dateStr = formatDateJP(value);
-    const className = value ? "text-indigo-700 font-bold" : "text-slate-300";
-    return `< div class="text-[10px] ${className} mt-1" > ${ escapeHtml(dateStr) }</div > `;
-  }
-  const dataset = path ? `data - detail - field="${path}" data - detail - section="selection"` : "";
-  const inputValue = value === 0 ? "0" : formatInputValue(value, "date");
-  return `< input type = "date" class="detail-inline-input selection-node-input" value = "${escapeHtmlAttr(inputValue)}" ${ dataset }> `;
-}
-
-function renderSelectionNodeText(value, path, editing, placeholder = "") {
-  if (!editing) {
-    return `< div class="text-[10px] text-slate-500 mt-1" > ${ escapeHtml(value || "-") }</div > `;
-  }
-  const dataset = path ? `data - detail - field="${path}" data - detail - section="selection"` : "";
-  return `< input type = "text" class="detail-inline-input selection-node-input selection-node-reason" value = "${escapeHtmlAttr(value || "")}" placeholder = "${escapeHtmlAttr(placeholder)}" ${ dataset }> `;
-}
-
-function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
+function renderSelectionFlowCard(rawRow) {
   const r = normalizeSelectionRow(rawRow);
   const statusVariant = resolveSelectionStatusVariant(r.status);
   const statusLabel = r.status || "未設定";
-  const pathPrefix = `selectionProgress.${ index } `;
 
   // Flow Steps Definition
   const steps = [
-    { key: "proposalDate", label: "提案", date: r.proposalDate },
-    { key: "recommendationDate", label: "推薦", date: r.recommendationDate },
-    { key: "firstInterviewDate", label: "一次面接", date: r.firstInterviewDate },
-    { key: "secondInterviewDate", label: "二次面接", date: r.secondInterviewDate },
-    { key: "finalInterviewDate", label: "最終面接", date: r.finalInterviewDate },
-    { key: "offerDate", label: "内定", date: r.offerDate },
-    { key: "acceptanceDate", label: "承諾", date: r.offerAcceptedDate },
-    { key: "onboardingDate", label: "入社", date: r.joinedDate },
-    { key: "closeExpectedDate", label: "クロージング", date: r.closeExpectedDate },
+    { label: "推薦", date: r.recommendationDate, sub: null, active: true },
+    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null },
+    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null },
+    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null },
+    { label: "内定", date: r.offerDate, sub: null },
+    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null },
   ];
 
   // Determine current active step index based on dates
@@ -3307,126 +3368,90 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
       if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
     }
 
-    const dateHtml = renderSelectionNodeDate(step.date, `${ pathPrefix }.${ step.key } `, editing);
+    const dateStr = formatDateJP(step.date);
+    const dateHtml = hasDate ? `<div class="text-[10px] font-bold text-indigo-700 mt-1">${dateStr}</div>` : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+    const subHtml = step.sub ? `<div class="text-[9px] text-slate-400">${step.sub}</div>` : "";
 
     return `
-    < div class="flex-1 relative group" >
-        < !--Connector Bar-- >
-    ${ idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : "" }
-
-  <div class="relative z-10 flex flex-col items-center">
-    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
-      ${idx + 1}
-    </div>
-    <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${idx + 1}${step.label}</div>
-    ${dateHtml}
-  </div>
-      </div >
+      <div class="flex-1 relative group">
+        <!-- Connector Bar -->
+        ${idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : ""}
+        
+        <div class="relative z-10 flex flex-col items-center">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
+            ${idx + 1}
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${step.label}</div>
+          ${dateHtml}
+          ${subHtml}
+        </div>
+      </div>
     `;
   }).join("");
 
+  // 詳細情報 (辞退理由や備考)
   const details = [];
   if (r.route) details.push({ label: "経由", value: r.route });
   if (r.fee) details.push({ label: "FEE", value: formatMoneyToMan(r.fee) });
+  if (r.closingForecastDate) details.push({ label: "着地予定", value: formatDateJP(r.closingForecastDate) });
+
+  // Warning Alerts
+  let alerts = "";
+  if (r.declinedDate || r.declinedReason) {
+    alerts += `
+      <div class="mt-3 text-xs bg-red-50 text-red-700 px-3 py-2 rounded border border-red-100 flex items-start">
+        <span class="font-bold mr-2 whitespace-nowrap">辞退/失注:</span>
+        <div>
+          ${r.declinedDate ? `<span class="mr-2">日: ${formatDateJP(r.declinedDate)}</span>` : ""}
+          <span>理由: ${escapeHtml(r.declinedReason || "不明")}</span>
+        </div>
+      </div>`;
+  }
+  if (r.earlyTurnoverDate || r.earlyTurnoverReason) {
+    alerts += `
+      <div class="mt-2 text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded border border-orange-100 flex items-start">
+        <span class="font-bold mr-2 whitespace-nowrap">早期退職:</span>
+        <div>
+          ${r.earlyTurnoverDate ? `<span class="mr-2">日: ${formatDateJP(r.earlyTurnoverDate)}</span>` : ""}
+          <span>理由: ${escapeHtml(r.earlyTurnoverReason || "不明")}</span>
+        </div>
+      </div>`;
+  }
 
   // 備考エリア
-  const noteHtml = editing
-    ? `
-    < div class="mt-3" >
-      <div class="text-xs text-slate-400 mb-1">備考</div>
-        ${ renderTableTextarea(r.note, `${pathPrefix}.selectionNote`, "selection") }
-      </div >
-    `
-    : r.note
-      ? `< div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap" > <span class="font-bold text-slate-500 mr-1">備考:</span>${ escapeHtml(r.note) }</div > `
-      : "";
+  const noteHtml = r.note
+    ? `<div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap"><span class="font-bold text-slate-500 mr-1">備考:</span>${escapeHtml(r.note)}</div>`
+    : "";
 
-  const declineNodes = [
-    {
-      label: "内定後辞退",
-      date: r.preJoinDeclineDate,
-      reason: r.preJoinDeclineReason,
-      datePath: `${ pathPrefix }.preJoinDeclineDate`,
-      reasonPath: `${ pathPrefix }.preJoinDeclineReason`,
-    },
-    {
-      label: "入社後辞退",
-      date: r.postJoinQuitDate,
-      reason: r.postJoinQuitReason,
-      datePath: `${ pathPrefix }.postJoinQuitDate`,
-      reasonPath: `${ pathPrefix }.postJoinQuitReason`,
-    },
-  ];
-  const declineHtml = declineNodes
-    .map((node) => `
-    < div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2" >
-      <div class="text-xs font-semibold text-slate-700">${node.label}</div>
-        ${ renderSelectionNodeDate(node.date, node.datePath, editing) }
-        ${ renderSelectionNodeText(node.reason, node.reasonPath, editing, "辞退理由") }
-      </div >
-    `)
-    .join("");
-
-  const headerLeft = editing
-    ? `
-    < div class="flex flex-wrap items-start gap-3" >
-        <div class="min-w-[180px]">
-          <div class="text-[10px] text-slate-400 mb-1">企業名</div>
-          ${renderTableSelect(buildClientOptions(rawRow.clientId, r.companyName), `${pathPrefix}.clientId`, "selection")}
-        </div>
-        <div class="min-w-[140px]">
-          <div class="text-[10px] text-slate-400 mb-1">応募経路</div>
-          ${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}
-        </div>
-        <div class="flex items-center gap-2 pt-4" data-selection-status>
+  return `
+    <div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <h4 class="text-lg font-bold text-slate-800">${escapeHtml(r.companyName || "企業名未設定")}</h4>
           ${renderStatusPill(statusLabel, statusVariant)}
         </div>
-      </div >
-    `
-    : `
-    < div class="flex items-center gap-3" >
-        <h4 class="text-lg font-bold text-slate-800">${escapeHtml(r.companyName || "企業名未設定")}</h4>
-        <div data-selection-status>${renderStatusPill(statusLabel, statusVariant)}</div>
-      </div >
-    `;
-
-  const headerRight = editing
-    ? `< button type = "button" class="repeatable-remove-btn" data - remove - row="selectionProgress" data - index="${index}" > 削除</button > `
-    : `
-    < div class="flex gap-4 text-xs text-slate-500" >
-      ${ details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("") }
-      </div >
-    `;
-
-  const rowAttr = editing ? `data - selection - row="${index}"` : "";
-  return `
-    < div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow" ${ rowAttr }>
-      <div class="flex items-center justify-between mb-4">
-        ${headerLeft}
-        ${headerRight}
+        <div class="flex gap-4 text-xs text-slate-500">
+           ${details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("")}
+        </div>
       </div>
       
-      <!--Flow Chart-- >
-      <div class="flex flex-col lg:flex-row lg:items-start gap-4">
-        <div class="flex-1 flex justify-between items-start w-full px-2 mb-2">
-          ${flowHtml}
-        </div>
-        <div class="flex flex-col gap-3 min-w-[160px]">
-          ${declineHtml}
-        </div>
+      <!-- Flow Chart -->
+      <div class="flex justify-between items-start w-full px-2 mb-2">
+        ${flowHtml}
       </div>
 
-      <!--Alerts & Notes-- >
-    ${ noteHtml }
-    </div >
-    `;
+      <!-- Alerts & Notes -->
+      ${alerts}
+      ${noteHtml}
+    </div>
+  `;
 }
 
 function renderTeleapoLogsSection(candidate) {
   const rows = candidate.teleapoLogs || [];
   if (rows.length === 0) {
     return `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
           <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
@@ -3435,7 +3460,7 @@ function renderTeleapoLogsSection(candidate) {
           <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
         </tbody>
       </table>
-      </div >
+      </div>
     `;
   }
 
@@ -3447,21 +3472,21 @@ function renderTeleapoLogsSection(candidate) {
         row.memo,
         formatDateTimeJP(row.calledAt),
       ]
-        .map((v) => `< td > <span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td > `)
+        .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
         .join("");
-      return `< tr > ${ cells }</tr > `;
+      return `<tr>${cells}</tr>`;
     })
     .join("");
 
   return `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
           <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
       </table>
-    </div >
+    </div>
     `;
 }
 
@@ -3475,25 +3500,21 @@ function renderMoneySection(candidate) {
       .map((row, index) => {
         const canEdit = editing && row.joinDate;
         const feeCell = canEdit
-          ? renderTableInput(row.feeAmount, `moneyInfo.${ index }.feeAmount`, "number", "money", "number")
-          : `< span class="detail-value" > ${ escapeHtml(formatMoneyToMan(row.feeAmount)) }</span > `;
-        const orderDateCell = canEdit
-          ? renderTableInput(row.orderDate, `moneyInfo.${ index }.orderDate`, "date", "money")
-          : `< span class="detail-value" > ${ escapeHtml(formatDisplayValue(formatDateJP(row.orderDate))) }</span > `;
+          ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
+          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span>`;
         const reportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${ index }.orderReported`, "money", "boolean")
+          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
           : renderBooleanPill(row.orderReported);
         return `
-    < tr >
+    <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${feeCell}</td>
-            <td>${orderDateCell}</td>
             <td class="text-center">${reportCell}</td>
-          </tr >
+          </tr>
     `;
       })
       .join("")
-    : `< tr > <td colspan="4" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr > `;
+    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
 
   const refundBody = hasRows
     ? rows
@@ -3508,48 +3529,44 @@ function renderMoneySection(candidate) {
               : "-";
         const canEdit = editing && (row.preJoinWithdrawDate || row.postJoinQuitDate);
         const refundAmountCell = canEdit
-          ? renderTableInput(row.refundAmount, `moneyInfo.${ index }.refundAmount`, "number", "money", "number")
-          : `< span class="detail-value" > ${ escapeHtml(formatMoneyToMan(row.refundAmount)) }</span > `;
-        const withdrawDateCell = canEdit
-          ? renderTableInput(row.withdrawDate, `moneyInfo.${ index }.withdrawDate`, "date", "money")
-          : `< span class="detail-value" > ${ escapeHtml(formatDisplayValue(formatDateJP(row.withdrawDate))) }</span > `;
+          ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
+          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.refundAmount))}</span>`;
         const refundReportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${ index }.refundReported`, "money", "boolean")
+          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
           : renderBooleanPill(row.refundReported);
         return `
-    < tr >
+    <tr>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
             <td>${refundAmountCell}</td>
-            <td>${withdrawDateCell}</td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(retirementDate)))}</span></td>
             <td><span class="detail-value">${escapeHtml(formatDisplayValue(refundType))}</span></td>
             <td class="text-center">${refundReportCell}</td>
-          </tr >
+          </tr>
     `;
       })
       .join("")
-    : `< tr > <td colspan="6" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr > `;
+    : `<tr><td colspan="5" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>`;
 
   const orderTable = `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>受注金額（税抜）</th><th>受注日</th><th>受注報告</th></tr>
+          <tr><th>企業名</th><th>受注金額（税抜）</th><th>受注報告</th></tr>
         </thead>
         <tbody>${orderBody}</tbody>
       </table>
-    </div >
+    </div>
     `;
 
   const refundTable = `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>返金・減額（税抜）</th><th>辞退日</th><th>退職日</th><th>返金区分</th><th>返金報告</th></tr>
+          <tr><th>企業名</th><th>返金・減額（税抜）</th><th>退職日</th><th>返金区分</th><th>返金報告</th></tr>
         </thead>
         <tbody>${refundBody}</tbody>
       </table>
-    </div >
+    </div>
     `;
 
   return [
@@ -3566,10 +3583,10 @@ function renderAfterAcceptanceSection(candidate) {
   ];
   const reportStatuses =
     (data.reportStatuses || [])
-      .map((s) => `< span class="cs-pill is-active" > ${ escapeHtml(s) }</span > `)
+      .map((s) => `<span class="cs-pill is-active">${escapeHtml(s)}</span>`)
       .join("") || "-";
   return `
-    ${ renderDetailGridFields(fields, "afterAcceptance") }
+    ${renderDetailGridFields(fields, "afterAcceptance")}
   <div class="detail-pill-list">${reportStatuses}</div>
   `;
 }
@@ -3596,7 +3613,7 @@ function renderRefundSection(candidate) {
 
   if (!items.length) {
     return `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
           <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
@@ -3605,7 +3622,7 @@ function renderRefundSection(candidate) {
           <tr><td colspan="4" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>
         </tbody>
       </table>
-      </div >
+      </div>
     `;
   }
 
@@ -3617,21 +3634,21 @@ function renderRefundSection(candidate) {
         formatMoneyToMan(item.refundAmount),
         item.reportStatus || "-",
       ]
-        .map((v) => `< td > <span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td > `)
+        .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
         .join("");
-      return `< tr > ${ cells }</tr > `;
+      return `<tr>${cells}</tr>`;
     })
     .join("");
 
   return `
-    < div class="detail-table-wrapper" >
+    <div class="detail-table-wrapper">
       <table class="detail-table">
         <thead>
           <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
       </table>
-    </div >
+    </div>
     `;
 }
 
@@ -3656,7 +3673,7 @@ function renderNextActionSection(candidate) {
 
   const summaryHtml = displayTask
     ? `
-    < div class="next-action-card bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4 mb-4" >
+    <div class="next-action-card bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4 mb-4">
       <div class="flex items-center justify-between">
         <div>
           <span class="next-action-date text-lg font-bold text-indigo-900">次回アクション: ${escapeHtml(formatDateJP(displayTask.actionDate))}</span>
@@ -3668,10 +3685,10 @@ function renderNextActionSection(candidate) {
         ` : ''}
       </div>
       <div class="mt-2 text-sm text-slate-700">${escapeHtml(displayTask.actionNote || '-')}</div>
-    </div >
+    </div>
     `
     : `
-    < div class="next-action-card bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4" >
+    <div class="next-action-card bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div class="flex items-center gap-2 mb-1">
@@ -3684,15 +3701,15 @@ function renderNextActionSection(candidate) {
           🏁 選考完了
         </button>
       </div>
-    </div >
+    </div>
     `;
 
   // 新規アクション追加エリア
   const addTaskHtml = `
-    < div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4" >
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
       <p class="text-xs text-blue-800 mb-2">💡 新しいアクションを追加するには、以下を入力して「編集」→「完了して保存」してください。</p>
-    </div >
-    `;
+    </div>
+  `;
 
   const fields = [
     { label: "次回アクション日", value: candidate.nextActionDate || "", path: "nextActionDate", type: "date", displayFormatter: formatDateJP, span: 3 },
@@ -3703,7 +3720,7 @@ function renderNextActionSection(candidate) {
   const remainingTasks = incompleteTasks.slice(1);
   const remainingTasksHtml = remainingTasks.length > 0
     ? `
-    < div class="mt-4" >
+    <div class="mt-4">
       <h5 class="text-sm font-semibold text-slate-700 mb-2">📋 予定中のアクション</h5>
       <div class="space-y-2">
         ${remainingTasks.map((task) => `
@@ -3716,14 +3733,14 @@ function renderNextActionSection(candidate) {
           </div>
         `).join('')}
       </div>
-    </div >
+    </div>
     `
     : '';
 
   // 完了済みタスク履歴
   const completedTasksHtml = completedTasks.length > 0
     ? `
-    < div class="mt-6" >
+    <div class="mt-6">
       <h5 class="text-sm font-semibold text-slate-700 mb-3">✅ 完了したアクション (${completedTasks.length}件)</h5>
       <div class="space-y-2">
         ${completedTasks.map((task) => `
@@ -3737,16 +3754,16 @@ function renderNextActionSection(candidate) {
           </div>
         `).join('')}
       </div>
-    </div >
+    </div>
     `
     : '';
 
   return `
-    ${ summaryHtml }
-    ${ addTaskHtml }
-    ${ renderDetailGridFields(fields, "nextAction") }
-    ${ remainingTasksHtml }
-    ${ completedTasksHtml }
+    ${summaryHtml}
+    ${addTaskHtml}
+    ${renderDetailGridFields(fields, "nextAction")}
+    ${remainingTasksHtml}
+    ${completedTasksHtml}
   `;
 }
 
@@ -3760,7 +3777,7 @@ function renderCsSection(candidate) {
 
   const items = [
     { label: "SMS送信", html: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
-    { label: "架電回数", value: Number(callCount) > 0 ? `${ callCount } 回` : "-" },
+    { label: "架電回数", value: Number(callCount) > 0 ? `${callCount} 回` : "-" },
     { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
@@ -3769,9 +3786,8 @@ function renderCsSection(candidate) {
   ];
 
   return `
-    < div class="cs-summary-grid" >
-      ${
-    items
+    <div class="cs-summary-grid">
+      ${items
       .map(
         (item) => `
             <div class="cs-summary-item">
@@ -3786,8 +3802,8 @@ function renderCsSection(candidate) {
           `
       )
       .join("")
-  }
-    </div >
+    }
+    </div>
     `;
 }
 
@@ -3800,7 +3816,7 @@ function renderDocumentsSection(candidate) {
   const renderEducationRow = (edu, index) => {
     if (editing) {
       return `
-    < div class="education-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data - education - index="${index}" >
+        <div class="education-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-education-index="${index}">
           <div class="col-span-2">
             <label class="block text-xs text-slate-500 mb-1">学校名</label>
             <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="schoolName" value="${escapeHtml(edu.schoolName || edu.school_name || '')}">
@@ -3818,23 +3834,23 @@ function renderDocumentsSection(candidate) {
             <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="graduationDate" value="${formatMonthValue(edu.graduationDate || edu.graduation_date)}">
           </div>
           <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-education="${index}">削除</button>
-        </div >
-    `;
+        </div>
+      `;
     }
     return `
-    < tr >
+      <tr>
         <td class="px-3 py-2 text-sm">${escapeHtml(edu.schoolName || edu.school_name || '-')}</td>
         <td class="px-3 py-2 text-sm">${escapeHtml(edu.department || '-')}</td>
         <td class="px-3 py-2 text-sm">${formatMonthJP(edu.admissionDate || edu.admission_date)}</td>
         <td class="px-3 py-2 text-sm">${formatMonthJP(edu.graduationDate || edu.graduation_date)}</td>
-      </tr >
+      </tr>
     `;
   };
 
   const renderWorkRow = (work, index) => {
     if (editing) {
       return `
-    < div class="work-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data - work - index="${index}" >
+        <div class="work-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-work-index="${index}">
           <div class="col-span-2">
             <label class="block text-xs text-slate-500 mb-1">会社名</label>
             <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="companyName" value="${escapeHtml(work.companyName || work.company_name || '')}">
@@ -3860,38 +3876,38 @@ function renderDocumentsSection(candidate) {
             <textarea class="w-full px-2 py-1 border rounded text-sm" rows="2" data-work-field="jobDescription">${escapeHtml(work.jobDescription || work.job_description || '')}</textarea>
           </div>
           <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-work="${index}">削除</button>
-        </div >
-    `;
+        </div>
+      `;
     }
     return `
-    < tr >
+      <tr>
         <td class="px-3 py-2 text-sm">${escapeHtml(work.companyName || work.company_name || '-')}</td>
         <td class="px-3 py-2 text-sm">${escapeHtml(work.department || '-')}</td>
         <td class="px-3 py-2 text-sm">${escapeHtml(work.position || '-')}</td>
         <td class="px-3 py-2 text-sm">${formatMonthJP(work.joinDate || work.join_date)}</td>
         <td class="px-3 py-2 text-sm">${formatMonthJP(work.leaveDate || work.leave_date) || '現職'}</td>
-      </tr >
+      </tr>
     `;
   };
 
   const educationHtml = editing
-    ? `< div id = "educationRepeater" > ${ educations.map((e, i) => renderEducationRow(e, i)).join('') }</div >
-    <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-education>+ 学歴を追加</button>`
-    : `< table class="w-full text-left border-collapse" >
+    ? `<div id="educationRepeater">${educations.map((e, i) => renderEducationRow(e, i)).join('')}</div>
+       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-education>+ 学歴を追加</button>`
+    : `<table class="w-full text-left border-collapse">
          <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">学校名</th><th class="px-3 py-2 text-xs font-medium">学部・学科</th><th class="px-3 py-2 text-xs font-medium">入学</th><th class="px-3 py-2 text-xs font-medium">卒業</th></tr></thead>
          <tbody>${educations.length ? educations.map((e, i) => renderEducationRow(e, i)).join('') : '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
-       </table > `;
+       </table>`;
 
   const workHtml = editing
-    ? `< div id = "workRepeater" > ${ workHistories.map((w, i) => renderWorkRow(w, i)).join('') }</div >
-    <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-work>+ 職歴を追加</button>`
-    : `< table class="w-full text-left border-collapse" >
+    ? `<div id="workRepeater">${workHistories.map((w, i) => renderWorkRow(w, i)).join('')}</div>
+       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-work>+ 職歴を追加</button>`
+    : `<table class="w-full text-left border-collapse">
          <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">会社名</th><th class="px-3 py-2 text-xs font-medium">部署</th><th class="px-3 py-2 text-xs font-medium">役職</th><th class="px-3 py-2 text-xs font-medium">入社</th><th class="px-3 py-2 text-xs font-medium">退職</th></tr></thead>
          <tbody>${workHistories.length ? workHistories.map((w, i) => renderWorkRow(w, i)).join('') : '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
-       </table > `;
+       </table>`;
 
   return `
-    < div class="space-y-6" >
+    <div class="space-y-6">
       <div>
         <h5 class="text-md font-semibold text-slate-700 mb-3">📚 学歴</h5>
         ${educationHtml}
@@ -3904,22 +3920,22 @@ function renderDocumentsSection(candidate) {
         <button type="button" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500" data-download-resume>📄 履歴書をダウンロード</button>
         <button type="button" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-500" data-download-cv>📝 職務経歴書をダウンロード</button>
       </div>
-    </div >
-    `;
+    </div>
+  `;
 }
 
 function formatMonthValue(value) {
   if (!value) return '';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '';
-  return `${ d.getFullYear() } -${ String(d.getMonth() + 1).padStart(2, '0') } `;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function formatMonthJP(value) {
   if (!value) return '-';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '-';
-  return `${ d.getFullYear() }年${ d.getMonth() + 1 } 月`;
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
 }
 
 function parseDateValue(value) {
@@ -3930,52 +3946,62 @@ function parseDateValue(value) {
 }
 
 function pickNextAction(candidate) {
-  const tasks = Array.isArray(candidate.tasks) ? candidate.tasks : [];
-  const incompleteTasks = tasks.filter((task) => !task?.isCompleted);
-  if (incompleteTasks.length > 0) {
-    const sorted = [...incompleteTasks].sort((a, b) => {
-      const aDate = parseDateValue(a?.actionDate)?.getTime() ?? Number.POSITIVE_INFINITY;
-      const bDate = parseDateValue(b?.actionDate)?.getTime() ?? Number.POSITIVE_INFINITY;
-      return aDate - bDate;
-    });
-    const nextTask = sorted[0];
-    const taskDate = parseDateValue(nextTask?.actionDate);
-    if (taskDate) {
-      return {
-        label: "次回アクション",
-        date: taskDate,
-        note: nextTask?.actionNote || null
-      };
-    }
-  }
+  const now = new Date();
+  const upcoming = [];
+
+  const pushIfUpcoming = (label, value) => {
+    const date = parseDateValue(value);
+    if (!date) return;
+    // Include past events to show as expired/warning at the top
+    upcoming.push({ label, date });
+  };
 
   const explicitNextAction = parseDateValue(candidate.nextActionDate);
   if (explicitNextAction) {
     return {
-      label: "次回アクション",
+      label: "次回アクション日",
       date: explicitNextAction,
       note: candidate.nextActionNote || null
     };
   }
 
-  return null;
+  pushIfUpcoming("新規接触予定", candidate.firstContactPlannedAt);
+  pushIfUpcoming("面接希望", candidate.interviewPreferredDate);
+  pushIfUpcoming("共有面談実施日", candidate.firstInterviewDate);
+  pushIfUpcoming("設定日", candidate.scheduleConfirmedAt);
+
+  (candidate.selectionProgress || []).forEach((row) => {
+    const prefix = row.companyName ? `${row.companyName} ` : "";
+    pushIfUpcoming(`${prefix} 面接設定日`, row.interviewSetupDate);
+    pushIfUpcoming(`${prefix} 面接日`, row.interviewDate);
+    pushIfUpcoming(`${prefix} 二次面接調整日`, row.secondInterviewSetupDate);
+    pushIfUpcoming(`${prefix} 二次面接日`, row.secondInterviewDate);
+    pushIfUpcoming(`${prefix} 内定日`, row.offerDate);
+    pushIfUpcoming(`${prefix} 内定承諾日`, row.acceptanceDate);
+    pushIfUpcoming(`${prefix} 入社日`, row.onboardingDate);
+    pushIfUpcoming(`${prefix} クロージング予定日`, row.closeExpectedDate);
+  });
+
+  if (upcoming.length === 0) return null;
+  upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
+  return upcoming[0];
 }
 
 function renderMemoSection(candidate) {
   const editing = detailEditState.memo;
   if (editing) {
     return `
-    < label class="detail-textarea-field" >
+    <label class="detail-textarea-field">
       <span>自由メモ</span>
-      ${ renderTableTextarea(candidate.memoDetail, "memoDetail", "memo") }
-    </label >
+      ${renderTableTextarea(candidate.memoDetail, "memoDetail", "memo")}
+    </label>
     `;
   }
   return `
-    < label class="detail-textarea-field" >
+    <label class="detail-textarea-field">
       <span>自由メモ</span>
       <span class="detail-value">${escapeHtml(candidate.memoDetail || "-")}</span>
-    </label >
+    </label>
     `;
 }
 
@@ -3984,7 +4010,7 @@ function resolveDetailGridSpanClass(field) {
   if (span === "full") return "col-span-full";
   if (typeof span === "number") {
     const smSpan = Math.min(span, 2);
-    return `col - span - full sm: col - span - ${ smSpan } lg: col - span - ${ span } `;
+    return `col-span-full sm:col-span-${smSpan} lg:col-span-${span}`;
   }
   return "col-span-full sm:col-span-2 lg:col-span-2";
 }
@@ -4004,9 +4030,8 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
     .filter(Boolean)
     .join(" ");
   return `
-    < dl class="${gridClass}" >
-      ${
-    fields
+    <dl class="${gridClass}">
+      ${fields
       .map((field) => {
         const value = field.value;
         const spanClass = resolveDetailGridSpanClass(field);
@@ -4041,65 +4066,64 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
           `;
       })
       .join("")
-  }
-    </dl >
+    }
+    </dl>
     `;
 }
 
 function renderDetailFieldInput(field, value, sectionKey) {
-  const dataset = field.path ? `data - detail - field="${field.path}" data - detail - section="${sectionKey}"` : "";
-  const valueType = field.valueType ? ` data - value - type="${field.valueType}"` : "";
+  const dataset = field.path ? `data-detail-field="${field.path}" data-detail-section="${sectionKey}"` : "";
+  const valueType = field.valueType ? ` data-value-type="${field.valueType}"` : "";
   if (field.input === "textarea") {
-    return `< textarea class="detail-inline-input detail-inline-textarea" ${ dataset }${ valueType }> ${ escapeHtml(value || "") }</textarea > `;
+    return `<textarea class="detail-inline-input detail-inline-textarea" ${dataset}${valueType}>${escapeHtml(value || "")}</textarea>`;
   }
   if (field.input === "select") {
     return `
-    < select class="detail-inline-input" ${ dataset }${ valueType }>
-      ${
-    (field.options || [])
-      .map((option) => {
-        const isObject = option && typeof option === "object";
-        const optValue = isObject ? option.value : option;
-        const optLabel = isObject ? option.label : option;
-        const isSelected = isObject && "selected" in option
-          ? option.selected
-          : String(optValue ?? "") === String(value ?? "");
-        return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
-      })
-      .join("")
-  }
-      </select >
+    <select class="detail-inline-input" ${dataset}${valueType}>
+      ${(field.options || [])
+        .map((option) => {
+          const isObject = option && typeof option === "object";
+          const optValue = isObject ? option.value : option;
+          const optLabel = isObject ? option.label : option;
+          const isSelected = isObject && "selected" in option
+            ? option.selected
+            : String(optValue ?? "") === String(value ?? "");
+          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+        })
+        .join("")
+      }
+      </select>
     `;
   }
   if (field.input === "checkbox") {
     return `
-    < label class="meeting-check" >
+    <label class="meeting-check">
       <input type="checkbox" ${value ? "checked" : ""} ${dataset} ${valueType || 'data-value-type="boolean"'}>
         <span>${field.checkboxLabel || "済"}</span>
       </label>
   `;
   }
   const type = field.type === "datetime" ? "datetime-local" : field.type || "text";
-  return `< input type = "${type}" class="detail-inline-input" value = "${escapeHtmlAttr(formatInputValue(value, type))}" ${ dataset }${ valueType }> `;
+  return `<input type="${type}" class="detail-inline-input" value="${escapeHtmlAttr(formatInputValue(value, type))}" ${dataset}${valueType}>`;
 }
 
 function renderTableInput(value, path, type = "text", sectionKey, valueType, listId) {
-  const dataset = path ? `data - detail - field="${path}" data - detail - section="${sectionKey}"` : "";
-  const valueTypeAttr = valueType ? ` data - value - type="${valueType}"` : "";
-  const listAttr = listId ? ` list = "${listId}"` : "";
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  const valueTypeAttr = valueType ? ` data-value-type="${valueType}"` : "";
+  const listAttr = listId ? ` list="${listId}"` : "";
   const inputType = type === "datetime" ? "datetime-local" : type;
   const inputValue = value === 0 ? "0" : formatInputValue(value, inputType);
-  return `< input type = "${inputType}" class="detail-table-input" value = "${escapeHtmlAttr(inputValue)}" ${ dataset }${ valueTypeAttr }${ listAttr }> `;
+  return `<input type="${inputType}" class="detail-table-input" value="${escapeHtmlAttr(inputValue)}" ${dataset}${valueTypeAttr}${listAttr}>`;
 }
 
 function renderTableTextarea(value, path, sectionKey) {
-  const dataset = path ? `data - detail - field="${path}" data - detail - section="${sectionKey}"` : "";
-  return `< textarea class="detail-table-input" ${ dataset }> ${ escapeHtml(value || "") }</textarea > `;
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  return `<textarea class="detail-table-input" ${dataset}>${escapeHtml(value || "")}</textarea>`;
 }
 
 function renderTableSelect(options, path, sectionKey, valueType) {
-  const dataset = path ? `data - detail - field="${path}" data - detail - section="${sectionKey}"` : "";
-  const valueTypeAttr = valueType ? ` data - value - type="${valueType}"` : "";
+  const dataset = path ? `data-detail-field="${path}" data-detail-section="${sectionKey}"` : "";
+  const valueTypeAttr = valueType ? ` data-value-type="${valueType}"` : "";
   const selectedValue = (options || []).find((option) => option && typeof option === "object" && option.selected)?.value;
   const html = (options || [])
     .map((option) => {
@@ -4109,10 +4133,10 @@ function renderTableSelect(options, path, sectionKey, valueType) {
       const isSelected = isObject && "selected" in option
         ? option.selected
         : String(optValue ?? "") === String(selectedValue ?? "");
-      return `< option value = "${escapeHtmlAttr(optValue ?? "")}" ${ isSelected ? "selected" : "" }> ${ escapeHtml(optLabel ?? "") }</option > `;
+      return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
     })
     .join("");
-  return `< select class="detail-table-input" ${ dataset }${ valueTypeAttr }> ${ html }</select > `;
+  return `<select class="detail-table-input" ${dataset}${valueTypeAttr}>${html}</select>`;
 }
 
 function formatInputValue(value, type) {
@@ -4126,7 +4150,7 @@ function formatInputValue(value, type) {
     const day = String(d.getDate()).padStart(2, "0");
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${ y } -${ m } -${ day }T${ hh }:${ mm } `;
+    return `${y} -${m} -${day}T${hh}:${mm} `;
   }
   return value;
 }

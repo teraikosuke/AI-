@@ -128,46 +128,52 @@
               <span class="nav-label">架電管理</span>
             </button>
           </li>
-          <li class="nav-group" data-nav-group="settings">
-            <button type="button" class="nav-link nav-group-toggle w-full text-left whitespace-nowrap transition"
-              data-submenu-toggle="settings" aria-expanded="false">
+          <li>
+            <button type="button" data-target="settings" class="nav-link w-full text-left whitespace-nowrap transition"
+              aria-current="false">
               <span class="nav-icon" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                  <path fill-rule="evenodd"
-                    d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.992 6.992 0 0 1 7.51 3.456l.33-1.652Z"
-                    clip-rule="evenodd" />
-                  <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z" />
                 </svg>
               </span>
-              <span class="nav-label">設定</span>
-              <span class="nav-caret" aria-hidden="true">▾</span>
+              <span class="nav-label">システム設定</span>
             </button>
-            <ul class="nav-submenu" data-submenu="settings">
-              <li>
-                <button type="button" data-target="settings"
-                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
-                  <span class="nav-label">システム設定</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" data-target="goal-settings"
-                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
-                  <span class="nav-label">評価・目標設定</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" data-target="members"
-                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
-                  <span class="nav-label">メンバー</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" data-action="logout"
-                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition text-red-400 hover:text-red-300">
-                  <span class="nav-label">ログアウト</span>
-                </button>
-              </li>
-            </ul>
+          </li>
+          <li>
+            <button type="button" data-target="goal-settings"
+              class="nav-link w-full text-left whitespace-nowrap transition" aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z" />
+                </svg>
+              </span>
+              <span class="nav-label">評価・目標設定</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-target="members" class="nav-link w-full text-left whitespace-nowrap transition"
+              aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 10.5a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10.5Zm0 2c-3.33 0-6 1.52-6 3.4V17h12v-1.1c0-1.88-2.67-3.4-6-3.4ZM15 6a2 2 0 1 1 2 2 2 2 0 0 1-2-2Zm0 3.25a4 4 0 0 1 2.91 1.06A4 4 0 0 1 19 13.7V15h-2v-1.3c0-.9-.92-1.7-2-1.7Z" />
+                </svg>
+              </span>
+              <span class="nav-label">メンバー</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-action="logout" class="nav-link w-full text-left whitespace-nowrap transition">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path d="M8 3a2 2 0 0 0-2 2v3h2V5h7v10H8v-3H6v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8z" />
+                  <path d="M3.293 9.293 1.586 11l1.707 1.707L5 11.999 4.002 11H10v-2H4.002L5 8.001 3.293 9.293z" />
+                </svg>
+              </span>
+              <span class="nav-label">ログアウト</span>
+            </button>
           </li>
         </ul>
       </nav>
@@ -209,7 +215,7 @@
   </div>
 
   <script type="module">
-    import { boot } from './scripts/router.js?v=20260127_01';
+    import { boot } from './scripts/router.js?v=20260120_2';
     boot();
   </script>
 </body>
