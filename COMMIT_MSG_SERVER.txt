@@ -1,0 +1,6 @@
+✨ feat: クライアント登録APIの実装とスキーマ更新
+
+- server.jsに `POST /api/clients` エンドポイントを追加
+- clientsテーブルの `warranty_period` カラムをTEXT型に変更
+- スキーマ定義ファイル (db/schema.sql) を更新
+- シードデータ作成スクリプトと検証スクリプトを追加
