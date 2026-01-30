@@ -1370,6 +1370,96 @@ app.get("/api/settings/screening-rules", (req, res) => {
   res.json([]);
 });
 
+app.get("/api/members", (req, res) => {
+  res.json([
+    { id: 1, name: "管理者 太郎", email: "admin@example.com", role: "admin", is_admin: true },
+    { id: 30, name: "テスト一般", email: "test@example.com", role: "member", is_admin: false },
+    { id: 2, name: "営業 花子", email: "sales@example.com", role: "advisor", is_admin: false },
+  ]);
+});
+
+// ========== KPI Mock APIs ==========
+
+function generateDailySeries(fromStr, toStr) {
+  const from = new Date(fromStr);
+  const to = new Date(toStr);
+  const series = {};
+  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    const dateKey = d.toISOString().split("T")[0]; // YYYY-MM-DD
+    series[dateKey] = {
+      newInterviews: Math.floor(Math.random() * 5),
+      proposals: Math.floor(Math.random() * 5),
+      recommendations: Math.floor(Math.random() * 5),
+      interviewsScheduled: Math.floor(Math.random() * 5),
+      interviewsHeld: Math.floor(Math.random() * 5),
+      offers: Math.floor(Math.random() * 2),
+      accepts: Math.floor(Math.random() * 1),
+      hires: 0
+    };
+  }
+  return series;
+}
+
+app.get("/api/kpi/yield", (req, res) => {
+  const { from, to, granularity, scope } = req.query;
+
+  // Mock data for members
+  const members = [
+    { id: 1, name: "管理者 太郎" },
+    { id: 30, name: "テスト一般" },
+    { id: 2, name: "営業 花子" }
+  ];
+
+  const items = members.map(m => {
+    return {
+      advisorUserId: m.id,
+      name: m.name,
+      // For daily granularity
+      series: generateDailySeries(from || "2026-01-01", to || "2026-01-31"),
+      // For summary granularity
+      kpi: {
+        newInterviews: 10,
+        proposals: 8,
+        recommendations: 5,
+        interviewsScheduled: 4,
+        interviewsHeld: 3,
+        offers: 2,
+        accepts: 1,
+        hires: 1
+      }
+    };
+  });
+
+  res.json({ items });
+});
+
+app.get("/api/kpi/yield/trend", (req, res) => {
+  // Mock trend series
+  res.json({
+    series: [
+      { period: "2026-01", rates: { proposalRate: 0.5, offerRate: 0.1 } },
+      { period: "2026-02", rates: { proposalRate: 0.6, offerRate: 0.2 } }
+    ]
+  });
+});
+
+app.get("/api/kpi/yield/breakdown", (req, res) => {
+  res.json({
+    items: [
+      { label: "Channel A", count: 10 },
+      { label: "Channel B", count: 5 }
+    ]
+  });
+});
+
+app.get("/api/kpi-targets", (req, res) => {
+  res.json({});
+});
+
+app.put("/api/kpi-targets", (req, res) => {
+  res.json({ success: true });
+});
+
 app.listen(PORT, () => {
   console.log(`Server started at http://localhost:${PORT}`);
 });

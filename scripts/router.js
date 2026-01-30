@@ -16,7 +16,7 @@ const routes = {
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
   "yield-company": () => import("../pages/yield-company/yield-company.js"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260322_74"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260322_75"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_13"),
   teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_19"),
   referral: () => import("../pages/referral/referral.js?v=20260322_56"),
@@ -49,7 +49,7 @@ const pageCSS = {
   "yield-company": "pages/yield/yield.css?v=20260127",
   "yield-admin": "pages/yield/yield.css?v=20260127",
   mypage: "pages/mypage/mypage.css",
-  candidates: "pages/candidates/candidates.css?v=20260322_55",
+  candidates: "pages/candidates/candidates.css?v=20260322_56",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
   teleapo: "pages/teleapo/teleapo.css?v=20260322_2",
   referral: "pages/referral/referral.css?v=20260322_48",
@@ -424,4 +424,3 @@ function updateUserBadgeText(badge) {
     badge.setAttribute("aria-label", "ログインページへ移動");
   }
 }
-
