@@ -21,7 +21,7 @@ let selectedCompanyId = null;
 let detailEditMode = false;
 let referralRateTargets = {}; // 目標値キャッシュ
 
-const CLIENTS_KPI_API_URL = '/api/clients/kpi';
+const CLIENTS_KPI_API_URL = '/api/kpi/clients';
 const CLIENTS_PROFILE_API_URL = '/api/clients';
 const CANDIDATES_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const CANDIDATES_LIST_PATH = '/candidates';
