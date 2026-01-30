@@ -2,7 +2,6 @@
  * Login page JavaScript module
  */
 import { authRepo } from '../../scripts/api/repositories/auth.js?v=20260120_2';
-import { mockUsers } from '../../scripts/mock/users.js';
 import { consumePostLoginRedirect } from '../../scripts/router.js';
 
 export async function mount(root) {
@@ -20,27 +19,7 @@ export async function mount(root) {
   };
 
   if (memberList) {
-    const members = Array.isArray(mockUsers) ? mockUsers : [];
-    if (!members.length) {
-      memberList.innerHTML = '<div class="text-xs text-gray-400">??????????????????</div>';
-    } else {
-      memberList.innerHTML = members.map(user => (`
-        <div class="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2">
-          <div>
-            <div class="text-sm font-semibold text-slate-700">${escapeHtml(user.name || '')}</div>
-            <div class="text-xs text-slate-500">${escapeHtml(user.email || '')} ? ${escapeHtml(user.role || '')}</div>
-            <div class="text-xs text-slate-500">PW: ${escapeHtml(user.password || '')}</div>
-          </div>
-          <button type="button" class="login-fill-button rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" data-email="${escapeHtml(user.email || '')}" data-password="${escapeHtml(user.password || '')}">??</button>
-        </div>
-      `)).join('');
-
-      memberList.querySelectorAll('.login-fill-button').forEach(button => {
-        button.addEventListener('click', () => {
-          fillCredentials(button.dataset.email || '', button.dataset.password || '');
-        });
-      });
-    }
+    memberList.innerHTML = '';
   }
 
   if (form) {

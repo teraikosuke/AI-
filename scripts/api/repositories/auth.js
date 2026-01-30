@@ -207,7 +207,8 @@ export const authRepo = {
     if (!mockUser) {
       throw new Error('開発用ユーザーが見つかりません。');
     }
-    const session = createSessionFromUser(mockUser);
+    const devUser = { ...mockUser, name: '開発者' };
+    const session = createSessionFromUser(devUser);
     setSession(session);
     return session;
   }

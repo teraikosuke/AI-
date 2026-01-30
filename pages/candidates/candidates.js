@@ -1,7 +1,10 @@
 ﻿// teleapo と同じAPI Gatewayの base
-const CANDIDATES_API_BASE = "/api";
-const SETTINGS_API_BASE = "/api";
-const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings/screening-rules`;
+const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const localApiHost = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
+const LOCAL_API_ORIGIN = `http://${localApiHost}:8080`;
+
+const CANDIDATES_API_BASE = isLocal ? `${LOCAL_API_ORIGIN}/api` : "/api";
+const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
 
 // 一覧は「/candidates」（末尾スラッシュなし）
 const CANDIDATES_LIST_PATH = "/candidates";
