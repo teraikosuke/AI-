@@ -314,28 +314,13 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     candidate.detail?.newActionDate ??
     candidate.detail?.new_action_date ??
     null;
-<<<<<<< HEAD
   const nextActionNoteFromDetail =
     candidate.detail?.actionInfo?.nextActionNote ??
     candidate.detail?.actionInfo?.next_action_note ??
     candidate.detail?.nextActionNote ??
     candidate.detail?.next_action_note ??
-=======
-  candidate.nextActionNote =
-    candidate.nextActionNote ??
-    candidate.actionInfo?.nextActionNote ??
-    candidate.detail?.actionInfo?.nextActionNote ??
-    "";
-  candidate.nextActionDate =
-    candidate.nextActionDate ??
-    candidate.next_action_date ??
-    candidate.nextActionDateLegacy ??
-    candidate.newActionDate ??
-    candidate.actionInfo?.nextActionDate ??
-    candidate.actionInfo?.next_action_date ??
-    nextActionFromDetail ??
->>>>>>> udea
     null;
+  null;
 
   let resolvedNextActionDate = explicitNextActionDate ?? null;
   let resolvedNextActionNote = explicitNextActionNote ?? null;
@@ -2545,30 +2530,22 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
     const candidate = getSelectedCandidate();
     if (candidate) {
       const hasIncompleteTasks = candidate.tasks && candidate.tasks.some(t => !t.isCompleted);
-<<<<<<< HEAD
       const hasNextActionDate = Boolean(candidate.nextActionDate || candidate.actionInfo?.nextActionDate);
       if (!hasIncompleteTasks && !hasNextActionDate) {
         showCandidateCloseWarning(
           "次回アクションが未設定です。選考継続中なら新規アクションを追加し、選考終了なら「選考完了」を押してください。"
         );
-=======
-      const hasNextActionDate = !!candidate.nextActionDate; // Check direct field
-
-      if (!hasIncompleteTasks && !hasNextActionDate) {
-        alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
-        return;
->>>>>>> udea
       }
     }
   }
 
-  const wasOpen = modal.classList.contains("is-open");
-  modal.classList.remove("is-open");
-  modal.setAttribute("aria-hidden", "true");
-  if (wasOpen) setCandidateDetailPlaceholder();
-  document.body.classList.remove("has-modal-open");
-  if (clearSelection) selectedCandidateId = null;
-  highlightSelectedRow();
+const wasOpen = modal.classList.contains("is-open");
+modal.classList.remove("is-open");
+modal.setAttribute("aria-hidden", "true");
+if (wasOpen) setCandidateDetailPlaceholder();
+document.body.classList.remove("has-modal-open");
+if (clearSelection) selectedCandidateId = null;
+highlightSelectedRow();
 }
 function isCandidateModalOpen() {
   const modal = document.getElementById("candidateDetailModal");
@@ -3235,165 +3212,9 @@ function renderSelectionProgressSection(candidate) {
     `;
   }
 
-<<<<<<< HEAD
   return `
     <div class="selection-flow-container space-y-6">
       ${rows.length ? cardsHtml : emptyHtml}
-=======
-  // ---------------------------------------------------------
-  // 編集モード (Table Input)
-  // ---------------------------------------------------------
-  // ---------------------------------------------------------
-  // 編集モード (Card Layout)
-  // ---------------------------------------------------------
-  const cardsHtml = rows.map((row, index) => {
-    const pathPrefix = `selectionProgress.${ index } `;
-    const r = normalizeSelectionRow(row);
-    const deleteBtn = `< button type = "button" class="text-red-600 hover:text-red-800 text-sm font-medium" data - remove - row="selectionProgress" data - index="${index}" > 削除</button > `;
-
-    return `
-    < div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-4 relative" >
-        <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-2">
-          <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
-            <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">申込 ${index + 1}</span>
-            ${escapeHtml(r.companyName || "企業未設定")}
-          </h4>
-          ${deleteBtn}
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
-          <!-- 基本情報 (3 cols) -->
-          <div class="lg:col-span-3 space-y-3">
-            <div class="form-group">
-              <label class="block text-xs font-medium text-slate-500 mb-1">企業名</label>
-              ${renderTableInput(r.companyName, `${pathPrefix}.companyName`, "text", "selection", null, "client-list")}
-            </div>
-            <div class="form-group">
-              <label class="block text-xs font-medium text-slate-500 mb-1">応募経路</label>
-              ${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}
-            </div>
-            <div class="form-group">
-              <label class="block text-xs font-medium text-slate-500 mb-1">選考状況</label>
-              <div class="flex items-center gap-2">
-                 ${renderTableInput(row.status, `${pathPrefix}.status`, "text", "selection")}
-                 <!-- Note: Status might be better as select, but keeping text to match existing input type behavior (or maybe it was free text?) -->
-                 <!-- Original used row.status, normalizing function uses row.status as well. -->
-              </div>
-            </div>
-          </div>
-
-          <!-- スケジュール (7 cols) -->
-          <div class="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded">
-             <div class="col-span-2 md:col-span-1">
-                <label class="block text-xs font-medium text-slate-500 mb-1">推薦日</label>
-                ${renderTableInput(r.recommendationDate, `${pathPrefix}.recommendationDate`, "date", "selection")}
-             </div>
-             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
-             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
-             <div class="col-span-2 md:col-span-1"></div> <!-- Spacer -->
-
-             <!-- 1次 -->
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">一次面接調整日時</label>
-                ${renderTableInput(r.firstInterviewAdjustDate, `${pathPrefix}.firstInterviewAdjustDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">一次面接日時</label>
-                ${renderTableInput(r.firstInterviewDate, `${pathPrefix}.firstInterviewDate`, "date", "selection")}
-             </div>
-
-             <!-- 2次 -->
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">二次面接調整日時</label>
-                ${renderTableInput(r.secondInterviewAdjustDate, `${pathPrefix}.secondInterviewAdjustDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">二次面接日時</label>
-                ${renderTableInput(r.secondInterviewDate, `${pathPrefix}.secondInterviewDate`, "date", "selection")}
-             </div>
-
-             <!-- 最終 -->
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">最終面接調整日時</label>
-                ${renderTableInput(r.finalInterviewAdjustDate, `${pathPrefix}.finalInterviewAdjustDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">最終面接日時</label>
-                ${renderTableInput(r.finalInterviewDate, `${pathPrefix}.finalInterviewDate`, "date", "selection")}
-             </div>
-             <div class="col-span-2"></div>
-          </div>
-
-          <!-- 成果 (2 cols) -->
-          <div class="lg:col-span-2 space-y-3">
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">FEE (万円)</label>
-                <div class="relative">
-                  ${renderTableInput(r.fee, `${pathPrefix}.fee`, "number", "selection")}
-                  <span class="absolute right-2 top-1.5 text-xs text-slate-400">万</span>
-                </div>
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Closing予定</label>
-                ${renderTableInput(r.closingForecastDate, `${pathPrefix}.closingForecastDate`, "date", "selection")}
-             </div>
-          </div>
-          
-          <!-- Outcome Row (Full Width in Grid) -->
-          <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3 border-t border-slate-100 pt-3 mt-1">
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">内定</label>
-                ${renderTableInput(r.offerDate, `${pathPrefix}.offerDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">承諾</label>
-                ${renderTableInput(r.offerAcceptedDate, `${pathPrefix}.offerAcceptedDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">入社</label>
-                ${renderTableInput(r.joinedDate, `${pathPrefix}.joinedDate`, "date", "selection")}
-             </div>
-             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">辞退日</label>
-                ${renderTableInput(r.declinedDate, `${pathPrefix}.declinedDate`, "date", "selection")}
-             </div>
-             <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-slate-500 mb-1">辞退理由</label>
-                ${renderTableInput(r.declinedReason, `${pathPrefix}.declinedReason`, "text", "selection")}
-             </div>
-          </div>
-
-           <!-- Turnover -->
-          <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3 border-t border-slate-100 pt-3">
-             <div>
-                <label class="block text-xs font-medium text-red-400 mb-1">短期離職</label>
-                ${renderTableInput(r.earlyTurnoverDate, `${pathPrefix}.earlyTurnoverDate`, "date", "selection")}
-             </div>
-             <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-red-400 mb-1">離職理由</label>
-                ${renderTableInput(r.earlyTurnoverReason, `${pathPrefix}.earlyTurnoverReason`, "text", "selection")}
-             </div>
-             <div class="md:col-span-3">
-                <label class="block text-xs font-medium text-slate-500 mb-1">備考</label>
-                ${renderTableTextarea(r.note, `${pathPrefix}.note`, "selection")}
-             </div>
-          </div>
-        </div>
-      </div >
-    `;
-  }).join("");
-
-  return `
-    < div class="repeatable-header flex justify-between items-center mb-4" >
-      <h5 class="text-lg font-bold text-slate-800">企業ごとの進捗 (編集モード)</h5>
-      ${ addButton }
-    </div >
-    <div class="selection-card-container">
-      <datalist id="client-list">
-        ${clientList.map(c => `<option value="${escapeHtml(c.name)}"></option>`).join("")}
-      </datalist>
-      ${cardsHtml || `<div class="p-8 text-center text-slate-400 bg-slate-50 rounded border border-dashed border-slate-300">企業進捗が登録されていません。<br>「追加」ボタンから登録してください。</div>`}
->>>>>>> udea
     </div>
   `;
 }
@@ -3950,21 +3771,21 @@ function renderCsSection(candidate) {
   return `
     < div class="cs-summary-grid" >
       ${
-        items
-          .map(
-            (item) => `
+    items
+      .map(
+        (item) => `
             <div class="cs-summary-item">
               <span class="cs-summary-label">${escapeHtml(item.label)}</span>
               <div class="cs-summary-value">
                 ${editing && item.path
-                ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
-                : item.html || (item.type === "date" ? formatDateJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
-              }
+            ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
+            : item.html || (item.type === "date" ? formatDateJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
+          }
               </div>
             </div>
           `
-          )
-        .join("")
+      )
+      .join("")
   }
     </div >
     `;
@@ -4185,29 +4006,29 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
   return `
     < dl class="${gridClass}" >
       ${
-        fields
-          .map((field) => {
-            const value = field.value;
-            const spanClass = resolveDetailGridSpanClass(field);
+    fields
+      .map((field) => {
+        const value = field.value;
+        const spanClass = resolveDetailGridSpanClass(field);
 
-            // 編集モードで編集可能なフィールド
-            if (editing && field.path) {
-              return `
+        // 編集モードで編集可能なフィールド
+        if (editing && field.path) {
+          return `
               <div class="detail-grid-item ${spanClass}">
                 <dt>${field.label}</dt>
                 <dd>${renderDetailFieldInput(field, value, sectionKey)}</dd>
               </div>
             `;
-            }
+        }
 
-            // 閲覧モード
-            const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
-            const inner =
-              field.link && value
-                ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
-                : escapeHtml(displayValue);
+        // 閲覧モード
+        const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
+        const inner =
+          field.link && value
+            ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
+            : escapeHtml(displayValue);
 
-            return `
+        return `
             <div class="detail-grid-item ${spanClass}">
               <dt>${field.label}</dt>
               <dd>
@@ -4218,8 +4039,8 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
               </dd>
             </div>
           `;
-          })
-        .join("")
+      })
+      .join("")
   }
     </dl >
     `;
@@ -4235,17 +4056,17 @@ function renderDetailFieldInput(field, value, sectionKey) {
     return `
     < select class="detail-inline-input" ${ dataset }${ valueType }>
       ${
-        (field.options || [])
-        .map((option) => {
-          const isObject = option && typeof option === "object";
-          const optValue = isObject ? option.value : option;
-          const optLabel = isObject ? option.label : option;
-          const isSelected = isObject && "selected" in option
-            ? option.selected
-            : String(optValue ?? "") === String(value ?? "");
-          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
-        })
-        .join("")
+    (field.options || [])
+      .map((option) => {
+        const isObject = option && typeof option === "object";
+        const optValue = isObject ? option.value : option;
+        const optLabel = isObject ? option.label : option;
+        const isSelected = isObject && "selected" in option
+          ? option.selected
+          : String(optValue ?? "") === String(value ?? "");
+        return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+      })
+      .join("")
   }
       </select >
     `;

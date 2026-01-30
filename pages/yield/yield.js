@@ -9,8 +9,8 @@ import {
 } from './yield-metrics-from-candidates.js';
 
 // API接続設定
-const KPI_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi';
-const MEMBERS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const KPI_API_BASE = '/api/kpi';
+const MEMBERS_API_BASE = '/api';
 const MEMBERS_LIST_PATH = '/members';
 const KPI_YIELD_PATH = '/yield';
 const KPI_YIELD_TREND_PATH = '/yield/trend';
