@@ -1,4 +1,4 @@
-<section class="members-page">
+﻿<section class="members-page">
   <div class="members-section">
     <div class="members-section__header">
       <div>
@@ -9,11 +9,20 @@
       <div class="members-section__actions">
         <div class="members-section__meta" id="membersCount"></div>
         <button class="members-add-button" id="memberAddButton" type="button">
-          メンバーを追加
+          新規登録申請
         </button>
       </div>
     </div>
-    <div class="members-table-wrap" aria-label="メンバー一覧">
+    <div class="members-tabs" data-admin-only>
+      <button class="members-tab is-active" type="button" data-members-tab="members" aria-selected="true">
+        現在のメンバー
+      </button>
+      <button class="members-tab" type="button" data-members-tab="requests" aria-selected="false">
+        承認待ち <span class="members-tab__count" id="memberRequestsTabCount"></span>
+      </button>
+    </div>
+    <div class="members-tab-panel" data-members-panel="members">
+      <div class="members-table-wrap" aria-label="メンバー一覧">
       <table class="members-table">
         <thead>
           <tr>
@@ -28,6 +37,26 @@
         <tbody id="membersTableBody"></tbody>
       </table>
     </div>
+    </div>
+    <div class="members-tab-panel" data-members-panel="requests" hidden>
+      <div class="members-section__meta" id="memberRequestsCount"></div>
+      <p class="members-section__note">承認は運営側で行います（メール通知）。</p>
+      <div class="members-table-wrap" aria-label="承認待ち一覧">
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>氏名</th>
+              <th>メール</th>
+              <th>権限</th>
+              <th>申請者</th>
+              <th>申請日</th>
+              <th>状態</th>
+            </tr>
+          </thead>
+          <tbody id="memberRequestsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -38,7 +67,10 @@
     </button>
     <div class="members-modal__header">
       <p class="members-modal__eyebrow">メンバー</p>
-      <h3 class="members-modal__title" id="memberModalTitle">メンバー追加</h3>
+      <h3 class="members-modal__title" id="memberModalTitle">新規登録申請</h3>
+      <p class="members-modal__note" id="memberRequestNote">
+        申請後、運営者の承認完了でログイン可能になります。
+      </p>
     </div>
     <form class="members-form" id="memberForm">
       <div class="members-form__grid">
@@ -67,8 +99,9 @@
       <p class="members-form__error" id="memberFormError" role="alert" hidden></p>
       <div class="members-form__actions">
         <button type="button" class="members-action-secondary" id="memberFormCancel">キャンセル</button>
-        <button type="submit" class="members-action-primary" id="memberFormSubmit">保存</button>
+        <button type="submit" class="members-action-primary" id="memberFormSubmit">申請する</button>
       </div>
     </form>
   </div>
 </div>
+

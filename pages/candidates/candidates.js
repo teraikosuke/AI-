@@ -1,7 +1,10 @@
 ﻿// teleapo と同じAPI Gatewayの base
-const CANDIDATES_API_BASE = "/api";
-const SETTINGS_API_BASE = "/api";
-const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings/screening-rules`;
+const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const localApiHost = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
+const LOCAL_API_ORIGIN = `http://${localApiHost}:8080`;
+
+const CANDIDATES_API_BASE = isLocal ? `${LOCAL_API_ORIGIN}/api` : "/api";
+const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
 
 // 一覧は「/candidates」（末尾スラッシュなし）
 const CANDIDATES_LIST_PATH = "/candidates";
@@ -2539,13 +2542,13 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
     }
   }
 
-const wasOpen = modal.classList.contains("is-open");
-modal.classList.remove("is-open");
-modal.setAttribute("aria-hidden", "true");
-if (wasOpen) setCandidateDetailPlaceholder();
-document.body.classList.remove("has-modal-open");
-if (clearSelection) selectedCandidateId = null;
-highlightSelectedRow();
+  const wasOpen = modal.classList.contains("is-open");
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  if (wasOpen) setCandidateDetailPlaceholder();
+  document.body.classList.remove("has-modal-open");
+  if (clearSelection) selectedCandidateId = null;
+  highlightSelectedRow();
 }
 function isCandidateModalOpen() {
   const modal = document.getElementById("candidateDetailModal");
@@ -3250,26 +3253,26 @@ function renderSelectionNodeDate(value, path, editing) {
   if (!editing) {
     const dateStr = formatDateJP(value);
     const className = value ? "text-indigo-700 font-bold" : "text-slate-300";
-    return `< div class="text-[10px] ${className} mt-1" > ${ escapeHtml(dateStr) }</div > `;
+    return `< div class="text-[10px] ${className} mt-1" > ${escapeHtml(dateStr)}</div > `;
   }
   const dataset = path ? `data - detail - field="${path}" data - detail - section="selection"` : "";
   const inputValue = value === 0 ? "0" : formatInputValue(value, "date");
-  return `< input type = "date" class="detail-inline-input selection-node-input" value = "${escapeHtmlAttr(inputValue)}" ${ dataset }> `;
+  return `< input type = "date" class="detail-inline-input selection-node-input" value = "${escapeHtmlAttr(inputValue)}" ${dataset}> `;
 }
 
 function renderSelectionNodeText(value, path, editing, placeholder = "") {
   if (!editing) {
-    return `< div class="text-[10px] text-slate-500 mt-1" > ${ escapeHtml(value || "-") }</div > `;
+    return `< div class="text-[10px] text-slate-500 mt-1" > ${escapeHtml(value || "-")}</div > `;
   }
   const dataset = path ? `data - detail - field="${path}" data - detail - section="selection"` : "";
-  return `< input type = "text" class="detail-inline-input selection-node-input selection-node-reason" value = "${escapeHtmlAttr(value || "")}" placeholder = "${escapeHtmlAttr(placeholder)}" ${ dataset }> `;
+  return `< input type = "text" class="detail-inline-input selection-node-input selection-node-reason" value = "${escapeHtmlAttr(value || "")}" placeholder = "${escapeHtmlAttr(placeholder)}" ${dataset}> `;
 }
 
 function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
   const r = normalizeSelectionRow(rawRow);
   const statusVariant = resolveSelectionStatusVariant(r.status);
   const statusLabel = r.status || "未設定";
-  const pathPrefix = `selectionProgress.${ index } `;
+  const pathPrefix = `selectionProgress.${index} `;
 
   // Flow Steps Definition
   const steps = [
@@ -3307,12 +3310,12 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
       if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
     }
 
-    const dateHtml = renderSelectionNodeDate(step.date, `${ pathPrefix }.${ step.key } `, editing);
+    const dateHtml = renderSelectionNodeDate(step.date, `${pathPrefix}.${step.key} `, editing);
 
     return `
     < div class="flex-1 relative group" >
         < !--Connector Bar-- >
-    ${ idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : "" }
+    ${idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : ""}
 
   <div class="relative z-10 flex flex-col items-center">
     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
@@ -3334,11 +3337,11 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
     ? `
     < div class="mt-3" >
       <div class="text-xs text-slate-400 mb-1">備考</div>
-        ${ renderTableTextarea(r.note, `${pathPrefix}.selectionNote`, "selection") }
+        ${renderTableTextarea(r.note, `${pathPrefix}.selectionNote`, "selection")}
       </div >
     `
     : r.note
-      ? `< div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap" > <span class="font-bold text-slate-500 mr-1">備考:</span>${ escapeHtml(r.note) }</div > `
+      ? `< div class="mt-3 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 whitespace-pre-wrap" > <span class="font-bold text-slate-500 mr-1">備考:</span>${escapeHtml(r.note)}</div > `
       : "";
 
   const declineNodes = [
@@ -3346,23 +3349,23 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
       label: "内定後辞退",
       date: r.preJoinDeclineDate,
       reason: r.preJoinDeclineReason,
-      datePath: `${ pathPrefix }.preJoinDeclineDate`,
-      reasonPath: `${ pathPrefix }.preJoinDeclineReason`,
+      datePath: `${pathPrefix}.preJoinDeclineDate`,
+      reasonPath: `${pathPrefix}.preJoinDeclineReason`,
     },
     {
       label: "入社後辞退",
       date: r.postJoinQuitDate,
       reason: r.postJoinQuitReason,
-      datePath: `${ pathPrefix }.postJoinQuitDate`,
-      reasonPath: `${ pathPrefix }.postJoinQuitReason`,
+      datePath: `${pathPrefix}.postJoinQuitDate`,
+      reasonPath: `${pathPrefix}.postJoinQuitReason`,
     },
   ];
   const declineHtml = declineNodes
     .map((node) => `
     < div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2" >
       <div class="text-xs font-semibold text-slate-700">${node.label}</div>
-        ${ renderSelectionNodeDate(node.date, node.datePath, editing) }
-        ${ renderSelectionNodeText(node.reason, node.reasonPath, editing, "辞退理由") }
+        ${renderSelectionNodeDate(node.date, node.datePath, editing)}
+        ${renderSelectionNodeText(node.reason, node.reasonPath, editing, "辞退理由")}
       </div >
     `)
     .join("");
@@ -3394,13 +3397,13 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
     ? `< button type = "button" class="repeatable-remove-btn" data - remove - row="selectionProgress" data - index="${index}" > 削除</button > `
     : `
     < div class="flex gap-4 text-xs text-slate-500" >
-      ${ details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("") }
+      ${details.map(d => `<div><span class="text-slate-400 mr-1">${d.label}:</span><span class="font-semibold text-slate-700">${escapeHtml(formatDisplayValue(d.value))}</span></div>`).join("")}
       </div >
     `;
 
   const rowAttr = editing ? `data - selection - row="${index}"` : "";
   return `
-    < div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow" ${ rowAttr }>
+    < div class="selection-card bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow" ${rowAttr}>
       <div class="flex items-center justify-between mb-4">
         ${headerLeft}
         ${headerRight}
@@ -3417,7 +3420,7 @@ function renderSelectionFlowCard(rawRow, { editing = false, index = 0 } = {}) {
       </div>
 
       <!--Alerts & Notes-- >
-    ${ noteHtml }
+    ${noteHtml}
     </div >
     `;
 }
@@ -3449,7 +3452,7 @@ function renderTeleapoLogsSection(candidate) {
       ]
         .map((v) => `< td > <span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td > `)
         .join("");
-      return `< tr > ${ cells }</tr > `;
+      return `< tr > ${cells}</tr > `;
     })
     .join("");
 
@@ -3475,13 +3478,13 @@ function renderMoneySection(candidate) {
       .map((row, index) => {
         const canEdit = editing && row.joinDate;
         const feeCell = canEdit
-          ? renderTableInput(row.feeAmount, `moneyInfo.${ index }.feeAmount`, "number", "money", "number")
-          : `< span class="detail-value" > ${ escapeHtml(formatMoneyToMan(row.feeAmount)) }</span > `;
+          ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
+          : `< span class="detail-value" > ${escapeHtml(formatMoneyToMan(row.feeAmount))}</span > `;
         const orderDateCell = canEdit
-          ? renderTableInput(row.orderDate, `moneyInfo.${ index }.orderDate`, "date", "money")
-          : `< span class="detail-value" > ${ escapeHtml(formatDisplayValue(formatDateJP(row.orderDate))) }</span > `;
+          ? renderTableInput(row.orderDate, `moneyInfo.${index}.orderDate`, "date", "money")
+          : `< span class="detail-value" > ${escapeHtml(formatDisplayValue(formatDateJP(row.orderDate)))}</span > `;
         const reportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${ index }.orderReported`, "money", "boolean")
+          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
           : renderBooleanPill(row.orderReported);
         return `
     < tr >
@@ -3508,13 +3511,13 @@ function renderMoneySection(candidate) {
               : "-";
         const canEdit = editing && (row.preJoinWithdrawDate || row.postJoinQuitDate);
         const refundAmountCell = canEdit
-          ? renderTableInput(row.refundAmount, `moneyInfo.${ index }.refundAmount`, "number", "money", "number")
-          : `< span class="detail-value" > ${ escapeHtml(formatMoneyToMan(row.refundAmount)) }</span > `;
+          ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
+          : `< span class="detail-value" > ${escapeHtml(formatMoneyToMan(row.refundAmount))}</span > `;
         const withdrawDateCell = canEdit
-          ? renderTableInput(row.withdrawDate, `moneyInfo.${ index }.withdrawDate`, "date", "money")
-          : `< span class="detail-value" > ${ escapeHtml(formatDisplayValue(formatDateJP(row.withdrawDate))) }</span > `;
+          ? renderTableInput(row.withdrawDate, `moneyInfo.${index}.withdrawDate`, "date", "money")
+          : `< span class="detail-value" > ${escapeHtml(formatDisplayValue(formatDateJP(row.withdrawDate)))}</span > `;
         const refundReportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${ index }.refundReported`, "money", "boolean")
+          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
           : renderBooleanPill(row.refundReported);
         return `
     < tr >
@@ -3566,10 +3569,10 @@ function renderAfterAcceptanceSection(candidate) {
   ];
   const reportStatuses =
     (data.reportStatuses || [])
-      .map((s) => `< span class="cs-pill is-active" > ${ escapeHtml(s) }</span > `)
+      .map((s) => `< span class="cs-pill is-active" > ${escapeHtml(s)}</span > `)
       .join("") || "-";
   return `
-    ${ renderDetailGridFields(fields, "afterAcceptance") }
+    ${renderDetailGridFields(fields, "afterAcceptance")}
   <div class="detail-pill-list">${reportStatuses}</div>
   `;
 }
@@ -3619,7 +3622,7 @@ function renderRefundSection(candidate) {
       ]
         .map((v) => `< td > <span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td > `)
         .join("");
-      return `< tr > ${ cells }</tr > `;
+      return `< tr > ${cells}</tr > `;
     })
     .join("");
 
@@ -3742,11 +3745,11 @@ function renderNextActionSection(candidate) {
     : '';
 
   return `
-    ${ summaryHtml }
-    ${ addTaskHtml }
-    ${ renderDetailGridFields(fields, "nextAction") }
-    ${ remainingTasksHtml }
-    ${ completedTasksHtml }
+    ${summaryHtml}
+    ${addTaskHtml}
+    ${renderDetailGridFields(fields, "nextAction")}
+    ${remainingTasksHtml}
+    ${completedTasksHtml}
   `;
 }
 
@@ -3760,7 +3763,7 @@ function renderCsSection(candidate) {
 
   const items = [
     { label: "SMS送信", html: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
-    { label: "架電回数", value: Number(callCount) > 0 ? `${ callCount } 回` : "-" },
+    { label: "架電回数", value: Number(callCount) > 0 ? `${callCount} 回` : "-" },
     { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
@@ -3770,8 +3773,7 @@ function renderCsSection(candidate) {
 
   return `
     < div class="cs-summary-grid" >
-      ${
-    items
+      ${items
       .map(
         (item) => `
             <div class="cs-summary-item">
@@ -3786,7 +3788,7 @@ function renderCsSection(candidate) {
           `
       )
       .join("")
-  }
+    }
     </div >
     `;
 }
@@ -3875,7 +3877,7 @@ function renderDocumentsSection(candidate) {
   };
 
   const educationHtml = editing
-    ? `< div id = "educationRepeater" > ${ educations.map((e, i) => renderEducationRow(e, i)).join('') }</div >
+    ? `< div id = "educationRepeater" > ${educations.map((e, i) => renderEducationRow(e, i)).join('')}</div >
     <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-education>+ 学歴を追加</button>`
     : `< table class="w-full text-left border-collapse" >
          <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">学校名</th><th class="px-3 py-2 text-xs font-medium">学部・学科</th><th class="px-3 py-2 text-xs font-medium">入学</th><th class="px-3 py-2 text-xs font-medium">卒業</th></tr></thead>
@@ -3883,7 +3885,7 @@ function renderDocumentsSection(candidate) {
        </table > `;
 
   const workHtml = editing
-    ? `< div id = "workRepeater" > ${ workHistories.map((w, i) => renderWorkRow(w, i)).join('') }</div >
+    ? `< div id = "workRepeater" > ${workHistories.map((w, i) => renderWorkRow(w, i)).join('')}</div >
     <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-work>+ 職歴を追加</button>`
     : `< table class="w-full text-left border-collapse" >
          <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">会社名</th><th class="px-3 py-2 text-xs font-medium">部署</th><th class="px-3 py-2 text-xs font-medium">役職</th><th class="px-3 py-2 text-xs font-medium">入社</th><th class="px-3 py-2 text-xs font-medium">退職</th></tr></thead>
@@ -3912,14 +3914,14 @@ function formatMonthValue(value) {
   if (!value) return '';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '';
-  return `${ d.getFullYear() } -${ String(d.getMonth() + 1).padStart(2, '0') } `;
+  return `${d.getFullYear()} -${String(d.getMonth() + 1).padStart(2, '0')} `;
 }
 
 function formatMonthJP(value) {
   if (!value) return '-';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '-';
-  return `${ d.getFullYear() }年${ d.getMonth() + 1 } 月`;
+  return `${d.getFullYear()}年${d.getMonth() + 1} 月`;
 }
 
 function parseDateValue(value) {
@@ -3967,7 +3969,7 @@ function renderMemoSection(candidate) {
     return `
     < label class="detail-textarea-field" >
       <span>自由メモ</span>
-      ${ renderTableTextarea(candidate.memoDetail, "memoDetail", "memo") }
+      ${renderTableTextarea(candidate.memoDetail, "memoDetail", "memo")}
     </label >
     `;
   }
@@ -3984,7 +3986,7 @@ function resolveDetailGridSpanClass(field) {
   if (span === "full") return "col-span-full";
   if (typeof span === "number") {
     const smSpan = Math.min(span, 2);
-    return `col - span - full sm: col - span - ${ smSpan } lg: col - span - ${ span } `;
+    return `col - span - full sm: col - span - ${smSpan} lg: col - span - ${span} `;
   }
   return "col-span-full sm:col-span-2 lg:col-span-2";
 }
@@ -4005,8 +4007,7 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
     .join(" ");
   return `
     < dl class="${gridClass}" >
-      ${
-    fields
+      ${fields
       .map((field) => {
         const value = field.value;
         const spanClass = resolveDetailGridSpanClass(field);
@@ -4041,7 +4042,7 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
           `;
       })
       .join("")
-  }
+    }
     </dl >
     `;
 }
@@ -4050,24 +4051,23 @@ function renderDetailFieldInput(field, value, sectionKey) {
   const dataset = field.path ? `data - detail - field="${field.path}" data - detail - section="${sectionKey}"` : "";
   const valueType = field.valueType ? ` data - value - type="${field.valueType}"` : "";
   if (field.input === "textarea") {
-    return `< textarea class="detail-inline-input detail-inline-textarea" ${ dataset }${ valueType }> ${ escapeHtml(value || "") }</textarea > `;
+    return `< textarea class="detail-inline-input detail-inline-textarea" ${dataset}${valueType}> ${escapeHtml(value || "")}</textarea > `;
   }
   if (field.input === "select") {
     return `
-    < select class="detail-inline-input" ${ dataset }${ valueType }>
-      ${
-    (field.options || [])
-      .map((option) => {
-        const isObject = option && typeof option === "object";
-        const optValue = isObject ? option.value : option;
-        const optLabel = isObject ? option.label : option;
-        const isSelected = isObject && "selected" in option
-          ? option.selected
-          : String(optValue ?? "") === String(value ?? "");
-        return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
-      })
-      .join("")
-  }
+    < select class="detail-inline-input" ${dataset}${valueType}>
+      ${(field.options || [])
+        .map((option) => {
+          const isObject = option && typeof option === "object";
+          const optValue = isObject ? option.value : option;
+          const optLabel = isObject ? option.label : option;
+          const isSelected = isObject && "selected" in option
+            ? option.selected
+            : String(optValue ?? "") === String(value ?? "");
+          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+        })
+        .join("")
+      }
       </select >
     `;
   }
@@ -4080,7 +4080,7 @@ function renderDetailFieldInput(field, value, sectionKey) {
   `;
   }
   const type = field.type === "datetime" ? "datetime-local" : field.type || "text";
-  return `< input type = "${type}" class="detail-inline-input" value = "${escapeHtmlAttr(formatInputValue(value, type))}" ${ dataset }${ valueType }> `;
+  return `< input type = "${type}" class="detail-inline-input" value = "${escapeHtmlAttr(formatInputValue(value, type))}" ${dataset}${valueType}> `;
 }
 
 function renderTableInput(value, path, type = "text", sectionKey, valueType, listId) {
@@ -4089,12 +4089,12 @@ function renderTableInput(value, path, type = "text", sectionKey, valueType, lis
   const listAttr = listId ? ` list = "${listId}"` : "";
   const inputType = type === "datetime" ? "datetime-local" : type;
   const inputValue = value === 0 ? "0" : formatInputValue(value, inputType);
-  return `< input type = "${inputType}" class="detail-table-input" value = "${escapeHtmlAttr(inputValue)}" ${ dataset }${ valueTypeAttr }${ listAttr }> `;
+  return `< input type = "${inputType}" class="detail-table-input" value = "${escapeHtmlAttr(inputValue)}" ${dataset}${valueTypeAttr}${listAttr}> `;
 }
 
 function renderTableTextarea(value, path, sectionKey) {
   const dataset = path ? `data - detail - field="${path}" data - detail - section="${sectionKey}"` : "";
-  return `< textarea class="detail-table-input" ${ dataset }> ${ escapeHtml(value || "") }</textarea > `;
+  return `< textarea class="detail-table-input" ${dataset}> ${escapeHtml(value || "")}</textarea > `;
 }
 
 function renderTableSelect(options, path, sectionKey, valueType) {
@@ -4109,10 +4109,10 @@ function renderTableSelect(options, path, sectionKey, valueType) {
       const isSelected = isObject && "selected" in option
         ? option.selected
         : String(optValue ?? "") === String(selectedValue ?? "");
-      return `< option value = "${escapeHtmlAttr(optValue ?? "")}" ${ isSelected ? "selected" : "" }> ${ escapeHtml(optLabel ?? "") }</option > `;
+      return `< option value = "${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}> ${escapeHtml(optLabel ?? "")}</option > `;
     })
     .join("");
-  return `< select class="detail-table-input" ${ dataset }${ valueTypeAttr }> ${ html }</select > `;
+  return `< select class="detail-table-input" ${dataset}${valueTypeAttr}> ${html}</select > `;
 }
 
 function formatInputValue(value, type) {
@@ -4126,7 +4126,7 @@ function formatInputValue(value, type) {
     const day = String(d.getDate()).padStart(2, "0");
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${ y } -${ m } -${ day }T${ hh }:${ mm } `;
+    return `${y} -${m} -${day}T${hh}:${mm} `;
   }
   return value;
 }

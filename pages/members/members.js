@@ -1,21 +1,25 @@
-import { getSession } from '../../scripts/auth.js';
+﻿import { getSession } from '../../scripts/auth.js';
 import { mockUsers } from '../../scripts/mock/users.js';
 
 const MEMBERS_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const MEMBERS_LIST_PATH = '/members';
+const MEMBERS_REQUESTS_PATH = '/members/requests';
 const ROLE_OPTIONS = [
   { value: 'advisor', label: 'アドバイザー' },
   { value: 'caller', label: 'CS' },
   { value: 'marketing', label: 'マーケ' }
 ];
 const TABLE_COLSPAN = 6;
+const REQUESTS_TABLE_COLSPAN = 6;
 
 const membersApi = (path) => `${MEMBERS_API_BASE}${path}`;
 
 let membersCache = [];
+let memberRequestsCache = [];
 let isAdmin = false;
 let currentUserId = '';
 let cleanupHandlers = [];
+let activeMembersTab = 'members';
 
 export function mount() {
   const title = document.getElementById('pageTitle');
@@ -31,11 +35,16 @@ export function mount() {
   }
 
   const addButton = document.getElementById('memberAddButton');
-  if (addButton) addButton.hidden = !isAdmin;
+  if (addButton) addButton.hidden = false;
 
   bindMembersEvents();
+  setupMembersTabs();
   renderMembersLoading();
   loadMembers();
+  if (isAdmin) {
+    renderMemberRequestsLoading();
+    loadMemberRequests();
+  }
 }
 
 export function unmount() {
@@ -46,13 +55,16 @@ export function unmount() {
 function bindMembersEvents() {
   const addButton = document.getElementById('memberAddButton');
   const tableBody = document.getElementById('membersTableBody');
+  const requestTableBody = document.getElementById('memberRequestsTableBody');
   const modal = document.getElementById('memberModal');
   const modalClose = document.getElementById('memberModalClose');
   const modalCancel = document.getElementById('memberFormCancel');
   const form = document.getElementById('memberForm');
+  const tabButtons = document.querySelectorAll('[data-members-tab]');
 
   addListener(addButton, 'click', () => openMemberModal('create'));
   addListener(tableBody, 'click', handleTableClick);
+  // 申請一覧は閲覧のみ（UI承認なし）
   addListener(modalClose, 'click', closeMemberModal);
   addListener(modalCancel, 'click', closeMemberModal);
   addListener(form, 'submit', handleMemberSubmit);
@@ -60,12 +72,50 @@ function bindMembersEvents() {
   addListener(modal, 'click', (event) => {
     if (event.target === modal) closeMemberModal();
   });
+  tabButtons.forEach((button) => addListener(button, 'click', handleMembersTabClick));
 }
 
 function addListener(element, type, handler) {
   if (!element) return;
   element.addEventListener(type, handler);
   cleanupHandlers.push(() => element.removeEventListener(type, handler));
+}
+
+function setupMembersTabs() {
+  if (!isAdmin) {
+    setActiveMembersTab('members');
+    return;
+  }
+  const tabs = document.querySelectorAll('[data-members-tab]');
+  if (!tabs.length) return;
+  const defaultTab = tabs[0]?.dataset?.membersTab || 'members';
+  setActiveMembersTab(defaultTab);
+}
+
+function handleMembersTabClick(event) {
+  const tab = event.currentTarget?.dataset?.membersTab;
+  if (!tab) return;
+  setActiveMembersTab(tab);
+}
+
+function setActiveMembersTab(tab) {
+  const normalized = tab === 'requests' ? 'requests' : 'members';
+  activeMembersTab = normalized;
+  const tabs = document.querySelectorAll('[data-members-tab]');
+  tabs.forEach((button) => {
+    const isActive = button.dataset.membersTab === normalized;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+  const panels = document.querySelectorAll('[data-members-panel]');
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.membersPanel === normalized;
+    panel.hidden = !isActive;
+  });
+  if (normalized === 'requests') {
+    renderMemberRequestsLoading();
+    loadMemberRequests();
+  }
 }
 
 async function loadMembers() {
@@ -104,6 +154,38 @@ async function loadMembers() {
     console.error('[members] load failed', error);
     renderMembersError(error);
   }
+}
+
+async function loadMemberRequests() {
+  try {
+    const payload = await membersRequest(`${MEMBERS_REQUESTS_PATH}?status=pending`, {
+      method: 'GET'
+    });
+    memberRequestsCache = normalizeMemberRequests(payload);
+    renderMemberRequests(memberRequestsCache);
+  } catch (error) {
+    console.error('[members] load requests failed', error);
+    renderMemberRequestsError(error);
+  }
+}
+
+function normalizeMemberRequests(result) {
+  const raw = Array.isArray(result)
+    ? result
+    : (result?.items || result?.requests || []);
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((request) => ({
+    id: request.id,
+    name: request.name || '',
+    email: request.email || '',
+    role: request.role || '',
+    isAdmin: Boolean(request.isAdmin ?? request.is_admin),
+    status: request.status || '',
+    requestedAt: request.requestedAt || request.requested_at || request.createdAt || request.created_at || '',
+    requestedBy: request.requestedBy || request.requested_by || '',
+    requestedByName: request.requestedByName || request.requested_by_name || ''
+  }));
 }
 
 function normalizeMembers(result) {
@@ -185,6 +267,84 @@ function renderMemberRow(member) {
   `;
 }
 
+function renderMemberRequests(requests) {
+  const tableBody = document.getElementById('memberRequestsTableBody');
+  const countEl = document.getElementById('memberRequestsCount');
+  const tabCountEl = document.getElementById('memberRequestsTabCount');
+  if (!tableBody) return;
+
+  if (!requests.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">承認待ちの申請はありません。</td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = requests.map(renderMemberRequestRow).join('');
+  }
+
+  if (countEl) countEl.textContent = `${requests.length}件`;
+  if (tabCountEl) tabCountEl.textContent = requests.length ? `(${requests.length})` : '';
+}
+
+function renderMemberRequestRow(request) {
+  const name = escapeHtml(request.name || '-');
+  const email = escapeHtml(request.email || '-');
+  const roleLabel = escapeHtml(getRoleLabel(request.role));
+  const roleClass = escapeHtml(getRoleClass(request.role));
+  const requestedAt = escapeHtml(formatDateTime(request.requestedAt));
+  const requestedBy = escapeHtml(request.requestedByName || request.requestedBy || '-');
+  const statusLabel = escapeHtml(getRequestStatusLabel(request.status));
+  const id = escapeHtml(request.id);
+
+  return `
+    <tr data-request-id="${id}">
+      <td>
+        <div class="members-name">${name}</div>
+      </td>
+      <td class="members-cell--email">${email}</td>
+      <td>
+        <span class="members-role-pill ${roleClass}">${roleLabel}</span>
+      </td>
+      <td>${requestedBy}</td>
+      <td>${requestedAt}</td>
+      <td>${statusLabel}</td>
+    </tr>
+  `;
+}
+
+function renderMemberRequestsLoading() {
+  const tableBody = document.getElementById('memberRequestsTableBody');
+  const countEl = document.getElementById('memberRequestsCount');
+  const tabCountEl = document.getElementById('memberRequestsTabCount');
+  if (tableBody) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">読み込み中...</td>
+      </tr>
+    `;
+  }
+  if (countEl) countEl.textContent = '';
+  if (tabCountEl) tabCountEl.textContent = '';
+}
+
+function renderMemberRequestsError(error) {
+  const tableBody = document.getElementById('memberRequestsTableBody');
+  const countEl = document.getElementById('memberRequestsCount');
+  const tabCountEl = document.getElementById('memberRequestsTabCount');
+  if (tableBody) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">
+          申請の読み込みに失敗しました: ${escapeHtml(error?.message || 'unknown')}
+        </td>
+      </tr>
+    `;
+  }
+  if (countEl) countEl.textContent = '';
+  if (tabCountEl) tabCountEl.textContent = '';
+}
+
 function renderMembersLoading() {
   const tableBody = document.getElementById('membersTableBody');
   const countEl = document.getElementById('membersCount');
@@ -234,11 +394,13 @@ function handleTableClick(event) {
   }
 }
 
+
 function openMemberModal(mode, member = null) {
   const isSelf = isSelfMember(member);
-  if (!isAdmin && !(mode === 'edit' && isSelf)) return;
+  if (mode === 'edit' && !isAdmin && !isSelf) return;
   const modal = document.getElementById('memberModal');
   const title = document.getElementById('memberModalTitle');
+  const requestNote = document.getElementById('memberRequestNote');
   const form = document.getElementById('memberForm');
   const submit = document.getElementById('memberFormSubmit');
   const nameInput = document.getElementById('memberNameInput');
@@ -254,8 +416,9 @@ function openMemberModal(mode, member = null) {
   modal.dataset.mode = mode;
   modal.dataset.memberId = member?.id ?? '';
 
-  title.textContent = canEditSelf ? '自分のプロフィール編集' : (isEdit ? 'メンバー編集' : 'メンバー追加');
-  submit.textContent = isEdit ? '更新する' : '追加する';
+  title.textContent = canEditSelf ? '自分のプロフィール編集' : (isEdit ? 'メンバー編集' : '新規登録申請');
+  submit.textContent = isEdit ? '更新する' : '申請する';
+  if (requestNote) requestNote.hidden = isEdit;
 
   nameInput.value = member?.name || '';
   emailInput.value = member?.email || '';
@@ -305,7 +468,7 @@ async function handleMemberSubmit(event) {
   const mode = modal.dataset.mode || 'create';
   const memberId = modal.dataset.memberId || '';
   const isSelfEdit = mode === 'edit' && isSelfId(memberId) && !isAdmin;
-  if (!isAdmin && !isSelfEdit) return;
+  if (mode === 'edit' && !isAdmin && !isSelfEdit) return;
   const payload = {
     name: nameInput.value.trim()
   };
@@ -336,22 +499,39 @@ async function handleMemberSubmit(event) {
   }
 
   submit.disabled = true;
-  submit.textContent = mode === 'edit' ? '更新中...' : '追加中...';
+  submit.textContent = mode === 'edit' ? '更新中...' : '申請中...';
   setFormError('');
 
   try {
     if (mode === 'edit') {
       await updateMember(memberId, payload);
+      closeMemberModal();
+      await loadMembers();
     } else {
-      await createMember(payload);
+      const result = await createMember(payload);
+      closeMemberModal();
+      const mailStatus = result?.notification?.status || result?.mailStatus || '';
+      if (mailStatus === 'sent') {
+        window.alert('登録申請を受け付けました。メール通知を送信しました。承認完了後にログイン可能になります。');
+      } else if (mailStatus === 'failed') {
+        window.alert('登録申請は受け付けましたが、メール送信に失敗しました。運営者へお問い合わせください。');
+      } else {
+        window.alert('登録申請を受け付けました。承認完了後にログイン可能になります。');
+      }
+      if (isAdmin) {
+        await loadMemberRequests();
+      }
     }
-    closeMemberModal();
-    await loadMembers();
   } catch (error) {
-    setFormError(error?.message || '保存に失敗しました。');
+    const isServerError = Number(error?.status || 0) >= 500;
+    if (mode !== 'edit' && isServerError) {
+      setFormError('申請に失敗しました。管理者へお問い合わせください。');
+    } else {
+      setFormError(error?.message || '申請に失敗しました。管理者へお問い合わせください。');
+    }
   } finally {
     submit.disabled = false;
-    submit.textContent = mode === 'edit' ? '更新する' : '追加する';
+    submit.textContent = mode === 'edit' ? '更新する' : '申請する';
   }
 }
 
@@ -398,7 +578,9 @@ async function membersRequest(path, options) {
   const response = await fetch(membersApi(path), { ...options, headers });
   const payload = await readJson(response);
   if (!response.ok) {
-    throw new Error(payload?.error || `HTTP ${response.status}`);
+    const error = new Error(payload?.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
@@ -442,6 +624,14 @@ function isSelfMember(member) {
 function getRoleLabel(role) {
   const match = ROLE_OPTIONS.find((opt) => opt.value === role);
   return match?.label || role || '—';
+}
+
+function getRequestStatusLabel(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'approved') return '承認済み';
+  if (normalized === 'rejected') return '却下';
+  if (normalized === 'pending') return '承認待ち';
+  return status || '—';
 }
 
 function getRoleClass(role) {

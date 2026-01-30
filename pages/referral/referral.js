@@ -3729,7 +3729,6 @@ export async function mount(appElement) {
     updateUI();
 
     attachFilters();
-
     attachPagination();
 
     attachRowClickHandlers();
@@ -3749,4 +3748,45 @@ export async function mount(appElement) {
 
   }
 
+}
+
+function attachFilters() {
+  const ids = [
+    "referralDateStart",
+    "referralDateEnd",
+    "referralJobFilter",
+    "referralCompanyFilter",
+    "referralSortSelect",
+    "referralPageSize"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", () => {
+      currentPage = 1;
+      applyFilters();
+      updateUI();
+    });
+  });
+
+  const resetBtn = document.getElementById("referralFilterReset");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      const start = document.getElementById("referralDateStart");
+      const end = document.getElementById("referralDateEnd");
+      const job = document.getElementById("referralJobFilter");
+      const company = document.getElementById("referralCompanyFilter");
+
+      if (start) start.value = "";
+      if (end) end.value = "";
+      if (job) job.value = "";
+      if (company) company.value = "";
+
+      selectedCompanyId = null;
+      currentPage = 1;
+      applyFilters();
+      updateUI();
+    });
+  }
 }
