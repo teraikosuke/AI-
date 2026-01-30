@@ -71,7 +71,7 @@ function extractSalaryRange(payload = {}) {
   };
 }
 
-app.get("/api/clients/kpi", async (req, res) => {
+async function handleClientsKpi(req, res) {
   const fromCandidate = req.query.from ? new Date(req.query.from) : null;
   const toCandidate = req.query.to ? new Date(req.query.to) : null;
   const from =
@@ -174,7 +174,10 @@ app.get("/api/clients/kpi", async (req, res) => {
   } finally {
     client.release();
   }
-});
+}
+
+app.get("/api/clients/kpi", handleClientsKpi);
+app.get("/api/kpi/clients", handleClientsKpi);
 
 app.post("/api/clients", async (req, res) => {
   const payload = req.body || {};
