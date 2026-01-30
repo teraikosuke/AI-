@@ -1,0 +1,6 @@
+✨ feat: 候補者管理機能の改善とダッシュボード調整
+
+- candidates.js: 選考プロセスの表示ロジックを改善
+- candidates.js: 「次回アクション」未設定時の警告機能を追加
+- dashboard.html / dashboard.css: 新規ファイルの追加（または更新）
+- index.html: レイアウトの微調整

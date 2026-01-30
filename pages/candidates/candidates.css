@@ -1040,17 +1040,6 @@ body.has-modal-open {
   min-height: 90px;
 }
 
-.selection-node-input {
-  width: 6.8rem;
-  min-height: 1.8rem;
-  padding: 0.25rem 0.35rem;
-  font-size: 0.7rem;
-}
-
-.selection-node-reason {
-  width: 8.8rem;
-}
-
 /* Table Input */
 .detail-table-input {
   width: 100%;
