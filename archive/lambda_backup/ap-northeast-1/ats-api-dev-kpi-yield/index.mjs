@@ -117,6 +117,7 @@ const METRIC_KEYS = [
   "offers",
   "accepts",
   "hires",
+  "revenue",
 ];
 
 const EMPTY_COUNTS = METRIC_KEYS.reduce((acc, key) => {
@@ -226,7 +227,7 @@ function buildSummarySql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'proposals' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.recommended_at::date BETWEEN $1 AND $2
@@ -235,16 +236,16 @@ function buildSummarySql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'recommendations' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.recommended_at::date BETWEEN $1 AND $2
+    WHERE ca.recommendation_at::date BETWEEN $1 AND $2
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'interviewsScheduled' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_set_at::date BETWEEN $1 AND $2
@@ -253,7 +254,7 @@ function buildSummarySql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'interviewsHeld' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_at::date BETWEEN $1 AND $2
@@ -262,28 +263,37 @@ function buildSummarySql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'offers' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_date::date BETWEEN $1 AND $2
+    WHERE ca.offer_at::date BETWEEN $1 AND $2
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'accepts' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_accept_date::date BETWEEN $1 AND $2
+    WHERE ca.offer_accepted_at::date BETWEEN $1 AND $2
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'hires' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.join_date::date BETWEEN $1 AND $2
+    WHERE ca.joined_at::date BETWEEN $1 AND $2
+    ${advisorFilter}
+    GROUP BY c.advisor_user_id
+    UNION ALL
+    SELECT c.advisor_user_id,
+           'revenue' AS metric,
+           SUM(COALESCE(NULLIF(REGEXP_REPLACE(ca.fee_amount, '[^0-9.]', '', 'g'), ''), '0')::numeric)::int AS count
+    FROM candidates c
+    JOIN candidate_applications ca ON ca.candidate_id = c.id
+    WHERE ca.offer_accepted_at::date BETWEEN $1 AND $2
     ${advisorFilter}
     GROUP BY c.advisor_user_id
   `;
@@ -301,25 +311,25 @@ function buildPlannedSql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'proposals' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.recommended_at::date > $1
+    WHERE ca.recommendation_at::date > $1
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'recommendations' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.recommended_at::date > $1
+    WHERE ca.recommendation_at::date > $1
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'interviewsScheduled' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_set_at::date > $1
@@ -328,7 +338,7 @@ function buildPlannedSql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'interviewsHeld' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_at::date > $1
@@ -337,28 +347,37 @@ function buildPlannedSql(advisorFilter) {
     UNION ALL
     SELECT c.advisor_user_id,
            'offers' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_date::date > $1
+    WHERE ca.offer_at::date > $1
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'accepts' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_accept_date::date > $1
+    WHERE ca.offer_accepted_at::date > $1
     ${advisorFilter}
     GROUP BY c.advisor_user_id
     UNION ALL
     SELECT c.advisor_user_id,
            'hires' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.join_date::date > $1
+    WHERE ca.joined_at::date > $1
+    ${advisorFilter}
+    GROUP BY c.advisor_user_id
+    UNION ALL
+    SELECT c.advisor_user_id,
+           'revenue' AS metric,
+           SUM(COALESCE(NULLIF(REGEXP_REPLACE(ca.fee_amount, '[^0-9.]', '', 'g'), ''), '0')::numeric)::int AS count
+    FROM candidates c
+    JOIN candidate_applications ca ON ca.candidate_id = c.id
+    WHERE ca.offer_accepted_at::date > $1
     ${advisorFilter}
     GROUP BY c.advisor_user_id
   `;
@@ -376,29 +395,29 @@ function buildDailySql(advisorFilter) {
     GROUP BY c.advisor_user_id, day
     UNION ALL
     SELECT c.advisor_user_id,
-           ca.recommended_at::date,
+           ca.recommendation_at::date,
            'proposals' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.recommended_at::date BETWEEN $1 AND $2
+    WHERE ca.recommendation_at::date BETWEEN $1 AND $2
     ${advisorFilter}
-    GROUP BY c.advisor_user_id, ca.recommended_at::date
+    GROUP BY c.advisor_user_id, ca.recommendation_at::date
     UNION ALL
     SELECT c.advisor_user_id,
-           ca.recommended_at::date,
+           ca.recommendation_at::date,
            'recommendations' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.recommended_at::date BETWEEN $1 AND $2
+    WHERE ca.recommendation_at::date BETWEEN $1 AND $2
     ${advisorFilter}
-    GROUP BY c.advisor_user_id, ca.recommended_at::date
+    GROUP BY c.advisor_user_id, ca.recommendation_at::date
     UNION ALL
     SELECT c.advisor_user_id,
            ca.first_interview_set_at::date,
            'interviewsScheduled' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_set_at::date BETWEEN $1 AND $2
@@ -408,7 +427,7 @@ function buildDailySql(advisorFilter) {
     SELECT c.advisor_user_id,
            ca.first_interview_at::date,
            'interviewsHeld' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
     WHERE ca.first_interview_at::date BETWEEN $1 AND $2
@@ -416,34 +435,44 @@ function buildDailySql(advisorFilter) {
     GROUP BY c.advisor_user_id, ca.first_interview_at::date
     UNION ALL
     SELECT c.advisor_user_id,
-           ca.offer_date::date,
+           ca.offer_at::date,
            'offers' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_date::date BETWEEN $1 AND $2
+    WHERE ca.offer_at::date BETWEEN $1 AND $2
     ${advisorFilter}
-    GROUP BY c.advisor_user_id, ca.offer_date::date
+    GROUP BY c.advisor_user_id, ca.offer_at::date
     UNION ALL
     SELECT c.advisor_user_id,
-           ca.offer_accept_date::date,
+           ca.offer_accepted_at::date,
            'accepts' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.offer_accept_date::date BETWEEN $1 AND $2
+    WHERE ca.offer_accepted_at::date BETWEEN $1 AND $2
     ${advisorFilter}
-    GROUP BY c.advisor_user_id, ca.offer_accept_date::date
+    GROUP BY c.advisor_user_id, ca.offer_accepted_at::date
     UNION ALL
     SELECT c.advisor_user_id,
-           ca.join_date::date,
+           ca.joined_at::date,
            'hires' AS metric,
-           COUNT(*)::int
+           COUNT(*)::int AS count
     FROM candidates c
     JOIN candidate_applications ca ON ca.candidate_id = c.id
-    WHERE ca.join_date::date BETWEEN $1 AND $2
+    WHERE ca.joined_at::date BETWEEN $1 AND $2
     ${advisorFilter}
-    GROUP BY c.advisor_user_id, ca.join_date::date
+    GROUP BY c.advisor_user_id, ca.joined_at::date
+    UNION ALL
+    SELECT c.advisor_user_id,
+           ca.offer_accepted_at::date AS day,
+           'revenue' AS metric,
+           SUM(COALESCE(NULLIF(REGEXP_REPLACE(ca.fee_amount, '[^0-9.]', '', 'g'), ''), '0')::numeric)::int AS count
+    FROM candidates c
+    JOIN candidate_applications ca ON ca.candidate_id = c.id
+    WHERE ca.offer_accepted_at::date BETWEEN $1 AND $2
+    ${advisorFilter}
+    GROUP BY c.advisor_user_id, day
   `;
 }
 
@@ -534,7 +563,7 @@ async function fetchAdvisorNames(client, advisorIds) {
   const ids = Array.from(new Set(advisorIds)).map(Number).filter((id) => Number.isFinite(id) && id > 0);
   if (!ids.length) return new Map();
   const res = await client.query("SELECT id, name FROM users WHERE id = ANY($1::int[])", [ids]);
-  return new Map(res.rows.map((row) => [String(row.id), row.name || `ID:${row.id}`]));
+  return new Map(res.rows.map((row) => [String(row.id), row.name || `ID:${row.id} `]));
 }
 
 function buildKpiPayload(currentCounts, prevCounts) {
@@ -595,20 +624,20 @@ async function fetchTrendSeries(client, { startDate, endDate, advisorUserId, gra
 
 function buildJobLabelSql() {
   return `
-    CASE
+  CASE
       WHEN ca.job_title ILIKE '%エンジニア%' OR ca.job_title ILIKE '%開発%' OR ca.job_title ILIKE '%SE%' OR ca.job_title ILIKE '%ＰＧ%' OR ca.job_title ILIKE '%PG%' OR ca.job_title ILIKE '%システム%' OR ca.job_title ILIKE '%インフラ%' OR ca.job_title ILIKE '%データ%' OR ca.job_title ILIKE '%AI%' OR ca.job_title ILIKE '%機械学習%' THEN 'エンジニア'
       WHEN ca.job_title ILIKE '%営業%' OR ca.job_title ILIKE '%セールス%' OR ca.job_title ILIKE '%法人営業%' OR ca.job_title ILIKE '%インサイドセールス%' OR ca.job_title ILIKE '%フィールドセールス%' OR ca.job_title ILIKE '%BDR%' OR ca.job_title ILIKE '%SDR%' THEN '営業'
       WHEN ca.job_title ILIKE '%人事%' OR ca.job_title ILIKE '%採用%' OR ca.job_title ILIKE '%総務%' OR ca.job_title ILIKE '%経理%' OR ca.job_title ILIKE '%財務%' OR ca.job_title ILIKE '%法務%' OR ca.job_title ILIKE '%労務%' OR ca.job_title ILIKE '%バックオフィス%' OR ca.job_title ILIKE '%管理部%' THEN 'コーポレート'
       WHEN ca.job_title ILIKE '%マーケ%' OR ca.job_title ILIKE '%マーケティング%' OR ca.job_title ILIKE '%広報%' OR ca.job_title ILIKE '%PR%' OR ca.job_title ILIKE '%広告%' OR ca.job_title ILIKE '%プロモーション%' OR ca.job_title ILIKE '%デジタルマーケ%' THEN 'マーケ'
       WHEN ca.job_title ILIKE '%CS%' OR ca.job_title ILIKE '%カスタマーサクセス%' OR ca.job_title ILIKE '%サポート%' OR ca.job_title ILIKE '%カスタマーサポート%' OR ca.job_title ILIKE '%ヘルプデスク%' THEN 'CS'
       ELSE 'その他'
-    END
-  `;
+  END
+    `;
 }
 
 function buildMediaLabelSql() {
   return `
-    CASE
+  CASE
       WHEN ca.apply_route ILIKE '%Indeed%' THEN 'Indeed'
       WHEN ca.apply_route ILIKE '%求人ボックス%' OR ca.apply_route ILIKE '%求人BOX%' THEN '求人ボックス'
       WHEN ca.apply_route ILIKE '%リクナビ%' THEN 'リクナビ'
@@ -618,31 +647,31 @@ function buildMediaLabelSql() {
       WHEN ca.apply_route ILIKE '%紹介%' OR ca.apply_route ILIKE '%リファラル%' THEN '紹介'
       WHEN ca.apply_route IS NULL OR ca.apply_route = '' THEN '不明'
       ELSE ca.apply_route
-    END
-  `;
+  END
+    `;
 }
 
 function buildGenderLabelSql() {
   return `
-    CASE
-      WHEN c.gender IN ('男性', '男', 'male', 'Male', 'M') THEN '男性'
-      WHEN c.gender IN ('女性', '女', 'female', 'Female', 'F') THEN '女性'
+  CASE
+      WHEN c.gender IN('男性', '男', 'male', 'Male', 'M') THEN '男性'
+      WHEN c.gender IN('女性', '女', 'female', 'Female', 'F') THEN '女性'
       WHEN c.gender IS NULL OR c.gender = '' THEN '不明'
       ELSE 'その他'
-    END
-  `;
+  END
+    `;
 }
 
 function buildAgeLabelSql() {
   return `
-    CASE
+  CASE
       WHEN COALESCE(c.age, EXTRACT(YEAR FROM age(current_date, c.birth_date))) IS NULL THEN '不明'
       WHEN COALESCE(c.age, EXTRACT(YEAR FROM age(current_date, c.birth_date))) < 20 THEN '20代未満'
       WHEN COALESCE(c.age, EXTRACT(YEAR FROM age(current_date, c.birth_date))) < 30 THEN '20代'
       WHEN COALESCE(c.age, EXTRACT(YEAR FROM age(current_date, c.birth_date))) < 40 THEN '30代'
       WHEN COALESCE(c.age, EXTRACT(YEAR FROM age(current_date, c.birth_date))) < 50 THEN '40代'
       ELSE '50代以上'
-    END
+  END
   `;
 }
 
@@ -651,7 +680,7 @@ async function fetchBreakdownItems(client, { dimension, startDate, endDate, advi
   let advisorFilter = "";
   if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
     params.push(advisorUserId);
-    advisorFilter = `AND c.advisor_user_id = $${params.length}`;
+    advisorFilter = `AND c.advisor_user_id = $${params.length} `;
   }
 
   if (dimension === "gender") {
@@ -1053,20 +1082,20 @@ async function fetchCohortStageRows(client, { advisorUserId }) {
   let advisorFilter = "";
   if (Number.isFinite(advisorUserId) && advisorUserId > 0) {
     params.push(advisorUserId);
-    advisorFilter = `AND c.advisor_user_id = $${params.length}`;
+    advisorFilter = `AND c.advisor_user_id = $${params.length} `;
   }
 
   const res = await client.query(
     `SELECT c.id AS candidate_id,
-            c.advisor_user_id AS advisor_user_id,
-            c.first_contact_at::date AS new_interviews,
-            MIN(ca.recommended_at)::date AS proposals,
-            MIN(ca.recommended_at)::date AS recommendations,
+    c.advisor_user_id AS advisor_user_id,
+      c.first_contact_at::date AS new_interviews,
+        MIN(ca.recommended_at)::date AS proposals,
+          MIN(ca.recommended_at)::date AS recommendations,
             MIN(ca.first_interview_set_at)::date AS interviews_scheduled,
-            MIN(ca.first_interview_at)::date AS interviews_held,
-            MIN(ca.offer_date)::date AS offers,
-            MIN(ca.offer_accept_date)::date AS accepts,
-            MIN(ca.join_date)::date AS hires
+              MIN(ca.first_interview_at)::date AS interviews_held,
+                MIN(ca.offer_date)::date AS offers,
+                  MIN(ca.offer_accept_date)::date AS accepts,
+                    MIN(ca.join_date)::date AS hires
      FROM candidates c
      LEFT JOIN candidate_applications ca ON ca.candidate_id = c.id
      WHERE c.first_contact_at IS NOT NULL
@@ -1266,7 +1295,7 @@ export const handler = async (event) => {
         if (groupBy === "advisor") {
           items = idList.map((id) => ({
             advisorUserId: Number(id),
-            name: nameMap.get(id) || `ID:${id}`,
+            name: nameMap.get(id) || `ID:${id} `,
             kpi: countsMap.get(id) || cloneCounts(),
           }));
         } else {
@@ -1279,7 +1308,7 @@ export const handler = async (event) => {
           items = [
             {
               advisorUserId: advisorUserId ?? null,
-              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId}` : null,
+              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId} ` : null,
               kpi: counts,
             },
           ];
@@ -1327,7 +1356,7 @@ export const handler = async (event) => {
               : { rates: emptyRates };
             return {
               advisorUserId: Number(id),
-              name: nameMap.get(id) || `ID:${id}`,
+              name: nameMap.get(id) || `ID:${id} `,
               kpi: buildStepwiseKpiPayload(counts, prevCounts, currentAgg.rates, prevAgg.rates, currentAgg.numerators),
             };
           });
@@ -1350,7 +1379,7 @@ export const handler = async (event) => {
           items = [
             {
               advisorUserId: advisorUserId ?? null,
-              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId}` : null,
+              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId} ` : null,
               kpi: buildStepwiseKpiPayload(counts, prevCounts, currentAgg.rates, prevAgg.rates, currentAgg.numerators),
             },
           ];
@@ -1373,7 +1402,7 @@ export const handler = async (event) => {
             const prevCounts = prevMap.get(id) || cloneCounts();
             return {
               advisorUserId: Number(id),
-              name: nameMap.get(id) || `ID:${id}`,
+              name: nameMap.get(id) || `ID:${id} `,
               kpi: buildKpiPayload(counts, prevCounts),
             };
           });
@@ -1390,7 +1419,7 @@ export const handler = async (event) => {
           items = [
             {
               advisorUserId: advisorUserId ?? null,
-              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId}` : null,
+              name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId} ` : null,
               kpi: buildKpiPayload(counts, prevCounts),
             },
           ];
@@ -1420,7 +1449,7 @@ export const handler = async (event) => {
         const normalized = granularity === "month" ? groupSeriesByMonth(series) : series;
         return {
           advisorUserId: Number(id),
-          name: nameMap.get(id) || `ID:${id}`,
+          name: nameMap.get(id) || `ID:${id} `,
           series: normalized,
         };
       });
@@ -1435,7 +1464,7 @@ export const handler = async (event) => {
       items = [
         {
           advisorUserId: advisorUserId ?? null,
-          name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId}` : null,
+          name: advisorUserId ? nameMap.get(String(advisorUserId)) || `ID:${advisorUserId} ` : null,
           series: normalized,
         },
       ];

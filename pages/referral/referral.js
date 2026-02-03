@@ -21,9 +21,10 @@ let selectedCompanyId = null;
 let detailEditMode = false;
 let referralRateTargets = {}; // 目標値キャッシュ
 
-const CLIENTS_KPI_API_URL = '/api/kpi/clients';
-const CLIENTS_PROFILE_API_URL = '/api/clients';
-const CANDIDATES_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const REFERRAL_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const CLIENTS_KPI_API_URL = `${REFERRAL_API_BASE}/kpi/clients`;
+const CLIENTS_PROFILE_API_URL = `${REFERRAL_API_BASE}/clients`;
+const CANDIDATES_API_BASE = REFERRAL_API_BASE;
 const CANDIDATES_LIST_PATH = '/candidates';
 const CANDIDATES_LIST_LIMIT = 500;
 const CANDIDATES_MATCH_FETCH_LIMIT = 20;
@@ -889,27 +890,7 @@ async function fetchFlowCandidatesForCompany(company) {
   return request;
 }
 
-function getFlowCandidates(company) {
-  const direct = Array.isArray(company?.currentCandidates) ? company.currentCandidates : [];
-  if (direct.length) return direct;
 
-  const fromSummaries = buildFlowCandidatesFromSummaries(company);
-  if (fromSummaries.length) return fromSummaries;
-
-  const rawName = company?.company || company?.companyName || '';
-  const companyName = rawName && String(rawName).trim() !== '-' ? String(rawName).trim() : '';
-  const key = normalizeCompanyName(companyName) || normalizeText(companyName);
-  if (!key) return fromSummaries;
-
-  if (flowCandidateCache.has(key)) {
-    return buildFlowCandidatesFromSummaries(company, flowCandidateCache.get(key));
-  }
-
-  if (!flowCandidateInFlight.has(key)) {
-    fetchFlowCandidatesForCompany(company);
-  }
-  return fromSummaries;
-}
 
 // ==========================================
 // 候補者データ取得・マッチング用正規化
@@ -1009,7 +990,9 @@ function normalizeCandidateSummaryForMatch(candidate) {
   const registeredAt = candidate?.registeredAt ?? candidate?.created_at ?? candidate?.createdAt ?? '';
   const selectionProgress = Array.isArray(candidate?.selectionProgress ?? candidate?.selection_progress)
     ? (candidate?.selectionProgress ?? candidate?.selection_progress)
-    : [];
+    : (Array.isArray(candidate?.candidateApplications ?? candidate?.candidate_applications)
+      ? (candidate?.candidateApplications ?? candidate?.candidate_applications)
+      : []);
 
   return {
     id: id ? String(id) : '',
@@ -1971,11 +1954,76 @@ function attachRowClickHandlers() {
 
 
 
+
+function getFlowCandidates(company) {
+  if (!company) {
+    console.log("Debug: getFlowCandidates - No company provided");
+    return [];
+  }
+
+  const companyName = company.company;
+  const direct = Array.isArray(company.currentCandidates) ? company.currentCandidates : [];
+  console.log(`Debug: getFlowCandidates for '${companyName}'`, {
+    directCount: direct.length,
+    globalSummariesCount: (candidateSummaries || []).length
+  });
+
+  // 1. Prefer direct list if available (API provided and populated)
+  if (direct.length > 0) {
+    return direct;
+  }
+
+  // 2. Fallback: Search in global candidateSummaries
+  if (Array.isArray(candidateSummaries) && candidateSummaries.length > 0) {
+    const normCompany = normalizeCompanyName(companyName);
+    if (!normCompany) {
+      console.warn("Debug: getFlowCandidates - Normalized company name is empty", companyName);
+      return [];
+    }
+
+    const found = candidateSummaries.filter(c => {
+      // Check selectionProgress
+      const progress = c.selectionProgress || [];
+      const hasProgressMatch = progress.some(p => normalizeCompanyName(p.companyName) === normCompany);
+
+      // Check candidate_applications (mapped to selectionProgress by normalizeCandidateSummaryForMatch usually, but let's check raw if needed)
+      // Note: We updated normalizeCandidateSummaryForMatch to merge candidate_applications into selectionProgress.
+      // Let's also check distinct company names on the candidate object itself if it was a flat structure
+      const cComp = normalizeCompanyName(c.companyName || c.applyCompanyName);
+
+      const isMatch = hasProgressMatch || cComp === normCompany;
+
+      // Debug log for potential matches (partial or close strings) to see why they might fail
+      if (c.companyName && c.companyName.includes(companyName.substring(0, 2))) {
+        // console.log("Debug: Potential match check", { candidateId: c.id, cName: c.companyName, cComp, normCompany, isMatch });
+      }
+
+      return isMatch;
+    });
+
+    console.log(`Debug: getFlowCandidates - Found ${found.length} candidates via fallback search for '${companyName}'`);
+    if (found.length === 0) {
+      // Log first 3 candidates to see what their data look like
+      console.log("Debug: Sample candidates data:", candidateSummaries.slice(0, 3));
+    }
+    return found;
+  }
+
+  return [];
+}
+
 function renderCompanyDetail() {
   if (!selectedCompanyId) return;
 
   const company = filteredData.find(c => c.id === selectedCompanyId);
   if (!company) return;
+
+  console.log("Debug: renderCompanyDetail", {
+    companyName: company.company,
+    currentCandidates: company.currentCandidates,
+    candidatesType: typeof company.currentCandidates,
+    isArray: Array.isArray(company.currentCandidates)
+  });
 
   const badge = (text, classes = '', size = 'px-3 py-1 text-xs') =>
     `<span class="${size} rounded-full ${classes} font-semibold inline-flex items-center justify-center">${text}</span>`;
@@ -2080,81 +2128,249 @@ function renderCompanyDetail() {
       <div class="text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
     `;
 
-  const flowCandidates = getFlowCandidates(company);
-  const normalizedFlowCandidates = (flowCandidates || []).map(candidate => {
-    if (!candidate) return null;
-    const phaseInfo = resolveCandidatePhaseForFlow(candidate);
-    const stageKey = candidate.stageKey || phaseInfo.stageKey || '';
-    const stageLabel = candidate.stageLabel || phaseInfo.stageLabel || candidate.stage || candidate.phase || '';
+  // ---------------------------------------------------------
+  // Helper: Selection Flow Card & Chart (Ported from candidates.js)
+  // ---------------------------------------------------------
+
+  function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[&<>"']/g, function (m) {
+      switch (m) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#039;';
+      }
+      return m;
+    });
+  }
+
+  function escapeHtmlAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/"/g, '&quot;');
+  }
+
+  function formatDateJP(date) {
+    if (!date) return '-';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function resolveSelectionStatusVariant(status) {
+    if (!status) return ""; // Default/Gray
+    const s = String(status);
+    if (s.includes("内定") || s.includes("オファー") || s.includes("承諾") || s.includes("入社") || s.includes("成約")) return "success";
+    if (s.includes("辞退") || s.includes("不合格") || s.includes("失注") || s.includes("破談") || s.includes("終了")) return "danger";
+    if (s.includes("調整") || s.includes("設定") || s.includes("実施")) return "info";
+    return "";
+  }
+
+  function resolveSelectionStatusPillClass(variant) {
+    switch (variant) {
+      case "success": return "bg-green-100 text-green-700 border-green-200";
+      case "danger": return "bg-red-100 text-red-700 border-red-200";
+      case "info": return "bg-blue-100 text-blue-700 border-blue-200";
+      default: return "bg-slate-100 text-slate-700 border-slate-200";
+    }
+  }
+
+  function normalizeSelectionRow(row) {
+    // 1. Resolve Company Name if missing (link client_id to company list)
+    let cName = row.companyName || row.company || row.clientName || row.client_name;
+    if (!cName && (row.clientId || row.client_id) && typeof allData !== 'undefined') {
+      const found = allData.find(d => String(d.id) === String(row.clientId || row.client_id));
+      if (found) cName = found.company;
+    }
+
     return {
-      ...candidate,
-      stageKey,
-      stageLabel,
-      stage: stageKey || stageLabel || candidate.stage || '-'
+      candidateId: row.id || row.candidateId || row.candidate_id,
+      candidateName: row.name || row.candidateName || row.candidate_name,
+      companyName: cName,
+      route: row.route ?? row.source ?? row.applicationRoute ?? row.application_route,
+      status: row.status || row.phase || row.stage || row.selectionStatus || row.selection_status,
+
+      // Date mappings (support _at, At, Date variants)
+      recommendationDate: row.recommendationDate ?? row.date ?? row.recommendationAt ?? row.recommendation_at,
+
+      firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt ?? row.first_interview_set_at ?? row.interviewSetupDate,
+      firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.first_interview_at ?? row.interviewDate,
+
+      secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt ?? row.second_interview_set_at ?? row.secondInterviewSetupDate,
+      secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt ?? row.second_interview_at,
+
+      finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt ?? row.final_interview_set_at ?? row.finalInterviewSetupDate,
+      finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt ?? row.final_interview_at,
+
+      offerDate: row.offerDate ?? row.offerAt ?? row.offer_at,
+      offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.offer_accepted_at ?? row.acceptanceDate,
+      joinedDate: row.joinedDate ?? row.joinedAt ?? row.joined_at ?? row.onboardingDate,
+
+      note: row.note ?? row.selectionNote ?? row.selection_note,
     };
-  }).filter(Boolean);
-  const toCount = (value) => {
-    const num = Number(value);
-    return Number.isFinite(num) ? num : 0;
-  };
-  const stageValueMap = {
-    '推薦': company.proposal,
-    '書類': company.docScreen,
-    '一次': company.interview1,
-    '二次': company.interview2,
-    '内定': company.offer,
-    '入社': company.joined
-  };
-  const stages = PHASE_FLOW_ORDER.map((label, idx) => ({
-    key: label,
-    label,
-    value: toCount(stageValueMap[label]),
-    color: PHASE_FLOW_COLORS[idx % PHASE_FLOW_COLORS.length]
-  }));
+  }
 
+  function renderSelectionFlowCard(rawRow) {
+    const r = normalizeSelectionRow(rawRow);
+    const statusVariant = resolveSelectionStatusVariant(r.status);
+    const statusLabel = r.status || "未設定";
 
+    // Flow Steps Definition
+    const steps = [
+      { label: "推薦", date: r.recommendationDate, sub: null, keywords: ["推薦", "書類"] },
+      { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null, keywords: ["一次"] },
+      { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null, keywords: ["二次"] },
+      { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null, keywords: ["最終"] },
+      { label: "内定", date: r.offerDate, sub: null, keywords: ["内定", "オファー"] },
+      { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null, keywords: ["承諾", "入社"] },
+    ];
 
-  const candidateBubble = (c) => `
-    <div class="inline-flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-full shadow-sm text-[11px] text-slate-700 max-w-[160px] sm:max-w-[220px]">
-      <span class="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
-      <div class="flex flex-col leading-tight min-w-0">
-        <span class="font-semibold text-[12px] truncate">${c.name}</span>
-        <span class="text-slate-500 truncate">${formatDateString(c.date)}</span>
-      </div>
-      ${c.note ? `<span class="text-slate-500 truncate max-w-[80px] sm:max-w-[120px]">${c.note}</span>` : ''}
-    </div>`;
+    // Detect Drop/Failure Status
+    const isDropped = ["辞退", "不合格", "失注", "破談", "終了"].some(k => (r.status || "").includes(k));
 
-  const flow = stages.map((s, idx) => {
-    const stageCands = normalizedFlowCandidates.filter(c => (c.stageKey || c.stage) === s.key);
-    const remaining = stageCands.length - 2;
-    const displayCount = Number.isFinite(s.value) ? s.value : 0;
-    const namesHtml = stageCands.length > 0
-      ? `<div class="flex flex-col items-center w-full mt-0.5 overflow-hidden">
-           ${stageCands.slice(0, 2).map(c =>
-        `<button onclick="event.stopPropagation(); window.navigateToCandidate('${c.id}')"
-                      class="text-[9px] sm:text-[10px] leading-tight text-white hover:underline truncate w-full text-center px-1 block mb-0.5">
-                ${c.name}
-              </button>`
-      ).join('')}
-           ${remaining > 0 ? `<span class="text-[8px] sm:text-[9px] text-white/80 leading-none">+${remaining}名</span>` : ''}
-         </div>`
-      : '';
-    return `
-      <div class="flex flex-col items-center min-w-[70px] sm:min-w-[100px] lg:min-w-[120px] flex-shrink-0">
-        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full ${s.color} text-white flex flex-col items-center justify-center p-1 shadow-md transition-transform hover:scale-105">
-           <div class="flex items-baseline gap-0.5 ${stageCands.length > 0 ? 'mb-0' : ''}">
-             <span class="text-lg sm:text-xl font-bold leading-none">${displayCount}</span>
-             <span class="text-[10px] sm:text-xs opacity-90">件</span>
-           </div>
-           ${namesHtml}
+    // Find "Current" step based on Status Text matching (fallback to dates)
+    let statusIndex = -1;
+    if (r.status) {
+      steps.forEach((step, idx) => {
+        if (step.keywords && step.keywords.some(k => r.status.includes(k))) {
+          statusIndex = idx;
+        }
+      });
+    }
+
+    // Find the last step that has a confirmed date (Progress tracking)
+    let lastDateIndex = -1;
+    steps.forEach((step, idx) => {
+      if (step.date) lastDateIndex = idx;
+    });
+
+    // Decide the "Active" limit
+    const activeLimitIndex = (statusIndex > lastDateIndex) ? statusIndex : lastDateIndex;
+
+    const flowHtml = steps.map((step, idx) => {
+      const hasDate = Boolean(step.date);
+      const isReached = idx <= activeLimitIndex;
+      const isCurrent = idx === activeLimitIndex;
+      const isDropStep = isDropped && isCurrent;
+
+      // Circle Color
+      let circleClass = "bg-slate-200 text-slate-400"; // default (future)
+      if (isReached) {
+        if (isDropStep) {
+          circleClass = "bg-red-500 text-white ring-4 ring-red-100 scale-110"; // Dropped
+        } else if (isCurrent) {
+          circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+        } else {
+          circleClass = hasDate
+            ? "bg-indigo-600 text-white"
+            : "bg-white border-2 border-indigo-600 text-indigo-600"; // Skipped (Hollow)
+        }
+      }
+
+      // Bar Color (Connector to next)
+      let barHtml = "";
+      if (idx < steps.length - 1) {
+        let barClass = "bg-slate-200 h-0.5"; // default
+        if (idx < activeLimitIndex) {
+          const nextHasDate = Boolean(steps[idx + 1].date);
+          if (isDropped && idx === activeLimitIndex - 1) {
+            barClass = "bg-indigo-600 h-0.5";
+          } else {
+            barClass = nextHasDate ? "bg-indigo-600 h-0.5" : "border-t-2 border-indigo-400 border-dashed h-0 bg-transparent";
+          }
+        }
+        barHtml = `<div class="absolute top-3 left-1/2 w-full ${barClass} -z-0"></div>`;
+      }
+
+      const dateStr = formatDateJP(step.date);
+      const dateHtml = hasDate
+        ? `<div class="text-[10px] font-bold ${isDropStep ? 'text-red-600' : 'text-indigo-700'} mt-1 truncate w-full text-center">${dateStr}</div>`
+        : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+
+      let labelClass = "text-slate-700";
+      if (isDropStep) labelClass = "text-red-700 font-bold";
+      else if (isCurrent) labelClass = "text-indigo-800 font-bold";
+
+      return `
+        <div class="flex-1 relative group min-w-[60px]">
+          ${barHtml}
+          <div class="relative z-10 flex flex-col items-center">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass} z-10">
+              ${idx + 1}
+            </div>
+            <div class="mt-2 text-[10px] font-medium ${labelClass} transition-colors truncate w-full text-center">${step.label}</div>
+            ${dateHtml}
+          </div>
         </div>
-        <span class="text-[11px] sm:text-xs lg:text-sm text-slate-700 mt-2 font-medium">${s.label}</span>
+      `;
+    }).join("");
+
+    const pillClass = resolveSelectionStatusPillClass(statusVariant);
+
+    // Main Card HTML
+    return `
+      <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-3 mb-3 hover:shadow-md transition-shadow relative">
+         <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <button onclick="window.navigateToCandidate('${r.candidateId}')" class="text-sm font-bold text-indigo-700 hover:underline flex items-center gap-1">
+                    ${escapeHtml(r.candidateName)} <span class="text-xs font-normal text-slate-500">さん</span>
+                </button>
+                <span class="px-2 py-0.5 rounded text-[10px] font-medium ${pillClass} border">${escapeHtml(statusLabel)}</span>
+            </div>
+            <div class="text-[10px] text-slate-400">ID: ${r.candidateId}</div>
+         </div>
+
+         <!-- Horizontal Flow Chart -->
+         <div class="flex justify-between items-start w-full px-1 overflow-x-auto pb-1">
+            ${flowHtml}
+         </div>
+         
+         ${r.note ? `<div class="mt-2 text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100"><span class="font-bold">Note:</span> ${escapeHtml(r.note)}</div>` : ''}
       </div>
-      ${idx < stages.length - 1 ? '<div class="flex items-center justify-center text-slate-300 w-4 sm:w-8 lg:w-10 flex-shrink-0 mb-6" aria-hidden="true"><svg viewBox="0 0 24 24" class="w-4 h-4 sm:w-6 sm:h-6 lg:w-7 lg:h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>' : ''}
     `;
-  }).join('');
+  }
 
 
+
+  // Retrieve candidates for this company
+  let flowCandidates = getFlowCandidates(company);
+
+  // If no candidates found, and we haven't loaded the global list yet, try loading it.
+  const needLoad = flowCandidates.length === 0 && (!candidateSummaries || candidateSummaries.length === 0) && !candidateSummaryPromise;
+
+  if (needLoad) {
+    loadCandidateSummaries().then(() => {
+      if (selectedCompanyId === company.id) {
+        renderCompanyDetail();
+      }
+    });
+  }
+
+  const isLoading = candidateSummaryPromise && (!candidateSummaries || candidateSummaries.length === 0);
+
+  // Render list
+  const flowListHtml = isLoading
+    ? `<div class="p-8 text-center text-slate-400 text-sm bg-slate-50 rounded-lg"><div class="inline-block w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2"></div>候補者データを読み込み中...</div>`
+    : flowCandidates.length > 0
+      ? flowCandidates.map(c => {
+        // Find the specific progress row for this company or construct one from base data
+        const companyNameNorm = normalizeCompanyName(company.company);
+        const selectionRow = (c.selectionProgress || []).find(sp => normalizeCompanyName(sp.companyName) === companyNameNorm)
+          || { ...c, companyName: company.company };
+
+        // Merge vital info
+        const fullRow = {
+          ...selectionRow,
+          id: c.id,
+          name: c.name,
+          candidateId: c.id,
+          candidateName: c.name,
+          status: selectionRow.status || c.stage || c.phase || c.status
+        };
+        return renderSelectionFlowCard(fullRow);
+      }).join("")
+      : `<div class="p-4 text-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">選考進行中の候補者はいません</div>`;
 
   const recommendedHtml = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
 
@@ -2248,10 +2464,8 @@ function renderCompanyDetail() {
           <span>募集・選考の進捗</span>
         </div>
 
-        <div class="flex flex-nowrap items-start gap-2 sm:gap-3 lg:gap-4 justify-start lg:justify-between overflow-x-auto pb-2 w-full max-w-full bg-white/60 rounded-lg p-3 border border-slate-200">
-
-          ${flow}
-
+        <div class="flex flex-col gap-3 w-full max-w-full rounded-lg p-3 border border-slate-200 bg-slate-50/50">
+          ${flowListHtml}
         </div>
 
       </div>
@@ -3461,6 +3675,10 @@ function initializeSort() {
 
 }
 
+function attachPagination() {
+  initializePagination();
+}
+
 
 
 function initializePagination() {
@@ -3495,6 +3713,11 @@ function updateFilterCount() {
 
 
 
+function attachExport() {
+  initializeExport();
+}
+
+
 function initializeExport() {
 
   document.getElementById('referralExportBtn')?.addEventListener('click', () => {
@@ -3526,6 +3749,12 @@ function initializeExport() {
 // AIマッチング機能（サイドパネル用）
 
 // ==========================================
+
+function attachMatchingHandlers() {
+  initializeMatchingTabs();
+  initializeMatching();
+}
+
 
 function initializeMatchingTabs() {
 

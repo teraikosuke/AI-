@@ -1,3 +1,4 @@
+import { getSession } from '../../scripts/auth.js';
 
 let screeningForm;
 let screeningStatusElement;
@@ -19,6 +20,12 @@ const SETTINGS_API_BASE = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazona
 const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
 
 export function mount() {
+  screeningForm = document.getElementById("screeningRulesForm");
+  screeningStatusElement = document.getElementById("screeningRulesStatus");
+  screeningUpdatedAtElement = document.getElementById("screeningRulesUpdatedAt");
+  screeningEditToggle = document.getElementById("screeningRulesEditToggle");
+  screeningSummaryList = document.getElementById("screeningRulesSummaryList");
+  screeningSummaryNote = document.getElementById("screeningRulesSummaryNote");
 
   if (screeningForm) {
     screeningForm.addEventListener("submit", handleScreeningSave);
@@ -61,7 +68,9 @@ export function unmount() {
 async function loadScreeningRules() {
   if (!screeningForm) return;
   try {
-    const response = await fetch(SCREENING_RULES_ENDPOINT);
+    const session = getSession();
+    const headers = session?.token ? { Authorization: `Bearer ${session.token}` } : {};
+    const response = await fetch(SCREENING_RULES_ENDPOINT, { headers });
     if (!response.ok) {
       throw new Error("設定の取得に失敗しました。");
     }
@@ -106,9 +115,15 @@ async function handleScreeningSave(event) {
   };
 
   try {
+    const session = getSession();
+    const token = session?.token;
+
     const response = await fetch(SCREENING_RULES_ENDPOINT, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(body),
     });
     const result = await response.json();

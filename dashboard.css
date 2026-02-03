@@ -1305,3 +1305,29 @@ body {
 [data-page="ad-performance"] .sortable:hover .sort-indicator {
   opacity: 1;
 }
+
+/* Yield fallback: KPI?????? */
+[data-chart-card="personalTrend"] .dashboard-chart,
+[data-chart-card="companyTrend"] .dashboard-chart {
+  height: 340px;
+}
+
+@media (max-width: 640px) {
+  [data-chart-card="personalTrend"] .dashboard-chart,
+  [data-chart-card="companyTrend"] .dashboard-chart {
+    height: 280px;
+  }
+}
+
+
+.dashboard-card[data-chart-card="personalTrend"],
+.dashboard-card[data-chart-card="companyTrend"] {
+  grid-column: span 2;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-card[data-chart-card="personalTrend"],
+  .dashboard-card[data-chart-card="companyTrend"] {
+    grid-column: span 1;
+  }
+}

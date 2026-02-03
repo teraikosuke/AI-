@@ -37,7 +37,7 @@ const state = {
   selectedCompanyPeriodId: '',
   selectedPersonalPeriodId: '',
   selectedPersonalDailyPeriodId: '',
-  selectedPageRatePeriodId: '' // ページ別率目標用
+  selectedPageRatePeriodId: '', // ページ別率目標用
 };
 
 export async function mount() {
@@ -53,7 +53,7 @@ export async function mount() {
   await renderCompanyTargets();
   await renderPersonalTargets();
   await renderDailyTargets();
-  await renderPageRateTargets(); // ページ別率目標
+  await renderPageRateTargets(); // ???????
   bindEvents();
 }
 
@@ -61,17 +61,20 @@ export function unmount() { }
 
 function hydrateInitialState() {
   const rule = goalSettingsService.getEvaluationRule();
-  state.evaluationRule = normalizeRule(rule);
+  const normalizedRule = normalizeRule(rule);
+  // ???????????????????
+  state.evaluationRule = normalizedRule.type === 'monthly'
+    ? normalizedRule
+    : { type: 'monthly', options: {} };
   state.evaluationPeriods = goalSettingsService.getEvaluationPeriods();
   const todayStr = isoDate(new Date());
   const shouldRefreshDefaults =
-    state.evaluationRule.type !== 'custom-month' &&
     (!Array.isArray(state.evaluationPeriods) ||
       !state.evaluationPeriods.length ||
       state.evaluationPeriods.length < 6 ||
       !findPeriodIdByDate(todayStr, state.evaluationPeriods));
 
-  if (shouldRefreshDefaults) {
+  if (shouldRefreshDefaults || normalizedRule.type !== 'monthly') {
     state.evaluationPeriods = goalSettingsService.generateDefaultPeriods(state.evaluationRule);
     goalSettingsService.setEvaluationPeriods(state.evaluationPeriods);
   }
@@ -80,7 +83,7 @@ function hydrateInitialState() {
   state.selectedCompanyPeriodId = todayId || firstPeriod?.id || '';
   state.selectedPersonalPeriodId = state.selectedCompanyPeriodId;
   state.selectedPersonalDailyPeriodId = todayId || firstPeriod?.id || '';
-  state.selectedPageRatePeriodId = todayId || firstPeriod?.id || ''; // ページ別率目標
+  state.selectedPageRatePeriodId = todayId || firstPeriod?.id || '';
 }
 
 function bindEvents() {
@@ -107,7 +110,6 @@ function bindEvents() {
   document.getElementById('customStartDayInput')?.addEventListener('input', event => {
     updateCustomEndLabel(event.target.value);
   });
-  // ページ別率目標
   document.getElementById('pageRatePeriodSelect')?.addEventListener('change', handlePageRatePeriodChange);
   document.getElementById('savePageRateTargetsButton')?.addEventListener('click', handleSavePageRateTargets);
 }
@@ -177,6 +179,7 @@ function renderEvaluationRuleSection() {
   });
   toggleRuleOptions();
 }
+
 
 function renderCustomPeriodsTable() {
   // カスタム期間テーブルは廃止
@@ -255,7 +258,6 @@ function renderPeriodSelects() {
     }
   }
 
-  // ページ別率目標
   const hasPageRate = state.evaluationPeriods.some(period => period.id === state.selectedPageRatePeriodId);
   if (!hasPageRate && (todayId || firstPeriod)) state.selectedPageRatePeriodId = todayId || firstPeriod?.id || '';
   const pageRateSelect = document.getElementById('pageRatePeriodSelect');
@@ -268,6 +270,7 @@ function renderPeriodSelects() {
       pageRateSelect.value = state.selectedPageRatePeriodId;
     }
   }
+
 }
 
 // ページ別率目標の期間変更ハンドラ
@@ -276,7 +279,6 @@ async function handlePageRatePeriodChange(event) {
   await renderPageRateTargets();
 }
 
-// ページ別率目標のレンダリング
 async function renderPageRateTargets() {
   if (state.selectedPageRatePeriodId) {
     await goalSettingsService.loadPageRateTargets(state.selectedPageRatePeriodId);
@@ -290,7 +292,6 @@ async function renderPageRateTargets() {
   });
 }
 
-// ページ別率目標の保存ハンドラ
 async function handleSavePageRateTargets() {
   if (!state.selectedPageRatePeriodId) return;
   const targets = {};
@@ -302,10 +303,10 @@ async function handleSavePageRateTargets() {
   console.log('[DEBUG] handleSavePageRateTargets saving:', targets);
   try {
     await goalSettingsService.savePageRateTargets(state.selectedPageRatePeriodId, targets);
-    showSaveStatus('pageRateTargetSaveStatus', 'ページ別率目標を保存しました');
+    showSaveStatus('pageRateTargetSaveStatus', '??????????????');
   } catch (error) {
     console.error('[goal-settings] failed to save page rate targets', error);
-    showSaveStatus('pageRateTargetSaveStatus', '保存に失敗しました');
+    showSaveStatus('pageRateTargetSaveStatus', '?????????');
   }
 }
 
@@ -370,10 +371,10 @@ async function handleSaveCompanyTarget() {
   const values = readTargetTable('companyTargetTableBody');
   try {
     await goalSettingsService.saveCompanyPeriodTarget(state.selectedCompanyPeriodId, values);
-    showSaveStatus('companyTargetSaveStatus', '会社目標を保存しました');
+    showSaveStatus('companyTargetSaveStatus', '???????????');
   } catch (error) {
     console.error('[goal-settings] failed to save company target', error);
-    showSaveStatus('companyTargetSaveStatus', '保存に失敗しました');
+    showSaveStatus('companyTargetSaveStatus', '?????????');
   }
 }
 
@@ -382,10 +383,10 @@ async function handleSavePersonalTarget() {
   const values = readTargetTable('personalTargetTableBody');
   try {
     await goalSettingsService.savePersonalPeriodTarget(state.selectedPersonalPeriodId, values);
-    showSaveStatus('personalTargetSaveStatus', '個人目標を保存しました');
+    showSaveStatus('personalTargetSaveStatus', '???????????');
   } catch (error) {
     console.error('[goal-settings] failed to save personal target', error);
-    showSaveStatus('personalTargetSaveStatus', '保存に失敗しました');
+    showSaveStatus('personalTargetSaveStatus', '?????????');
   }
 }
 
@@ -489,10 +490,10 @@ async function handleSaveDailyTargets() {
   });
   try {
     await goalSettingsService.savePersonalDailyTargets(periodId, dailyTargets);
-    showSaveStatus('dailyTargetSaveStatus', '日別目標を保存しました');
+    showSaveStatus('dailyTargetSaveStatus', '???????????');
   } catch (error) {
     console.error('[goal-settings] failed to save daily targets', error);
-    showSaveStatus('dailyTargetSaveStatus', '保存に失敗しました');
+    showSaveStatus('dailyTargetSaveStatus', '?????????');
   }
 }
 

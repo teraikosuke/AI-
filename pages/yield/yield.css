@@ -650,6 +650,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 0.9rem;
+  align-items: start;
 }
 
 .dashboard-card {
@@ -661,6 +662,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+
+
+.dashboard-card[data-chart-card="personalTrend"],
+.dashboard-card[data-chart-card="companyTrend"] {
+  grid-column: span 2 !important;
+  min-height: 420px;
 }
 
 .dashboard-card-header {
@@ -686,6 +695,13 @@
   height: 260px;
 }
 
+[data-chart-card="personalTrend"] .dashboard-chart,
+[data-chart-card="companyTrend"] .dashboard-chart {
+  height: 360px !important;
+  min-height: 360px;
+}
+
+
 .dashboard-chart canvas {
   width: 100% !important;
   height: 100% !important;
@@ -698,6 +714,14 @@
 
 
 /* Responsive adjustments */
+@media (max-width: 1024px) {
+
+  .dashboard-card[data-chart-card="personalTrend"],
+  .dashboard-card[data-chart-card="companyTrend"] {
+    grid-column: span 1 !important;
+  }
+}
+
 @media (max-width: 640px) {
   [data-kpi="v2"] .kpi-v2-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -705,6 +729,11 @@
 
   [data-kpi="v2"] .kpi-v2-card {
     padding: 0.875rem 1rem;
+  }
+
+  [data-chart-card="personalTrend"] .dashboard-chart,
+  [data-chart-card="companyTrend"] .dashboard-chart {
+    height: 280px;
   }
 }
 
@@ -927,8 +956,13 @@
 [data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th.daily-type,
 [data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table td.daily-type,
 [data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-sales-table th.daily-type {
-  left: 180px;
+  position: sticky;
+  left: 250px;
+  background: #fff;
+  z-index: 8;
+  border-right: 2px solid #cbd5e1;
 }
+
 
 [data-kpi="v2"] .kpi-v2-daily-table .kpi-v2-sticky-label {
   text-align: left;
@@ -1306,7 +1340,7 @@
 }
 
 [data-kpi="v2"] .kpi-tab-panel {
-  display: block;
+  display: none;
   background: #f8fafc;
   /* border: 1px solid #e2e8f0; */
   border-radius: 0 0.5rem 0.5rem 0.5rem;
@@ -1317,6 +1351,10 @@
 
 [data-kpi="v2"] .kpi-tab-panel.is-hidden {
   display: none;
+}
+
+[data-kpi="v2"] .kpi-tab-panel.is-active {
+  display: block;
 }
 
 [data-kpi="v2"] .kpi-v2-inline-select option {
@@ -1556,40 +1594,56 @@
   transform: translateY(0);
 }
 
-/* MSテーブル Stickyカラム設定 */
-.kpi-v2-ms-table .kpi-v2-sticky-label {
-  position: sticky;
-  left: 0;
-  z-index: 10;
+/* MS???? ???????? */
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table {
+  --ms-col-name: 160px;
+  --ms-col-metric: 160px;
+  --ms-col-type: 90px;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th:first-child,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table td:first-child,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table th:first-child,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table td:first-child {
+  position: static;
+  left: auto;
   background-color: #fff;
+  min-width: var(--ms-col-name);
+  max-width: var(--ms-col-name);
+  width: var(--ms-col-name);
   border-right: 1px solid #e2e8f0;
 }
 
-.kpi-v2-ms-table thead .kpi-v2-sticky-label {
-  z-index: 20;
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table thead th:first-child,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table thead th:first-child {
   background-color: #f8fafc;
 }
 
-.kpi-v2-ms-table th:nth-child(1),
-.kpi-v2-ms-table td:nth-child(1) {
-  min-width: 140px;
-  max-width: 140px;
-  width: 140px;
-}
-
-.kpi-v2-personal-ms-table th.kpi-v2-ms-metric,
-.kpi-v2-personal-ms-table td.kpi-v2-ms-metric {
-  min-width: 160px;
-  max-width: 160px;
-  width: 160px;
-}
-
-.kpi-v2-ms-table .kpi-v2-ms-metric {
-  left: 140px;
-  min-width: 110px;
-  max-width: 110px;
-  width: 110px;
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table td.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table th.kpi-v2-ms-metric,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table td.kpi-v2-ms-metric {
+  position: static;
+  left: auto;
+  background-color: #fff;
+  min-width: var(--ms-col-metric);
+  max-width: var(--ms-col-metric);
+  width: var(--ms-col-metric);
   border-right: 1px solid #e2e8f0;
+}
+
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table th.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-ms-table td.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table th.daily-type,
+[data-kpi="v2"] .kpi-v2-employee-table.kpi-v2-personal-ms-table td.daily-type {
+  position: static;
+  left: auto;
+  background: #f8fafc;
+  min-width: var(--ms-col-type);
+  max-width: var(--ms-col-type);
+  width: var(--ms-col-type);
+  border-right: 2px solid #cbd5e1;
 }
 
 .kpi-v2-ms-table td,

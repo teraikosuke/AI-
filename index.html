@@ -63,13 +63,13 @@
               <li>
                 <button type="button" data-target="yield-personal"
                   class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
-                  <span class="nav-label">自分の実績</span>
+                  <span class="nav-label">個人成績</span>
                 </button>
               </li>
               <li>
                 <button type="button" data-target="yield-company"
                   class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
-                  <span class="nav-label">社内の成績</span>
+                  <span class="nav-label">社内成績</span>
                 </button>
               </li>
               <li>
@@ -128,56 +128,54 @@
               <span class="nav-label">架電管理</span>
             </button>
           </li>
-          <li>
-            <button type="button" data-target="settings" class="nav-link w-full text-left whitespace-nowrap transition"
-              aria-current="false">
+          <li class="nav-group" data-nav-group="settings">
+            <button type="button" class="nav-link nav-group-toggle w-full text-left whitespace-nowrap transition"
+              data-submenu-toggle="settings" aria-expanded="false">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                   <path
                     d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z" />
                 </svg>
               </span>
-              <span class="nav-label">システム設定</span>
+              <span class="nav-label">設定</span>
+              <span class="nav-caret" aria-hidden="true">▾</span>
             </button>
-          </li>
-          <li>
-            <button type="button" data-target="goal-settings"
-              class="nav-link w-full text-left whitespace-nowrap transition" aria-current="false">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                  <path
-                    d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z" />
-                </svg>
-              </span>
-              <span class="nav-label">評価・目標設定</span>
-            </button>
-          </li>
-          <li>
-            <button type="button" data-target="members" class="nav-link w-full text-left whitespace-nowrap transition"
-              aria-current="false">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                  <path
-                    d="M10 10.5a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10.5Zm0 2c-3.33 0-6 1.52-6 3.4V17h12v-1.1c0-1.88-2.67-3.4-6-3.4ZM15 6a2 2 0 1 1 2 2 2 2 0 0 1-2-2Zm0 3.25a4 4 0 0 1 2.91 1.06A4 4 0 0 1 19 13.7V15h-2v-1.3c0-.9-.92-1.7-2-1.7Z" />
-                </svg>
-              </span>
-              <span class="nav-label">メンバー</span>
-            </button>
-          </li>
-          <li>
-            <button type="button" data-action="logout" class="nav-link w-full text-left whitespace-nowrap transition">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                  <path d="M8 3a2 2 0 0 0-2 2v3h2V5h7v10H8v-3H6v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8z" />
-                  <path d="M3.293 9.293 1.586 11l1.707 1.707L5 11.999 4.002 11H10v-2H4.002L5 8.001 3.293 9.293z" />
-                </svg>
-              </span>
-              <span class="nav-label">ログアウト</span>
-            </button>
+            <ul class="nav-submenu" data-submenu="settings">
+              <li>
+                <button type="button" data-target="settings"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">有効応募基準設定</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="goal-settings"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">評価・目標設定</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="members"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">メンバー設定</span>
+                </button>
+              </li>
+              <li>
+                <!-- ログアウトはユーザー表示の横に移動 -->
+              </li>
+            </ul>
           </li>
         </ul>
       </nav>
-      <div id="sidebarUserBadgeSlot" class="sidebar-user-slot"></div>
+      <div class="sidebar-user-slot">
+        <div id="sidebarUserBadgeSlot"></div>
+        <button type="button" class="sidebar-logout-button" data-action="logout" aria-label="ログアウト">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 sidebar-logout-icon" aria-hidden="true">
+            <path d="M8 3a2 2 0 0 0-2 2v3h2V5h7v10H8v-3H6v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8z" />
+            <path d="M3.293 9.293 1.586 11l1.707 1.707L5 11.999 4.002 11H10v-2H4.002L5 8.001 3.293 9.293z" />
+          </svg>
+          <span class="sidebar-logout-label">ログアウト</span>
+        </button>
+      </div>
     </aside>
 
     <div class="flex-1 flex flex-col main-layout">

@@ -472,6 +472,10 @@ body {
 .sidebar-user-slot {
   border-top: 1px solid #1f2933;
   padding: 0.75rem 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
 }
 
 .sidebar-user-chip {
@@ -524,6 +528,35 @@ body {
 #sidebar.sidebar-collapsed .sidebar-user-chip {
   justify-content: center;
   padding-inline: 0.4rem;
+}
+
+.sidebar-logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.sidebar-logout-button:hover {
+  background-color: #7f1d1d;
+  border-color: #7f1d1d;
+  color: #ffffff;
+}
+
+#sidebar.sidebar-collapsed .sidebar-logout-button {
+  padding: 0.4rem;
+}
+
+#sidebar.sidebar-collapsed .sidebar-logout-label {
+  display: none;
 }
 
 #sidebar.sidebar-collapsed .sidebar-user-text {

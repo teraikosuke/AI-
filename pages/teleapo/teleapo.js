@@ -1873,6 +1873,8 @@ let teleapoEmployeeSortState = { key: 'connectRate', dir: 'desc' };
 let teleapoHighlightLogId = null;
 let teleapoHighlightFingerprint = null;
 let employeeNameToUserId = new Map();
+let teleapoRangeTouched = false;
+let teleapoAutoFallbackDone = false;
 
 function rebuildEmployeeMap() {
   employeeNameToUserId = new Map();
@@ -3494,8 +3496,14 @@ function setRangePreset(preset) {
     start.setDate(today.getDate() - 30);
   }
 
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = end.toISOString().slice(0, 10);
+  const toLocalDate = (value) => {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const startStr = toLocalDate(start);
+  const endStr = toLocalDate(end);
 
   ['teleapoLogRangeStart', 'teleapoCompanyRangeStart'].forEach(id => { const el = document.getElementById(id); if (el) el.value = startStr; });
   ['teleapoLogRangeEnd', 'teleapoCompanyRangeEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = endStr; });
@@ -3504,23 +3512,46 @@ function setRangePreset(preset) {
 function clearDateFilters() {
   ['teleapoLogRangeStart', 'teleapoCompanyRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeEnd']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const companyPreset = document.querySelector('[data-scope=\"company\"]');
-  if (companyPreset) companyPreset.querySelectorAll('.kpi-v2-range-btn').forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
+  clearCompanyRangePresetSelection();
+}
+
+function clearCompanyRangePresetSelection() {
+  const companyPreset = document.querySelector('[data-scope="company"]');
+  if (companyPreset) {
+    companyPreset.querySelectorAll('.kpi-v2-range-btn').forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
+  }
 }
 
 function initDateInputs() {
+  const presetWrapper = document.querySelector('[data-scope="company"]');
+  const activePreset = presetWrapper?.querySelector('.kpi-v2-range-btn-active')?.dataset?.preset;
+  if (activePreset) {
+    setRangePreset(activePreset);
+    return;
+  }
   // デフォルトは直近180日で広めのモックデータが拾えるようにする
   setRangePreset('last180');
+  clearCompanyRangePresetSelection();
 }
 
 function initFilters() {
+  const handleRangeChange = () => {
+    teleapoRangeTouched = true;
+    loadTeleapoData();
+  };
   ['teleapoLogEmployeeFilter', 'teleapoLogResultFilter', 'teleapoLogRouteFilter', 'teleapoLogTargetSearch', 'teleapoLogRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeStart', 'teleapoCompanyRangeEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener(id.includes('TargetSearch') ? 'input' : 'change', applyFilters);
+    el.addEventListener(id.includes('TargetSearch') ? 'input' : 'change', () => {
+      if (id.includes('Range')) {
+        handleRangeChange();
+        return;
+      }
+      applyFilters();
+    });
   });
   const resetBtn = document.getElementById('teleapoLogFilterReset');
-  if (resetBtn) resetBtn.onclick = () => { initDateInputs(); applyFilters(); };
+  if (resetBtn) resetBtn.onclick = () => { initDateInputs(); loadTeleapoData(); };
 }
 
 function initHeatmapControls() {
@@ -3558,18 +3589,19 @@ function initCompanyRangePresets() {
   const buttons = presetWrapper.querySelectorAll('.kpi-v2-range-btn');
   buttons.forEach(btn => {
     btn.addEventListener('click', () => {
+      teleapoRangeTouched = true;
       const preset = btn.dataset.preset || 'thisMonth';
       const isActive = btn.classList.contains('kpi-v2-range-btn-active');
       buttons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
       if (isActive) {
         // 同じボタンを再クリック→プリセット解除＆日付クリアで全期間表示
         clearDateFilters();
-        applyFilters();
+        loadTeleapoData();
         return;
       }
       setRangePreset(preset);
       btn.classList.add('kpi-v2-range-btn-active');
-      applyFilters();
+      loadTeleapoData();
     });
   });
 }
@@ -3947,6 +3979,12 @@ async function loadTeleapoData() {
     teleapoLogData = mappedLogs.filter(l => l.datetime);
     if (!teleapoLogData.length && mappedLogs.length) {
       teleapoLogData = mappedLogs;
+    }
+    if (!teleapoLogData.length && !teleapoRangeTouched && !teleapoAutoFallbackDone) {
+      teleapoAutoFallbackDone = true;
+      clearCompanyRangePresetSelection();
+      setRangePreset('last180');
+      return loadTeleapoData();
     }
     teleapoLogData = mergePendingLogs(teleapoLogData);
     annotateCallAttempts(teleapoLogData);

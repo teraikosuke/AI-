@@ -124,8 +124,34 @@ async function fetchCandidateDetail(client, candidateId, includeMaster = false) 
     // 2. 選考進捗リスト取得
     const selectionSql = `
     SELECT COALESCE(json_agg(json_build_object(
-            'id', ca.id, 'clientId', ca.client_id, 'companyName', cl.name, 'stageCurrent', ca.stage_current, 'jobTitle', ca.job_title, 'route', ca.apply_route, 'applyRoute', ca.apply_route,
-            'interviewDate', ca.first_interview_at, 'created_at', ca.created_at
+            'id', ca.id, 
+            'clientId', ca.client_id, 
+            'companyName', cl.name, 
+            'stageCurrent', ca.stage_current, 
+            'jobTitle', ca.job_title, 
+            'route', ca.apply_route, 
+            'applyRoute', ca.apply_route,
+            'updatedAt', ca.updated_at,
+            'createdAt', ca.created_at,
+            'selectionNote', ca.selection_note,
+
+            'proposalDate', ca.proposal_date,
+            'recommendationDate', ca.recommended_at,
+            'firstInterviewSetAt', ca.first_interview_set_at,
+            'firstInterviewDate', ca.first_interview_at,
+            'secondInterviewSetAt', ca.second_interview_set_at,
+            'secondInterviewDate', ca.second_interview_at,
+            'finalInterviewSetAt', ca.final_interview_set_at,
+            'finalInterviewDate', ca.final_interview_at,
+            
+            'offerDate', COALESCE(ca.offer_at, ca.offer_date),
+            'acceptanceDate', COALESCE(ca.offer_accepted_at, ca.offer_accept_date),
+            'onboardingDate', COALESCE(ca.joined_at, ca.join_date),
+            'closeExpectedDate', COALESCE(ca.close_expected_at, ca.closing_forecast_at),
+
+            'preJoinWithdrawDate', ca.pre_join_withdraw_date,
+            'postJoinQuitDate', ca.post_join_quit_date
+
           ) ORDER BY COALESCE(ca.updated_at, ca.created_at) DESC), '[]'::json) AS selection_progress
     FROM candidate_applications ca
     LEFT JOIN clients cl ON cl.id = ca.client_id
@@ -352,6 +378,15 @@ export const handler = async (event) => {
                 SET is_completed = true, completed_at = NOW(), updated_at = NOW()
                 WHERE id = $1 AND candidate_id = $2
              `, [completeTaskId, candidateId]);
+                    }
+
+                    // (B-2) タスクの削除処理 (削除するタスクIDが送られてきた場合) ★追加
+                    const deleteTaskId = toIntOrNull(payload.deleteTaskId);
+                    if (deleteTaskId) {
+                        await client.query(`
+                DELETE FROM candidate_tasks 
+                WHERE id = $1 AND candidate_id = $2
+             `, [deleteTaskId, candidateId]);
                     }
 
                     // (C) candidatesテーブルの同期 (未完了の直近タスクを本体に反映)

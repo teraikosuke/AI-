@@ -97,6 +97,34 @@
   color: #475569;
 }
 
+.members-section__notice {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.members-section__notice--success {
+  background: #ecfdf3;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.members-section__notice--warning {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.members-section__notice--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 .members-add-button {
   border: none;
   border-radius: 999px;
@@ -231,6 +259,10 @@
 }
 
 .members-page:not(.is-admin):not(.can-self-edit) [data-admin-only] {
+  display: none;
+}
+
+.members-page:not(.is-admin) [data-admin-strict] {
   display: none;
 }
 

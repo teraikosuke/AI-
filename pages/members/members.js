@@ -10,12 +10,14 @@ const ROLE_OPTIONS = [
   { value: 'marketing', label: 'マーケ' }
 ];
 const TABLE_COLSPAN = 6;
-const REQUESTS_TABLE_COLSPAN = 6;
+const CREATE_REQUESTS_TABLE_COLSPAN = 7;
+const DELETE_REQUESTS_TABLE_COLSPAN = 6;
 
 const membersApi = (path) => `${MEMBERS_API_BASE}${path}`;
 
 let membersCache = [];
-let memberRequestsCache = [];
+let memberCreateRequestsCache = [];
+let memberDeleteRequestsCache = [];
 let isAdmin = false;
 let currentUserId = '';
 let cleanupHandlers = [];
@@ -35,10 +37,11 @@ export function mount() {
   }
 
   const addButton = document.getElementById('memberAddButton');
-  if (addButton) addButton.hidden = false;
+  if (addButton) addButton.hidden = !isAdmin;
 
   bindMembersEvents();
   setupMembersTabs();
+  setMembersNotice('');
   renderMembersLoading();
   loadMembers();
   if (isAdmin) {
@@ -55,16 +58,24 @@ export function unmount() {
 function bindMembersEvents() {
   const addButton = document.getElementById('memberAddButton');
   const tableBody = document.getElementById('membersTableBody');
-  const requestTableBody = document.getElementById('memberRequestsTableBody');
+  const createRequestTableBody = document.getElementById('memberCreateRequestsTableBody');
+  const deleteRequestTableBody = document.getElementById('memberDeleteRequestsTableBody');
   const modal = document.getElementById('memberModal');
   const modalClose = document.getElementById('memberModalClose');
   const modalCancel = document.getElementById('memberFormCancel');
   const form = document.getElementById('memberForm');
   const tabButtons = document.querySelectorAll('[data-members-tab]');
 
-  addListener(addButton, 'click', () => openMemberModal('create'));
+  addListener(addButton, 'click', () => {
+    if (!isAdmin) {
+      setMembersNotice('新規登録申請は管理者のみ操作できます。', 'warning');
+      return;
+    }
+    openMemberModal('create');
+  });
   addListener(tableBody, 'click', handleTableClick);
-  // 申請一覧は閲覧のみ（UI承認なし）
+  addListener(createRequestTableBody, 'click', handleRequestTableClick);
+  addListener(deleteRequestTableBody, 'click', handleRequestTableClick);
   addListener(modalClose, 'click', closeMemberModal);
   addListener(modalCancel, 'click', closeMemberModal);
   addListener(form, 'submit', handleMemberSubmit);
@@ -99,7 +110,8 @@ function handleMembersTabClick(event) {
 }
 
 function setActiveMembersTab(tab) {
-  const normalized = tab === 'requests' ? 'requests' : 'members';
+  const allowedTabs = new Set(['members', 'create-requests', 'delete-requests']);
+  const normalized = allowedTabs.has(tab) ? tab : 'members';
   activeMembersTab = normalized;
   const tabs = document.querySelectorAll('[data-members-tab]');
   tabs.forEach((button) => {
@@ -112,10 +124,25 @@ function setActiveMembersTab(tab) {
     const isActive = panel.dataset.membersPanel === normalized;
     panel.hidden = !isActive;
   });
-  if (normalized === 'requests') {
+  if (normalized === 'create-requests' || normalized === 'delete-requests') {
     renderMemberRequestsLoading();
     loadMemberRequests();
   }
+}
+
+function setMembersNotice(message, tone = 'info') {
+  const notice = document.getElementById('membersNotice');
+  if (!notice) return;
+  notice.hidden = !message;
+  notice.textContent = message;
+  notice.classList.remove(
+    'members-section__notice--success',
+    'members-section__notice--warning',
+    'members-section__notice--error'
+  );
+  if (tone === 'success') notice.classList.add('members-section__notice--success');
+  if (tone === 'warning') notice.classList.add('members-section__notice--warning');
+  if (tone === 'error') notice.classList.add('members-section__notice--error');
 }
 
 async function loadMembers() {
@@ -161,8 +188,19 @@ async function loadMemberRequests() {
     const payload = await membersRequest(`${MEMBERS_REQUESTS_PATH}?status=pending`, {
       method: 'GET'
     });
-    memberRequestsCache = normalizeMemberRequests(payload);
-    renderMemberRequests(memberRequestsCache);
+    const normalized = normalizeMemberRequests(payload);
+    const createRequests = [];
+    const deleteRequests = [];
+    normalized.forEach((request) => {
+      if (isDeleteRequest(request)) {
+        deleteRequests.push(request);
+      } else {
+        createRequests.push(request);
+      }
+    });
+    memberCreateRequestsCache = createRequests;
+    memberDeleteRequestsCache = deleteRequests;
+    renderMemberRequests(createRequests, deleteRequests);
   } catch (error) {
     console.error('[members] load requests failed', error);
     renderMemberRequestsError(error);
@@ -182,6 +220,8 @@ function normalizeMemberRequests(result) {
     role: request.role || '',
     isAdmin: Boolean(request.isAdmin ?? request.is_admin),
     status: request.status || '',
+    requestType: request.requestType || request.request_type || '',
+    targetUserId: request.targetUserId || request.target_user_id || '',
     requestedAt: request.requestedAt || request.requested_at || request.createdAt || request.created_at || '',
     requestedBy: request.requestedBy || request.requested_by || '',
     requestedByName: request.requestedByName || request.requested_by_name || ''
@@ -203,6 +243,11 @@ function normalizeMembers(result) {
     createdAt: member.createdAt || member.created_at || '',
     updatedAt: member.updatedAt || member.updated_at || ''
   }));
+}
+
+function isDeleteRequest(request) {
+  const type = String(request?.requestType || '').toLowerCase();
+  return type === 'delete';
 }
 
 function renderMembers(members) {
@@ -267,27 +312,45 @@ function renderMemberRow(member) {
   `;
 }
 
-function renderMemberRequests(requests) {
-  const tableBody = document.getElementById('memberRequestsTableBody');
-  const countEl = document.getElementById('memberRequestsCount');
-  const tabCountEl = document.getElementById('memberRequestsTabCount');
-  if (!tableBody) return;
+function renderMemberRequests(createRequests, deleteRequests) {
+  const createTableBody = document.getElementById('memberCreateRequestsTableBody');
+  const deleteTableBody = document.getElementById('memberDeleteRequestsTableBody');
+  const createCountEl = document.getElementById('memberCreateRequestsCount');
+  const deleteCountEl = document.getElementById('memberDeleteRequestsCount');
+  const createTabCountEl = document.getElementById('memberCreateRequestsTabCount');
+  const deleteTabCountEl = document.getElementById('memberDeleteRequestsTabCount');
 
-  if (!requests.length) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">承認待ちの申請はありません。</td>
-      </tr>
-    `;
-  } else {
-    tableBody.innerHTML = requests.map(renderMemberRequestRow).join('');
+  if (createTableBody) {
+    if (!createRequests.length) {
+      createTableBody.innerHTML = `
+        <tr>
+          <td colspan="${CREATE_REQUESTS_TABLE_COLSPAN}" class="members-empty">新規登録待ちの申請はありません。</td>
+        </tr>
+      `;
+    } else {
+      createTableBody.innerHTML = createRequests.map(renderCreateRequestRow).join('');
+    }
   }
 
-  if (countEl) countEl.textContent = `${requests.length}件`;
-  if (tabCountEl) tabCountEl.textContent = requests.length ? `(${requests.length})` : '';
+  if (deleteTableBody) {
+    if (!deleteRequests.length) {
+      deleteTableBody.innerHTML = `
+        <tr>
+          <td colspan="${DELETE_REQUESTS_TABLE_COLSPAN}" class="members-empty">削除承認待ちの申請はありません。</td>
+        </tr>
+      `;
+    } else {
+      deleteTableBody.innerHTML = deleteRequests.map(renderDeleteRequestRow).join('');
+    }
+  }
+
+  if (createCountEl) createCountEl.textContent = `${createRequests.length}件`;
+  if (deleteCountEl) deleteCountEl.textContent = `${deleteRequests.length}件`;
+  if (createTabCountEl) createTabCountEl.textContent = createRequests.length ? `(${createRequests.length})` : '';
+  if (deleteTabCountEl) deleteTabCountEl.textContent = deleteRequests.length ? `(${deleteRequests.length})` : '';
 }
 
-function renderMemberRequestRow(request) {
+function renderCreateRequestRow(request) {
   const name = escapeHtml(request.name || '-');
   const email = escapeHtml(request.email || '-');
   const roleLabel = escapeHtml(getRoleLabel(request.role));
@@ -309,40 +372,99 @@ function renderMemberRequestRow(request) {
       <td>${requestedBy}</td>
       <td>${requestedAt}</td>
       <td>${statusLabel}</td>
+      <td>
+        <div class="members-actions">
+          <button class="members-action" type="button" data-action="cancel-request">取り下げ</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderDeleteRequestRow(request) {
+  const name = escapeHtml(request.name || '-');
+  const email = escapeHtml(request.email || '-');
+  const requestedAt = escapeHtml(formatDateTime(request.requestedAt));
+  const requestedBy = escapeHtml(request.requestedByName || request.requestedBy || '-');
+  const statusLabel = escapeHtml(getRequestStatusLabel(request.status));
+  const id = escapeHtml(request.id);
+
+  return `
+    <tr data-request-id="${id}">
+      <td>
+        <div class="members-name">${name}</div>
+      </td>
+      <td class="members-cell--email">${email}</td>
+      <td>${requestedBy}</td>
+      <td>${requestedAt}</td>
+      <td>${statusLabel}</td>
+      <td>
+        <div class="members-actions">
+          <button class="members-action members-action--danger" type="button" data-action="cancel-request">取り下げ</button>
+        </div>
+      </td>
     </tr>
   `;
 }
 
 function renderMemberRequestsLoading() {
-  const tableBody = document.getElementById('memberRequestsTableBody');
-  const countEl = document.getElementById('memberRequestsCount');
-  const tabCountEl = document.getElementById('memberRequestsTabCount');
-  if (tableBody) {
-    tableBody.innerHTML = `
+  const createTableBody = document.getElementById('memberCreateRequestsTableBody');
+  const deleteTableBody = document.getElementById('memberDeleteRequestsTableBody');
+  const createCountEl = document.getElementById('memberCreateRequestsCount');
+  const deleteCountEl = document.getElementById('memberDeleteRequestsCount');
+  const createTabCountEl = document.getElementById('memberCreateRequestsTabCount');
+  const deleteTabCountEl = document.getElementById('memberDeleteRequestsTabCount');
+
+  if (createTableBody) {
+    createTableBody.innerHTML = `
       <tr>
-        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">読み込み中...</td>
+        <td colspan="${CREATE_REQUESTS_TABLE_COLSPAN}" class="members-empty">読み込み中...</td>
       </tr>
     `;
   }
-  if (countEl) countEl.textContent = '';
-  if (tabCountEl) tabCountEl.textContent = '';
+  if (deleteTableBody) {
+    deleteTableBody.innerHTML = `
+      <tr>
+        <td colspan="${DELETE_REQUESTS_TABLE_COLSPAN}" class="members-empty">読み込み中...</td>
+      </tr>
+    `;
+  }
+  if (createCountEl) createCountEl.textContent = '';
+  if (deleteCountEl) deleteCountEl.textContent = '';
+  if (createTabCountEl) createTabCountEl.textContent = '';
+  if (deleteTabCountEl) deleteTabCountEl.textContent = '';
 }
 
 function renderMemberRequestsError(error) {
-  const tableBody = document.getElementById('memberRequestsTableBody');
-  const countEl = document.getElementById('memberRequestsCount');
-  const tabCountEl = document.getElementById('memberRequestsTabCount');
-  if (tableBody) {
-    tableBody.innerHTML = `
+  const createTableBody = document.getElementById('memberCreateRequestsTableBody');
+  const deleteTableBody = document.getElementById('memberDeleteRequestsTableBody');
+  const createCountEl = document.getElementById('memberCreateRequestsCount');
+  const deleteCountEl = document.getElementById('memberDeleteRequestsCount');
+  const createTabCountEl = document.getElementById('memberCreateRequestsTabCount');
+  const deleteTabCountEl = document.getElementById('memberDeleteRequestsTabCount');
+
+  if (createTableBody) {
+    createTableBody.innerHTML = `
       <tr>
-        <td colspan="${REQUESTS_TABLE_COLSPAN}" class="members-empty">
+        <td colspan="${CREATE_REQUESTS_TABLE_COLSPAN}" class="members-empty">
           申請の読み込みに失敗しました: ${escapeHtml(error?.message || 'unknown')}
         </td>
       </tr>
     `;
   }
-  if (countEl) countEl.textContent = '';
-  if (tabCountEl) tabCountEl.textContent = '';
+  if (deleteTableBody) {
+    deleteTableBody.innerHTML = `
+      <tr>
+        <td colspan="${DELETE_REQUESTS_TABLE_COLSPAN}" class="members-empty">
+          申請の読み込みに失敗しました: ${escapeHtml(error?.message || 'unknown')}
+        </td>
+      </tr>
+    `;
+  }
+  if (createCountEl) createCountEl.textContent = '';
+  if (deleteCountEl) deleteCountEl.textContent = '';
+  if (createTabCountEl) createTabCountEl.textContent = '';
+  if (deleteTabCountEl) deleteTabCountEl.textContent = '';
 }
 
 function renderMembersLoading() {
@@ -394,10 +516,46 @@ function handleTableClick(event) {
   }
 }
 
+function handleRequestTableClick(event) {
+  if (!isAdmin) return;
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const row = button.closest('tr');
+  const id = row?.dataset?.requestId;
+  if (!id) return;
+
+  const action = button.dataset.action;
+  if (action !== 'cancel-request') return;
+
+  const request =
+    memberCreateRequestsCache.find((item) => String(item.id) === String(id)) ||
+    memberDeleteRequestsCache.find((item) => String(item.id) === String(id));
+  const isDelete = isDeleteRequest(request);
+  const label = isDelete ? '削除申請' : '新規登録申請';
+  const nameLabel = request?.name ? `${request.name}さんの` : '';
+  const confirmed = window.confirm(
+    `${nameLabel}${label}を取り下げますか？\n(送信済みのメールリンクも無効になります)`
+  );
+  if (!confirmed) return;
+
+  cancelMemberRequest(id)
+    .then(() => {
+      setMembersNotice('申請を取り下げました。', 'success');
+      return loadMemberRequests();
+    })
+    .catch((error) => {
+      setMembersNotice(error?.message || '取り下げに失敗しました。', 'error');
+    });
+}
+
 
 function openMemberModal(mode, member = null) {
   const isSelf = isSelfMember(member);
   if (mode === 'edit' && !isAdmin && !isSelf) return;
+  if (mode === 'create' && !isAdmin) {
+    setMembersNotice('新規登録申請は管理者のみ操作できます。', 'warning');
+    return;
+  }
   const modal = document.getElementById('memberModal');
   const title = document.getElementById('memberModalTitle');
   const requestNote = document.getElementById('memberRequestNote');
@@ -422,7 +580,7 @@ function openMemberModal(mode, member = null) {
 
   nameInput.value = member?.name || '';
   emailInput.value = member?.email || '';
-  emailInput.disabled = isEdit;
+  emailInput.disabled = isEdit && !isAdmin && !isSelf;
   passwordInput.value = '';
   passwordInput.required = !isEdit;
   adminInput.checked = Boolean(member?.isAdmin);
@@ -469,6 +627,10 @@ async function handleMemberSubmit(event) {
   const memberId = modal.dataset.memberId || '';
   const isSelfEdit = mode === 'edit' && isSelfId(memberId) && !isAdmin;
   if (mode === 'edit' && !isAdmin && !isSelfEdit) return;
+  if (mode === 'create' && !isAdmin) {
+    setFormError('新規登録申請は管理者のみ操作できます。');
+    return;
+  }
   const payload = {
     name: nameInput.value.trim()
   };
@@ -479,21 +641,19 @@ async function handleMemberSubmit(event) {
     setFormError('氏名を入力してください。');
     return;
   }
-  if (mode === 'create' && !email) {
+  if ((mode === 'create' || (mode === 'edit' && (isAdmin || isSelfEdit))) && !email) {
     setFormError('メールアドレスを入力してください。');
     return;
   }
-  if (mode === 'create') {
+  if (mode === 'create' || (mode === 'edit' && (isAdmin || isSelfEdit))) {
     payload.email = email;
   }
-  if (!isSelfEdit) {
-    payload.role = roleInput.value;
-    payload.isAdmin = adminInput.checked;
-  }
+  payload.role = roleInput.value;
+  payload.isAdmin = adminInput.checked;
   if (password) {
     payload.password = password;
   }
-  if (!isSelfEdit && !payload.role) {
+  if (!payload.role) {
     setFormError('役割を選択してください。');
     return;
   }
@@ -512,11 +672,11 @@ async function handleMemberSubmit(event) {
       closeMemberModal();
       const mailStatus = result?.notification?.status || result?.mailStatus || '';
       if (mailStatus === 'sent') {
-        window.alert('登録申請を受け付けました。メール通知を送信しました。承認完了後にログイン可能になります。');
+        setMembersNotice('登録申請を受け付けました。メール通知を送信しました。承認完了後にログイン可能になります。', 'success');
       } else if (mailStatus === 'failed') {
-        window.alert('登録申請は受け付けましたが、メール送信に失敗しました。運営者へお問い合わせください。');
+        setMembersNotice('登録申請は受け付けましたが、メール送信に失敗しました。運営者へお問い合わせください。', 'warning');
       } else {
-        window.alert('登録申請を受け付けました。承認完了後にログイン可能になります。');
+        setMembersNotice('登録申請を受け付けました。承認完了後にログイン可能になります。', 'success');
       }
       if (isAdmin) {
         await loadMemberRequests();
@@ -540,10 +700,18 @@ async function handleMemberDelete(member) {
   const confirmed = window.confirm(`${member.name}さんを削除します。よろしいですか？`);
   if (!confirmed) return;
   try {
-    await deleteMember(member.id);
+    const result = await deleteMember(member.id);
+    const mailStatus = result?.notification?.status || result?.mailStatus || '';
+    if (mailStatus === 'sent') {
+      setMembersNotice('削除依頼を送信しました。メール通知を送信しました。承認完了後に反映されます。', 'success');
+    } else if (mailStatus === 'failed') {
+      setMembersNotice('削除依頼は送信しましたが、メール送信に失敗しました。運営者へお問い合わせください。', 'warning');
+    } else {
+      setMembersNotice('削除依頼を送信しました。承認完了後に反映されます。', 'success');
+    }
     await loadMembers();
   } catch (error) {
-    window.alert(error?.message || '削除に失敗しました。');
+    setMembersNotice(error?.message || '削除に失敗しました。', 'error');
   }
 }
 
@@ -556,7 +724,8 @@ async function createMember(payload) {
 
 async function updateMember(id, payload) {
   if (!id) throw new Error('IDが見つかりません。');
-  return membersRequest(`${MEMBERS_LIST_PATH}/${id}`, {
+  const encodedId = encodeURIComponent(String(id));
+  return membersRequest(`${MEMBERS_LIST_PATH}?id=${encodedId}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   });
@@ -564,7 +733,16 @@ async function updateMember(id, payload) {
 
 async function deleteMember(id) {
   if (!id) throw new Error('IDが見つかりません。');
-  return membersRequest(`${MEMBERS_LIST_PATH}/${id}`, {
+  const encodedId = encodeURIComponent(String(id));
+  return membersRequest(`${MEMBERS_LIST_PATH}?id=${encodedId}`, {
+    method: 'DELETE'
+  });
+}
+
+async function cancelMemberRequest(id) {
+  if (!id) throw new Error('IDが見つかりません。');
+  const encodedId = encodeURIComponent(String(id));
+  return membersRequest(`${MEMBERS_REQUESTS_PATH}?id=${encodedId}`, {
     method: 'DELETE'
   });
 }
@@ -631,6 +809,7 @@ function getRequestStatusLabel(status) {
   if (normalized === 'approved') return '承認済み';
   if (normalized === 'rejected') return '却下';
   if (normalized === 'pending') return '承認待ち';
+  if (normalized === 'canceled' || normalized === 'cancelled') return '取り下げ済み';
   return status || '—';
 }
 

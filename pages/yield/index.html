@@ -59,15 +59,17 @@
             <label class="kpi-v2-inline-select">
               <span>集計方法</span>
               <select data-calc-mode-select data-calc-mode-scope="personalMonthly">
-                <option value="cohort">応募時期優先（応募月に計上）</option>
-                <option value="period">リアルタイム優先（発生月に計上）</option>
+                <option value="cohort">応募月計上</option>
+                <option value="period">発生月計上</option>
               </select>
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="personalMonthly"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="personalMonthly">新規面談数を分母</span>
+              <select class="kpi-v2-inline-select-input" data-rate-calc-mode-select
+                data-rate-mode-scope="personalMonthly">
+                <option value="base">新規面談数から</option>
+                <option value="step">前段階から</option>
+              </select>
             </label>
           </div>
         </div>
@@ -364,9 +366,10 @@
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="personalPeriod"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="personalPeriod">新規面談数を分母</span>
+              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle
+                data-rate-mode-scope="personalPeriod" aria-pressed="false">設定変更</button>
+              <span class="kpi-v2-inline-hint" data-rate-mode-label
+                data-rate-mode-scope="personalPeriod">新規面談数を分母</span>
             </label>
           </div>
         </div>
@@ -465,7 +468,7 @@
                   <p class="dashboard-card-subtext">1ヶ月/1年の切り替えが可能です</p>
                 </div>
               </div>
-              <div class="dashboard-chart">
+              <div class="dashboard-chart" style="height: 340px;">
                 <canvas id="personalTrendChart" aria-label="個人KPI推移"></canvas>
               </div>
             </div>
@@ -568,15 +571,17 @@
             <label class="kpi-v2-inline-select">
               <span>集計方法</span>
               <select data-calc-mode-select data-calc-mode-scope="companyMonthly">
-                <option value="cohort">応募時期優先（応募月に計上）</option>
-                <option value="period">リアルタイム優先（発生月に計上）</option>
+                <option value="cohort">応募月計上</option>
+                <option value="period">発生月計上</option>
               </select>
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="companyMonthly"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="companyMonthly">新規面談数を分母</span>
+              <select class="kpi-v2-inline-select-input" data-rate-calc-mode-select
+                data-rate-mode-scope="companyMonthly">
+                <option value="base">新規面談数から</option>
+                <option value="step">前段階から</option>
+              </select>
             </label>
           </div>
         </div>
@@ -852,7 +857,7 @@
 
       <!-- 期間別の全社転換率 -->
       <div class="kpi-v2-subsection">
-        <h4 class="kpi-v2-subtitle">期間別の全社転換率</h4>
+        <h4 class="kpi-v2-subtitle">期間別の全社KPI</h4>
         <div class="kpi-v2-header">
           <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
           <div class="kpi-v2-range-picker">
@@ -870,15 +875,17 @@
             <label class="kpi-v2-inline-select">
               <span>集計方法</span>
               <select data-calc-mode-select data-calc-mode-scope="companyPeriod">
-                <option value="cohort">応募時期優先（応募月に計上）</option>
-                <option value="period">リアルタイム優先（発生月に計上）</option>
+                <option value="cohort">応募月計上</option>
+                <option value="period">発生月計上</option>
               </select>
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="companyPeriod"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="companyPeriod">新規面談数を分母</span>
+              <select class="kpi-v2-inline-select-input" data-rate-calc-mode-select
+                data-rate-mode-scope="companyPeriod">
+                <option value="base">新規面談数から</option>
+                <option value="step">前段階から</option>
+              </select>
             </label>
           </div>
         </div>
@@ -1005,7 +1012,7 @@
                   <p class="dashboard-card-subtext">期間ベースのモックチャート</p>
                 </div>
               </div>
-              <div class="dashboard-chart">
+              <div class="dashboard-chart" style="height: 340px;">
                 <canvas id="companyTrendChart" aria-label="社内KPI推移"></canvas>
               </div>
             </div>
@@ -1137,15 +1144,16 @@
             <label class="kpi-v2-inline-select">
               <span>集計方法</span>
               <select data-calc-mode-select data-calc-mode-scope="companyTerm">
-                <option value="cohort">応募時期優先（応募月に計上）</option>
-                <option value="period">リアルタイム優先（発生月に計上）</option>
+                <option value="cohort">応募月計上</option>
+                <option value="period">発生月計上</option>
               </select>
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="companyTerm"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="companyTerm">新規面談数を分母</span>
+              <select class="kpi-v2-inline-select-input" data-rate-calc-mode-select data-rate-mode-scope="companyTerm">
+                <option value="base">新規面談数から</option>
+                <option value="step">前段階から</option>
+              </select>
             </label>
           </div>
         </div>
@@ -1261,15 +1269,16 @@
             <label class="kpi-v2-inline-select">
               <span>集計方法</span>
               <select data-calc-mode-select data-calc-mode-scope="employee">
-                <option value="cohort">応募時期優先（応募月に計上）</option>
-                <option value="period">リアルタイム優先（発生月に計上）</option>
+                <option value="cohort">応募月計上</option>
+                <option value="period">発生月計上</option>
               </select>
             </label>
             <label class="kpi-v2-inline-select">
               <span>率の計算</span>
-              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle data-rate-mode-scope="employee"
-                aria-pressed="false">設定変更</button>
-              <span class="kpi-v2-inline-hint" data-rate-mode-label data-rate-mode-scope="employee">新規面談数を分母</span>
+              <select class="kpi-v2-inline-select-input" data-rate-calc-mode-select data-rate-mode-scope="employee">
+                <option value="base">新規面談数から</option>
+                <option value="step">前段階から</option>
+              </select>
             </label>
           </div>
         </div>

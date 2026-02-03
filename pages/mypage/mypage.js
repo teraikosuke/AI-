@@ -32,6 +32,10 @@ export async function mount() {
 
   state.roleView = resolveRoleView(session);
   updateRoleBadge();
+  const page = document.getElementById('mypagePage');
+  if (page) {
+    page.classList.toggle('is-compact', state.roleView !== 'advisor');
+  }
 
   await loadMypageData(session);
   bindActions();
@@ -578,20 +582,29 @@ function renderCandidates(candidates, closedCandidates) {
   empty.classList.remove('is-visible');
   body.innerHTML = visibleCandidates
     .map((candidate) => {
+      const name = escapeHtml(candidate.candidateName || '-');
+      const phaseLabel = escapeHtml(candidate.phase || '-');
+      const phaseClass = candidate.phase ? '' : ' is-muted';
       if (isAdvisor) {
         return `
-          <tr>
-            <td>${escapeHtml(candidate.candidateName || '-')}</td>
-            <td>${escapeHtml(candidate.phase || '-')}</td>
-            <td>${formatAction(candidate.lastAction)}</td>
-            <td>${formatAction(candidate.nextAction)}</td>
+          <tr class="mypage-candidate-row">
+            <td>
+              <div class="mypage-candidate-name">${name}</div>
+            </td>
+            <td>
+              <span class="mypage-phase-pill${phaseClass}">${phaseLabel}</span>
+            </td>
+            <td>${formatActionCell(candidate.lastAction)}</td>
+            <td>${formatActionCell(candidate.nextAction)}</td>
           </tr>
         `;
       }
       return `
-        <tr>
-          <td>${escapeHtml(candidate.candidateName || '-')}</td>
-          <td>${formatAction(candidate.lastAction)}</td>
+        <tr class="mypage-candidate-row">
+          <td>
+            <div class="mypage-candidate-name">${name}</div>
+          </td>
+          <td>${formatActionCell(candidate.lastAction)}</td>
         </tr>
       `;
     })
@@ -619,6 +632,21 @@ function formatDateJP(dateKey) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}/${month}/${day}`;
+}
+
+
+function formatActionCell(action) {
+  if (!action?.date) {
+    return '<span class="mypage-action-empty">-</span>';
+  }
+  const date = escapeHtml(formatDateJP(action.date));
+  const label = action.type ? escapeHtml(action.type) : '';
+  return `
+    <div class="mypage-action">
+      <span class="mypage-action-date">${date}</span>
+      ${label ? `<span class="mypage-action-label">${label}</span>` : ''}
+    </div>
+  `;
 }
 
 function formatAction(action) {

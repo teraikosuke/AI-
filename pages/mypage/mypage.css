@@ -8,6 +8,13 @@
   padding: 0;
 }
 
+#mypagePage.section-shell {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
 /* カードスタイル */
 .mypage-card {
   background: #ffffff;
@@ -237,17 +244,21 @@
 
 /* リストスタイル */
 .mypage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
 }
 
 .mypage-list-item {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 0.9rem 1rem 0.9rem 1.8rem;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
@@ -256,10 +267,16 @@
   transition: all 0.15s ease;
 }
 
-.mypage-list-item:hover {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
-  transform: translateX(4px);
+.mypage-list-item::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #3b82f6;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .mypage-list-meta {
@@ -521,4 +538,49 @@
     align-items: flex-start;
     gap: 0.5rem;
   }
+}
+
+
+
+
+/* Candidate list UI */
+.mypage-candidates-table th {
+  background: #f8fafc;
+}
+
+.mypage-candidate-row:hover {
+  background: #f1f5f9;
+}
+
+.mypage-candidate-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mypage-phase-pill.is-muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.mypage-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
+.mypage-action-date {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.mypage-action-label {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.mypage-action-empty {
+  color: #94a3b8;
+  font-size: 0.85rem;
 }

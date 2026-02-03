@@ -9,8 +9,9 @@ import {
 } from './yield-metrics-from-candidates.js';
 
 // API接続設定
-const KPI_API_BASE = '/api/kpi';
-const MEMBERS_API_BASE = '/api';
+const YIELD_API_BASE = 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
+const KPI_API_BASE = `${YIELD_API_BASE}/kpi`;
+const MEMBERS_API_BASE = YIELD_API_BASE;
 const MEMBERS_LIST_PATH = '/members';
 const KPI_YIELD_PATH = '/yield';
 const KPI_YIELD_TREND_PATH = '/yield/trend';
@@ -400,7 +401,7 @@ async function resolveUserDepartmentKey() {
 
 async function fetchPersonalKpiFromApi({ startDate, endDate, planned = false }) {
   const advisorUserId = await resolveAdvisorUserId();
-  console.log('[yield] fetch personal kpi', { startDate, endDate, advisorUserId });
+  console.log('[yield] fetch personal kpi', { startDate, endDate, advisorUserId, planned });
   const params = {
     from: startDate,
     to: endDate,
@@ -412,7 +413,23 @@ async function fetchPersonalKpiFromApi({ startDate, endDate, planned = false }) 
   };
   if (planned) params.planned = '1';
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
-  return json?.items?.[0]?.kpi || null;
+  console.log('[yield] personal kpi response', json);
+  const kpi = json?.items?.[0]?.kpi || null;
+  console.log('[yield] personal kpi fields', {
+    revenue: kpi?.revenue,
+    currentAmount: kpi?.currentAmount,
+    revenueAmount: kpi?.revenueAmount,
+    current_amount: kpi?.current_amount,
+    revenue_amount: kpi?.revenue_amount,
+    targetAmount: kpi?.targetAmount,
+    revenueTarget: kpi?.revenueTarget,
+    revenue_target: kpi?.revenue_target,
+    achievementRate: kpi?.achievementRate
+  });
+  if (kpi && kpi.revenue === undefined && kpi.currentAmount === undefined && kpi.revenueAmount === undefined) {
+    console.warn('[yield] personal kpi missing revenue fields', kpi);
+  }
+  return kpi;
 }
 
 async function fetchCompanyKpiFromApi({ startDate, endDate }) {
@@ -424,7 +441,23 @@ async function fetchCompanyKpiFromApi({ startDate, endDate }) {
     groupBy: 'none',
     ...buildCalcModeParams()
   });
-  return json?.items?.[0]?.kpi || null;
+  console.log('[yield] company kpi response', json);
+  const kpi = json?.items?.[0]?.kpi || null;
+  console.log('[yield] company kpi fields', {
+    revenue: kpi?.revenue,
+    currentAmount: kpi?.currentAmount,
+    revenueAmount: kpi?.revenueAmount,
+    current_amount: kpi?.current_amount,
+    revenue_amount: kpi?.revenue_amount,
+    targetAmount: kpi?.targetAmount,
+    revenueTarget: kpi?.revenueTarget,
+    revenue_target: kpi?.revenue_target,
+    achievementRate: kpi?.achievementRate
+  });
+  if (kpi && kpi.revenue === undefined && kpi.currentAmount === undefined && kpi.revenueAmount === undefined) {
+    console.warn('[yield] company kpi missing revenue fields', kpi);
+  }
+  return kpi;
 }
 
 const dailyYieldCache = new Map();
@@ -440,6 +473,7 @@ async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
   };
   console.log('[yield] fetch daily kpi', params);
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
+  console.log('[DEBUG] fetchDailyYieldFromApi raw json:', JSON.stringify(json, null, 2));
   const rawItems = Array.isArray(json?.items) ? json.items : [];
   const items = await mergeMembersWithDailyItems(rawItems);
   const employees = items.map(item => ({
@@ -491,6 +525,81 @@ async function fetchYieldBreakdownFromApi({ startDate, endDate, scope, advisorUs
     labels: items.map(item => item.label),
     data: items.map(item => num(item.count))
   };
+}
+
+// CS向け: teleapo APIから日別実績を取得
+const csTeleapoCache = new Map();
+
+async function fetchCsTeleapoDaily({ startDate, endDate, callerUserId }) {
+  const cacheKey = `${startDate}:${endDate}:${callerUserId || 'all'}`;
+  if (csTeleapoCache.has(cacheKey)) return csTeleapoCache.get(cacheKey);
+
+  try {
+    const params = {
+      from: startDate,
+      to: endDate,
+      groupBy: 'date'
+    };
+    if (Number.isFinite(callerUserId) && callerUserId > 0) {
+      params.callerUserId = callerUserId;
+    }
+    const json = await fetchJson(`${KPI_API_BASE}/teleapo`, params);
+    const rows = Array.isArray(json?.rows) ? json.rows : [];
+
+    // 日別データをdate -> counts形式に変換
+    const dailyData = {};
+    rows.forEach(row => {
+      const dateStr = row.date ? String(row.date).split('T')[0] : null;
+      if (!dateStr) return;
+      dailyData[dateStr] = {
+        appointments: row.counts?.scheduledCalls || 0,  // 設定数
+        sitting: row.counts?.attendedCalls || 0          // 着座数
+      };
+    });
+
+    csTeleapoCache.set(cacheKey, dailyData);
+    return dailyData;
+  } catch (error) {
+    console.error('[yield] fetchCsTeleapoDaily failed', error);
+    return {};
+  }
+}
+
+// Marketing向け: 有効応募数の日別実績を取得
+const marketingValidAppCache = new Map();
+
+async function fetchMarketingValidApplicationsDaily({ startDate, endDate }) {
+  const cacheKey = `${startDate}:${endDate}`;
+  if (marketingValidAppCache.has(cacheKey)) return marketingValidAppCache.get(cacheKey);
+
+  try {
+    // candidates API から有効応募を日別集計
+    const json = await fetchJson(`${YIELD_API_BASE}/candidates`, {
+      from: startDate,
+      to: endDate,
+      effectiveOnly: true,
+      groupBy: 'date'
+    });
+
+    // レスポンス形式に応じてパース
+    const items = Array.isArray(json?.items) ? json.items : [];
+    const dailyData = {};
+
+    items.forEach(item => {
+      const dateStr = item.date || item.created_at?.split('T')[0];
+      if (!dateStr) return;
+      if (!dailyData[dateStr]) {
+        dailyData[dateStr] = { valid_applications: 0 };
+      }
+      dailyData[dateStr].valid_applications += 1;
+    });
+
+    marketingValidAppCache.set(cacheKey, dailyData);
+    return dailyData;
+  } catch (error) {
+    console.error('[yield] fetchMarketingValidApplicationsDaily failed', error);
+    return {};
+  }
 }
 
 async function fetchCompanyEmployeeKpis({ startDate, endDate }) {
@@ -588,6 +697,7 @@ async function ensureDailyYieldData(periodId) {
   const cacheKey = `${periodId}:${advisorUserId || 'none'}:${getCalcMode()}`;
   if (dailyYieldCache.has(cacheKey)) return dailyYieldCache.get(cacheKey);
   try {
+    // 営業向けのKPIデータを取得
     const payload = await fetchDailyYieldFromApi({
       startDate: period.startDate,
       endDate: period.endDate,
@@ -596,12 +706,51 @@ async function ensureDailyYieldData(periodId) {
     dailyYieldCache.set(cacheKey, payload);
     applyDailyYieldResponse(periodId, payload);
     ensureCompanyDailyEmployeeId();
+
+    // ★ロールに応じて追加のデータを取得
+    const deptKey = await resolveUserDepartmentKey();
+
+    if (deptKey === 'cs') {
+      // CS: teleapoデータを取得してマージ
+      const csData = await fetchCsTeleapoDaily({
+        startDate: period.startDate,
+        endDate: period.endDate,
+        callerUserId: advisorUserId
+      });
+      if (csData && Object.keys(csData).length > 0) {
+        // 既存のpersonalDailyDataにCSデータをマージ
+        const existingData = state.personalDailyData[periodId] || {};
+        Object.entries(csData).forEach(([date, counts]) => {
+          if (!existingData[date]) existingData[date] = {};
+          existingData[date].appointments = counts.appointments || 0;
+          existingData[date].sitting = counts.sitting || 0;
+        });
+        state.personalDailyData[periodId] = existingData;
+      }
+
+    } else if (deptKey === 'marketing') {
+      // Marketing: 有効応募数データを取得してマージ
+      const marketingData = await fetchMarketingValidApplicationsDaily({
+        startDate: period.startDate,
+        endDate: period.endDate
+      });
+      if (marketingData && Object.keys(marketingData).length > 0) {
+        const existingData = state.personalDailyData[periodId] || {};
+        Object.entries(marketingData).forEach(([date, counts]) => {
+          if (!existingData[date]) existingData[date] = {};
+          existingData[date].valid_applications = counts.valid_applications || 0;
+        });
+        state.personalDailyData[periodId] = existingData;
+      }
+    }
+
     return payload;
   } catch (error) {
     console.error('[yield] daily api failed', error);
     return null;
   }
 }
+
 
 function buildDailyTotalsAllMetrics(periodId) {
   const totals = {};
@@ -1137,6 +1286,7 @@ const mockDashboardData = {
 const state = {
   yieldScope: 'all',
   isAdmin: false,
+  loadSeq: 0,
   calcMode: DEFAULT_CALC_MODE,
   rateCalcMode: DEFAULT_RATE_CALC_MODE,
   kpiTargets: {}, // New field
@@ -1913,23 +2063,20 @@ function renderRateDetails(section, data) {
 }
 
 function renderPersonalSummary(rangeData, monthOverride) {
+  const primary = monthOverride || {};
+  const fallback = rangeData || {};
+  const primaryAmount = num(primary?.currentAmount ?? primary?.revenue ?? primary?.revenueAmount);
+  const fallbackAmount = num(fallback?.currentAmount ?? fallback?.revenue ?? fallback?.revenueAmount);
+  const useFallback = primaryAmount === 0 && fallbackAmount > 0;
+  const targetPrimary = num(primary?.targetAmount ?? primary?.revenueTarget ?? primary?.target_amount ?? primary?.revenue_target);
+  const targetFallback = num(fallback?.targetAmount ?? fallback?.revenueTarget ?? fallback?.target_amount ?? fallback?.revenue_target);
   const summary = {
-    achievementRate: num(monthOverride?.achievementRate ?? rangeData?.achievementRate),
-    currentAmount: num(
-      monthOverride?.currentAmount ??
-      monthOverride?.revenue ??
-      monthOverride?.revenueAmount ??
-      rangeData?.currentAmount ??
-      rangeData?.revenue ??
-      rangeData?.revenueAmount
-    ),
-    targetAmount: num(
-      monthOverride?.targetAmount ??
-      monthOverride?.revenueTarget ??
-      rangeData?.targetAmount ??
-      rangeData?.revenueTarget
-    )
+    achievementRate: num(primary?.achievementRate ?? fallback?.achievementRate),
+    currentAmount: useFallback ? fallbackAmount : primaryAmount,
+    targetAmount: targetPrimary || targetFallback || 0,
+    usedFallback: useFallback
   };
+  console.log('[yield] personal revenue summary', { monthOverride, rangeData, summary });
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(
     state.personalEvaluationPeriodId,
     getAdvisorName()
@@ -1942,8 +2089,8 @@ function renderPersonalSummary(rangeData, monthOverride) {
   }
   const rateText = summary.targetAmount > 0 ? `${summary.achievementRate}%` : '--%';
   setText('personalAchievementRate', rateText);
-  setText('personalCurrent', `?${summary.currentAmount.toLocaleString()}`);
-  setText('personalTarget', `?${summary.targetAmount.toLocaleString()}`);
+  setText('personalCurrent', `¥${summary.currentAmount.toLocaleString()}`);
+  setText('personalTarget', `¥${summary.targetAmount.toLocaleString()}`);
   const progressFill = document
     .getElementById('personalAchievementRate')
     ?.closest('.kpi-v2-summary-unified')
@@ -1958,7 +2105,7 @@ function renderPersonalSummary(rangeData, monthOverride) {
 
 function renderPersonalKpis(todayData, summaryData, periodData) {
   const today = normalizeTodayKpi(todayData);
-  const monthly = normalizeKpi(summaryData?.monthly || summaryData || {});
+  const monthly = normalizeKpi(summaryData?.monthly || summaryData?.period || summaryData || {});
   const period = normalizeKpi(periodData?.period || periodData || {});
 
   state.kpi.today = today;
@@ -2015,9 +2162,10 @@ function renderCompanyTargets() {
 }
 
 function renderCompanyRevenueSummary(target = {}) {
-  const current = num(state.kpi.companyMonthly?.revenue);
+  const current = num(state.kpi.companyMonthly?.currentAmount ?? state.kpi.companyMonthly?.revenue ?? state.kpi.companyMonthly?.revenueAmount);
   const targetAmount = num(target.revenueTarget);
   const achv = targetAmount > 0 ? Math.round((current / targetAmount) * 100) : 0;
+  console.log('[yield] company revenue summary', { target, current, targetAmount, monthly: state.kpi.companyMonthly });
   setText('companyCurrent', `¥${current.toLocaleString()}`);
   setText('companyTarget', `¥${targetAmount.toLocaleString()}`);
   setText('companyAchievementRate', targetAmount > 0 ? `${achv}%` : '--%');
@@ -2134,6 +2282,8 @@ function handleRateGoalClick(e, key, currentVal) {
 }
 
 async function loadYieldData() {
+  const loadToken = ++state.loadSeq;
+  const isCurrent = () => state.loadSeq === loadToken;
   try {
     const wantsPersonal = isYieldScope('personal');
     const wantsCompany = isYieldScope('company');
@@ -2166,17 +2316,22 @@ async function loadYieldData() {
         loadPersonalSummaryKPIData(),
         loadPersonalKPIData()
       ]);
+      if (!isCurrent()) return;
       if (todayData || personalSummary || personalRange) {
-        renderPersonalKpis(todayData || {}, personalSummary || {}, personalRange || {});
+        const summaryPayload = personalSummary && Object.keys(personalSummary).length ? personalSummary : personalRange;
+        renderPersonalKpis(todayData || {}, summaryPayload || {}, personalRange || {});
       }
     }
 
     if (wantsCompany) {
       const companyKPI = await loadCompanyKPIData();
+      if (!isCurrent()) return;
       if (companyKPI) renderCompanyMonthly(companyKPI);
       await loadCompanyPeriodKPIData();
+      if (!isCurrent()) return;
       // Load MS for Company scope too
       await loadAndRenderCompanyMs();
+      if (!isCurrent()) return;
     }
 
     if (wantsAdmin) {
@@ -2185,20 +2340,27 @@ async function loadYieldData() {
       // if (todayEmployeeRows?.length) renderCompanyTodayTable();
 
       const companyTermRows = await loadCompanyTermEmployeeKpi();
+      if (!isCurrent()) return;
       if (companyTermRows?.length) renderCompanyTermTables();
     }
 
     if (wantsPersonal) {
       await loadAndRenderPersonalDaily();
+      if (!isCurrent()) return;
       await loadAndRenderPersonalMs();
+      if (!isCurrent()) return;
     }
     if (wantsCompany) {
       await loadAndRenderCompanyDaily();
+      if (!isCurrent()) return;
     }
     if (wantsAdmin) {
       await loadAndRenderCompanyMs();
+      if (!isCurrent()) return;
       await loadAndRenderCompanyDaily();
+      if (!isCurrent()) return;
       await loadEmployeeData(state.ranges.employee.startDate ? state.ranges.employee : {});
+      if (!isCurrent()) return;
     }
   } catch (error) {
     console.error('Failed to load yield data:', error);
@@ -2736,6 +2898,16 @@ function formatNumberCell(value) {
   return Number.isFinite(numeric) ? numeric.toLocaleString() : '--';
 }
 
+function formatCurrencyCell(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  const numeric = num(value);
+  if (!Number.isFinite(numeric)) return '--';
+  // 万円単位で表示
+  const manyen = Math.round(numeric / 10000);
+  return `¥${manyen.toLocaleString()}万`;
+}
+
+
 function formatAchievementCell(percent) {
   if (percent === null || Number.isNaN(percent)) {
     return { value: '--%', className: 'daily-muted' };
@@ -2906,8 +3078,10 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
 
   const targetDepts = [];
   if (deptKey) targetDepts.push(deptKey);
-  const includeRevenue = deptKey !== 'marketing' && deptKey !== 'cs';
-  if (includeRevenue && !targetDepts.includes('revenue')) targetDepts.push('revenue');
+  // 常に売上を最後に表示するように制御
+  if (!targetDepts.includes('revenue')) {
+    targetDepts.push('revenue');
+  }
 
   const dateCells = dates.map(date => `<th scope="col" class="ms-date-header">${formatDayLabel(date)}</th>`).join('');
   headerRow.innerHTML = `
@@ -2923,12 +3097,12 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
   targetDepts.forEach((dept, deptIndex) => {
     const isRevenue = dept === 'revenue';
     const metrics = isRevenue
-      ? [{ key: 'revenue', label: '売上', targetKey: 'revenue' }]
+      ? [{ key: 'revenue', label: '売上金額', targetKey: 'revenue', isCurrency: true }]
       : getMetricsForDept(dept);
 
     if (!metrics.length) return;
 
-    const deptRowspan = metrics.length * 3;
+    const deptRowspan = metrics.reduce((acc, m) => acc + (isRevenue ? 2 : 3), 0);
     const deptLabel = dept === 'marketing' ? 'マーケ' : dept === 'cs' ? 'CS' : dept === 'sales' ? '営業' : '売上';
     if (!state.personalMs.metricKeys) state.personalMs.metricKeys = {};
     if (!state.personalMs.metricKeys[dept]) {
@@ -2947,8 +3121,10 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       const isImportant = !isRevenue && importantMetricKey && metricKey === importantMetricKey;
       const highlightClass = isImportant ? 'ms-important-row' : '';
 
-      const distributeButton = `<button type="button" class="ms-distribute-btn" data-ms-distribute data-scope="personalDaily" data-dept="${dept}" data-metric="${metricKey}">日割り</button>`;
-      const metricCell = `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="3">
+      const distributeButton = isRevenue
+        ? ''
+        : `<button type="button" class="ms-distribute-btn" data-ms-distribute data-scope="personalDaily" data-dept="${dept}" data-metric="${metricKey}">日割り</button>`;
+      const metricCell = `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="${isRevenue ? 2 : 3}">
            <div class="ms-metric-cell">
              <span>${metricLabel}</span>
              ${distributeButton}
@@ -3046,27 +3222,29 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       const rateCells = dates.map((date, idx) => {
         const isDisabled = isDateBeforePersonalDeptStart(date, dept, periodId) || isDateAfterPersonalDeptEnd(date, dept, periodId);
         if (isDisabled) return `<td class="ms-cell-disabled"></td>`;
-        const dailyTarget = dailyTargets[idx];
-        const dailyActual = dailyActuals[idx] ?? 0;
+        // 進捗率 = その日までの累積実績 / その日までの累積目標
         const cumulativeActual = cumulativeActuals[idx] ?? 0;
-        const useOverall = state.msRateModes?.personalDaily === 'overall';
-        const numerator = useOverall ? cumulativeActual : dailyActual;
-        const denominator = useOverall ? totalTargetValue : dailyTarget;
+        const cumulativeTarget = cumulativeTargets[idx] ?? 0;
         let rateDisplay = '-';
         let rateClass = '';
-        if (denominator && Number(denominator) > 0) {
-          const rate = Math.round((numerator / Number(denominator)) * 100);
+        if (cumulativeTarget && Number(cumulativeTarget) > 0) {
+          const rate = Math.round((cumulativeActual / Number(cumulativeTarget)) * 100);
           rateDisplay = `${rate}%`;
           rateClass = rate >= 100 ? 'ms-rate-good' : rate >= 80 ? 'ms-rate-warn' : 'ms-rate-bad';
         }
         return `<td class="ms-rate-cell ${rateClass}">${rateDisplay}</td>`;
       }).join('');
 
+
       const actualCells = dates.map((date, idx) => {
         const isDisabled = isDateBeforePersonalDeptStart(date, dept, periodId) || isDateAfterPersonalDeptEnd(date, dept, periodId);
         if (isDisabled) return `<td class="ms-cell-disabled"></td>`;
-        return `<td class="ms-actual-cell">${formatNumberCell(cumulativeActuals[idx])}</td>`;
+        const displayValue = metricOption.isCurrency
+          ? formatCurrencyCell(cumulativeActuals[idx])
+          : formatNumberCell(cumulativeActuals[idx]);
+        return `<td class="ms-actual-cell">${displayValue}</td>`;
       }).join('');
+
 
       const tripletAlt = (deptIndex + metricIndex) % 2 === 1 ? 'daily-triplet-alt' : '';
       const deptCell = metricIndex === 0
@@ -3078,17 +3256,23 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
            </th>`
         : '';
 
+      if (!isRevenue) {
+        rows.push(`
+          <tr class="${tripletAlt} ${highlightClass}">
+            ${deptCell}
+            ${metricCell}
+            <td class="daily-type">MS</td>
+            ${msCells}
+          </tr>
+        `);
+      }
+      const finalDeptCell = isRevenue ? deptCell : '';
+      const finalMetricCell = isRevenue ? metricCell : '';
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
-          ${deptCell}
-          ${metricCell}
-          <td class="daily-type">MS</td>
-          ${msCells}
-        </tr>
-      `);
-      rows.push(`
-        <tr class="${tripletAlt} ${highlightClass}">
-          <td class="daily-type">進捗率</td>
+          ${finalDeptCell}
+          ${finalMetricCell}
+          <td class="daily-type">達成率</td>
           ${rateCells}
         </tr>
       `);
@@ -4618,7 +4802,12 @@ async function loadEmployeeData(rangeFilters = {}) {
 }
 
 function normalizeCounts(src = {}) {
-  const revenue = num(src.revenue ?? src.currentAmount ?? src.revenueAmount);
+  if (src.revenue || src.currentAmount || src.fee_amount || src.offer_accept_date) console.log('[DEBUG] normalizeCounts src:', src);
+  const revenue = num(src.revenue ?? src.currentAmount ?? src.revenueAmount ?? src.current_amount ?? src.revenue_amount);
+  const targetAmount = num(src.targetAmount ?? src.revenueTarget ?? src.target_amount ?? src.revenue_target);
+  const achievementRate = targetAmount > 0
+    ? num(src.achievementRate) || Math.round((revenue / targetAmount) * 100)
+    : num(src.achievementRate) || 0;
   return {
     newInterviews: num(src.newInterviews ?? src.new_interviews ?? src.proposals),
     proposals: num(src.proposals),
@@ -4630,7 +4819,8 @@ function normalizeCounts(src = {}) {
     hires: num(src.hires ?? src.accepts),
     revenue,
     currentAmount: revenue,
-    targetAmount: num(src.targetAmount ?? src.revenueTarget ?? src.target_amount)
+    targetAmount,
+    achievementRate
   };
 }
 
@@ -5000,11 +5190,22 @@ function initializeKpiTabs() {
     const section = group.closest('.kpi-v2-section');
     if (!section) return;
     const tabs = Array.from(group.querySelectorAll('.kpi-tab[data-kpi-tab]'));
-    const panels = Array.from(section.querySelectorAll('.kpi-tab-panel[data-kpi-tab-panel]'));
+    const localPanels = Array.from(section.querySelectorAll('.kpi-tab-panel[data-kpi-tab-panel]'));
+    const scope = group.dataset.kpiTabGroup || '';
+    const scopedPanels = scope
+      ? Array.from(document.querySelectorAll(`.kpi-tab-panel[data-kpi-tab-panel^="${scope}-"]`))
+      : [];
+    const panels = scopedPanels.length ? scopedPanels : localPanels;
 
     const activate = tabId => {
       tabs.forEach(btn => btn.classList.toggle('is-active', btn.dataset.kpiTab === tabId));
-      panels.forEach(panel => panel.classList.toggle('is-hidden', panel.dataset.kpiTabPanel !== tabId));
+      panels.forEach(panel => {
+        const isActive = panel.dataset.kpiTabPanel === tabId;
+        panel.classList.toggle('is-active', isActive);
+        panel.classList.toggle('is-hidden', !isActive);
+        panel.style.display = isActive ? '' : 'none';
+        panel.hidden = !isActive;
+      });
       if (tabId.includes('graphs')) {
         // Trigger dashboard reload/resize to ensure charts render on visible canvas
         const scope = tabId.split('-')[0]; // 'personal' or 'company'
@@ -5405,6 +5606,17 @@ function renderDashboardCharts(scope) {
 function renderTrendChart(scope) {
   const canvas = document.getElementById(`${scope}TrendChart`);
   if (!canvas || !window.Chart) return;
+
+  const trendCard = canvas.closest('.dashboard-card');
+  if (trendCard) {
+    trendCard.style.gridColumn = scope === 'company' ? '1 / -1' : 'span 2';
+    trendCard.style.minHeight = scope === 'company' ? '480px' : '420px';
+  }
+  const chartWrap = canvas.closest('.dashboard-chart');
+  if (chartWrap) {
+    chartWrap.style.height = scope === 'company' ? '400px' : '360px';
+    chartWrap.style.minHeight = scope === 'company' ? '400px' : '360px';
+  }
   destroyChart(scope, `${scope}TrendChart`);
   const config = buildTrendChartConfig(scope);
   state.dashboard[scope].charts[`${scope}TrendChart`] = new Chart(canvas, {

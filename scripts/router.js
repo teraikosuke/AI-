@@ -12,13 +12,13 @@ const routes = {
   login: () => import("../pages/login/login.js"),
   mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
-  yield: () => import("../pages/yield/yield.js?v=20260127_01"),
-  "yield-personal": () => import("../pages/yield-personal/yield-personal.js"),
-  "yield-company": () => import("../pages/yield-company/yield-company.js"),
-  "yield-admin": () => import("../pages/yield-admin/yield-admin.js"),
+  yield: () => import("../pages/yield/yield.js?v=20260202_10"),
+  "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260202_10"),
+  "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260202_10"),
+  "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260202_10"),
   candidates: () => import("../pages/candidates/candidates.js?v=20260322_75"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_13"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_19"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_22"),
   referral: () => import("../pages/referral/referral.js?v=20260322_56"),
   settings: () => import("../pages/settings/settings.js?v=20260322_01"),
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
@@ -44,11 +44,11 @@ const routeMeta = {
 
 // CSS files for specific pages
 const pageCSS = {
-  yield: "pages/yield/yield.css?v=20260127",
-  "yield-personal": "pages/yield/yield.css?v=20260127",
-  "yield-company": "pages/yield/yield.css?v=20260127",
-  "yield-admin": "pages/yield/yield.css?v=20260127",
-  mypage: "pages/mypage/mypage.css",
+  yield: "pages/yield/yield.css?v=20260202_05",
+  "yield-personal": "pages/yield/yield.css?v=20260202_05",
+  "yield-company": "pages/yield/yield.css?v=20260202_05",
+  "yield-admin": "pages/yield/yield.css?v=20260202_05",
+  mypage: "pages/mypage/mypage.css?v=20260202_02",
   candidates: "pages/candidates/candidates.css?v=20260322_56",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
   teleapo: "pages/teleapo/teleapo.css?v=20260322_2",
@@ -213,11 +213,15 @@ function updateNavigation(page) {
 
     // Show/hide based on role permissions
     const meta = routeMeta[target];
-    if (meta?.roles) {
+    if (target === "yield-admin") {
+      button.hidden = !session || session.role !== "admin";
+    } else if (meta?.roles) {
       button.hidden = !session || !hasRole(meta.roles);
     } else {
       button.hidden = false;
     }
+    const item = button.closest("li");
+    if (item) item.hidden = button.hidden;
 
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-current", isActive ? "page" : "false");
@@ -243,6 +247,21 @@ function updateNavigation(page) {
       (button) => !button.hidden
     );
     yieldGroup.hidden = !session || !hasVisibleChild;
+  }
+
+  const settingsGroup = document.querySelector('[data-nav-group="settings"]');
+  if (settingsGroup) {
+    const isSettingsPage = ["settings", "goal-settings", "members"].includes(page);
+    settingsGroup.classList.toggle("is-open", isSettingsPage);
+    const toggle = settingsGroup.querySelector("[data-submenu-toggle]");
+    if (toggle) {
+      toggle.classList.toggle("is-active", isSettingsPage);
+      toggle.setAttribute("aria-expanded", isSettingsPage ? "true" : "false");
+    }
+    const hasVisibleChild = Array.from(settingsGroup.querySelectorAll("[data-target]")).some(
+      (button) => !button.hidden
+    );
+    settingsGroup.hidden = !session || !hasVisibleChild;
   }
 }
 

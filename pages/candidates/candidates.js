@@ -1,10 +1,8 @@
-﻿// teleapo と同じAPI Gatewayの base
-const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-const localApiHost = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
-const LOCAL_API_ORIGIN = `http://${localApiHost}:8080`;
+﻿// teleapo ???API Gateway? base
 
-const CANDIDATES_API_BASE = isLocal ? `${LOCAL_API_ORIGIN}/api` : "/api";
-const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
+const CANDIDATES_API_BASE = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev";
+const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings-screening-rules`;
+const SCREENING_RULES_FALLBACK_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
 
 // 一覧は「/candidates」（末尾スラッシュなし）
 const CANDIDATES_LIST_PATH = "/candidates";
@@ -71,6 +69,7 @@ const PHASE_ORDER = [
   "失注"
 ];
 const CALENDAR_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const AUTO_OPEN_DETAIL_FROM_URL = false;
 
 let currentSortKey = "nextAction";
 let currentSortOrder = "asc";
@@ -201,7 +200,12 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
 
   // サーバー側で advisorName = partner_name, csName = cs_name とマッピングされている
   candidate.advisorName = candidate.advisorName ?? candidate.partner_name ?? "";
-  candidate.csName = candidate.csName ?? candidate.cs_name ?? "";
+  candidate.csName =
+    candidate.csName ??
+    candidate.cs_name ??
+    candidate.callerName ??
+    candidate.caller_name ??
+    "";
   candidate.partnerName = candidate.partnerName ?? candidate.partner_name ?? "";
 
   // リスト表示時のスワップロジックは、サーバー側で正しいマッピングを行っているため削除
@@ -617,10 +621,11 @@ async function loadCandidatesData(filtersOverride = {}) {
     updateLastSyncedDisplay(lastSyncedAt);
 
     refreshSelectionState();
+    closeCandidateModal({ clearSelection: true, force: true });
 
     const { candidateIdFromUrl, shouldAutoOpenDetail } = getCandidateUrlParams();
     // ★ teleapo → candidates で ?candidateId= が来ている場合の自動詳細は明示時のみ
-    if (!openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
+    if (AUTO_OPEN_DETAIL_FROM_URL && !openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
       openedFromUrlOnce = true;
       try {
         await openCandidateById(candidateIdFromUrl);
@@ -837,20 +842,28 @@ function computeValidApplication(candidate, rules) {
   if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
 
   const nationality = normalizeNationality(candidate.nationality);
-  const allowedNationalities = (rules.targetNationalitiesList || []).map((value) => normalizeNationality(value));
-  if (allowedNationalities.length > 0) {
-    if (!nationality) return false;
-    const matched = allowedNationalities.some((value) => value === nationality);
-    if (!matched) return false;
-  }
+  const nonJapaneseTargets = (rules.targetNationalitiesList || [])
+    .map((value) => normalizeNationality(value))
+    .filter((value) => value && !isJapaneseNationality(value));
 
   if (isJapaneseNationality(nationality)) return true;
+  if (nonJapaneseTargets.length > 0) {
+    if (!nationality) return false;
+    const matched = nonJapaneseTargets.some((value) => value === nationality);
+    if (!matched) return false;
+  }
 
   const jlpt = String(candidate.japaneseLevel || "").trim();
   if (!jlpt) return false;
   const allowedJlptLevels = rules.allowedJlptLevels || [];
   if (!allowedJlptLevels.length) return false;
   return allowedJlptLevels.includes(jlpt);
+}
+
+function refreshCandidateValidity(candidate) {
+  if (!candidate || !screeningRules) return;
+  const computed = computeValidApplication(candidate, screeningRules);
+  candidate.validApplicationComputed = computed;
 }
 
 function applyScreeningRulesToCandidates() {
@@ -870,7 +883,10 @@ async function loadScreeningRulesForCandidates() {
   if (screeningRulesLoading || screeningRulesLoaded) return;
   screeningRulesLoading = true;
   try {
-    const response = await fetch(SCREENING_RULES_ENDPOINT);
+    let response = await fetch(SCREENING_RULES_ENDPOINT);
+    if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
+      response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT);
+    }
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -1656,7 +1672,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function fetchClients() {
   try {
-    const res = await fetch("/api/clients");
+    const res = await fetch(candidatesApi("/clients"));
     if (!res.ok) throw new Error("Failed to fetch clients");
     clientList = await res.json();
   } catch (err) {
@@ -2299,6 +2315,7 @@ function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
   const mergedCandidate = mergeCandidateUpdate(updated);
   if (!mergedCandidate) return;
 
+  refreshCandidateValidity(mergedCandidate);
   renderCandidatesTable(filteredCandidates);
 
   if (selectedCandidateId && String(selectedCandidateId) === String(mergedCandidate.id)) {
@@ -2312,7 +2329,10 @@ function batchApplyCandidateUpdates(
   { preserveDetailState = true, renderDetail = true } = {}
 ) {
   if (!Array.isArray(updates) || updates.length === 0) return;
-  updates.forEach((updated) => mergeCandidateUpdate(updated));
+  updates.forEach((updated) => {
+    const merged = mergeCandidateUpdate(updated);
+    if (merged) refreshCandidateValidity(merged);
+  });
   renderCandidatesTable(filteredCandidates);
   if (renderDetail && selectedCandidateId) {
     const selected = getSelectedCandidate();
@@ -2455,8 +2475,7 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
       const hasNextActionDate = !!candidate.nextActionDate; // Check direct field
 
       if (!hasIncompleteTasks && !hasNextActionDate) {
-        alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
-        return;
+        if (!confirm("⚠️ 次回アクションが未設定です。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。\n\nこのまま画面を閉じますか？")) return;
       }
     }
   }
@@ -2584,8 +2603,15 @@ function handleDetailContentClick(event) {
   // 完了登録ボタン（新しいtaskId方式）
   const completeBtn = event.target.closest("[data-complete-task-id]");
   if (completeBtn) {
-    const taskId = Number(completeBtn.dataset.completeTaskId);
+    const taskId = completeBtn.dataset.completeTaskId;
     handleCompleteTask(taskId);
+    return;
+  }
+
+  const deleteTaskBtn = event.target.closest("[data-delete-task-id]");
+  if (deleteTaskBtn) {
+    const taskId = deleteTaskBtn.dataset.deleteTaskId;
+    handleDeleteTask(taskId);
     return;
   }
 
@@ -2603,7 +2629,7 @@ function handleDetailContentClick(event) {
   if (resumeBtn) {
     const candidate = getSelectedCandidate();
     if (candidate && candidate.id) {
-      window.open(`/api/candidates/${candidate.id}/resume.pdf`, "_blank");
+      window.open(candidatesApi(`${candidateDetailPath(candidate.id)}/resume.pdf`), "_blank");
     }
     return;
   }
@@ -2612,7 +2638,7 @@ function handleDetailContentClick(event) {
   if (cvBtn) {
     const candidate = getSelectedCandidate();
     if (candidate && candidate.id) {
-      window.open(`/api/candidates/${candidate.id}/cv.pdf`, "_blank");
+      window.open(candidatesApi(`${candidateDetailPath(candidate.id)}/cv.pdf`), "_blank");
     }
     return;
   }
@@ -2791,6 +2817,64 @@ async function handleCompleteTask(taskId) {
   } catch (error) {
     console.error('タスク完了登録に失敗しました:', error);
     alert(`タスク完了登録に失敗しました。\n${error.message}`);
+  }
+}
+
+
+async function handleDeleteTask(taskId) {
+  const candidate = getSelectedCandidate();
+  if (!candidate || !taskId) return;
+
+  if (!confirm('この予定を削除しますか？')) {
+    return;
+  }
+
+  console.log("Starting handleDeleteTask", { taskId, candidateId: candidate.id });
+
+  try {
+    const currentTasks = candidate.tasks || [];
+    const newTasks = currentTasks.filter(t => String(t.id) !== String(taskId));
+    console.log("Tasks filtering:", { before: currentTasks.length, after: newTasks.length });
+
+    // Also filter meetingPlans if they share the same ID space (likely)
+    const currentMeetingPlans = candidate.meetingPlans || [];
+    const newMeetingPlans = currentMeetingPlans.filter(p => String(p.id) !== String(taskId));
+    console.log("MeetingPlans filtering:", { before: currentMeetingPlans.length, after: newMeetingPlans.length });
+
+    const payload = {
+      id: candidate.id,
+      detailMode: true,
+      tasks: newTasks,
+      meetingPlans: newMeetingPlans,
+      deleteTaskId: taskId // Keep legacy/command key
+    };
+
+    console.log("Sending DELETE payload:", payload);
+
+    const response = await fetch(candidatesApi(candidateDetailPath(candidate.id)), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Delete failed response:", text);
+      throw new Error(`HTTP ${response.status} ${response.statusText} - ${text.slice(0, 200)}`);
+    }
+
+    const json = await response.json();
+    console.log("Response JSON:", json);
+
+    const updated = normalizeCandidate(json);
+    applyCandidateUpdate(updated, { preserveDetailState: true });
+    console.log("Candidate updated successfully.");
+
+  } catch (error) {
+    console.error('タスク削除に失敗しました:', error);
+    alert(`タスク削除に失敗しました。\n${error.message}`);
   }
 }
 
@@ -3340,51 +3424,109 @@ function renderSelectionFlowCard(rawRow) {
 
   // Flow Steps Definition
   const steps = [
-    { label: "推薦", date: r.recommendationDate, sub: null, active: true },
-    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null },
-    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null },
-    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null },
-    { label: "内定", date: r.offerDate, sub: null },
-    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null },
+    { label: "推薦", date: r.recommendationDate, sub: null, keywords: ["推薦", "書類"] },
+    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null, keywords: ["一次"] },
+    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null, keywords: ["二次"] },
+    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null, keywords: ["最終"] },
+    { label: "内定", date: r.offerDate, sub: null, keywords: ["内定", "オファー"] },
+    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null, keywords: ["承諾", "入社"] },
   ];
 
-  // Determine current active step index based on dates
-  // Find the last step that has a confirmed date
-  let lastCompletedIndex = -1;
+  // Detect Drop/Failure Status
+  const isDropped = ["辞退", "不合格", "失注", "破談", "終了"].some(k => (r.status || "").includes(k));
+
+  // Find "Current" step based on Status Text matching (fallback to dates)
+  let statusIndex = -1;
+  if (r.status) {
+    steps.forEach((step, idx) => {
+      if (step.keywords && step.keywords.some(k => r.status.includes(k))) {
+        statusIndex = idx;
+      }
+    });
+  }
+
+  // Find the last step that has a confirmed date (Progress tracking)
+  let lastDateIndex = -1;
   steps.forEach((step, idx) => {
-    if (step.date) lastCompletedIndex = idx;
+    if (step.date) lastDateIndex = idx;
   });
 
+  // Decide the "Active" limit
+  // If we have a matching status, usage corresponding index. 
+  // Otherwise use the last date index.
+  // Exception: If we have disjoint dates (e.g. 1 and 6), lastDateIndex is 5.
+  const activeLimitIndex = (statusIndex > lastDateIndex) ? statusIndex : lastDateIndex;
+
   const flowHtml = steps.map((step, idx) => {
-    const isCompleted = idx <= lastCompletedIndex;
-    const isCurrent = idx === lastCompletedIndex;
     const hasDate = Boolean(step.date);
+    // Logic: Step is "reached" if index <= activeLimitIndex
+    const isReached = idx <= activeLimitIndex;
+
+    // Logic: Step is "Current" if it matches activeLimitIndex
+    const isCurrent = idx === activeLimitIndex;
+
+    // Logic: Dropped at this step?
+    const isDropStep = isDropped && isCurrent;
 
     // Circle Color
-    let circleClass = "bg-slate-200 text-slate-400"; // default
-    if (isCompleted) circleClass = "bg-indigo-600 text-white ring-2 ring-indigo-100";
-    if (isCurrent) circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+    let circleClass = "bg-slate-200 text-slate-400"; // default (future)
+    if (isReached) {
+      if (isDropStep) {
+        circleClass = "bg-red-500 text-white ring-4 ring-red-100 scale-110"; // Dropped
+      } else if (isCurrent) {
+        // Active/Current
+        circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+      } else {
+        // Passed
+        circleClass = hasDate
+          ? "bg-indigo-600 text-white"
+          : "bg-white border-2 border-indigo-600 text-indigo-600"; // Skipped (Hollow)
+      }
+    }
 
     // Bar Color (Connector to next)
-    let barClass = "bg-slate-200";
+    // Connecting idx to idx+1
+    let barHtml = "";
     if (idx < steps.length - 1) {
-      if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
+      let barClass = "bg-slate-200 h-0.5"; // default
+      // If next step is also reached, we color the bar
+      if (idx < activeLimitIndex) {
+        // Check if next step was skipped (no date) -> Dashed line?
+        const nextHasDate = Boolean(steps[idx + 1].date);
+
+        if (isDropped && idx === activeLimitIndex - 1) {
+          // Line leading to drop step is solid Red? Or just Indigo?
+          // Usually Indigo up to the fail point.
+          barClass = "bg-indigo-600 h-0.5";
+        } else {
+          // Normal connection
+          barClass = nextHasDate ? "bg-indigo-600 h-0.5" : "border-t-2 border-indigo-400 border-dashed h-0 bg-transparent";
+        }
+      }
+      barHtml = `<div class="absolute top-3 left-1/2 w-full ${barClass} -z-0"></div>`;
     }
 
     const dateStr = formatDateJP(step.date);
-    const dateHtml = hasDate ? `<div class="text-[10px] font-bold text-indigo-700 mt-1">${dateStr}</div>` : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+    const dateHtml = hasDate
+      ? `<div class="text-[10px] font-bold ${isDropStep ? 'text-red-600' : 'text-indigo-700'} mt-1">${dateStr}</div>`
+      : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+
+    let labelClass = "text-slate-700";
+    if (isDropStep) labelClass = "text-red-700 font-bold";
+    else if (isCurrent) labelClass = "text-indigo-800 font-bold";
+
     const subHtml = step.sub ? `<div class="text-[9px] text-slate-400">${step.sub}</div>` : "";
 
     return `
       <div class="flex-1 relative group">
         <!-- Connector Bar -->
-        ${idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : ""}
+        ${barHtml}
         
         <div class="relative z-10 flex flex-col items-center">
-          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass} z-10">
             ${idx + 1}
           </div>
-          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${step.label}</div>
+          <div class="mt-2 text-xs font-medium ${labelClass} transition-colors">${step.label}</div>
           ${dateHtml}
           ${subHtml}
         </div>
@@ -3733,7 +3875,7 @@ function renderNextActionSection(candidate) {
               <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">予定</span>
             </div>
             <div class="text-sm text-slate-700">${escapeHtml(task.actionNote || '-')}</div>
-          </div>
+            <div class="mt-2 flex items-center justify-end gap-2 border-t border-slate-100 pt-2">\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-green-200 text-green-700 hover:bg-green-50 rounded" data-complete-task-id="${task.id}">完了</button>\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-50 rounded" data-delete-task-id="${task.id}">削除</button>\n            </div>\n          </div>
         `).join('')}
       </div>
     </div>
