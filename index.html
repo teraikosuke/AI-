@@ -4,26 +4,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>業務ダッシュボード</title>
+  <title>Agent Key</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // App Primary (Intelligent Blue)
+            primary: {
+              DEFAULT: '#0071C1',
+              50: '#E0F2FF',
+              100: '#B8DFFF',
+              200: '#8AC9FF',
+              300: '#5CB3FF',
+              400: '#2E9DFF',
+              500: '#0071C1',
+              600: '#005A99',
+              700: '#004B87',
+              800: '#003366',
+              900: '#001F3D',
+            },
+            // App Accent (Teal)
+            accent: {
+              DEFAULT: '#00a99d',
+              light: '#e6f7f6',
+              dark: '#008577',
+            },
+          },
+        },
+      },
+    }
+  </script>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="styles/tokens.css" />
-  <link rel="stylesheet" href="styles/base.css?v=20260130" />
+  <link rel="stylesheet" href="styles/base.css?v=20260203_new" />
   <link rel="stylesheet" href="styles/utilities.css" />
 </head>
 
-<body class="bg-slate-100">
+<body>
   <div class="flex min-h-screen transition-all duration-300">
-    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-100 flex flex-col transition-all duration-300 ease-in-out">
+    <aside id="sidebar" class="w-64 text-slate-100 flex flex-col transition-all duration-300 ease-in-out"
+      style="background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 100%);">
       <div class="px-6 py-5 border-b border-slate-700 flex items-start justify-between gap-3">
         <div class="sidebar-title-wrapper">
-          <p class="text-sm uppercase tracking-wide text-slate-400 sidebar-title-text">
-            Recruiting Ops
-          </p>
-          <h1 class="text-xl font-semibold mt-2 sidebar-title-text">
-            業務ダッシュボード
+          <h1 class="text-xl font-bold mt-1 sidebar-title-text">
+            Agent Key
           </h1>
         </div>
         <button type="button" id="sidebarToggle"
@@ -179,10 +207,10 @@
     </aside>
 
     <div class="flex-1 flex flex-col main-layout">
-      <header class="bg-white border-b border-slate-200 page-header">
+      <header class="page-header">
         <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div>
-            <h2 id="pageTitle" class="text-2xl font-semibold text-slate-900">
+            <h2 id="pageTitle" class="text-2xl font-semibold">
               歩留管理（総合）
             </h2>
           </div>
@@ -206,7 +234,7 @@
         </div>
       </header>
 
-      <main id="app" class="flex-1 p-6 overflow-auto bg-slate-50">
+      <main id="app" class="flex-1 overflow-auto">
         <!-- Dynamic page content will be loaded here -->
       </main>
     </div>

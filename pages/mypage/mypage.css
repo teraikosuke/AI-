@@ -4,8 +4,8 @@
 #mypagePage {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 0;
+  gap: 2rem;
+  padding: var(--app-space-xl);
 }
 
 #mypagePage.section-shell {
@@ -16,17 +16,30 @@
 }
 
 /* カードスタイル */
+/* カードスタイル - Transparent Container */
 .mypage-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  padding: 1.5rem;
-  transition: box-shadow 0.2s ease;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  transition: none;
+}
+
+/* Candidate Title Reset */
+#mypageCandidatesSection .mypage-card-title {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+#mypageCandidatesSection .mypage-card-title::before {
+  content: none;
+  display: none;
 }
 
 .mypage-card:hover {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 /* カードヘッダー */
@@ -49,18 +62,33 @@
   gap: 0.5rem;
 }
 
+/* Title with blue underline */
+/* Title with blue underline and left bar */
 .mypage-card-title::before {
   content: '';
   width: 4px;
   height: 1.2rem;
-  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(180deg, var(--app-primary) 0%, var(--app-primary-dark) 100%);
   border-radius: 2px;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.mypage-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border-bottom: 2px solid var(--app-primary);
+  padding-bottom: 0.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .mypage-card-subtitle {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: #64748b;
+  display: none !important;
 }
 
 .mypage-card-actions {
@@ -88,19 +116,52 @@
   border-color: rgba(146, 64, 14, 0.15);
 }
 
-/* テーブルラッパー */
+/* テーブルラッパー - SmartHR風グレー背景 */
+/* テーブルラッパー - Make transparent, rely on white box */
 .mypage-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+#mypageUpcomingTableWrapper,
+.mypage-calendar-scroll,
+#mypageCandidatesTableWrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* New White Box Container */
+.mypage-white-box {
+  background: var(--app-surface-elevated);
+  /* White */
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  padding: var(--app-space-lg);
+  box-shadow: var(--app-shadow-sm);
+  margin-top: 0;
+  /* Removed margin-top */
+}
+
+/* Specific reset for Candidates Section White Box */
+#mypageCandidatesSection .mypage-white-box {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 /* テーブルスタイル */
 .mypage-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   min-width: 520px;
   table-layout: auto;
 }
@@ -127,9 +188,11 @@
 }
 
 .mypage-tab.is-active {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: var(--app-text-inverse);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
+  font-weight: 700;
 }
 
 .mypage-upcoming-panel {
@@ -142,21 +205,30 @@
 
 .mypage-table th {
   text-align: left;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #475569;
-  background: #f8fafc;
-  padding: 8px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  background: #0077c7;
+  padding: 14px 16px;
+  border-bottom: none;
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
 
+.mypage-table th:first-child {
+  background: #005a9e;
+  border-radius: 8px 0 0 0;
+}
+
+.mypage-table th:last-child {
+  border-radius: 0 8px 0 0;
+}
+
 .mypage-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
   font-size: 0.88rem;
-  color: #0f172a;
+  color: #334155;
   vertical-align: top;
   line-height: 1.5;
 }
@@ -174,7 +246,7 @@
 }
 
 .mypage-task-row:hover {
-  background: #e0e7ff;
+  background: var(--app-primary-light);
 }
 
 .mypage-task-row:active {
@@ -194,20 +266,21 @@
 }
 
 .mypage-task-row.is-overdue .mypage-task-date {
-  background: #fee2e2;
-  box-shadow: inset 4px 0 0 #ef4444;
-  color: #b91c1c;
+  background: var(--app-danger-light);
+  box-shadow: inset 4px 0 0 var(--app-danger);
+  color: var(--app-danger);
+  font-weight: 700;
 }
 
 .mypage-phase-pill {
   display: inline-flex;
   align-items: center;
   padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  background-color: #eef2ff;
-  color: #4338ca;
-  font-size: 0.75rem;
-  font-weight: 600;
+  border-radius: var(--app-radius-full);
+  background-color: var(--app-primary-light);
+  color: var(--app-primary);
+  font-size: var(--app-font-size-xs);
+  font-weight: var(--app-font-weight-semibold);
 }
 
 .mypage-tasks-table td:nth-child(1) {
@@ -358,9 +431,9 @@
 }
 
 .mypage-filter-chip.is-active {
-  background: #0ea5e9;
-  border-color: #0ea5e9;
-  color: #ffffff;
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: var(--app-text-inverse);
 }
 
 .mypage-calendar-legend {
@@ -398,33 +471,51 @@
   background: #10b981;
 }
 
+/* カレンダースクロールエリア - SmartHR風グレー背景 */
 .mypage-calendar-scroll {
   overflow-x: auto;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .mypage-calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  gap: 4px;
   min-width: 720px;
 }
 
+/* カレンダー曜日ヘッダー - SmartHR風 */
 .mypage-calendar-weekday {
   text-align: center;
   font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 600;
+  color: #1e293b;
+  font-weight: 700;
+  padding: 8px 4px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 4px;
 }
 
+/* カレンダー日付セル - SmartHR風 */
 .mypage-calendar-day {
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 8px;
-  min-height: 110px;
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 100px;
   background: #ffffff;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.mypage-calendar-day:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .mypage-calendar-day.is-outside {
@@ -433,14 +524,20 @@
 }
 
 .mypage-calendar-day.is-today {
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
 }
 
+/* カレンダー日付番号 - 見やすく */
 .mypage-calendar-day-number {
-  font-size: 0.75rem;
-  color: #475569;
-  font-weight: 600;
+  font-size: 0.875rem;
+  color: #1e293b;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
 }
 
 .mypage-calendar-events {
@@ -545,7 +642,25 @@
 
 /* Candidate list UI */
 .mypage-candidates-table th {
-  background: #f8fafc;
+  background: transparent;
+  /* Remove background */
+  color: var(--app-text-primary);
+  /* Dark text */
+  border-bottom: 2px solid var(--app-border);
+  /* Add design */
+  font-weight: 700;
+}
+
+/* First column specific style (if needed, otherwise uniform) */
+.mypage-candidates-table th:first-child {
+  background: transparent;
+  color: var(--app-primary);
+  border-radius: 0;
+}
+
+/* Ensure no white text on transparent background */
+.mypage-candidates-table th:nth-child(n+2) {
+  color: var(--app-text-secondary);
 }
 
 .mypage-candidate-row:hover {

@@ -1,0 +1,10 @@
+{
+    "minAge": 20,
+    "maxAge": 45,
+    "targetNationalities": "日本, ベトナム, 中国, フィリピン",
+    "allowedJlptLevels": [
+        "N1",
+        "N2"
+    ],
+    "updatedAt": "2026-02-01T10:00:00.000Z"
+}

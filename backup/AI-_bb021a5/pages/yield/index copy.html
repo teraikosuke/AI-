@@ -1,0 +1,1356 @@
+<!-- KPI v2: 自分の実績サマリー・全体セクション -->
+<section data-kpi="v2" class="kpi-v2-wrapper space-y-6">
+  <!-- 自分の実績サマリー -->
+  <div class="kpi-v2-section" data-yield-section="personal">
+    <div class="kpi-v2-header">
+      <h3 class="kpi-v2-title">自分の実績サマリー</h3>
+    </div>
+    <div class="kpi-tab-group" data-kpi-tab-group="personal">
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="personal-metrics">KPI</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="personal-graphs">推移グラフ</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="personal-daily">日別実績一覧</button>
+    </div>
+    <div class="kpi-tab-panel" data-kpi-tab-panel="personal-metrics">
+
+      <!-- 今後の予定 -->
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">今後の予定</h4>
+        <div class="kpi-v2-grid" data-kpi-type="counts">
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">新規面談数</div>
+            <div class="kpi-v2-value" id="todayProposals">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">提案数</div>
+            <div class="kpi-v2-value" id="todayRecommendations">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">推薦数</div>
+            <div class="kpi-v2-value" id="todayInterviewsScheduled">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">面接設定数</div>
+            <div class="kpi-v2-value" id="todayInterviewsHeld">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">面接実施数</div>
+            <div class="kpi-v2-value" id="todayOffers">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">内定数</div>
+            <div class="kpi-v2-value" id="todayAccepts">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact">
+            <div class="kpi-v2-label">承諾数</div>
+            <div class="kpi-v2-value" id="todayHires">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 今月の実績サマリー -->
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle" id="personalSummaryTitle">今月の実績サマリー</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>評価期間</span>
+              <select id="personalEvaluationPeriodSelect"></select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>集計方法</span>
+              <select data-calc-mode-select>
+                <option value="cohort">応募時期優先（応募月に計上）</option>
+                <option value="period">リアルタイム優先（発生月に計上）</option>
+              </select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>率の計算</span>
+              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle
+                aria-pressed="false">設定変更</button>
+              <span class="kpi-v2-inline-hint" data-rate-mode-label>新規面談数を分母</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="kpi-v2-summary-unified summary-neutral">
+          <div class="kpi-v2-achievement-section">
+            <div class="kpi-v2-label">売り上げ達成率</div>
+            <div class="kpi-v2-value kpi-v2-value-large" id="personalAchievementRate">33%</div>
+            <div class="kpi-v2-progress" aria-hidden="true">
+              <span class="kpi-v2-progress-fill"></span>
+            </div>
+          </div>
+          <div class="kpi-v2-target-section">
+            <div class="kpi-v2-target-row">
+              <span class="kpi-v2-target-label">現状</span>
+              <span class="kpi-v2-target-value kpi-v2-current" id="personalCurrent">¥957,000</span>
+            </div>
+            <div class="kpi-v2-target-row">
+              <span class="kpi-v2-target-label">目標</span>
+              <span class="kpi-v2-target-value kpi-v2-target" id="personalTarget">¥3,000,000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-v2-grid" data-kpi-type="counts">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposals">
+            <div class="kpi-v2-label">新規面談数</div>
+            <div class="kpi-v2-value" id="personalProposals">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-proposals">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-proposals">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendations">
+            <div class="kpi-v2-label">提案数</div>
+            <div class="kpi-v2-value" id="personalRecommendations">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-recommendations">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-recommendations">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsScheduled">
+            <div class="kpi-v2-label">推薦数</div>
+            <div class="kpi-v2-value" id="personalInterviewsScheduled">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-interviewsScheduled">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-interviewsScheduled">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsHeld">
+            <div class="kpi-v2-label">面接設定数</div>
+            <div class="kpi-v2-value" id="personalInterviewsHeld">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-interviewsHeld">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-interviewsHeld">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offers">
+            <div class="kpi-v2-label">面接実施数</div>
+            <div class="kpi-v2-value" id="personalOffers">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-offers">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-offers">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
+            <div class="kpi-v2-label">内定数</div>
+            <div class="kpi-v2-value" id="personalAccepts">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-accepts">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-accepts">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hires">
+            <div class="kpi-v2-label">承諾数</div>
+            <div class="kpi-v2-value" id="personalHires">10</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-hires">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-hires">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-v2-grid" data-kpi-type="rates">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposalRate">
+            <div class="kpi-v2-label">提案率</div>
+            <div class="kpi-v2-value" id="personalProposalRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-proposalRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-proposalRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendationRate">
+            <div class="kpi-v2-label">推薦率</div>
+            <div class="kpi-v2-value" id="personalRecommendationRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-recommendationRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-recommendationRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewScheduleRate">
+            <div class="kpi-v2-label">面接設定率</div>
+            <div class="kpi-v2-value" id="personalInterviewScheduleRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-interviewScheduleRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-interviewScheduleRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewHeldRate">
+            <div class="kpi-v2-label">面接実施率</div>
+            <div class="kpi-v2-value" id="personalInterviewHeldRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-interviewHeldRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-interviewHeldRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offerRate">
+            <div class="kpi-v2-label">内定率</div>
+            <div class="kpi-v2-value" id="personalOfferRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-offerRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-offerRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="acceptRate">
+            <div class="kpi-v2-label">承諾率</div>
+            <div class="kpi-v2-value" id="personalAcceptRate">33%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-acceptRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-acceptRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hireRate">
+            <div class="kpi-v2-label">入社決定率</div>
+            <div class="kpi-v2-value" id="personalHireRate">0%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="monthlyGoal-hireRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="monthlyAchv-hireRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="kpi-v2-note">※括弧内は前月からの繰越件数です。</p>
+      </div>
+
+      <!-- 期間別のKPI -->
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">期間別のKPI</h4>
+        <div class="kpi-v2-header">
+          <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
+          <div class="kpi-v2-range-picker">
+            <input type="date" id="personalRangeStart" class="kpi-v2-date-input" />
+            <span class="kpi-v2-date-separator">〜</span>
+            <input type="date" id="personalRangeEnd" class="kpi-v2-date-input" />
+            <div class="kpi-v2-preset-group">
+              <button type="button" class="period-preset-btn" data-range="1">今月</button>
+              <button type="button" class="period-preset-btn" data-range="3m">直近3ヶ月</button>
+              <button type="button" class="period-preset-btn" data-range="6m">直近6ヶ月</button>
+              <button type="button" class="period-preset-btn" data-range="12m">直近1年</button>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-v2-grid" data-kpi-type="counts">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposals">
+            <div class="kpi-v2-label">新規面談数</div>
+            <div class="kpi-v2-value" id="periodProposals">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendations">
+            <div class="kpi-v2-label">提案数</div>
+            <div class="kpi-v2-value" id="periodRecommendations">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsScheduled">
+            <div class="kpi-v2-label">推薦数</div>
+            <div class="kpi-v2-value" id="periodInterviewsScheduled">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsHeld">
+            <div class="kpi-v2-label">面接設定数</div>
+            <div class="kpi-v2-value" id="periodInterviewsHeld">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offers">
+            <div class="kpi-v2-label">面接実施数</div>
+            <div class="kpi-v2-value" id="periodOffers">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
+            <div class="kpi-v2-label">内定数</div>
+            <div class="kpi-v2-value" id="periodAccepts">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hires">
+            <div class="kpi-v2-label">承諾数</div>
+            <div class="kpi-v2-value" id="periodHires">0</div>
+          </div>
+        </div>
+        <div class="kpi-v2-grid" data-kpi-type="rates">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposalRate">
+            <div class="kpi-v2-label">提案率</div>
+            <div class="kpi-v2-value" id="periodProposalRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendationRate">
+            <div class="kpi-v2-label">推薦率</div>
+            <div class="kpi-v2-value" id="periodRecommendationRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewScheduleRate">
+            <div class="kpi-v2-label">面接設定率</div>
+            <div class="kpi-v2-value" id="periodInterviewScheduleRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewHeldRate">
+            <div class="kpi-v2-label">面接実施率</div>
+            <div class="kpi-v2-value" id="periodInterviewHeldRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offerRate">
+            <div class="kpi-v2-label">内定率</div>
+            <div class="kpi-v2-value" id="periodOfferRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="acceptRate">
+            <div class="kpi-v2-label">承諾率</div>
+            <div class="kpi-v2-value" id="periodAcceptRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hireRate">
+            <div class="kpi-v2-label">入社決定率</div>
+            <div class="kpi-v2-value" id="periodHireRate">0%</div>
+          </div>
+        </div>
+        <p class="kpi-v2-note">※括弧内は前月からの繰越件数です。</p>
+      </div>
+    </div>
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="personal-graphs">
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">個人ダッシュボード</h4>
+        <!-- <p class="dashboard-card-subtext">主要指標を推移グラフで可視化したモックデータです。実データ接続前のレイアウトとしてご確認ください。</p> -->
+        <div class="dashboard-panel" data-dashboard-scope="personal">
+          <div class="dashboard-subtitle-row">
+            <p class="dashboard-subtitle"></p>
+            <div class="dashboard-controls">
+              <div class="dashboard-tab-group" data-trend-tabs="personal">
+                <button type="button" class="dashboard-tab is-active" data-mode="month"
+                  data-scope="personal">1ヶ月</button>
+                <button type="button" class="dashboard-tab" data-mode="year" data-scope="personal">1年</button>
+              </div>
+              <div class="dashboard-select-group">
+                <label>年
+                  <select id="personalTrendYearSelect"></select>
+                </label>
+                <label>月
+                  <select id="personalTrendMonthSelect"></select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid" id="personalDashboardGrid">
+            <div class="dashboard-card" data-chart-card="personalTrend">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">KPI推移</p>
+                  <p class="dashboard-card-subtext">1ヶ月/1年の切り替えが可能です</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 340px;">
+                <canvas id="personalTrendChart" aria-label="個人KPI推移"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">職種別構成</p>
+                  <p class="dashboard-card-subtext">担当候補者の内訳</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="personalJobChart" aria-label="個人職種別推移グラフ"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">性別内訳</p>
+                  <p class="dashboard-card-subtext">候補者の性別比率</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="personalGenderChart" aria-label="個人性別推移グラフ"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">年齢帯別人数</p>
+                  <p class="dashboard-card-subtext">候補者の年代分布</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="personalAgeChart" aria-label="個人年齢推移グラフ"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="personal-daily">
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">日別実績一覧</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>評価期間</span>
+              <select id="personalDailyPeriodSelect"></select>
+            </label>
+            <span id="personalDailyPeriodLabel" class="kpi-v2-note"></span>
+          </div>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table">
+              <thead>
+                <tr id="personalDailyHeaderRow"></tr>
+              </thead>
+              <tbody id="personalDailyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 全社KPIサマリー -->
+  <div class="kpi-v2-section" data-yield-section="company">
+    <div class="kpi-v2-header">
+      <h3 class="kpi-v2-title">全社KPIサマリー</h3>
+    </div>
+    <div class="kpi-tab-group" data-kpi-tab-group="company">
+      <button type="button" class="kpi-tab is-active" data-kpi-tab="company-metrics">KPI</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-graphs">推移グラフ</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-daily">日別成績一覧</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-period">期間別のKPI</button>
+      <button type="button" class="kpi-tab" data-kpi-tab="company-ms">MS</button>
+    </div>
+    <div class="kpi-tab-panel" data-kpi-tab-panel="company-metrics">
+
+      <!-- 今月の実績サマリー -->
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">今月の実績サマリー</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>全社評価期間</span>
+              <select id="companyEvaluationPeriodSelect"></select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>集計方法</span>
+              <select data-calc-mode-select>
+                <option value="cohort">応募時期優先（応募月に計上）</option>
+                <option value="period">リアルタイム優先（発生月に計上）</option>
+              </select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>率の計算</span>
+              <button type="button" class="kpi-v2-inline-toggle" data-rate-mode-toggle
+                aria-pressed="false">設定変更</button>
+              <span class="kpi-v2-inline-hint" data-rate-mode-label>新規面談数を分母</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="kpi-v2-summary-unified summary-neutral">
+          <div class="kpi-v2-achievement-section">
+            <div class="kpi-v2-label">売り上げ達成率（全社）</div>
+            <div class="kpi-v2-value kpi-v2-value-large" id="companyAchievementRate">--%</div>
+            <div class="kpi-v2-progress" aria-hidden="true">
+              <span class="kpi-v2-progress-fill" id="companyAchievementBar"></span>
+            </div>
+          </div>
+          <div class="kpi-v2-target-section">
+            <div class="kpi-v2-target-row">
+              <span class="kpi-v2-target-label">現状</span>
+              <span class="kpi-v2-target-value kpi-v2-current" id="companyCurrent">¥0</span>
+            </div>
+            <div class="kpi-v2-target-row">
+              <span class="kpi-v2-target-label">目標</span>
+              <span class="kpi-v2-target-value kpi-v2-target" id="companyTarget">¥0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 全体 7KPI 数の行 -->
+        <div class="kpi-v2-grid" data-kpi-type="counts">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposals">
+            <div class="kpi-v2-label">新規面談数</div>
+            <div class="kpi-v2-value" id="companyProposals">127</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-newInterviews">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-newInterviews">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendations">
+            <div class="kpi-v2-label">提案数</div>
+            <div class="kpi-v2-value" id="companyRecommendations">89</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-proposals">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-proposals">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsScheduled">
+            <div class="kpi-v2-label">推薦数</div>
+            <div class="kpi-v2-value" id="companyInterviewsScheduled">156</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-recommendations">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-recommendations">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsHeld">
+            <div class="kpi-v2-label">面接設定数</div>
+            <div class="kpi-v2-value" id="companyInterviewsHeld">132</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-interviewsScheduled">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-interviewsScheduled">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offers">
+            <div class="kpi-v2-label">面接実施数</div>
+            <div class="kpi-v2-value" id="companyOffers">68</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-interviewsHeld">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-interviewsHeld">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
+            <div class="kpi-v2-label">内定数</div>
+            <div class="kpi-v2-value" id="companyAccepts">41</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-offers">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-offers">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
+            <div class="kpi-v2-label">承諾数</div>
+            <div class="kpi-v2-value" id="companyHires">41</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-accepts">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-accepts">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 全体 7KPI 率の行 -->
+        <div class="kpi-v2-grid" data-kpi-type="rates">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposalRate">
+            <div class="kpi-v2-label">提案率</div>
+            <div class="kpi-v2-value" id="companyProposalRate">69%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-proposalRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-proposalRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendationRate">
+            <div class="kpi-v2-label">推薦率</div>
+            <div class="kpi-v2-value" id="companyRecommendationRate">70%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-recommendationRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-recommendationRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewScheduleRate">
+            <div class="kpi-v2-label">面接設定率</div>
+            <div class="kpi-v2-value" id="companyInterviewScheduleRate">175%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-interviewScheduleRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-interviewScheduleRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewHeldRate">
+            <div class="kpi-v2-label">面接実施率</div>
+            <div class="kpi-v2-value" id="companyInterviewHeldRate">85%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-interviewHeldRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-interviewHeldRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offerRate">
+            <div class="kpi-v2-label">内定率</div>
+            <div class="kpi-v2-value" id="companyOfferRate">52%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-offerRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-offerRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="acceptRate">
+            <div class="kpi-v2-label">承諾率</div>
+            <div class="kpi-v2-value" id="companyAcceptRate">60%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-acceptRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-acceptRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hireRate">
+            <div class="kpi-v2-label">入社決定率</div>
+            <div class="kpi-v2-value" id="companyHireRate">60%</div>
+            <div class="kpi-v2-meta">
+              <div class="kpi-v2-goal-row">
+                <span class="kpi-v2-goal-label">目標</span>
+                <span class="kpi-v2-goal-value" data-ref="companyGoal-hireRate">--</span>
+              </div>
+              <div class="kpi-v2-achievement-row">
+                <span class="kpi-v2-achv-label">達成率</span>
+                <span class="kpi-v2-achv-rate" data-ref="companyAchv-hireRate">--%</span>
+                <div class="kpi-v2-achv-bar">
+                  <div class="kpi-v2-achv-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="kpi-v2-note">※括弧内は前月からの繰越件数です。</p>
+      </div>
+
+
+      <!-- 期間別の全社転換率 -->
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">期間別の全社転換率</h4>
+        <div class="kpi-v2-header">
+          <!-- <div class="kpi-v2-range-label">期間で絞り込み</div> -->
+          <div class="kpi-v2-range-picker">
+            <input type="date" id="companyPeriodStart" class="kpi-v2-date-input" />
+            <span class="kpi-v2-date-separator">〜</span>
+            <input type="date" id="companyPeriodEnd" class="kpi-v2-date-input" />
+            <div class="kpi-v2-preset-group">
+              <button type="button" class="period-preset-btn company" data-range="1">今月</button>
+              <button type="button" class="period-preset-btn company" data-range="3m">直近3ヶ月</button>
+              <button type="button" class="period-preset-btn company" data-range="6m">直近6ヶ月</button>
+              <button type="button" class="period-preset-btn company" data-range="12m">直近1年</button>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-v2-grid" data-kpi-type="counts">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposals">
+            <div class="kpi-v2-label">新規面談数</div>
+            <div class="kpi-v2-value" id="companyPeriodProposals">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendations">
+            <div class="kpi-v2-label">提案数</div>
+            <div class="kpi-v2-value" id="companyPeriodRecommendations">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsScheduled">
+            <div class="kpi-v2-label">推薦数</div>
+            <div class="kpi-v2-value" id="companyPeriodInterviewsScheduled">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewsHeld">
+            <div class="kpi-v2-label">面接設定数</div>
+            <div class="kpi-v2-value" id="companyPeriodInterviewsHeld">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offers">
+            <div class="kpi-v2-label">面接実施数</div>
+            <div class="kpi-v2-value" id="companyPeriodOffers">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="accepts">
+            <div class="kpi-v2-label">内定数</div>
+            <div class="kpi-v2-value" id="companyPeriodAccepts">0</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hires">
+            <div class="kpi-v2-label">承諾数</div>
+            <div class="kpi-v2-value" id="companyPeriodHires">0</div>
+          </div>
+        </div>
+        <div class="kpi-v2-grid" data-kpi-type="rates">
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="proposalRate">
+            <div class="kpi-v2-label">提案率</div>
+            <div class="kpi-v2-value" id="companyPeriodProposalRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="recommendationRate">
+            <div class="kpi-v2-label">推薦率</div>
+            <div class="kpi-v2-value" id="companyPeriodRecommendationRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewScheduleRate">
+            <div class="kpi-v2-label">面接設定率</div>
+            <div class="kpi-v2-value" id="companyPeriodInterviewScheduleRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="interviewHeldRate">
+            <div class="kpi-v2-label">面接実施率</div>
+            <div class="kpi-v2-value" id="companyPeriodInterviewHeldRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="offerRate">
+            <div class="kpi-v2-label">内定率</div>
+            <div class="kpi-v2-value" id="companyPeriodOfferRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="acceptRate">
+            <div class="kpi-v2-label">承諾率</div>
+            <div class="kpi-v2-value" id="companyPeriodAcceptRate">0%</div>
+          </div>
+          <div class="kpi-v2-card is-neutral is-compact" data-kpi="hireRate">
+            <div class="kpi-v2-label">入社決定率</div>
+            <div class="kpi-v2-value" id="companyPeriodHireRate">0%</div>
+          </div>
+        </div>
+        <p class="kpi-v2-note">※括弧内は前月からの繰越件数です。</p>
+      </div>
+    </div>
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-daily">
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">日別成績一覧</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>社員</span>
+              <select id="companyDailyEmployeeSelect"></select>
+            </label>
+            <label class="kpi-v2-inline-select">
+              <span>評価期間</span>
+              <select id="companyDailyPeriodSelect"></select>
+            </label>
+            <span id="companyDailyPeriodLabel" class="kpi-v2-note"></span>
+          </div>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table">
+              <thead>
+                <tr id="companyDailyHeaderRow"></tr>
+              </thead>
+              <tbody id="companyDailyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-graphs">
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">社内ダッシュボード</h4>
+        <!-- <p class="dashboard-card-subtext">主要指標を推移グラフで可視化したモックデータです。実データ接続前のレイアウトとしてご確認ください。</p> -->
+        <div class="dashboard-panel" data-dashboard-scope="company">
+          <div class="dashboard-subtitle-row">
+            <p class="dashboard-subtitle"></p>
+            <div class="dashboard-controls">
+              <div class="dashboard-tab-group" data-trend-tabs="company">
+                <button type="button" class="dashboard-tab is-active" data-mode="month"
+                  data-scope="company">1ヶ月</button>
+                <button type="button" class="dashboard-tab" data-mode="year" data-scope="company">1年</button>
+              </div>
+              <div class="dashboard-select-group">
+                <label>年
+                  <select id="companyTrendYearSelect"></select>
+                </label>
+                <label>月
+                  <select id="companyTrendMonthSelect"></select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid" id="companyDashboardGrid">
+            <div class="dashboard-card" data-chart-card="companyTrend">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">全社KPI推移</p>
+                  <p class="dashboard-card-subtext">期間ベースのモックチャート</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 340px;">
+                <canvas id="companyTrendChart" aria-label="社内KPI推移"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">職種別構成（全社）</p>
+                  <p class="dashboard-card-subtext">全社員の担当実績</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="companyJobChart" aria-label="社内職種別"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">性別内訳（全社）</p>
+                  <p class="dashboard-card-subtext">候補者の性別比率</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="companyGenderChart" aria-label="社内性別"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">求人媒体別</p>
+                  <p class="dashboard-card-subtext">流入チャネル比較</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="companyMediaChart" aria-label="社内媒体"></canvas>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <div>
+                  <p class="dashboard-card-title">年齢帯別（全社）</p>
+                  <p class="dashboard-card-subtext">候補者の年代分布</p>
+                </div>
+              </div>
+              <div class="dashboard-chart" style="height: 220px;">
+                <canvas id="companyAgeChart" aria-label="社内年齢"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 期間別のKPI（全社） -->
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-period">
+      <!-- <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">本日の活動状況</h4>
+        <header class="kpi-v2-employee-header">
+          <div class="kpi-v2-employee-controls">
+            <div class="kpi-v2-search-with-button">
+              <input type="search" id="companyTodaySearchInput" class="kpi-v2-search-input" placeholder="社員名で検索..." />
+              <button type="button" id="companyTodaySearchButton" class="kpi-v2-search-button">検索</button>
+            </div>
+            <select id="companyTodaySortSelect" class="kpi-v2-sort-select">
+              <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
+              <option value="proposals-desc">提案数（降順）</option>
+              <option value="offers-desc">内定数（降順）</option>
+              <option value="accepts-desc">承諾数（降順）</option>
+            </select>
+          </div>
+        </header>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-today-combined">
+              <thead>
+                <tr>
+                  <th scope="col" rowspan="2">社員名</th>
+                  <th scope="colgroup" colspan="3">新規面談数</th>
+                  <th scope="colgroup" colspan="3">提案数</th>
+                  <th scope="colgroup" colspan="3">推薦数</th>
+                  <th scope="colgroup" colspan="3">面接設定数</th>
+                  <th scope="colgroup" colspan="3">面接実施数</th>
+                  <th scope="colgroup" colspan="3">内定数</th>
+                  <th scope="colgroup" colspan="3">承諾数</th>
+                </tr>
+                <tr>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                </tr>
+              </thead>
+              <tbody id="companyTodayTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div> -->
+
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">今期の実績サマリー</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>評価期間</span>
+              <select id="companyTermPeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+        <header class="kpi-v2-employee-header">
+          <div class="kpi-v2-employee-controls">
+            <div class="kpi-v2-search-with-button">
+              <input type="search" id="companyTermSearchInput" class="kpi-v2-search-input" placeholder="社員名で検索..." />
+              <button type="button" id="companyTermSearchButton" class="kpi-v2-search-button">検索</button>
+            </div>
+            <select id="companyTermSortSelect" class="kpi-v2-sort-select">
+              <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
+              <option value="proposals-desc">提案数（降順）</option>
+              <option value="offers-desc">内定数（降順）</option>
+              <option value="accepts-desc">承諾数（降順）</option>
+              <option value="hireRate-desc">入社決定率（降順）</option>
+              <option value="proposalRate-desc">提案率（降順）</option>
+              <option value="acceptRate-desc">承諾率（降順）</option>
+            </select>
+          </div>
+        </header>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-term-combined">
+              <thead>
+                <tr>
+                  <th scope="col" rowspan="2">社員名</th>
+                  <th scope="colgroup" colspan="3">新規面談数</th>
+                  <th scope="colgroup" colspan="3">提案数</th>
+                  <th scope="colgroup" colspan="3">推薦数</th>
+                  <th scope="colgroup" colspan="3">面接設定数</th>
+                  <th scope="colgroup" colspan="3">面接実施数</th>
+                  <th scope="colgroup" colspan="3">内定数</th>
+                  <th scope="colgroup" colspan="3">承諾数</th>
+                  <th scope="colgroup" colspan="3">入社決定率</th>
+                  <th scope="colgroup" colspan="3">提案率</th>
+                  <th scope="colgroup" colspan="3">推薦率</th>
+                  <th scope="colgroup" colspan="3">面接設定率</th>
+                  <th scope="colgroup" colspan="3">面接実施率</th>
+                  <th scope="colgroup" colspan="3">内定率</th>
+                  <th scope="colgroup" colspan="3">承諾率</th>
+                </tr>
+                <tr>
+                  <!-- 指標ごと (数・目標・達成率) -->
+                  <!-- 新規面談数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 提案数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 推薦数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接設定数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接実施数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 内定数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 承諾数 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 入社決定率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 提案率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 推薦率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接設定率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 面接実施率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 内定率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                  <!-- 承諾率 -->
+                  <th scope="col" class="kpi-term-set">数</th>
+                  <th scope="col" class="kpi-term-set">目標</th>
+                  <th scope="col" class="kpi-term-set">達成率</th>
+                </tr>
+              </thead>
+              <tbody id="companyTermCombinedBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-v2-subsection">
+        <h4 class="kpi-v2-subtitle">メンバー別KPI</h4>
+        <header class="kpi-v2-employee-header">
+          <div class="kpi-v2-employee-controls">
+            <div class="kpi-v2-search-with-button">
+              <input type="search" id="employeeSearchInput" class="kpi-v2-search-input" placeholder="社員名で検索..." />
+              <button type="button" id="employeeSearchButton" class="kpi-v2-search-button">検索</button>
+            </div>
+            <select id="employeeSortSelect" class="kpi-v2-sort-select">
+              <option value="name-asc">社員名（昇順）</option>
+              <option value="newInterviews-desc">新規面談数（降順）</option>
+              <option value="proposals-desc">提案数（降順）</option>
+              <option value="offers-desc">内定数（降順）</option>
+              <option value="acceptRate-desc">承諾率（降順）</option>
+              <option value="hireRate-desc">入社決定率（降順）</option>
+            </select>
+            <div class="kpi-v2-preset-group" id="employeePeriodPresets">
+              <button type="button" class="period-preset-btn employee" data-range="1">今月</button>
+              <button type="button" class="period-preset-btn employee" data-range="3">直近3ヶ月</button>
+              <button type="button" class="period-preset-btn employee" data-range="6">直近6ヶ月</button>
+              <button type="button" class="period-preset-btn employee" data-range="12">直近1年</button>
+            </div>
+            <div class="kpi-v2-date-range employee-range-inputs">
+              <label for="employeeRangeStart" class="sr-only">期間開始</label>
+              <input type="date" id="employeeRangeStart" class="kpi-v2-date-input" />
+              <span class="kpi-v2-date-separator">〜</span>
+              <label for="employeeRangeEnd" class="sr-only">期間終了</label>
+              <input type="date" id="employeeRangeEnd" class="kpi-v2-date-input" />
+            </div>
+          </div>
+        </header>
+
+        <div id="employeeTableView" class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-employee-kpi">
+              <thead>
+                <tr>
+                  <th scope="col">社員名</th>
+                  <th scope="col">新規面談数</th>
+                  <th scope="col">提案数</th>
+                  <th scope="col">推薦数</th>
+                  <th scope="col">面接設定数</th>
+                  <th scope="col">面接実施数</th>
+                  <th scope="col">内定数</th>
+                  <th scope="col">承諾数</th>
+                  <th scope="col">提案率</th>
+                  <th scope="col">推薦率</th>
+                  <th scope="col">面接設定率</th>
+                  <th scope="col">面接実施率</th>
+                  <th scope="col">内定率</th>
+                  <th scope="col">承諾率</th>
+                  <th scope="col">入社決定率</th>
+                  <th scope="col">今後の予定（新規面談数）</th>
+                  <th scope="col">今後の予定（提案数）</th>
+                  <th scope="col">今後の予定（推薦数）</th>
+                  <th scope="col">今後の予定（面接設定数）</th>
+                  <th scope="col">今後の予定（面接実施数）</th>
+                  <th scope="col">今後の予定（内定数）</th>
+                  <th scope="col">今後の予定（承諾数）</th>
+                </tr>
+              </thead>
+              <tbody id="employeeTableBody">
+                <!-- JavaScriptで生成 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-tab-panel is-hidden" data-kpi-tab-panel="company-ms">
+      <div class="kpi-v2-subsection">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">MS</h4>
+          <div class="kpi-v2-inline-select-group">
+            <label class="kpi-v2-inline-select">
+              <span>評価期間</span>
+              <select id="companyMsPeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table kpi-v2-ms-table">
+              <thead>
+                <tr id="companyMsHeaderRow"></tr>
+              </thead>
+              <tbody id="companyMsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- マーケ 個人別MS -->
+      <div class="kpi-v2-subsection" data-personal-ms="marketing">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">マーケ 個人別MS</h4>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table kpi-v2-personal-ms-table">
+              <thead>
+                <tr id="marketingPersonalMsHeaderRow"></tr>
+              </thead>
+              <tbody id="marketingPersonalMsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CS 個人別MS -->
+      <div class="kpi-v2-subsection" data-personal-ms="cs">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">CS 個人別MS</h4>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table kpi-v2-personal-ms-table">
+              <thead>
+                <tr id="csPersonalMsHeaderRow"></tr>
+              </thead>
+              <tbody id="csPersonalMsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 営業 個人別MS -->
+      <div class="kpi-v2-subsection" data-personal-ms="sales">
+        <div class="kpi-v2-header">
+          <h4 class="kpi-v2-subtitle">営業 個人別MS</h4>
+        </div>
+        <div class="kpi-v2-employee-table-wrapper table-white table-surface">
+          <div class="kpi-v2-scroll-area">
+            <table class="kpi-v2-employee-table kpi-v2-daily-table kpi-v2-personal-ms-table">
+              <thead>
+                <tr id="salesPersonalMsHeaderRow"></tr>
+              </thead>
+              <tbody id="salesPersonalMsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+
+  </div>

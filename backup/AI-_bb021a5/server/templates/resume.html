@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>履歴書 - {{candidateName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "メイリオ", sans-serif;
+            font-size: 11px;
+            line-height: 1.5;
+            padding: 15mm;
+            background: white;
+        }
+
+        h1 {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            letter-spacing: 8px;
+        }
+
+        .date {
+            text-align: right;
+            margin-bottom: 10px;
+            font-size: 10px;
+        }
+
+        .section {
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: normal;
+            width: 80px;
+        }
+
+        .photo-area {
+            width: 30mm;
+            height: 40mm;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: #999;
+        }
+
+        .header-grid {
+            display: grid;
+            grid-template-columns: 1fr 35mm;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .name-box {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+
+        .edu-table th:first-child {
+            width: 100px;
+        }
+
+        .edu-table th:nth-child(2) {
+            width: auto;
+        }
+
+        .edu-table th:nth-child(3) {
+            width: 80px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>履 歴 書</h1>
+    <div class="date">{{currentDate}} 現在</div>
+
+    <div class="header-grid">
+        <div>
+            <table>
+                <tr>
+                    <th>ふりがな</th>
+                    <td>{{candidateKana}}</td>
+                </tr>
+                <tr>
+                    <th>氏名</th>
+                    <td class="name-box">{{candidateName}}</td>
+                </tr>
+                <tr>
+                    <th>生年月日</th>
+                    <td>{{birthday}} （{{age}}歳）</td>
+                </tr>
+                <tr>
+                    <th>住所</th>
+                    <td>〒{{postalCode}}<br>{{address}}</td>
+                </tr>
+                <tr>
+                    <th>電話番号</th>
+                    <td>{{phone}}</td>
+                </tr>
+                <tr>
+                    <th>メール</th>
+                    <td>{{email}}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="photo-area">写真貼付欄</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">学歴</div>
+        <table class="edu-table">
+            <thead>
+                <tr>
+                    <th>年月</th>
+                    <th>学校名・学部・学科</th>
+                    <th>区分</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#educations}}
+                <tr>
+                    <td>{{admissionDate}}</td>
+                    <td>{{schoolName}} {{department}}</td>
+                    <td>入学</td>
+                </tr>
+                <tr>
+                    <td>{{graduationDate}}</td>
+                    <td>{{schoolName}} {{department}}</td>
+                    <td>{{graduationStatus}}</td>
+                </tr>
+                {{/educations}}
+                {{^educations}}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #999;">登録なし</td>
+                </tr>
+                {{/educations}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">職歴</div>
+        <table class="edu-table">
+            <thead>
+                <tr>
+                    <th>年月</th>
+                    <th>会社名・部署・職種</th>
+                    <th>区分</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#workHistories}}
+                <tr>
+                    <td>{{joinDate}}</td>
+                    <td>{{companyName}} {{department}} {{position}}</td>
+                    <td>入社</td>
+                </tr>
+                <tr>
+                    <td>{{leaveDate}}</td>
+                    <td>{{companyName}}</td>
+                    <td>{{#isCurrent}}現職{{/isCurrent}}{{^isCurrent}}退職{{/isCurrent}}</td>
+                </tr>
+                {{/workHistories}}
+                {{^workHistories}}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #999;">登録なし</td>
+                </tr>
+                {{/workHistories}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">志望動機・自己PR</div>
+        <table>
+            <tr>
+                <td style="min-height: 60px;">{{reasonForChange}}</td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>

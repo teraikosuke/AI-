@@ -1,19 +1,6 @@
-<div class="section-shell space-y-6" id="candidatesPage" data-page="candidates">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
-        候補者管理
-      </h3>
-      <p class="text-sm text-slate-500">
-        選考状況・新規面談日・希望条件・CS項目を1画面で把握
-      </p>
-    </div>
-    <button class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500">
-      新規候補者を登録
-    </button>
-  </div>
+<div class="section-shell" id="candidatesPage" data-page="candidates">
 
-  <div class="candidates-filter-card border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
+  <div class="candidates-filter-card space-y-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
         絞り込み条件
@@ -84,11 +71,10 @@
 
   <div class="candidates-main-grid">
     <div class="candidates-tab-bar">
-      <button type="button" class="candidates-tab-btn is-active" data-candidates-tab="calendar">次回アクション日カレンダー</button>
+      <button type="button" class="candidates-tab-btn is-active" data-candidates-tab="calendar">カレンダー</button>
       <button type="button" class="candidates-tab-btn" data-candidates-tab="list">一覧</button>
     </div>
-    <div class="candidates-table-card candidates-tab-panel border border-slate-200 rounded-lg overflow-hidden bg-white"
-      data-candidates-panel="list">
+    <div class="candidates-table-card candidates-tab-panel" data-candidates-panel="list">
       <div class="candidates-table-toolbar">
         <div class="text-sm text-slate-600">
           <span class="font-semibold text-slate-900" id="candidatesResultCount">0件</span>
@@ -145,14 +131,9 @@
         </table>
       </div>
     </div>
-    <div
-      class="candidates-calendar-card candidates-tab-panel is-active border border-slate-200 rounded-lg overflow-hidden bg-white"
-      data-candidates-panel="calendar">
+    <div class="candidates-calendar-card candidates-tab-panel is-active" data-candidates-panel="calendar">
       <div class="candidates-calendar-header">
-        <div>
-          <h4 class="text-sm font-semibold text-slate-700">次回アクション日カレンダー</h4>
-          <p class="text-xs text-slate-500">次回アクション日と担当者を月別に確認できます</p>
-        </div>
+
         <div class="candidates-calendar-controls">
           <span id="candidatesCalendarTitle" class="calendar-month-label">-</span>
           <div class="calendar-nav">

@@ -1,11 +1,6 @@
 ﻿<section class="members-page">
   <div class="members-section">
     <div class="members-section__header">
-      <div>
-        <p class="members-section__eyebrow">メンバー</p>
-        <h2 class="members-section__title">メンバー一覧</h2>
-        <p class="members-section__note">メールアドレスは本人または管理者のみ変更できます。</p>
-      </div>
       <div class="members-section__actions">
         <div class="members-section__meta" id="membersCount"></div>
         <button class="members-add-button" id="memberAddButton" type="button">
@@ -27,20 +22,20 @@
     <p class="members-section__notice" id="membersNotice" role="status" aria-live="polite" hidden></p>
     <div class="members-tab-panel" data-members-panel="members">
       <div class="members-table-wrap" aria-label="メンバー一覧">
-      <table class="members-table">
-        <thead>
-          <tr>
-            <th>氏名</th>
-            <th>メール</th>
-            <th>役割</th>
-            <th>登録日</th>
-            <th>更新日</th>
-            <th data-admin-only>操作</th>
-          </tr>
-        </thead>
-        <tbody id="membersTableBody"></tbody>
-      </table>
-    </div>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>氏名</th>
+              <th>メール</th>
+              <th>役割</th>
+              <th>登録日</th>
+              <th>更新日</th>
+              <th data-admin-only>操作</th>
+            </tr>
+          </thead>
+          <tbody id="membersTableBody"></tbody>
+        </table>
+      </div>
     </div>
     <div class="members-tab-panel" data-members-panel="create-requests" data-admin-only data-admin-strict hidden>
       <div class="members-section__meta" id="memberCreateRequestsCount"></div>
@@ -128,4 +123,3 @@
     </form>
   </div>
 </div>
-

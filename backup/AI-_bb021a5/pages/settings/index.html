@@ -1,0 +1,84 @@
+<div class="section-shell space-y-6" id="settingsPage">
+
+  <!-- Removed Kintone Settings Card -->
+
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <div>
+        <h3>有効応募判定ルール</h3>
+        <p class="text-sm text-slate-500">
+          年齢・国籍・言語レベルから有効応募を判定します。
+        </p>
+      </div>
+      <div class="settings-header-meta">
+        <span class="text-xs text-slate-500">最終更新: <span id="screeningRulesUpdatedAt">-</span></span>
+        <button id="screeningRulesEditToggle" type="button" class="settings-btn subtle">
+          編集
+        </button>
+      </div>
+    </div>
+    <div class="settings-screening-summary" id="screeningRulesSummary">
+      <div class="settings-screening-summary-title">判定ロジック</div>
+      <ul id="screeningRulesSummaryList" class="settings-screening-summary-list"></ul>
+      <p id="screeningRulesSummaryNote" class="settings-screening-summary-note"></p>
+    </div>
+    <form id="screeningRulesForm" class="settings-form">
+      <div class="settings-form-grid">
+        <label class="settings-field">
+          <span>年齢 下限</span>
+          <div class="settings-inline-row">
+            <input type="number" id="screeningMinAge" name="screeningMinAge" class="settings-input" placeholder="例: 20"
+              min="0" data-screening-field />
+            <label class="settings-inline-toggle">
+              <input type="checkbox" id="screeningMinAgeUnlimited" data-screening-field />
+              <span>制限なし</span>
+            </label>
+          </div>
+        </label>
+        <label class="settings-field">
+          <span>年齢 上限</span>
+          <div class="settings-inline-row">
+            <input type="number" id="screeningMaxAge" name="screeningMaxAge" class="settings-input" placeholder="例: 45"
+              min="0" data-screening-field />
+            <label class="settings-inline-toggle">
+              <input type="checkbox" id="screeningMaxAgeUnlimited" data-screening-field />
+              <span>制限なし</span>
+            </label>
+          </div>
+        </label>
+        <label class="settings-field full">
+          <span>対象国籍（カンマ区切り）</span>
+          <input type="text" id="screeningNationalities" name="screeningNationalities" class="settings-input"
+            placeholder="例: 日本, ベトナム, 中国" data-screening-field />
+          <small>
+            未入力の場合は国籍による制限なし。日本国籍は言語レベル不問で有効応募として扱う想定です。
+          </small>
+        </label>
+        <div class="settings-field full">
+          <span>言語レベル（外国籍）</span>
+          <div class="settings-choice-row" id="screeningJpLevelGroup">
+            <label class="settings-choice">
+              <input type="checkbox" name="screeningJpLevel" value="N1" data-screening-field />
+              <span>N1</span>
+            </label>
+            <label class="settings-choice">
+              <input type="checkbox" name="screeningJpLevel" value="N2" data-screening-field />
+              <span>N2</span>
+            </label>
+            <label class="settings-choice">
+              <input type="checkbox" name="screeningJpLevel" value="N3以下" data-screening-field />
+              <span>N3以下</span>
+            </label>
+          </div>
+          <small>チェックしたレベルのみ有効応募の対象になります。</small>
+        </div>
+      </div>
+      <div class="settings-form-footer">
+        <p id="screeningRulesStatus" class="text-sm text-slate-500"></p>
+        <div class="flex items-center gap-2">
+          <button type="submit" class="settings-btn primary screening-edit-only" data-screening-save>保存</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

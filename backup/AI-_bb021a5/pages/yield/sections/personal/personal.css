@@ -1,0 +1,19 @@
+/* Personal Section Specific Styles */
+
+/* 個人成績の特別なハイライト */
+#personal-section .kpi-v2-achievement-section .kpi-v2-value-large {
+  color: #3b82f6;
+  font-weight: 800;
+}
+
+/* 個人成績カードのホバーエフェクト強化 */
+#personal-section .kpi-v2-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* 個人成績の現状金額を強調 */
+#personal-section .kpi-v2-current {
+  font-weight: 700;
+  font-size: 1.1em;
+}

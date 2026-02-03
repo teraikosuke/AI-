@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>KPI API 確認</title>
+</head>
+
+<body>
+  <section class="section-shell">
+    <h1 class="text-xl font-semibold text-slate-900 mb-2">KPI API 確認</h1>
+
+    <div class="kpi-api-test-simple">
+      <strong>簡易表示:</strong>
+      <span id="kpiSummarySimpleView">---</span>
+    </div>
+
+    <p class="text-sm text-slate-600 mb-4">
+      エンドポイントにアクセスしてレスポンスを確認します。CORSやネットワークエラーが出た場合はその内容も表示されます。
+    </p>
+
+    <div class="kpi-api-test-controls">
+      <button type="button" id="kpiSummaryFetchButton" class="kpi-api-test-button">APIを呼び出す</button>
+      <span id="kpiSummaryStatus" class="kpi-api-test-status"></span>
+    </div>
+
+    <div class="kpi-api-test-endpoint">
+      <span class="kpi-api-test-endpoint-label">エンドポイント</span>
+      <code class="kpi-api-test-endpoint-value">
+        https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/kpi/summary
+      </code>
+    </div>
+
+    <div class="kpi-api-test-response-wrapper">
+      <h2 class="kpi-api-test-response-title">レスポンス</h2>
+      <pre id="kpiSummaryResponse" class="kpi-api-test-response">(まだリクエストを送信していません)</pre>
+    </div>
+  </section>
+
+  <script type="module">
+    import { mount } from './kpi-summery-test.js';
+    document.addEventListener('DOMContentLoaded', mount);
+  </script>
+</body>
+
+</html>

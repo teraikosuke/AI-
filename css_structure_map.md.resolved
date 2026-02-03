@@ -1,0 +1,411 @@
+# プロジェクトCSS/HTML構造マップ（詳細版）
+
+> [!TIP]
+> このドキュメントはデザイン修正時の参照用。各ファイルの役割・コンポーネントを確認しながら修正できるよ。
+
+---
+
+## 1. アーキテクチャ概要
+
+```mermaid
+graph TD
+    subgraph "エントリーポイント"
+        A[index.html] --> B[scripts/router.js]
+    end
+    
+    subgraph "グローバルCSS（常時読込）"
+        C[styles/tokens.css]
+        D[styles/base.css]
+        E[styles/utilities.css]
+    end
+    
+    subgraph "ページ別CSS（動的読込）"
+        F[pages/*/xxx.css]
+    end
+    
+    A --> C & D & E
+    B -->|loadPageCSS| F
+```
+
+### SPAルーティング仕様
+
+| 項目 | 説明 |
+|-----|------|
+| エントリー | [index.html](file:///Users/riho/Documents/GitHub/AI-/index.html) → [scripts/router.js](file:///Users/riho/Documents/GitHub/AI-/scripts/router.js) |
+| ページHTML | `pages/*/index.html`（フラグメント、`#app`に挿入） |
+| CSS切替 | [loadPageCSS()](file:///Users/riho/Documents/GitHub/AI-/scripts/router.js#74-91) でページ遷移時に動的読込・前ページCSS削除 |
+| モジュール | `pages/*/xxx.js` がページロジック担当 |
+
+---
+
+## 2. グローバルCSS（常に読み込み）
+
+### 2.1 tokens.css
+| ファイル | [tokens.css](file:///Users/riho/Documents/GitHub/AI-/styles/tokens.css) |
+|---------|------|
+| サイズ | 630B (27行) |
+| 役割 | カラー変数の定義 |
+
+**定義済みトークン：**
+```css
+/* Primary Colors */
+--primary-blue: #3b82f6
+--primary-indigo: #6366f1
+
+/* Slate Palette */
+--slate-50 ~ --slate-900 (9段階)
+
+/* Heatmap Colors */
+--heatmap-cell-1 ~ --heatmap-cell-9
+```
+
+> [!IMPORTANT]
+> **HRMOS統一時はここにトークンを追加・更新すると効率的**
+
+---
+
+### 2.2 base.css
+| ファイル | [base.css](file:///Users/riho/Documents/GitHub/AI-/styles/base.css) |
+|---------|------|
+| サイズ | 10.6KB (約580行) |
+| 役割 | サイドバー、テーブル基本、レイアウト共通 |
+
+**主要コンポーネント：**
+
+| クラス/セレクタ | 役割 | 影響範囲 |
+|---------------|------|---------|
+| `#sidebar` | サイドバーレイアウト | 全ページ |
+| `.sidebar-collapsed` | 折りたたみ状態 | 全ページ |
+| `.nav-item`, `.nav-label`, `.nav-dot` | ナビゲーション | 全ページ |
+| `.table-grid` | テーブル基本スタイル | 多数ページ |
+| `.table-surface` | テーブル外枠 | 多数ページ |
+| `.section-shell` | セクション枠 | 多数ページ |
+| `.page-header` | ページヘッダー | 全ページ |
+| `.sidebar-user-chip` | ユーザーバッジ | 全ページ |
+
+---
+
+### 2.3 utilities.css
+| ファイル | [utilities.css](file:///Users/riho/Documents/GitHub/AI-/styles/utilities.css) |
+|---------|------|
+| サイズ | 1.9KB |
+| 役割 | ユーティリティクラス |
+
+---
+
+## 3. ページ別CSS詳細
+
+### 3.1 yield.css（歩留まり管理）
+| ファイル | [yield.css](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.css) |
+|---------|------|
+| サイズ | 34KB (約1400行) |
+| 適用ページ | yield, yield-personal, yield-company, yield-admin |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.kpi-v2-wrapper` | KPIセクション全体 |
+| `.kpi-v2-section` | セクション枠 |
+| `.kpi-v2-header` | セクションヘッダー |
+| `.kpi-v2-title` | タイトル |
+| `.kpi-tab-group`, `.kpi-tab` | タブナビ |
+| `.kpi-v2-subsection` | サブセクション |
+| `.kpi-v2-subtitle` | サブセクション見出し |
+| `.kpi-v2-grid` | KPIカードグリッド |
+| `.kpi-v2-card` | KPIカード |
+| `.kpi-v2-label`, `.kpi-v2-value` | カードラベル/値 |
+| `.kpi-v2-employee-table` | 社員テーブル |
+| `.kpi-v2-range-picker` | 日付レンジ選択 |
+
+**HRMOS対応済みトークン：**
+```css
+--hrmos-primary: #0066cc
+--hrmos-accent: #00a99d
+--hrmos-surface: #f8fafc
+/* 他多数 */
+```
+
+---
+
+### 3.2 candidates.css（候補者管理）
+| ファイル | [candidates.css](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.css) |
+|---------|------|
+| サイズ | 25KB (約1320行) |
+| 適用ページ | candidates |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.candidates-filter-card` | フィルターエリア |
+| `.candidates-filter-grid` | フィルターグリッド |
+| `.filter-field`, `.filter-input` | フィルター入力 |
+| `.candidates-tab-bar`, `.candidates-tab-btn` | タブ切替 |
+| `.candidates-table-card` | テーブルカード |
+| `.candidates-table-toolbar` | テーブルツールバー |
+| `.candidates-calendar-*` | カレンダー系 |
+| `.calendar-event` | カレンダーイベント |
+| `.candidate-detail-modal` | 詳細モーダル |
+| `.candidate-detail-card` | 詳細カード |
+| `.candidate-detail-section` | 詳細セクション |
+| `.candidate-phase-pill` | フェーズバッジ |
+
+---
+
+### 3.3 mypage.css（マイページ）
+| ファイル | [mypage.css](file:///Users/riho/Documents/GitHub/AI-/pages/mypage/mypage.css) |
+|---------|------|
+| サイズ | 10KB (約590行) |
+| 適用ページ | mypage |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.mypage-card` | カード枠 |
+| `.mypage-card-header`, `.mypage-card-title` | カードヘッダー |
+| `.mypage-role-badge` | ロールバッジ |
+| `.mypage-table`, `.mypage-tasks-table` | テーブル |
+| `.mypage-tab`, `.mypage-upcoming-tabs` | タブ |
+| `.mypage-calendar-*` | カレンダー系 |
+| `.mypage-list`, `.mypage-list-item` | リスト表示 |
+| `.mypage-ghost-btn` | ゴーストボタン |
+| `.mypage-filter-chip` | フィルターチップ |
+
+---
+
+### 3.4 teleapo.css（架電管理）
+| ファイル | [teleapo.css](file:///Users/riho/Documents/GitHub/AI-/pages/teleapo/teleapo.css) |
+|---------|------|
+| サイズ | 38KB (約1650行) |
+| 適用ページ | teleapo |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `[data-page="teleapo"] .kpi-v2-*` | KPI表示 |
+| `.kpi-v2-range-btn` | 日付レンジボタン |
+| `.teleapo-insight-*` | インサイト表示 |
+| `.teleapo-heatmap-*` | ヒートマップ |
+| `#teleapoEmployeeTable` | 社員テーブル |
+| `.teleapo-tab-nav-*` | タブナビ |
+| `.teleapo-tab-btn` | タブボタン |
+| `.dashboard-card` | ダッシュボードカード |
+
+---
+
+### 3.5 referral.css（紹介先企業管理）
+| ファイル | [referral.css](file:///Users/riho/Documents/GitHub/AI-/pages/referral/referral.css) |
+|---------|------|
+| サイズ | 3.5KB (約190行) |
+| 適用ページ | referral |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.referral-candidate-modal` | 候補者モーダル |
+| `.referral-candidate-panel` | モーダルパネル |
+| `.referral-candidate-header` | モーダルヘッダー |
+| `.referral-candidate-item` | 情報項目 |
+| `.referral-candidate-label/value` | ラベル/値 |
+
+---
+
+### 3.6 settings.css（有効応募基準設定）
+| ファイル | [settings.css](file:///Users/riho/Documents/GitHub/AI-/pages/settings/settings.css) |
+|---------|------|
+| サイズ | 3.4KB (約205行) |
+| 適用ページ | settings |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.settings-card` | 設定カード |
+| `.settings-form` | フォーム |
+| `.settings-form-grid` | フォームグリッド |
+| `.settings-field`, `.settings-input` | 入力フィールド |
+| `.settings-btn` | ボタン |
+
+---
+
+### 3.7 goal-settings.css（評価・目標設定）
+| ファイル | [goal-settings.css](file:///Users/riho/Documents/GitHub/AI-/pages/goal-settings/goal-settings.css) |
+|---------|------|
+| サイズ | 12KB (約580行) |
+| 適用ページ | goal-settings |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.settings-tab-group`, `.settings-tab` | タブ |
+| `.settings-radio-group`, `.settings-radio` | ラジオボタン |
+| `.settings-target-table` | 目標テーブル |
+| `.settings-table` | データテーブル |
+| `.settings-rate-grid`, `.settings-rate-field` | 率設定 |
+| `.settings-primary-button`, `.settings-ghost-button` | ボタン |
+
+**独自トークン：**
+```css
+--settings-primary: #0f3a7a
+--settings-bg: #f8fafc
+--settings-border: #e2e8f0
+/* 他多数 */
+```
+
+---
+
+### 3.8 members.css（メンバー設定）
+| ファイル | [members.css](file:///Users/riho/Documents/GitHub/AI-/pages/members/members.css) |
+|---------|------|
+| サイズ | 7.4KB (約450行) |
+| 適用ページ | members |
+
+**主要コンポーネント：**
+
+| クラス | 役割 |
+|-------|------|
+| `.members-section` | セクション |
+| `.members-tabs`, `.members-tab` | タブ |
+| `.members-table`, `.members-table-wrap` | テーブル |
+| `.members-role-pill` | ロールバッジ |
+| `.members-modal` | モーダル |
+| `.members-form` | フォーム |
+| `.members-add-button` | 追加ボタン |
+
+---
+
+### 3.9 ad-performance.css（広告管理）
+| ファイル | [ad-performance.css](file:///Users/riho/Documents/GitHub/AI-/pages/ad-performance/ad-performance.css) |
+|---------|------|
+| サイズ | 32B (1行) |
+| 適用ページ | ad-performance |
+| 状態 | **ほぼ空（Tailwind主体）** |
+
+---
+
+## 4. 共通デザインパターン
+
+### 4.1 カラーパレット（現状）
+
+| 用途 | カラー | 使用箇所 |
+|-----|--------|---------|
+| Primary Blue | `#1d4ed8`, `#2563eb` | ボタン、アクティブタブ |
+| Indigo | `#4338ca`, `#6366f1` | アクセント、バッジ |
+| Slate Gray | `#64748b`, `#475569` | テキスト、ボーダー |
+| Background | `#f8fafc`, `#ffffff` | カード背景 |
+| Border | `#e2e8f0`, `#cbd5e1` | ボーダー |
+| Success | `#16a34a`, `#22c55e` | 成功状態 |
+| Warning | `#f59e0b`, `#fbbf24` | 警告状態 |
+| Error | `#dc2626`, `#ef4444` | エラー状態 |
+
+### 4.2 共通コンポーネントパターン
+
+#### タブ
+```css
+/* 共通パターン - ピル型 */
+.xxx-tab {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  background: #f8fafc;
+}
+.xxx-tab.is-active {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+```
+
+#### カード
+```css
+/* 共通パターン */
+.xxx-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem ~ 16px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  padding: 1.5rem;
+}
+```
+
+#### モーダル
+```css
+/* 共通パターン */
+.xxx-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0; pointer-events: none;
+}
+.xxx-modal.is-open {
+  opacity: 1; pointer-events: auto;
+}
+```
+
+#### ボタン
+```css
+/* プライマリボタン */
+background: #1d4ed8 ~ #4338ca;
+border-radius: 999px;
+padding: 0.5rem 1.4rem;
+```
+
+---
+
+## 5. デザイン修正チェックリスト
+
+### 5.1 全体統一時の修正順序
+
+```mermaid
+flowchart LR
+    A[1. tokens.css] --> B[2. base.css]
+    B --> C[3. yield.css\n (参考実装)]
+    C --> D[4. 他ページCSS]
+```
+
+1. **tokens.css** - 共通カラートークン追加
+2. **base.css** - サイドバー、テーブル基本の更新
+3. **yield.css** - 参考実装（HRMOS対応済み）を他へ展開
+4. **各ページCSS** - コンポーネント別に更新
+
+### 5.2 ページ別優先度
+
+| 優先度 | ページ | 理由 |
+|-------|-------|------|
+| 🔴 高 | candidates | ユーザー操作頻度高、複雑 |
+| 🔴 高 | mypage | ログイン後最初に見るページ |
+| 🟡 中 | teleapo | 機能が多く最大CSS |
+| 🟡 中 | referral | テーブル中心 |
+| 🟢 低 | settings, goal-settings, members | 設定系（低頻度） |
+| 🟢 低 | ad-performance | ほぼTailwind依存 |
+
+---
+
+## 6. Tailwind CSS との共存
+
+- **Tailwind CDN** が [index.html](file:///Users/riho/Documents/GitHub/AI-/index.html) で読み込み済み
+- ページHTMLで `class="flex items-center gap-3"` 等のユーティリティ使用
+- **カスタムCSS** は `.xxx-component` 形式で定義
+- **競合注意**: Tailwindのプリフライトとカスタムスタイルの優先順位
+
+---
+
+## 7. クイックリファレンス
+
+### ファイル一覧
+
+| ページID | CSS | 行数 | 主要機能 |
+|---------|-----|-----|---------|
+| yield* | yield.css | 1400 | KPIダッシュボード |
+| candidates | candidates.css | 1320 | 候補者管理、カレンダー |
+| mypage | mypage.css | 590 | タスク、カレンダー |
+| teleapo | teleapo.css | 1650 | 架電管理、ヒートマップ |
+| referral | referral.css | 190 | 紹介先企業 |
+| settings | settings.css | 205 | 基準設定 |
+| goal-settings | goal-settings.css | 580 | 目標設定 |
+| members | members.css | 450 | メンバー管理 |
+| ad-performance | ad-performance.css | 1 | (空) |

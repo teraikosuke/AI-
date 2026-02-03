@@ -4,11 +4,11 @@
 }
 
 .settings-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.85rem;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
-  padding: 1.5rem;
+  background-color: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  box-shadow: var(--app-shadow-md);
+  padding: var(--app-space-lg);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -40,9 +40,9 @@
 }
 
 .settings-screening-summary {
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  border-radius: 0.85rem;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  border-radius: var(--app-radius-lg);
   padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -90,17 +90,18 @@
 }
 
 .settings-input {
-  border: 1px solid #cbd5f5;
-  border-radius: 0.6rem;
-  padding: 0.65rem 0.85rem;
-  font-size: 0.95rem;
+  height: 40px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 14px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .settings-input:focus {
   outline: none;
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25);
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px var(--app-primary-light);
 }
 
 .settings-field small {
@@ -127,23 +128,23 @@
 }
 
 .settings-btn.primary {
-  background-color: #4338ca;
-  color: #fff;
-  border-color: #4338ca;
+  background-color: var(--app-primary);
+  color: var(--app-text-inverse);
+  border-color: var(--app-primary);
 }
 
 .settings-btn.primary:hover {
-  background-color: #3730a3;
+  background-color: var(--app-primary-dark);
 }
 
 .settings-btn.subtle {
-  background-color: #eef2ff;
-  border-color: #c7d2fe;
-  color: #4338ca;
+  background-color: var(--app-primary-light);
+  border-color: var(--app-border-dark);
+  color: var(--app-primary);
 }
 
 .settings-btn.subtle:hover {
-  background-color: #e0e7ff;
+  background-color: var(--app-info-light);
 }
 
 .settings-form:not(.is-editing) .screening-edit-only {

@@ -1,0 +1,185 @@
+<div class="section-shell space-y-6" id="candidatesPage" data-page="candidates">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">
+        候補者管理
+      </h3>
+      <p class="text-sm text-slate-500">
+        選考状況・新規面談日・希望条件・CS項目を1画面で把握
+      </p>
+    </div>
+    <button class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500">
+      新規候補者を登録
+    </button>
+  </div>
+
+  <div class="candidates-filter-card border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">
+        絞り込み条件
+      </h4>
+      <div class="flex items-center gap-2">
+        <button id="candidatesFilterReset"
+          class="px-3 py-1.5 border border-slate-300 rounded-md text-xs hover:bg-white">
+          条件をクリア
+        </button>
+        <span class="text-xs text-slate-500">自動で候補者一覧を更新</span>
+      </div>
+    </div>
+
+    <div class="candidates-filter-grid">
+      <label class="filter-field">
+        <span>登録期間（開始）</span>
+        <input id="candidatesFilterStartDate" type="date" class="filter-input" />
+      </label>
+
+      <label class="filter-field">
+        <span>登録期間（終了）</span>
+        <input id="candidatesFilterEndDate" type="date" class="filter-input" />
+      </label>
+
+      <label class="filter-field">
+        <span>応募媒体</span>
+        <select id="candidatesFilterSource" class="filter-input">
+          <option value="">すべて</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>求職者名</span>
+        <input id="candidatesFilterName" type="search" class="filter-input" placeholder="例：田中太郎" />
+      </label>
+
+      <label class="filter-field">
+        <span>応募企業名</span>
+        <select id="candidatesFilterCompany" class="filter-input">
+          <option value="">すべて</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>担当アドバイザー名</span>
+        <select id="candidatesFilterAdvisor" class="filter-input">
+          <option value="">すべて</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>有効応募</span>
+        <select id="candidatesFilterValid" class="filter-input">
+          <option value="">すべて</option>
+          <option value="true">有効</option>
+          <option value="false">無効</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>フェーズ</span>
+        <select id="candidatesFilterPhase" class="filter-input">
+          <option value="">すべて</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="candidates-main-grid">
+    <div class="candidates-tab-bar">
+      <button type="button" class="candidates-tab-btn is-active" data-candidates-tab="calendar">次回アクション日カレンダー</button>
+      <button type="button" class="candidates-tab-btn" data-candidates-tab="list">一覧</button>
+    </div>
+    <div class="candidates-table-card candidates-tab-panel border border-slate-200 rounded-lg overflow-hidden bg-white"
+      data-candidates-panel="list">
+      <div class="candidates-table-toolbar">
+        <div class="text-sm text-slate-600">
+          <span class="font-semibold text-slate-900" id="candidatesResultCount">0件</span>
+          の候補者を表示
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span id="candidatesLastSynced" class="text-xs text-slate-500 whitespace-nowrap">最終同期: -</span>
+          <label class="flex items-center gap-2 text-xs text-slate-500">
+            並び替え
+            <select id="candidatesSortOrder" class="filter-input w-36">
+              <option value="desc">新しい順</option>
+              <option value="asc">古い順</option>
+            </select>
+          </label>
+          <button id="candidatesToggleEdit" type="button" class="table-action-btn">
+            編集
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-auto table-surface">
+        <table class="table-grid min-w-[1380px]">
+          <colgroup>
+            <col style="width: 160px" />
+            <col style="width: 220px" />
+            <col style="width: 110px" />
+            <col style="width: 170px" />
+            <col style="width: 160px" />
+            <col style="width: 220px" />
+            <col style="width: 160px" />
+            <col style="width: 180px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th
+                class="sticky top-0 left-0 bg-slate-50 z-[60] cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                data-sort-key="registeredAt" style="position: sticky; left: 0; top: 0; z-index: 60;">登録日
+              </th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="phase">フェーズ</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="source">媒体</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="validApplication">
+                有効応募</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="candidateName">
+                求職者名</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="nextAction">
+                次回アクション</th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="partnerName">担当CS
+              </th>
+              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort-key="advisorName">
+                担当アドバイザー</th>
+            </tr>
+          </thead>
+          <tbody id="candidatesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div
+      class="candidates-calendar-card candidates-tab-panel is-active border border-slate-200 rounded-lg overflow-hidden bg-white"
+      data-candidates-panel="calendar">
+      <div class="candidates-calendar-header">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-700">次回アクション日カレンダー</h4>
+          <p class="text-xs text-slate-500">次回アクション日と担当者を月別に確認できます</p>
+        </div>
+        <div class="candidates-calendar-controls">
+          <span id="candidatesCalendarTitle" class="calendar-month-label">-</span>
+          <div class="calendar-nav">
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="prev">前月</button>
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="today">今月</button>
+            <button type="button" class="calendar-nav-btn" data-calendar-nav="next">翌月</button>
+          </div>
+        </div>
+      </div>
+      <div class="candidates-calendar-body" id="candidatesCalendarBody"></div>
+    </div>
+  </div>
+
+  <div class="candidate-detail-modal" id="candidateDetailModal" aria-hidden="true">
+    <div class="candidate-detail-card" role="dialog" aria-modal="true" aria-labelledby="candidateDetailModalHeading">
+      <h2 id="candidateDetailModalHeading" class="sr-only">候補者詳細</h2>
+      <button type="button" class="candidate-detail-close" id="candidateDetailClose" aria-label="閉じる">×</button>
+      <div id="candidateDetailContent">
+        <div class="candidate-detail-empty">
+          <p class="text-sm text-slate-500">
+            候補者行をクリックすると詳細が表示されます。
+          </p>
+          <p class="text-xs text-slate-400">
+            新規面談日・希望条件・選考進捗・CS項目などをまとめて確認できます。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

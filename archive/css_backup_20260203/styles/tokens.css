@@ -1,0 +1,104 @@
+:root {
+  /* =============================================
+   * HRMOS Design System Tokens
+   * ============================================= */
+
+  /* Primary Colors - HRMOS Blue */
+  --hrmos-primary: #0066cc;
+  --hrmos-primary-dark: #004d99;
+  --hrmos-primary-light: #e6f2ff;
+  --hrmos-primary-hover: #0052a3;
+
+  /* Accent Colors - Turquoise/Teal */
+  --hrmos-accent: #00a99d;
+  --hrmos-accent-light: #e6f7f6;
+  --hrmos-accent-dark: #008577;
+
+  /* Surface & Background */
+  --hrmos-surface: #f8fafc;
+  --hrmos-surface-elevated: #ffffff;
+  --hrmos-section-bg: #f5f7fa;
+
+  /* Text Colors */
+  --hrmos-text-primary: #1a1a1a;
+  --hrmos-text-secondary: #666666;
+  --hrmos-text-muted: #999999;
+  --hrmos-text-inverse: #ffffff;
+
+  /* Border Colors */
+  --hrmos-border: #e5e8eb;
+  --hrmos-border-light: #f0f2f5;
+  --hrmos-border-dark: #d1d5db;
+
+  /* Status Colors */
+  --hrmos-success: #00a99d;
+  --hrmos-success-light: #e6f7f6;
+  --hrmos-warning: #f5a623;
+  --hrmos-warning-light: #fef3e2;
+  --hrmos-danger: #e53935;
+  --hrmos-danger-light: #ffeaea;
+  --hrmos-info: #0066cc;
+  --hrmos-info-light: #e6f2ff;
+
+  /* Shadows */
+  --hrmos-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --hrmos-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --hrmos-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --hrmos-shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+  /* Border Radius */
+  --hrmos-radius-sm: 4px;
+  --hrmos-radius-md: 8px;
+  --hrmos-radius-lg: 12px;
+  --hrmos-radius-xl: 16px;
+  --hrmos-radius-full: 999px;
+
+  /* Spacing (reference) */
+  --hrmos-space-xs: 0.25rem;
+  --hrmos-space-sm: 0.5rem;
+  --hrmos-space-md: 1rem;
+  --hrmos-space-lg: 1.5rem;
+  --hrmos-space-xl: 2rem;
+
+  /* Typography */
+  --hrmos-font-family: "Noto Sans JP", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --hrmos-font-size-xs: 0.75rem;
+  --hrmos-font-size-sm: 0.875rem;
+  --hrmos-font-size-md: 1rem;
+  --hrmos-font-size-lg: 1.125rem;
+  --hrmos-font-size-xl: 1.25rem;
+  --hrmos-font-weight-normal: 400;
+  --hrmos-font-weight-medium: 500;
+  --hrmos-font-weight-semibold: 600;
+  --hrmos-font-weight-bold: 700;
+
+  /* =============================================
+   * Legacy Tokens (互換性維持)
+   * ============================================= */
+
+  /* Primary colors - mapped to HRMOS */
+  --primary-blue: var(--hrmos-primary);
+  --primary-indigo: #6366f1;
+
+  /* Slate color palette */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+
+  /* Heatmap specific colors */
+  --heatmap-cell-1: #f7fafc;
+  --heatmap-cell-2: #e2e8f0;
+  --heatmap-cell-3: #cbd5e1;
+  --heatmap-cell-4: #94a3b8;
+  --heatmap-cell-5: #64748b;
+  --heatmap-cell-6: #475569;
+  --heatmap-cell-7: #334155;
+  --heatmap-cell-8: #1e293b;
+  --heatmap-cell-9: #1a365d;
+}

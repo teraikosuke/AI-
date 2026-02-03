@@ -1,233 +1,717 @@
-﻿<section data-page="teleapo" class="kpi-v2-wrapper space-y-6">
+﻿<!-- 架電管理ページ | SmartHR/HRMOS Style Redesign with Tabs -->
+<style>
+  /* ===== Teleapo Page - Base Reset ===== */
+  #teleapoPage .kpi-v2-section {
+    box-shadow: none !important;
+    border: none !important;
+  }
 
+  #teleapoPage {
+    background: #ffffff;
+    padding: 0;
+    border-radius: 0;
+  }
 
+  /* ===== Header Bar (統一スタイル) ===== */
+  .teleapo-header-bar {
+    background: linear-gradient(135deg, #0077c7 0%, #005a9e 100%);
+    padding: 16px 32px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 
+  .teleapo-header-bar h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
 
-  <!-- 上部：全体KPI（率＋件数） -->
-  <div class="kpi-v2-section kpi-v2-summary-section" id="teleapoSectionKpi">
+  .teleapo-header-bar p {
+    font-size: 13px;
+    opacity: 0.85;
+    margin: 4px 0 0 0;
+  }
 
-    <div class="flex items-start justify-between mb-2 gap-4">
-      <div>
-        <h3 id="teleapoSummaryTitle" class="kpi-v2-title">全体KPI</h3>
+  /* ===== Tab Navigation ===== */
+  .teleapo-tabs {
+    display: flex;
+    gap: 0;
+    background: #ffffff;
+    border-radius: 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .teleapo-tab {
+    flex: 1;
+    padding: 16px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    text-align: center;
+  }
+
+  .teleapo-tab:hover {
+    color: #0077c7;
+    background: #f8fafc;
+  }
+
+  .teleapo-tab.active {
+    color: #0077c7;
+    background: #ffffff;
+  }
+
+  .teleapo-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #0077c7;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .teleapo-tab-icon {
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* ===== Tab Panels ===== */
+  .teleapo-panel {
+    display: none;
+    padding: 24px;
+    background: #ffffff;
+    border-radius: 0;
+  }
+
+  .teleapo-panel.active {
+    display: block;
+  }
+
+  /* ===== Section Cards ===== */
+  .teleapo-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .teleapo-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .teleapo-section-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .teleapo-section-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  /* ===== KPI Cards (Redesigned) ===== */
+  .teleapo-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 1024px) {
+    .teleapo-kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .teleapo-kpi-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+  }
+
+  .teleapo-kpi-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+
+  .teleapo-kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0077c7;
+    line-height: 1.1;
+  }
+
+  .teleapo-kpi-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .teleapo-kpi-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+  }
+
+  .teleapo-kpi-breakdown-value {
+    font-weight: 600;
+    color: #334155;
+  }
+
+  /* ===== Filter Bar ===== */
+  .teleapo-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: #ffffff;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+
+  .teleapo-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .teleapo-filter-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+  }
+
+  .teleapo-filter-input {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  .teleapo-filter-input:focus {
+    outline: none;
+    background: #e2e8f0;
+  }
+
+  .teleapo-filter-btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .teleapo-filter-btn:hover {
+    background: #e2e8f0;
+  }
+
+  .teleapo-filter-btn.active {
+    background: #0077c7;
+    color: white;
+  }
+
+  /* ===== Tables ===== */
+  .teleapo-table-wrapper {
+    overflow-x: auto;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .teleapo-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .teleapo-table th {
+    padding: 12px 16px;
+    background: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .teleapo-table td {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #334155;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .teleapo-table tbody tr:hover {
+    background: #f8fafc;
+  }
+
+  /* ===== Chart Cards ===== */
+  .teleapo-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 1024px) {
+    .teleapo-chart-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .teleapo-chart-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .teleapo-chart-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+  }
+
+  .teleapo-chart-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 16px;
+  }
+
+  /* ===== Form Styles ===== */
+  .teleapo-form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  @media (max-width: 1024px) {
+    .teleapo-form-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .teleapo-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .teleapo-form-field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+  }
+
+  .teleapo-form-field input,
+  .teleapo-form-field select,
+  .teleapo-form-field textarea {
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #ffffff;
+    transition: border-color 0.15s;
+  }
+
+  .teleapo-form-field input:focus,
+  .teleapo-form-field select:focus,
+  .teleapo-form-field textarea:focus {
+    outline: none;
+    border-color: #0077c7;
+  }
+
+  .teleapo-form-full {
+    grid-column: 1 / -1;
+  }
+
+  .teleapo-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .teleapo-form-hint {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  .teleapo-form-submit {
+    padding: 12px 32px;
+    background: #0077c7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .teleapo-form-submit:hover {
+    background: #0066b0;
+  }
+
+  /* ===== Collapsible Sections ===== */
+  .teleapo-collapsible {
+    background: #ffffff;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .teleapo-collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .teleapo-collapsible-header > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .teleapo-collapsible-header:hover {
+    background: #f8fafc;
+  }
+
+  .teleapo-collapsible-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .teleapo-collapsible-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .teleapo-collapsible-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .teleapo-collapsible-count {
+    padding: 4px 12px;
+    background: #0077c7;
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex !important;
+    align-items: center;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .teleapo-collapsible-btn {
+    padding: 8px 16px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .teleapo-collapsible-content {
+    display: none;
+    padding: 0 24px 24px;
+  }
+
+  .teleapo-collapsible.open .teleapo-collapsible-content {
+    display: block;
+  }
+
+  /* ===== Insight Card ===== */
+  .teleapo-insight {
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+    border-left: 4px solid #0077c7;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 20px;
+  }
+
+  .teleapo-insight-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0077c7;
+    margin-bottom: 8px;
+  }
+
+  .teleapo-insight-text {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+  }
+
+  /* ===== Legacy Compatibility ===== */
+  .kpi-v2-wrapper {
+    background: transparent !important;
+  }
+</style>
+
+<section data-page="teleapo" id="teleapoPage" class="kpi-v2-wrapper">
+
+  <!-- タブナビゲーション -->
+  <div class="teleapo-tabs">
+    <button class="teleapo-tab active" data-tab="performance">
+      <span class="teleapo-tab-icon">📊</span>架電成績
+    </button>
+    <button class="teleapo-tab" data-tab="management">
+      <span class="teleapo-tab-icon">📋</span>架電管理
+    </button>
+  </div>
+
+  <!-- ========== 架電成績タブ ========== -->
+  <div class="teleapo-panel active" id="teleapoPerformancePanel" data-panel="performance">
+
+    <!-- 期間フィルター -->
+    <div class="teleapo-filter-bar">
+      <div class="teleapo-filter-group">
+        <span class="teleapo-filter-label">期間</span>
+        <input type="date" id="teleapoCompanyRangeStart" class="teleapo-filter-input" />
+        <span style="color: #94a3b8;">〜</span>
+        <input type="date" id="teleapoCompanyRangeEnd" class="teleapo-filter-input" />
       </div>
-      <div class="text-xs text-slate-500 flex items-center">
-        表示範囲:
-        <span id="teleapoSummaryScopeLabel" class="font-semibold text-slate-700 ml-1">全体</span>
-        <button type="button" id="teleapoSummaryResetBtn"
-          class="ml-3 px-2 py-1 border border-slate-300 rounded-md text-[11px] text-slate-600 hover:bg-slate-100">
-          全体に戻る
-        </button>
+      <div class="teleapo-filter-group" style="margin-left: auto;">
+        <button type="button" class="teleapo-filter-btn" data-preset="today">今日</button>
+        <button type="button" class="teleapo-filter-btn" data-preset="thisWeek">今週</button>
+        <button type="button" class="teleapo-filter-btn active" data-preset="thisMonth">今月</button>
+      </div>
+      <p id="teleapoCompanyPeriodLabel" class="text-xs text-slate-500"></p>
+    </div>
+
+    <!-- 全体KPI -->
+    <div class="teleapo-section" id="teleapoSectionKpi">
+      <div class="teleapo-section-header">
+        <div>
+          <h4 class="teleapo-section-title" id="teleapoSummaryTitle">全体KPI</h4>
+          <p class="teleapo-section-subtitle">
+            表示範囲: <span id="teleapoSummaryScopeLabel" class="font-semibold text-slate-700">全体</span>
+            <button type="button" id="teleapoSummaryResetBtn" class="teleapo-filter-btn ml-2"
+              style="padding: 4px 12px; font-size: 11px;">全体に戻る</button>
+          </p>
+        </div>
+        <div class="teleapo-filter-group">
+          <span class="teleapo-filter-label">着座率の分母</span>
+          <div id="teleapoRateModeToggle" style="display: flex; gap: 4px;">
+            <button type="button" data-rate-mode="contact" class="teleapo-filter-btn active">接触数</button>
+            <button type="button" data-rate-mode="step" class="teleapo-filter-btn">設定数</button>
+          </div>
+        </div>
+      </div>
+      <p id="teleapoKpiCalcDesc" class="text-xs text-slate-500 mb-4">設定率=設定数/接触数・着座率=着座数/接触数</p>
+
+      <!-- KPI率カード -->
+      <div class="teleapo-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;">
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">接触率（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiContactRateTotal">-</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiContactRateTel">-</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiContactRateOther">-</span></div>
+          </div>
+        </div>
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">設定率（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiSetRateTotal">-</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiSetRateTel">-</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiSetRateOther">-</span></div>
+          </div>
+        </div>
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">着座率（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiShowRateTotal">-</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiShowRateTel">-</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiShowRateOther">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI件数カード -->
+      <div class="teleapo-kpi-grid">
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">架電数（架電ルート）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiDialsTel">0</div>
+          <p class="text-xs text-slate-500 mt-2">その他ルートには架電は含まれません</p>
+        </div>
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">接触数（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiContactsTotal">0</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiContactsTel">0</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiContactsOther">0</span></div>
+          </div>
+        </div>
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">設定数（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiSetsTotal">0</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiSetsTel">0</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiSetsOther">0</span></div>
+          </div>
+        </div>
+        <div class="teleapo-kpi-card">
+          <div class="teleapo-kpi-label">着座数（全体）</div>
+          <div class="teleapo-kpi-value" id="teleapoKpiShowsTotal">0</div>
+          <div class="teleapo-kpi-breakdown">
+            <div class="teleapo-kpi-breakdown-item"><span>架電</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiShowsTel">0</span></div>
+            <div class="teleapo-kpi-breakdown-item"><span>その他</span><span class="teleapo-kpi-breakdown-value"
+                id="teleapoKpiShowsOther">0</span></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
-      <div class="flex items-center gap-2 text-xs text-slate-600">
-        <span class="font-semibold text-slate-700">着座率の分母</span>
-        <div id="teleapoRateModeToggle" class="inline-flex rounded-full border border-slate-300 bg-white p-0.5">
-          <button type="button" data-rate-mode="contact"
-            class="px-3 py-1 text-[11px] font-semibold rounded-full bg-indigo-600 text-white shadow-sm"
-            aria-pressed="true">接触数</button>
-          <button type="button" data-rate-mode="step"
-            class="px-3 py-1 text-[11px] font-semibold rounded-full text-slate-600 hover:bg-slate-100"
-            aria-pressed="false">設定数</button>
+    <!-- 社員成績 -->
+    <div class="teleapo-section" id="teleapoSectionEmployees">
+      <div class="teleapo-section-header">
+        <div>
+          <h4 class="teleapo-section-title">社員成績（架電ルートのみ）</h4>
+          <p class="teleapo-section-subtitle">列名をクリックして並び替え</p>
         </div>
       </div>
-      <p id="teleapoKpiCalcDesc" class="text-[11px] text-slate-500">設定率=設定数/接触数・着座率=着座数/接触数</p>
-    </div>
-
-    <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">接触率（全体）</div>
-        <div class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight" id="teleapoKpiContactRateTotal">-
-        </div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiContactRateTel"
-              class="font-semibold text-slate-800">-</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiContactRateOther"
-              class="font-semibold text-slate-800">-</span></div>
-        </div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">設定率（全体）</div>
-        <div class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight" id="teleapoKpiSetRateTotal">-</div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiSetRateTel"
-              class="font-semibold text-slate-800">-</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiSetRateOther"
-              class="font-semibold text-slate-800">-</span></div>
-        </div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">着座率（全体）</div>
-        <div class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight" id="teleapoKpiShowRateTotal">-</div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiShowRateTel"
-              class="font-semibold text-slate-800">-</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiShowRateOther"
-              class="font-semibold text-slate-800">-</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">架電数（架電ルート）</div>
-        <div class="text-2xl md:text-3xl font-bold text-slate-900" id="teleapoKpiDialsTel">0</div>
-        <p class="text-[11px] text-slate-500">その他ルートには架電は含まれません</p>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">接触数（全体）</div>
-        <div class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight" id="teleapoKpiContactsTotal">0</div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiContactsTel"
-              class="font-semibold text-slate-800">0</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiContactsOther"
-              class="font-semibold text-slate-800">0</span></div>
-        </div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">設定数（全体）</div>
-        <div class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight" id="teleapoKpiSetsTotal">0</div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiSetsTel"
-              class="font-semibold text-slate-800">0</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiSetsOther"
-              class="font-semibold text-slate-800">0</span></div>
-        </div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center flex flex-col gap-2">
-        <div class="text-xs font-semibold text-slate-700">着座数（全体）</div>
-        <div class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight" id="teleapoKpiShowsTotal">0</div>
-        <div class="mt-1 grid grid-cols-2 gap-1 text-[11px] text-slate-600 w-full">
-          <div class="flex items-center justify-between px-1"><span>架電ルート</span><span id="teleapoKpiShowsTel"
-              class="font-semibold text-slate-800">0</span></div>
-          <div class="flex items-center justify-between px-1"><span>その他ルート</span><span id="teleapoKpiShowsOther"
-              class="font-semibold text-slate-800">0</span></div>
-        </div>
-      </div>
-    </div>
-  </div><!-- 社員成績 & ヒートマップ -->
-  <div class="kpi-v2-section">
-    <div class="kpi-v2-header mb-1">
-      <div class="flex flex-col gap-1">
-        <p class="kpi-v2-period-label text-xs text-slate-700" id="teleapoCompanyPeriodLabel"></p>
-      </div>
-      <div class="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4">
-        <div class="flex items-center gap-2">
-          <input type="date" id="teleapoCompanyRangeStart" class="kpi-v2-date-input text-sm px-4 py-2" />
-          <span class="kpi-v2-date-separator text-lg">～</span>
-          <input type="date" id="teleapoCompanyRangeEnd" class="kpi-v2-date-input text-sm px-4 py-2" />
-        </div>
-        <div class="kpi-v2-range-presets flex gap-2" data-scope="company">
-          <button type="button" class="kpi-v2-range-btn px-4 py-2" data-preset="today">今日</button>
-          <button type="button" class="kpi-v2-range-btn px-4 py-2" data-preset="thisWeek">今週</button>
-          <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active px-4 py-2"
-            data-preset="thisMonth">今月</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-v2-subsection" id="teleapoSectionEmployees">
-      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h4 class="text-base font-semibold text-slate-800">社員成績（架電ルートのみ）</h4>
-        <div class="teleapo-employee-sort-hint text-xs text-slate-500">列名をクリックして並び替え</div>
-      </div>
-
-      <div id="teleapoEmployeeTableWrapper" class="overflow-auto rounded-lg border border-slate-200 mb-4 bg-white">
-        <table class="table-grid min-w-[800px]" id="teleapoEmployeeTable">
+      <div class="teleapo-table-wrapper" id="teleapoEmployeeTableWrapper">
+        <table class="teleapo-table" id="teleapoEmployeeTable">
           <thead>
             <tr>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="name">社員</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="dials">架電数</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="connects">通電数</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="sets">設定数</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="shows">着座数</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="connectRate">通電率</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="setRate">設定率</th>
-              <th class="whitespace-nowrap cursor-pointer" data-sort="showRate">着座率</th>
+              <th data-sort="name" style="cursor: pointer;">社員</th>
+              <th data-sort="dials" style="cursor: pointer;">架電数</th>
+              <th data-sort="connects" style="cursor: pointer;">通電数</th>
+              <th data-sort="sets" style="cursor: pointer;">設定数</th>
+              <th data-sort="shows" style="cursor: pointer;">着座数</th>
+              <th data-sort="connectRate" style="cursor: pointer;">通電率</th>
+              <th data-sort="setRate" style="cursor: pointer;">設定率</th>
+              <th data-sort="showRate" style="cursor: pointer;">着座率</th>
             </tr>
           </thead>
           <tbody id="teleapoEmployeeTableBody"></tbody>
         </table>
       </div>
-    </div>
 
-    <div id="teleapoEmployeeChartWrapper" class="kpi-v2-subsection hidden">
-      <div class="dashboard-card teleapo-employee-chart-card">
-        <div class="dashboard-card-header">
-          <div>
-            <p id="teleapoEmployeeChartTitle" class="dashboard-card-title">社員別 成長KPI（架電・設定・着座）</p>
-            <p class="dashboard-card-subtext">通電率・設定率・着座率の推移（架電ルートのみ）</p>
+      <!-- 社員チャート（選択時に表示） -->
+      <div id="teleapoEmployeeChartWrapper" class="hidden" style="margin-top: 24px;">
+        <div class="teleapo-chart-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <p id="teleapoEmployeeChartTitle" class="teleapo-chart-title">社員別 成長KPI</p>
+              <p class="teleapo-chart-subtitle">通電率・設定率・着座率の推移（架電ルートのみ）</p>
+            </div>
+            <div id="teleapoEmployeeTrendMode" style="display: flex; gap: 4px;">
+              <button type="button" class="teleapo-filter-btn" data-employee-trend-mode="week">週</button>
+              <button type="button" class="teleapo-filter-btn active" data-employee-trend-mode="month">月</button>
+              <button type="button" class="teleapo-filter-btn" data-employee-trend-mode="year">年</button>
+            </div>
           </div>
-          <div class="teleapo-employee-mode-toggle" id="teleapoEmployeeTrendMode" role="group" aria-label="集計軸">
-            <span class="teleapo-employee-mode-label">集計軸</span>
-            <button type="button" class="teleapo-employee-mode-btn" data-employee-trend-mode="week"
-              aria-pressed="false">週</button>
-            <button type="button" class="teleapo-employee-mode-btn is-active" data-employee-trend-mode="month"
-              aria-pressed="true">月</button>
-            <button type="button" class="teleapo-employee-mode-btn" data-employee-trend-mode="year"
-              aria-pressed="false">年</button>
-          </div>
-        </div>
-        <div class="teleapo-employee-layout">
-          <div class="teleapo-employee-chart-block">
-            <div class="dashboard-chart">
-              <div class="teleapo-employee-chart-surface">
-                <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" class="w-full h-full"></svg>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+            <div style="height: 260px;">
+              <svg id="teleapoEmployeeTrendChart" viewBox="0 0 800 260" style="width: 100%; height: 100%;"></svg>
+            </div>
+            <div>
+              <p style="font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px;">期間別KPI <span
+                  id="teleapoEmployeeTrendModeLabel">-</span></p>
+              <div style="max-height: 220px; overflow-y: auto;">
+                <table class="teleapo-table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>期間</th>
+                      <th style="text-align: right;">架電数</th>
+                      <th style="text-align: right;">通電率</th>
+                      <th style="text-align: right;">設定率</th>
+                      <th style="text-align: right;">着座率</th>
+                    </tr>
+                  </thead>
+                  <tbody id="teleapoEmployeeTrendTableBody"></tbody>
+                </table>
               </div>
             </div>
-            <div class="teleapo-chart-legend">
-              <span class="teleapo-legend-item"><span
-                  class="teleapo-legend-dot teleapo-legend-dot--connect"></span>通電率</span>
-              <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--set"></span>設定率</span>
-              <span class="teleapo-legend-item"><span class="teleapo-legend-dot teleapo-legend-dot--show"></span>着座率</span>
-            </div>
           </div>
-          <div class="teleapo-employee-table-block">
-            <div class="teleapo-employee-table-header">
-              <div>
-                <p class="teleapo-employee-table-title">期間別KPI</p>
-                <p class="teleapo-employee-table-subtext">集計軸: <span id="teleapoEmployeeTrendModeLabel">-</span></p>
-              </div>
-            </div>
-            <div class="teleapo-employee-table-wrap">
-              <table class="teleapo-employee-table">
-                <thead>
-                  <tr>
-                    <th>期間</th>
-                    <th class="text-right">架電数</th>
-                    <th class="text-right">通電率</th>
-                    <th class="text-right">設定率</th>
-                    <th class="text-right">着座率</th>
-                  </tr>
-                </thead>
-                <tbody id="teleapoEmployeeTrendTableBody"></tbody>
-              </table>
-            </div>
+          <div style="display: flex; gap: 20px; margin-top: 12px; font-size: 12px; color: #64748b;">
+            <span>🔵 通電率</span>
+            <span>🟢 設定率</span>
+            <span>🟠 着座率</span>
           </div>
+          <p id="teleapoEmployeeCalcDesc" class="text-xs text-slate-500 mt-2">通電率=通電数/架電数・設定率=設定数/通電数・着座率=着座数/通電数</p>
         </div>
-        <p class="dashboard-card-note" id="teleapoEmployeeCalcDesc">通電率=通電数/架電数・設定率=設定数/通電数・着座率=着座数/通電数</p>
-        <p class="dashboard-card-note">各点にカーソルを合わせると詳細が表示されます。</p>
       </div>
     </div>
 
-    <div class="kpi-v2-subsection" id="teleapoSectionHeatmap">
-      <h4 class="kpi-v2-subtitle mb-2">通電率分析</h4>
-      <div class="kpi-v2-filters flex flex-wrap items-center gap-3 teleapo-analysis-subhead mb-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="kpi-v2-filter-label">集計期間（通電率分析）</span>
-          <div id="teleapoAnalysisRangeButtons" class="flex flex-wrap gap-1">
-            <button type="button" class="kpi-v2-range-btn kpi-v2-range-btn-active"
-              data-analysis-range="all">全期間</button>
-            <button type="button" class="kpi-v2-range-btn" data-analysis-range="1w">直近1週</button>
-            <button type="button" class="kpi-v2-range-btn" data-analysis-range="1m">直近1ヶ月</button>
-            <button type="button" class="kpi-v2-range-btn" data-analysis-range="6m">直近半年</button>
-          </div>
-          <p id="teleapoAnalysisPeriodLabel" class="text-[11px] text-slate-500"></p>
+    <!-- 通電率分析 -->
+    <div class="teleapo-section" id="teleapoSectionHeatmap">
+      <div class="teleapo-section-header">
+        <div>
+          <h4 class="teleapo-section-title">通電率分析</h4>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="kpi-v2-filter-label">社員</span>
-          <select id="teleapoAnalysisEmployeeFilter" class="kpi-v2-filter-select">
+        <div class="teleapo-filter-group">
+          <span class="teleapo-filter-label">集計期間</span>
+          <div id="teleapoAnalysisRangeButtons" style="display: flex; gap: 4px;">
+            <button type="button" class="teleapo-filter-btn active" data-analysis-range="all">全期間</button>
+            <button type="button" class="teleapo-filter-btn" data-analysis-range="1w">直近1週</button>
+            <button type="button" class="teleapo-filter-btn" data-analysis-range="1m">直近1ヶ月</button>
+            <button type="button" class="teleapo-filter-btn" data-analysis-range="6m">直近半年</button>
+          </div>
+          <span class="teleapo-filter-label" style="margin-left: 16px;">社員</span>
+          <select id="teleapoAnalysisEmployeeFilter" class="teleapo-filter-input">
             <option value="all">全員</option>
             <option value="佐藤">佐藤</option>
             <option value="鈴木">鈴木</option>
@@ -235,284 +719,324 @@
             <option value="田中">田中</option>
           </select>
         </div>
-        <span class="text-[10px] text-slate-400">※左のグラフ/右のヒートマップに反映</span>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch teleapo-analysis-row">
-        <div id="teleapoAttemptChartWrapper" class="dashboard-card teleapo-analysis-card">
-          <div class="dashboard-card-header">
-            <div>
-              <p class="dashboard-card-title">架電回数と通電率</p>
-              <p class="dashboard-card-subtext">架電回数ごとの平均通電率（%）</p>
-            </div>
+      <p id="teleapoAnalysisPeriodLabel" class="text-xs text-slate-500 mb-4"></p>
+
+      <div class="teleapo-chart-grid">
+        <div class="teleapo-chart-card" id="teleapoAttemptChartWrapper">
+          <p class="teleapo-chart-title">架電回数と通電率</p>
+          <p class="teleapo-chart-subtitle">架電回数ごとの平均通電率（%）</p>
+          <div style="height: 220px;">
+            <svg id="teleapoAttemptChart" viewBox="0 0 800 220" style="width: 100%; height: 100%;"></svg>
           </div>
-          <div class="dashboard-chart teleapo-analysis-body">
-            <svg id="teleapoAttemptChart" viewBox="0 0 800 220" class="w-full h-full"></svg>
-          </div>
-          <p class="dashboard-card-note">横軸: 架電回数 / 縦軸: 通電率（%）</p>
-          <p id="teleapoAttemptChartNote" class="dashboard-card-note"></p>
+          <p class="text-xs text-slate-500 mt-2">横軸: 架電回数 / 縦軸: 通電率（%）</p>
+          <p id="teleapoAttemptChartNote" class="text-xs text-slate-500"></p>
         </div>
-        <div class="dashboard-card teleapo-analysis-card teleapo-heatmap-col">
-          <div class="dashboard-card-header">
-            <div>
-              <p class="dashboard-card-title">通電率ヒートマップ</p>
-              <p class="dashboard-card-subtext">曜日×時間帯の通電率分布（%）</p>
-            </div>
-          </div>
-          <div
-            class="overflow-auto rounded-lg border border-slate-200 bg-white teleapo-heatmap-wrapper teleapo-analysis-body">
-            <table class="min-w-[520px] border-collapse text-sm text-slate-700" id="teleapoHeatmapTable">
-              <thead class="bg-slate-50">
+        <div class="teleapo-chart-card">
+          <p class="teleapo-chart-title">通電率ヒートマップ</p>
+          <p class="teleapo-chart-subtitle">曜日×時間帯の通電率分布（%）</p>
+          <div class="teleapo-table-wrapper" style="max-height: 280px; overflow: auto;">
+            <table class="teleapo-table" id="teleapoHeatmapTable" style="font-size: 12px;">
+              <thead>
                 <tr>
-                  <th class="px-3 py-2 border border-slate-200 text-left">曜日＼時間帯</th>
-                  <th class="px-3 py-2 border border-slate-200 text-center">月</th>
-                  <th class="px-3 py-2 border border-slate-200 text-center">火</th>
-                  <th class="px-3 py-2 border border-slate-200 text-center">水</th>
-                  <th class="px-3 py-2 border border-slate-200 text-center">木</th>
-                  <th class="px-3 py-2 border border-slate-200 text-center">金</th>
+                  <th>曜日＼時間帯</th>
+                  <th style="text-align: center;">月</th>
+                  <th style="text-align: center;">火</th>
+                  <th style="text-align: center;">水</th>
+                  <th style="text-align: center;">木</th>
+                  <th style="text-align: center;">金</th>
                 </tr>
               </thead>
               <tbody id="teleapoHeatmapTableBody"></tbody>
             </table>
           </div>
-          <p class="dashboard-card-note">セル内の数値は通電率（%）。色が濃いほど高い時間帯です。</p>
+          <p class="text-xs text-slate-500 mt-2">セル内の数値は通電率（%）。色が濃いほど高い時間帯です。</p>
         </div>
       </div>
-      <div class="teleapo-insight-card mt-3">
+
+      <div class="teleapo-insight">
         <div class="teleapo-insight-title">一言分析</div>
         <p id="teleapoInsightText" class="teleapo-insight-text">-</p>
       </div>
     </div>
   </div>
-  </div>
 
-  <section class="kpi-v2-section teleapo-form-card teleapo-panel" id="teleapoFormSection">
-    <div class="teleapo-form-header">
-      <div>
-        <p class="teleapo-form-eyebrow">新規架電ログを登録</p>
-        <h4 class="teleapo-form-title">架電ログ入力</h4>
-      </div>
-    </div>
-    <div class="teleapo-form-grid teleapo-form-grid-6">
-      <label class="teleapo-form-field">
-        <span>日時</span>
-        <input id="dialFormCalledAt" type="datetime-local" required />
-      </label>
-      <label class="teleapo-form-field">
-        <span>担当者</span>
-        <select id="dialFormEmployee" required></select>
-      </label>
-      <label class="teleapo-form-field">
-        <span>候補者名</span>
-        <input id="dialFormCandidateName" list="dialFormCandidateList" type="text" required placeholder="候補者名を入力" />
-        <datalist id="dialFormCandidateList"></datalist>
-      </label>
-      <label class="teleapo-form-field">
-        <span>経路</span>
-        <select id="dialFormRoute" required>
-          <option value="電話">電話</option>
-          <option value="SMS">SMS</option>
-          <option value="その他">その他</option>
-        </select>
-      </label>
-      <label class="teleapo-form-field">
-        <span>架電回数</span>
-        <input id="dialFormCallNo" type="number" min="1" max="10" required placeholder="1～10" />
-      </label>
-      <label class="teleapo-form-field">
-        <span>アポ結果</span>
-        <select id="dialFormResult" required>
-          <option value="通電">通電</option>
-          <option value="不在">不在</option>
-          <option value="NG">NG</option>
-          <option value="設定">設定</option>
-          <option value="SMS送信">SMS送信</option>
-        </select>
-      </label>
-      <label class="teleapo-form-field teleapo-form-field-interview is-hidden" id="dialFormInterviewField">
-        <span>初回面談日時</span>
-        <input id="dialFormInterviewAt" type="datetime-local" />
-      </label>
-      <label class="teleapo-form-field teleapo-form-field-full">
-        <span>メモ</span>
-        <textarea id="dialFormMemo" rows="2" placeholder="メモを入力"></textarea>
-      </label>
-    </div>
-    <input type="hidden" id="dialFormCandidateId" />
-    <div class="teleapo-form-actions">
-      <div class="teleapo-form-hint">日時は自動入力、候補者名を選ぶと架電回数・経路を自動セットします（一覧にない候補者も登録可能）</div>
-      <button id="dialFormSubmit" type="button" class="teleapo-form-submit">保存</button>
-    </div>
-    <p id="dialFormMessage" class="teleapo-form-message text-sm"></p>
-  </section>
+  <!-- ========== 架電管理タブ ========== -->
+  <div class="teleapo-panel" id="teleapoManagementPanel" data-panel="management">
 
-  <section class="kpi-v2-section teleapo-panel" id="teleapoCsTaskSection">
-    <div class="flex items-center justify-between flex-wrap gap-2">
-      <div>
-        <h4 class="text-base font-semibold text-slate-800">CSタスク管理</h4>
-        <p class="text-xs text-slate-500">対応が必要な候補者（未接触かつ有効応募）</p>
+    <!-- 架電ログ入力 -->
+    <div class="teleapo-section" id="teleapoFormSection">
+      <div class="teleapo-section-header">
+        <div>
+          <h4 class="teleapo-section-title">架電ログ入力</h4>
+          <p class="teleapo-section-subtitle">新規架電ログを登録</p>
+        </div>
       </div>
-      <div class="flex items-center gap-3 text-xs text-slate-500">
-        <button id="teleapoCsTaskToggle" type="button" aria-expanded="false" aria-controls="teleapoCsTaskTableWrapper"
-          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
-          一覧を開く
-        </button>
-        <span id="teleapoCsTaskCount" class="teleapo-count-badge">0件</span>
-      </div>
-    </div>
-    <div class="table-surface overflow-auto mt-3 hidden" id="teleapoCsTaskTableWrapper">
-      <table class="table-grid min-w-[900px]" id="teleapoCsTaskTable">
-        <thead>
-          <tr>
-            <th class="whitespace-nowrap">フェーズ</th>
-            <th class="whitespace-nowrap">有効応募</th>
-            <th class="whitespace-nowrap">求職者名</th>
-            <th class="whitespace-nowrap">登録日時</th>
-            <th class="whitespace-nowrap">電話番号</th>
-            <th class="whitespace-nowrap">連絡希望時間帯</th>
-            <th class="whitespace-nowrap">架電登録</th>
-          </tr>
-        </thead>
-        <tbody id="teleapoCsTaskTableBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="kpi-v2-section teleapo-panel" id="teleapoMissingInfoSection">
-    <div class="flex items-center justify-between flex-wrap gap-2">
-      <div>
-        <h4 class="text-base font-semibold text-slate-800">候補者情報不足一覧</h4>
-        <p class="text-xs text-slate-500">年齢または電話番号が未登録の候補者</p>
-      </div>
-      <div class="flex items-center gap-3 text-xs text-slate-500">
-        <button id="teleapoMissingInfoToggle" type="button" aria-expanded="false"
-          aria-controls="teleapoMissingInfoTableWrapper"
-          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
-          一覧を開く
-        </button>
-        <span id="teleapoMissingInfoCount" class="teleapo-count-badge">0件</span>
-      </div>
-    </div>
-    <div class="table-surface overflow-auto mt-3 hidden" id="teleapoMissingInfoTableWrapper">
-      <table class="table-grid min-w-[860px]" id="teleapoMissingInfoTable">
-        <thead>
-          <tr>
-            <th class="whitespace-nowrap">不足項目</th>
-            <th class="whitespace-nowrap">求職者名</th>
-            <th class="whitespace-nowrap">登録日時</th>
-            <th class="whitespace-nowrap">年齢</th>
-            <th class="whitespace-nowrap">電話番号</th>
-          </tr>
-        </thead>
-        <tbody id="teleapoMissingInfoTableBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="kpi-v2-section teleapo-panel" id="teleapoSectionLogs">
-    <div class="teleapo-form-header">
-      <div>
-        <p class="teleapo-form-eyebrow">架電ログ一覧</p>
-        <h4 class="teleapo-form-title">架電ログ</h4>
-      </div>
-      <button id="teleapoLogToggle" type="button" aria-expanded="true" aria-controls="teleapoLogWrapper"
-        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 font-semibold transition">
-        一覧を閉じる
-      </button>
-    </div>
-    <div id="teleapoLogWrapper" class="space-y-3">
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 text-xs text-slate-500">
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-slate-500">担当者</label>
-          <select id="teleapoLogEmployeeFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-            <option value="">全員</option>
-            <option value="佐藤">佐藤</option>
-            <option value="田中">田中</option>
-            <option value="山本">山本</option>
-            <option value="鈴木">鈴木</option>
+      <div class="teleapo-form-grid">
+        <div class="teleapo-form-field">
+          <label>日時</label>
+          <input id="dialFormCalledAt" type="datetime-local" required />
+        </div>
+        <div class="teleapo-form-field">
+          <label>担当者</label>
+          <select id="dialFormEmployee" required></select>
+        </div>
+        <div class="teleapo-form-field">
+          <label>候補者名</label>
+          <input id="dialFormCandidateName" list="dialFormCandidateList" type="text" required placeholder="候補者名を入力" />
+          <datalist id="dialFormCandidateList"></datalist>
+        </div>
+        <div class="teleapo-form-field">
+          <label>経路</label>
+          <select id="dialFormRoute" required>
+            <option value="電話">電話</option>
+            <option value="SMS">SMS</option>
+            <option value="その他">その他</option>
           </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-slate-500">アポ結果</label>
-          <select id="teleapoLogResultFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-            <option value="">全て</option>
+        <div class="teleapo-form-field">
+          <label>架電回数</label>
+          <input id="dialFormCallNo" type="number" min="1" max="10" required placeholder="1～10" />
+        </div>
+        <div class="teleapo-form-field">
+          <label>アポ結果</label>
+          <select id="dialFormResult" required>
             <option value="通電">通電</option>
             <option value="不在">不在</option>
+            <option value="NG">NG</option>
             <option value="設定">設定</option>
-            <option value="着座">着座</option>
-            <option value="コールバック">コールバック</option>
+            <option value="SMS送信">SMS送信</option>
           </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-slate-500">経路</label>
-          <select id="teleapoLogRouteFilter" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm">
-            <option value="">全て</option>
-            <option value="tel">架電</option>
-            <option value="other">その他</option>
-          </select>
+        <div class="teleapo-form-field hidden" id="dialFormInterviewField">
+          <label>初回面談日時</label>
+          <input id="dialFormInterviewAt" type="datetime-local" />
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-slate-500">相手名検索</label>
-          <input type="text" id="teleapoLogTargetSearch"
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="相手名で検索..." />
-        </div>
-        <div class="flex items-end gap-2">
-          <button id="teleapoLogFilterReset"
-            class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-100 whitespace-nowrap">
-            条件をクリア
-          </button>
-          <div id="teleapoLogFilterCount" class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">
-            0件
-          </div>
-          <span id="teleapoLogPeriodLabel" class="text-[11px] text-slate-500"></span>
-          <span id="teleapoLogStatus" class="text-[11px] text-slate-500"></span>
+        <div class="teleapo-form-field teleapo-form-full">
+          <label>メモ</label>
+          <textarea id="dialFormMemo" rows="2" placeholder="メモを入力"></textarea>
         </div>
       </div>
-      <div class="overflow-auto table-surface table-teleapo">
-        <table class="table-grid min-w-[1320px]" id="teleapoLogTable">
-          <thead>
-            <tr>
-              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort="datetime">日時</th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable whitespace-nowrap" data-sort="employee">担当者</th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="route">
-                経路
-              </th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="target">
-                相手
-              </th>
-              <th class="whitespace-nowrap">電話番号</th>
-              <th class="whitespace-nowrap">連絡希望時間帯</th>
-              <th class="whitespace-nowrap">メールアドレス</th>
-              <th class="cursor-pointer hover:bg-slate-100 sortable" data-sort="result">
-                アポ結果
-              </th>
-              <th>メモ</th>
-              <th>削除</th>
-            </tr>
-          </thead>
-          <tbody id="teleapoLogTableBody">
-            <!-- JSで描画 -->
-          </tbody>
-        </table>
+      <input type="hidden" id="dialFormCandidateId" />
+      <div class="teleapo-form-actions">
+        <div class="teleapo-form-hint">日時は自動入力、候補者名を選ぶと架電回数・経路を自動セットします</div>
+        <button id="dialFormSubmit" type="button" class="teleapo-form-submit">保存</button>
+      </div>
+      <p id="dialFormMessage" class="text-sm mt-2"></p>
+    </div>
+
+    <!-- CSタスク管理（折りたたみ） -->
+    <div class="teleapo-collapsible" id="teleapoCsTaskSection">
+      <div class="teleapo-collapsible-header" id="teleapoCsTaskToggle">
+        <div>
+          <p class="teleapo-collapsible-title">CSタスク管理</p>
+          <p class="teleapo-collapsible-subtitle">対応が必要な候補者（未接触かつ有効応募）</p>
+        </div>
+        <div class="teleapo-collapsible-toggle">
+          <span id="teleapoCsTaskCount" class="teleapo-collapsible-count">0件</span>
+          <span class="teleapo-collapsible-btn">一覧を開く</span>
+        </div>
+      </div>
+      <div class="teleapo-collapsible-content" id="teleapoCsTaskTableWrapper">
+        <div class="teleapo-table-wrapper">
+          <table class="teleapo-table" id="teleapoCsTaskTable">
+            <thead>
+              <tr>
+                <th>フェーズ</th>
+                <th>有効応募</th>
+                <th>求職者名</th>
+                <th>登録日時</th>
+                <th>電話番号</th>
+                <th>連絡希望時間帯</th>
+                <th>架電登録</th>
+              </tr>
+            </thead>
+            <tbody id="teleapoCsTaskTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </section>
 
-  <div class="teleapo-candidate-modal" id="teleapoCandidateModal" aria-hidden="true">
-    <div class="teleapo-candidate-panel" role="dialog" aria-modal="true" aria-labelledby="teleapoCandidateModalTitle">
-      <div class="teleapo-candidate-header">
+    <!-- 候補者情報不足一覧（折りたたみ） -->
+    <div class="teleapo-collapsible" id="teleapoMissingInfoSection">
+      <div class="teleapo-collapsible-header" id="teleapoMissingInfoToggle">
         <div>
-          <p class="teleapo-candidate-eyebrow">候補者クイック詳細</p>
-          <h3 id="teleapoCandidateModalTitle" class="teleapo-candidate-title">候補者詳細</h3>
+          <p class="teleapo-collapsible-title">候補者情報不足一覧</p>
+          <p class="teleapo-collapsible-subtitle">年齢または電話番号が未登録の候補者</p>
         </div>
-        <button type="button" class="teleapo-candidate-close" id="teleapoCandidateClose" aria-label="閉じる">×</button>
+        <div class="teleapo-collapsible-toggle">
+          <span id="teleapoMissingInfoCount" class="teleapo-collapsible-count">0件</span>
+          <span class="teleapo-collapsible-btn">一覧を開く</span>
+        </div>
       </div>
-      <div id="teleapoCandidateDetailContent" class="teleapo-candidate-body">
-        <div class="teleapo-candidate-empty">
-          <p class="text-sm text-slate-500">候補者を選択すると詳細が表示されます。</p>
+      <div class="teleapo-collapsible-content" id="teleapoMissingInfoTableWrapper">
+        <div class="teleapo-table-wrapper">
+          <table class="teleapo-table" id="teleapoMissingInfoTable">
+            <thead>
+              <tr>
+                <th>不足項目</th>
+                <th>求職者名</th>
+                <th>登録日時</th>
+                <th>年齢</th>
+                <th>電話番号</th>
+              </tr>
+            </thead>
+            <tbody id="teleapoMissingInfoTableBody"></tbody>
+          </table>
         </div>
+      </div>
+    </div>
+
+    <!-- 架電ログ一覧 -->
+    <div class="teleapo-section" id="teleapoSectionLogs">
+      <div class="teleapo-section-header">
+        <div>
+          <h4 class="teleapo-section-title">架電ログ一覧</h4>
+        </div>
+        <button id="teleapoLogToggle" type="button" class="teleapo-filter-btn">一覧を閉じる</button>
+      </div>
+      <div id="teleapoLogWrapper">
+        <div class="teleapo-filter-bar" style="margin-bottom: 16px;">
+          <div class="teleapo-filter-group">
+            <span class="teleapo-filter-label">担当者</span>
+            <select id="teleapoLogEmployeeFilter" class="teleapo-filter-input">
+              <option value="">全員</option>
+              <option value="佐藤">佐藤</option>
+              <option value="田中">田中</option>
+              <option value="山本">山本</option>
+              <option value="鈴木">鈴木</option>
+            </select>
+          </div>
+          <div class="teleapo-filter-group">
+            <span class="teleapo-filter-label">アポ結果</span>
+            <select id="teleapoLogResultFilter" class="teleapo-filter-input">
+              <option value="">全て</option>
+              <option value="通電">通電</option>
+              <option value="不在">不在</option>
+              <option value="設定">設定</option>
+              <option value="着座">着座</option>
+              <option value="コールバック">コールバック</option>
+            </select>
+          </div>
+          <div class="teleapo-filter-group">
+            <span class="teleapo-filter-label">経路</span>
+            <select id="teleapoLogRouteFilter" class="teleapo-filter-input">
+              <option value="">全て</option>
+              <option value="tel">架電</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <div class="teleapo-filter-group">
+            <span class="teleapo-filter-label">相手名</span>
+            <input type="text" id="teleapoLogTargetSearch" class="teleapo-filter-input" placeholder="相手名で検索..." />
+          </div>
+          <div class="teleapo-filter-group" style="margin-left: auto;">
+            <button id="teleapoLogFilterReset" class="teleapo-filter-btn">クリア</button>
+            <span id="teleapoLogFilterCount" class="teleapo-collapsible-count">0件</span>
+          </div>
+        </div>
+        <div class="teleapo-table-wrapper">
+          <table class="teleapo-table" id="teleapoLogTable" style="min-width: 1200px;">
+            <thead>
+              <tr>
+                <th data-sort="datetime" style="cursor: pointer;">日時</th>
+                <th data-sort="employee" style="cursor: pointer;">担当者</th>
+                <th data-sort="route" style="cursor: pointer;">経路</th>
+                <th data-sort="target" style="cursor: pointer;">相手</th>
+                <th>電話番号</th>
+                <th>連絡希望時間帯</th>
+                <th>メールアドレス</th>
+                <th data-sort="result" style="cursor: pointer;">アポ結果</th>
+                <th>メモ</th>
+                <th>削除</th>
+              </tr>
+            </thead>
+            <tbody id="teleapoLogTableBody"></tbody>
+          </table>
+        </div>
+        <p id="teleapoLogPeriodLabel" class="text-xs text-slate-500 mt-2"></p>
+        <p id="teleapoLogStatus" class="text-xs text-slate-500"></p>
       </div>
     </div>
   </div>
 
-  <script type="module" src="./teleapo.js?v=20260321"></script>
+  <!-- 候補者モーダル（共通） -->
+  <div class="teleapo-candidate-modal" id="teleapoCandidateModal" aria-hidden="true"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div
+      style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div
+        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <p style="font-size: 12px; color: #64748b;">候補者クイック詳細</p>
+          <h3 id="teleapoCandidateModalTitle" style="font-size: 18px; font-weight: 600; color: #1e293b;">候補者詳細</h3>
+        </div>
+        <button type="button" id="teleapoCandidateClose"
+          style="font-size: 24px; color: #94a3b8; background: none; border: none; cursor: pointer;">×</button>
+      </div>
+      <div id="teleapoCandidateDetailContent" style="padding: 20px;">
+        <p style="color: #64748b;">候補者を選択すると詳細が表示されます。</p>
+      </div>
+    </div>
+  </div>
+
 </section>
+
+<script>
+  // グローバル関数: タブ切り替え（onclick属性から呼び出し）
+  function switchTeleapoTab(targetPanel, clickedTab) {
+    const performancePanel = document.getElementById('teleapoPerformancePanel');
+    const managementPanel = document.getElementById('teleapoManagementPanel');
+    const tabs = document.querySelectorAll('.teleapo-tab');
+
+    // タブのアクティブ状態を更新
+    tabs.forEach(t => t.classList.remove('active'));
+    clickedTab.classList.add('active');
+
+    // パネルの表示を切り替え
+    if (targetPanel === 'performance') {
+      performancePanel.style.display = 'block';
+      performancePanel.classList.add('active');
+      managementPanel.style.display = 'none';
+      managementPanel.classList.remove('active');
+    } else if (targetPanel === 'management') {
+      performancePanel.style.display = 'none';
+      performancePanel.classList.remove('active');
+      managementPanel.style.display = 'block';
+      managementPanel.classList.add('active');
+    }
+  }
+
+  // グローバル関数: 折りたたみセクションのトグル
+  function toggleTeleapoCollapsible(header) {
+    const parent = header.closest('.teleapo-collapsible');
+    parent.classList.toggle('open');
+    const btn = header.querySelector('.teleapo-collapsible-btn');
+    if (parent.classList.contains('open')) {
+      btn.textContent = '閉じる';
+    } else {
+      btn.textContent = '一覧を開く';
+    }
+  }
+
+  // フィルターボタンのアクティブ状態切り替え（必要に応じて）
+  (function () {
+    function initFilters() {
+      document.querySelectorAll('[data-preset], [data-analysis-range], [data-rate-mode], [data-employee-trend-mode]').forEach(btn => {
+        btn.addEventListener('click', function () {
+          const siblings = this.parentElement.querySelectorAll('button');
+          siblings.forEach(s => s.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initFilters);
+    } else {
+      initFilters();
+    }
+    setTimeout(initFilters, 500);
+  })();
+</script>
+
+<script type="module" src="./teleapo.js?v=20260321"></script>

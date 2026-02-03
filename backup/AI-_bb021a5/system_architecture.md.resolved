@@ -1,0 +1,367 @@
+# システムアーキテクチャ全体図
+
+## 📊 概要
+
+AI-Dashboard は、**3層アーキテクチャ**で構成されたWebアプリケーションです。
+
+```
+┌─────────────────────────────────────────┐
+│     フロントエンド（Vercel）            │
+│   Vanilla JavaScript SPA                │
+└────────────┬────────────────────────────┘
+             │ HTTPS API Calls
+             ▼
+┌─────────────────────────────────────────┐
+│     API層（AWS Lambda + API Gateway）   │
+│   22個のLambda関数                      │
+└────────────┬────────────────────────────┘
+             │ SQL Queries
+             ▼
+┌─────────────────────────────────────────┐
+│     データ層（RDS PostgreSQL）          │
+│   15テーブル                            │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 1. フロントエンド層（Vercel）
+
+### 📁 構成
+
+```
+/Users/riho/Documents/GitHub/AI-/
+├── index.html              # エントリーポイント
+├── pages/                  # 各ページ
+│   ├── login/              # ログインページ
+│   ├── mypage/             # マイページ
+│   ├── candidates/         # 候補者管理
+│   ├── yield/              # 歩留まり管理（個人・全社）
+│   ├── yield-personal/     # 歩留まり（個人）
+│   ├── yield-company/      # 歩留まり（全社）
+│   ├── yield-admin/        # 歩留まり（管理者）
+│   ├── teleapo/            # テレアポ管理
+│   ├── ad-performance/     # 広告管理
+│   ├── referral/           # 紹介先企業管理
+│   ├── goal-settings/      # 目標設定
+│   ├── members/            # メンバー管理
+│   └── settings/           # システム設定
+└── scripts/                # JavaScript
+    ├── router.js           # SPAルーティング
+    ├── auth.js             # 認証管理
+    ├── api/                # API通信層
+    │   ├── client.js       # HTTPクライアント
+    │   ├── index.js        # RepositoryFactory
+    │   └── repositories/   # リポジトリ
+    │       ├── auth.js
+    │       ├── candidates.js
+    │       └── kpi.js
+    ├── services/           # ビジネスロジック
+    └── mock/               # 開発用モックデータ
+```
+
+### 🔄 データフロー（フロントエンド内）
+
+```mermaid
+graph LR
+    A[ページ（HTML/JS）] --> B[Repository]
+    B --> C[ApiClient]
+    C --> D[Lambda API]
+    D --> E[PostgreSQL]
+    E --> D
+    D --> C
+    C --> B
+    B --> A
+```
+
+### 📡 API通信の仕組み
+
+#### 1. **ApiClient**（[scripts/api/client.js](file:///Users/riho/Documents/GitHub/AI-/scripts/api/client.js)）
+
+HTTPクライアントの基盤クラス。すべてのAPI通信はここを通る。
+
+```javascript
+// 例：GET リクエスト
+const client = new ApiClient();
+const response = await client.get('/api/candidates');
+```
+
+**機能**:
+- リトライ機能（3回まで）
+- タイムアウト処理（10秒）
+- エラーハンドリング
+- レスポンス統一化
+
+#### 2. **Repository**（`scripts/api/repositories/*.js`）
+
+ドメインごとのAPI呼び出しをカプセル化。
+
+例：[kpi.js](file:///Users/riho/Documents/GitHub/AI-/scripts/api/repositories/kpi.js)
+```javascript
+class KpiRepository {
+  async getPersonalMetrics(startDate, endDate) {
+    const response = await this.apiClient.get(
+      `/api/metrics/personal?from=${startDate}&to=${endDate}`
+    );
+    return response.data;
+  }
+}
+```
+
+#### 3. **RepositoryFactory**（[scripts/api/index.js](file:///Users/riho/Documents/GitHub/AI-/scripts/api/index.js)）
+
+リポジトリの生成・管理。
+
+```javascript
+const repos = RepositoryFactory.create();
+const kpiData = await repos.kpi.getPersonalMetrics('2025-01-01', '2025-01-31');
+```
+
+---
+
+## 2. API層（AWS Lambda + API Gateway）
+
+### 🚀 Lambda関数一覧（22個）
+
+| カテゴリ | Lambda関数名 | エンドポイント | 説明 |
+|---------|-------------|---------------|------|
+| **認証** | [ats-api-dev-auth-login](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-auth-login) | `POST /api/auth/login` | ログイン・JWT発行 |
+| | [ats-api-dev-auth-me](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-auth-me) | `GET /api/auth/me` | ログインユーザー情報 |
+| **候補者** | [ats-api-dev-candidates-list](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-candidates-list) | `GET /api/candidates` | 候補者一覧・検索 |
+| | [ats-api-dev-candidates-detail](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-candidates-detail) | `GET/PUT /api/candidates/:id` | 候補者詳細・更新 |
+| **KPI** | [ats-api-dev-kpi-yield](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield) | `GET /api/kpi/yield` | KPI集計（コホート） |
+| | [ats-api-dev-kpi-yield-daily](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-daily) | `GET /api/kpi/yield/daily` | 日次KPI |
+| | [ats-api-dev-kpi-yield-personal](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-personal) | `GET /api/kpi/yield/personal` | 個人KPI |
+| | [ats-api-dev-kpi-clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) | `GET /api/kpi/clients` | クライアントKPI |
+| | [ats-api-dev-kpi-clients-edit](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients-edit) | `PUT /api/kpi/clients/:id` | クライアント更新 |
+| | [ats-api-dev-kpi-teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | `GET /api/kpi/teleapo` | テレアポKPI |
+| | [ats-api-dev-kpi-ads](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-ads) | `GET /api/kpi/ads` | 広告KPI |
+| | [ats-api-dev-kpi-ads-detail](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-ads-detail) | `GET /api/kpi/ads/:id` | 広告詳細 |
+| | [ats-api-dev-kpi-targets](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-targets) | `GET /api/kpi/targets` | 目標達成率 |
+| **テレアポ** | [ats-api-dev-teleapo-logs](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-logs) | `GET /api/teleapo/logs` | テレアポログ一覧 |
+| | [ats-api-dev-teleapo-log-create](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-log-create) | `POST /api/teleapo/log` | テレアポログ作成 |
+| | [ats-api-dev-teleapo-candidate-contact](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-candidate-contact) | `GET /api/teleapo/candidate/:id/contact` | 候補者架電履歴 |
+| **クライアント** | [ats-api-dev-clients-create](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-clients-create) | `POST /api/clients` | クライアント作成 |
+| **メンバー** | [ats-api-dev-members](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-members) | `GET /api/members` | メンバー一覧 |
+| **目標** | [ats-api-dev-goal-settings](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-goal-settings) | `GET/PUT /api/goal-settings` | 目標設定CRUD |
+| **マイページ** | [ats-api-dev-mypage](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-mypage) | `GET /api/mypage` | マイページデータ |
+| **設定** | [ats-api-settings-screening-rules](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-settings-screening-rules) | `GET/PUT /api/settings/screening-rules` | 選考ルール設定 |
+| **テスト** | [ats-test](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-test) | `GET /test` | テスト用 |
+
+### 🔧 Lambda関数の構造
+
+すべてのLambda関数は同じパターンで実装されている：
+
+```javascript
+import pg from 'pg';
+const { Pool } = pg;
+
+// DB接続プール
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: { rejectUnauthorized: false },
+  max: 2,
+});
+
+export const handler = async (event) => {
+  let client;
+  try {
+    // DB接続
+    client = await pool.connect();
+    
+    // クエリ実行
+    const result = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    // レスポンス返却
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result.rows)
+    };
+  } catch (error) {
+    console.error('LAMBDA ERROR:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  } finally {
+    if (client) client.release();
+  }
+};
+```
+
+---
+
+## 3. データ層（RDS PostgreSQL）
+
+### 📦 データベーステーブル（15個）
+
+| テーブル名 | 説明 | 主要カラム |
+|-----------|------|----------|
+| `users` | ユーザー | id, email, password_hash, name, role |
+| `candidates` | 候補者 | id, name, email, phone, advisor_user_id |
+| `candidate_applications` | 応募情報 | id, candidate_id, company_id, status |
+| `candidate_tasks` | タスク | id, candidate_id, task_type, due_date |
+| [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | テレアポログ | id, candidate_id, caller_user_id, result |
+| [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) | クライアント企業 | id, name, industry, contact |
+| `goal_targets` | 目標設定（月次） | id, advisor_user_id, period_id, targets |
+| `goal_daily_targets` | 目標設定（日次） | id, advisor_user_id, target_date, targets |
+| `goal_settings` | 評価ルール | id, evaluation_rule_type, options |
+| `ad_details` | 広告媒体契約 | id, media_name, contract_start, budget |
+| `companies` | 紹介先企業 | id, name, industry |
+| `job_postings` | 求人 | id, company_id, title, description |
+| `interviews` | 面接記録 | id, candidate_id, company_id, date |
+| `offers` | 内定情報 | id, candidate_id, company_id, amount |
+| `hires` | 入社情報 | id, candidate_id, company_id, start_date |
+
+---
+
+## 4. データフロー例
+
+### 例1: 候補者一覧の取得
+
+```
+┌─────────────┐  1. ボタンクリック
+│ フロントエンド │ ───────────────────┐
+│ candidates/ │                    │
+└─────────────┘                    │
+                                   ▼
+┌─────────────────────────────────────────┐
+│ 2. Repository経由でAPI呼び出し          │
+│ repos.candidates.list()                 │
+└────────────┬────────────────────────────┘
+             │ 3. HTTP GET /api/candidates
+             ▼
+┌─────────────────────────────────────────┐
+│ 4. Lambda関数実行                       │
+│ ats-api-dev-candidates-list             │
+└────────────┬────────────────────────────┘
+             │ 5. SQL Query
+             ▼
+┌─────────────────────────────────────────┐
+│ 6. PostgreSQL                           │
+│ SELECT * FROM candidates                │
+│ WHERE advisor_user_id = $1              │
+└────────────┬────────────────────────────┘
+             │ 7. Result Set
+             ▼
+┌─────────────────────────────────────────┐
+│ 8. Lambda → API Gateway → Frontend      │
+│ JSON Response                           │
+└────────────┬────────────────────────────┘
+             │ 9. 画面に表示
+             ▼
+┌─────────────┐
+│ テーブル表示 │
+└─────────────┘
+```
+
+### 例2: テレアポログの登録
+
+```
+1. フロントエンド（teleapo/index.html）
+   ↓ フォーム送信
+2. Repository（teleapo.js）
+   ↓ POST /api/teleapo/log
+3. Lambda（ats-api-dev-teleapo-log-create）
+   ↓ INSERT INTO teleapo
+4. PostgreSQL
+   ↓ 登録完了
+5. Lambda → Frontend
+   ↓ 成功メッセージ
+6. 画面更新
+```
+
+---
+
+## 5. ページごとのAPI依存関係
+
+| ページ | 使用するLambda関数 |
+|--------|------------------|
+| **login** | [auth-login](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-auth-login) |
+| **mypage** | [mypage](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-mypage) |
+| **candidates** | [candidates-list](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-candidates-list), [candidates-detail](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-candidates-detail) |
+| **yield-personal** | [kpi-yield-personal](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-personal) |
+| **yield-company** | [kpi-yield](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield), [kpi-yield-daily](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-daily) |
+| **yield-admin** | [kpi-yield](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield), [kpi-yield-daily](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-daily), [kpi-yield-personal](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield-personal) |
+| **teleapo** | [teleapo-logs](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-logs), [teleapo-log-create](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-log-create), [kpi-teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo), [teleapo-candidate-contact](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-teleapo-candidate-contact) |
+| **ad-performance** | [kpi-ads](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-ads), [kpi-ads-detail](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-ads-detail) |
+| **goal-settings** | [goal-settings](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-goal-settings) |
+| **members** | [members](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-members) |
+| **referral** | [clients-create](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-clients-create), [kpi-clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) |
+
+---
+
+## 6. 環境変数
+
+### Lambda関数の環境変数
+
+各Lambda関数は以下の環境変数を使用：
+
+```
+DB_HOST=<RDSエンドポイント>
+DB_PORT=5432
+DB_NAME=<データベース名>
+DB_USER=<ユーザー名>
+DB_PASSWORD=<パスワード>
+CORS_ORIGIN=*
+```
+
+---
+
+## 7. デプロイ先
+
+```
+┌──────────────────────────────────────────────────┐
+│ Production環境                                   │
+├──────────────────────────────────────────────────┤
+│ フロントエンド: Vercel                           │
+│ API: AWS API Gateway + Lambda（ap-northeast-1） │
+│ DB: AWS RDS PostgreSQL（ap-northeast-1）        │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. モックデータについて
+
+`scripts/mock/` フォルダには開発用モックデータが残っているが、**本番ではLambda APIが使用される**。
+
+```
+scripts/mock/
+├── candidates.js   # 開発用（本番不要）
+├── metrics.js      # 開発用（本番不要）
+└── users.js        # 開発用（本番不要）
+```
+
+---
+
+## 9. まとめ
+
+### 現在の構成
+
+- **フロントエンド**: Vanilla JavaScript SPA（Vercel）
+- **API層**: 22個のLambda関数（AWS）
+- **データ層**: RDS PostgreSQL 15テーブル（AWS）
+
+### データフロー
+
+```
+ユーザー操作 → Repository → ApiClient → API Gateway 
+→ Lambda関数 → PostgreSQL → Lambda関数 → API Gateway 
+→ ApiClient → Repository → 画面表示
+```
+
+### 特徴
+
+- ✅ 完全サーバーレス
+- ✅ Repositoryパターンでドメイン分離
+- ✅ リトライ・エラーハンドリング完備
+- ✅ すべての機能がLambdaで実装済み
+- ✅ モック不要（本番）
+
+……これで全体像がわかったと思うよ。質問があったら教えてね！

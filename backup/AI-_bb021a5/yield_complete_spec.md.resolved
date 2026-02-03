@@ -1,0 +1,684 @@
+# 歩留まり管理画面 完全技術仕様書
+
+## 📊 概要
+
+歩留まり管理画面は、採用活動のKPI（Key Performance Indicators）を可視化・分析するための最重要画面です。
+
+**主要機能**:
+- 個人KPI表示（自分の実績）
+- 全社KPI表示（会社全体の実績）
+- 日別実績詳細
+- トレンドグラフ
+- MS（Management Summary）レポート
+- 部門別分析（Marketing, CS, Sales）
+
+---
+
+## 1. 使用するデータベーステーブル
+
+### 1.1 主要テーブル
+
+#### [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) テーブル（候補者基本情報）
+
+**KPI計算で使用するカラム**:
+
+| カラム名 | データ型 | 用途 | KPI計算での役割 |
+|---------|---------|------|----------------|
+| id | bigint | 候補者ID | JOIN用 |
+| advisor_user_id | bigint | 担当アドバイザーID | **個人KPIのフィルタリング** |
+| created_at | timestamptz | 作成日時 | **応募日時の判定** |
+| first_contact_at | timestamptz | 初回接触日時 | **新規面談数のカウント** |
+| is_effective_application | boolean | 有効応募フラグ | **有効応募数のカウント** |
+| is_connected | boolean | 通電フラグ | **通電数のカウント** |
+| sms_sent_flag | boolean | SMS送信フラグ | **SMS送信数のカウント** |
+| first_interview_attended | boolean | 初回面談出席 | **着座数のカウント** |
+
+---
+
+#### `candidate_applications` テーブル（応募情報）
+
+**KPI計算の中核テーブル**
+
+| カラム名 | データ型 | 用途 | KPI計算での役割 |
+|---------|---------|------|----------------|
+| id | bigint | 応募ID | 主キー |
+| candidate_id | bigint | 候補者ID | JOIN用 |
+| client_id | bigint | クライアント企業ID | JOIN用 |
+| recommended_at | timestamptz | 推薦日時 | **推薦数のカウント** |
+| first_interview_set_at | timestamptz | 一次面接設定日時 | **面接設定数のカウント** |
+| first_interview_at | timestamptz | 一次面接実施日時 | **面接実施数のカウント** |
+| second_interview_set_at | timestamptz | 二次面接設定日時 | （追加カウント） |
+| second_interview_at | timestamptz | 二次面接実施日時 | （追加カウント） |
+| final_interview_set_at | date | 最終面接設定日 | （追加カウント） |
+| final_interview_at | date | 最終面接実施日 | （追加カウント） |
+| offer_at | date | 内定日 | **内定数のカウント** |
+| offer_accepted_at | date | 承諾日 | **承諾数のカウント** |
+| joined_at | date | 入社日 | **入社数のカウント** |
+| declined_after_offer_at | date | 内定後辞退日 | 失注の判定 |
+| early_turnover_at | date | 早期退職日 | 早期退職の判定 |
+| stage_current | text | 現在のステージ | ステータスフィルタ |
+| created_at | timestamptz | 作成日時 | **応募（提案）日時** |
+
+---
+
+#### [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) テーブル（クライアント企業）
+
+| カラム名 | データ型 | 用途 |
+|---------|---------|------|
+| id | bigint | 企業ID |
+| name | text | 企業名 |
+
+---
+
+#### `users` テーブル（ユーザー）
+
+| カラム名 | データ型 | 用途 |
+|---------|---------|------|
+| id | bigint | ユーザーID |
+| name | text | 氏名 |
+| email | text | メールアドレス |
+| role | text | ロール（advisor、caller、admin） |
+
+---
+
+#### `placements` テーブル（成約・紹介料）
+
+| カラム名 | データ型 | 用途 |
+|---------|---------|------|
+| id | bigint | ID |
+| candidate_application_id | bigint | 応募ID |
+| fee_amount | integer | 紹介料金額（**売上計算**） |
+| refund_amount | integer | 返金額 |
+
+---
+
+### 1.2 目標管理テーブル
+
+#### `goal_targets` テーブル（期間目標）
+
+| カラム名 | データ型 | 用途 |
+|---------|---------|------|
+| scope | text | スコープ（personal、company） |
+| advisor_user_id | integer | アドバイザーID |
+| period_id | text | 期間ID（YYYY-MM形式） |
+| targets | jsonb | 目標値（JSON） |
+
+**targets JSONの構造**:
+```json
+{
+  "newInterviewsTarget": 50,
+  "proposalsTarget": 40,
+  "recommendationsTarget": 30,
+  "interviewsScheduledTarget": 25,
+  "interviewsHeldTarget": 20,
+  "offersTarget": 10,
+  "acceptsTarget": 8,
+  "proposalRateTarget": 80,
+  "recommendationRateTarget": 60,
+  "interviewScheduleRateTarget": 50,
+  "interviewHeldRateTarget": 40,
+  "offerRateTarget": 20,
+  "acceptRateTarget": 16,
+  "hireRateTarget": 14,
+  "revenueTarget": 500000
+}
+```
+
+#### `goal_daily_targets` テーブル（日次目標）
+
+| カラム名 | データ型 | 用途 |
+|---------|---------|------|
+| advisor_user_id | integer | アドバイザーID |
+| period_id | text | 期間ID |
+| target_date | date | 対象日 |
+| targets | jsonb | 日別目標値（JSON） |
+
+---
+
+## 2. KPI指標の詳細定義
+
+### 2.1 基本KPI指標
+
+| 指標名 | 英語キー | 算出元テーブル | 算出条件 |
+|--------|---------|--------------|---------|
+| 新規面談数 | `newInterviews` | [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | `first_contact_at IS NOT NULL` |
+| 提案数 | `proposals` | `candidate_applications` | `created_at` でカウント |
+| 推薦数 | `recommendations` | `candidate_applications` | `recommended_at IS NOT NULL` |
+| 面接設定数 | `interviewsScheduled` | `candidate_applications` | `first_interview_set_at IS NOT NULL` |
+| 面接実施数 | `interviewsHeld` | `candidate_applications` | `first_interview_at IS NOT NULL` |
+| 内定数 | `offers` | `candidate_applications` | `offer_at IS NOT NULL` |
+| 承諾数 | `accepts` | `candidate_applications` | `offer_accepted_at IS NOT NULL` |
+| 入社数 | `hires` | `candidate_applications` | `joined_at IS NOT NULL` |
+
+---
+
+### 2.2 転換率指標
+
+#### Base モード（新規面談数を分母）
+
+| 指標名 | 英語キー | 計算式 |
+|--------|---------|--------|
+| 提案率 | `proposalRate` | [(提案数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 推薦率 | `recommendationRate` | [(推薦数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 面接設定率 | `interviewScheduleRate` | [(面接設定数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 面接実施率 | `interviewHeldRate` | [(面接実施数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 内定率 | `offerRate` | [(内定数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 承諾率 | `acceptRate` | [(承諾数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 入社決定率 | `hireRate` | [(入社数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+
+#### Step モード（前段階を分母）
+
+| 指標名 | 英語キー | 計算式 |
+|--------|---------|--------|
+| 提案率 | `proposalRate` | [(提案数 / 新規面談数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 推薦率 | `recommendationRate` | [(推薦数 / 提案数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 面接設定率 | `interviewScheduleRate` | [(面接設定数 / 推薦数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 面接実施率 | `interviewHeldRate` | [(面接実施数 / 面接設定数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 内定率 | `offerRate` | [(内定数 / 面接実施数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 承諾率 | `acceptRate` | [(承諾数 / 内定数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+| 入社決定率 | `hireRate` | [(入社数 / 承諾数) × 100](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#1232-1236) |
+
+---
+
+## 3. 計算モード
+
+### 3.1 Cohort モード（応募時期優先）
+
+**基準日**: 候補者の応募日（`candidates.created_at`）
+
+**計算ロジック**:
+- 指定期間内に応募した候補者を対象
+- その候補者が期間外に達成したイベントもカウント
+
+**例**:
+- 1月に応募した候補者が2月に面接 → **1月の面接数にカウント**
+
+**SQL例**:
+```sql
+SELECT 
+  COUNT(DISTINCT c.id) FILTER (WHERE c.created_at BETWEEN '2025-01-01' AND '2025-01-31') AS new_interviews,
+  COUNT(DISTINCT ca.id) FILTER (
+    WHERE ca.recommended_at IS NOT NULL 
+    AND c.created_at BETWEEN '2025-01-01' AND '2025-01-31'
+  ) AS recommendations
+FROM candidates c
+LEFT JOIN candidate_applications ca ON c.id = ca.candidate_id
+WHERE c.advisor_user_id = 30;
+```
+
+---
+
+### 3.2 Period モード（リアルタイム優先）
+
+**基準日**: 各イベントの発生日
+
+**計算ロジック**:
+- 指定期間内に発生したイベントをカウント
+- 応募日は問わない
+
+**例**:
+- 1月に応募した候補者が2月に面接 → **2月の面接数にカウント**
+
+**SQL例**:
+```sql
+SELECT 
+  COUNT(DISTINCT c.id) FILTER (WHERE c.first_contact_at BETWEEN '2025-01-01' AND '2025-01-31') AS new_interviews,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.recommended_at BETWEEN '2025-01-01' AND '2025-01-31') AS recommendations
+FROM candidates c
+LEFT JOIN candidate_applications ca ON c.id = ca.candidate_id
+WHERE c.advisor_user_id = 30;
+```
+
+---
+
+## 4. Lambda関数の計算ロジック
+
+### 4.1 [ats-api-dev-kpi-yield](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-yield) (KPI集計)
+
+**エンドポイント**: `GET /kpi/yield`
+
+**クエリパラメータ**:
+```
+?from=2025-01-01
+&to=2025-01-31
+&scope=personal          # personal | company
+&granularity=summary     # summary | day | week | month
+&groupBy=none            # none | advisor
+&advisorUserId=30
+&calcMode=cohort         # cohort | period
+&countBasis=application  # application | event
+&timeBasis=application   # application | event
+```
+
+**処理フロー**:
+
+```javascript
+// 1. パラメータ解析
+const { from, to, scope, advisorUserId, granularity, groupBy, calcMode } = query;
+
+// 2. 基準日の決定
+const useCohort = calcMode === 'cohort';
+const baseColumn = useCohort ? 'c.created_at' : 'event_date';
+
+// 3. SQL構築
+const sql = `
+  WITH base_candidates AS (
+    SELECT c.id, c.advisor_user_id, c.created_at
+    FROM candidates c
+    WHERE ${useCohort ? `c.created_at BETWEEN $1 AND $2` : `c.first_contact_at BETWEEN $1 AND $2`}
+      ${scope === 'personal' ? `AND c.advisor_user_id = $3` : ''}
+  ),
+  applications AS (
+    SELECT 
+      bc.id AS candidate_id,
+      bc.advisor_user_id,
+      bc.created_at AS application_date,
+      ca.id AS application_id,
+      ca.created_at AS proposal_date,
+      ca.recommended_at,
+      ca.first_interview_set_at,
+      ca.first_interview_at,
+      ca.offer_at,
+      ca.offer_accepted_at,
+      ca.joined_at
+    FROM base_candidates bc
+    LEFT JOIN candidate_applications ca ON bc.id = ca.candidate_id
+  )
+  SELECT 
+    advisor_user_id,
+    COUNT(DISTINCT candidate_id) AS new_interviews,
+    COUNT(DISTINCT CASE WHEN proposal_date IS NOT NULL THEN application_id END) AS proposals,
+    COUNT(DISTINCT CASE WHEN recommended_at IS NOT NULL THEN application_id END) AS recommendations,
+    COUNT(DISTINCT CASE WHEN first_interview_set_at IS NOT NULL THEN application_id END) AS interviews_scheduled,
+    COUNT(DISTINCT CASE WHEN first_interview_at IS NOT NULL THEN application_id END) AS interviews_held,
+    COUNT(DISTINCT CASE WHEN offer_at IS NOT NULL THEN application_id END) AS offers,
+    COUNT(DISTINCT CASE WHEN offer_accepted_at IS NOT NULL THEN application_id END) AS accepts,
+    COUNT(DISTINCT CASE WHEN joined_at IS NOT NULL THEN application_id END) AS hires
+  FROM applications
+  ${groupBy === 'advisor' ? 'GROUP BY advisor_user_id' : ''}
+`;
+
+// 4. 転換率計算
+const calculateRates = (counts, mode) => {
+  const base = mode === 'base' ? counts.newInterviews : null;
+  
+  return {
+    proposalRate: calcRate(counts.proposals, base || counts.newInterviews),
+    recommendationRate: calcRate(counts.recommendations, base || counts.proposals),
+    interviewScheduleRate: calcRate(counts.interviewsScheduled, base || counts.recommendations),
+    interviewHeldRate: calcRate(counts.interviewsHeld, base || counts.interviewsScheduled),
+    offerRate: calcRate(counts.offers, base || counts.interviewsHeld),
+    acceptRate: calcRate(counts.accepts, base || counts.offers),
+    hireRate: calcRate(counts.hires, base || counts.accepts)
+  };
+};
+
+const calcRate = (numerator, denominator) => {
+  if (!denominator || denominator === 0) return 0;
+  return Math.round((numerator / denominator) * 100 * 10) / 10;
+};
+```
+
+---
+
+### 4.2 日別集計（granularity=day）
+
+**SQL例**:
+```sql
+SELECT 
+  DATE(${useCohort ? 'c.created_at' : 'event_date'}) AS date,
+  advisor_user_id,
+  COUNT(DISTINCT c.id) FILTER (WHERE c.first_contact_at IS NOT NULL) AS new_interviews,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.created_at IS NOT NULL) AS proposals,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.recommended_at IS NOT NULL) AS recommendations,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.first_interview_set_at IS NOT NULL) AS interviews_scheduled,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.first_interview_at IS NOT NULL) AS interviews_held,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.offer_at IS NOT NULL) AS offers,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.offer_accepted_at IS NOT NULL) AS accepts,
+  COUNT(DISTINCT ca.id) FILTER (WHERE ca.joined_at IS NOT NULL) AS hires
+FROM candidates c
+LEFT JOIN candidate_applications ca ON c.id = ca.candidate_id
+WHERE c.created_at BETWEEN $1 AND $2
+  AND c.advisor_user_id = $3
+GROUP BY DATE(c.created_at), advisor_user_id
+ORDER BY date;
+```
+
+---
+
+## 5. フロントエンドの実装
+
+### 5.1 主要な関数
+
+#### [fetchPersonalKpiFromApi({ startDate, endDate, planned })](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#343-359)
+
+```javascript
+async function fetchPersonalKpiFromApi({ startDate, endDate, planned = false }) {
+  const advisorUserId = await resolveAdvisorUserId();
+  
+  const params = {
+    from: startDate,
+    to: endDate,
+    scope: 'personal',
+    advisorUserId,
+    granularity: 'summary',
+    groupBy: 'none',
+    ...buildCalcModeParams()  // calcMode, countBasis, timeBasis
+  };
+  
+  if (planned) params.planned = '1';
+  
+  const json = await fetchJson(`${KPI_API_BASE}/yield`, params);
+  return json?.items?.[0]?.kpi || null;
+}
+```
+
+---
+
+#### [fetchDailyYieldFromApi({ startDate, endDate, advisorUserId })](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#374-399)
+
+```javascript
+async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
+  const params = {
+    from: startDate,
+    to: endDate,
+    scope: 'company',
+    granularity: 'day',       // 日別集計
+    groupBy: 'advisor',       // 社員別グループ化
+    ...buildCalcModeParams()
+  };
+  
+  const json = await fetchJson(`${KPI_API_BASE}/yield`, params);
+  const rawItems = Array.isArray(json?.items) ? json.items : [];
+  
+  // メンバー情報とマージ
+  const items = await mergeMembersWithDailyItems(rawItems);
+  
+  // 社員別データに整形
+  const employees = items.map(item => ({
+    advisorUserId: item?.advisorUserId,
+    name: item?.name || `ID:${item?.advisorUserId}`,
+    daily: item?.series || {}  // { "2025-01-01": { newInterviews: 5, ... }, ... }
+  }));
+  
+  return { personal: ..., employees };
+}
+```
+
+---
+
+### 5.2 キャッシュ戦略
+
+#### 日別データのキャッシュ
+
+```javascript
+const dailyYieldCache = new Map();
+
+async function ensureDailyYieldData(periodId) {
+  const period = state.evaluationPeriods.find(item => item.id === periodId);
+  const advisorUserId = await resolveAdvisorUserId();
+  
+  // キャッシュキー: periodId + advisorUserId + calcMode
+  const cacheKey = `${periodId}:${advisorUserId || 'none'}:${getCalcMode()}`;
+  
+  if (dailyYieldCache.has(cacheKey)) {
+    return dailyYieldCache.get(cacheKey);
+  }
+  
+  const payload = await fetchDailyYieldFromApi({
+    startDate: period.startDate,
+    endDate: period.endDate,
+    advisorUserId
+  });
+  
+  dailyYieldCache.set(cacheKey, payload);
+  return payload;
+}
+```
+
+---
+
+### 5.3 正規化関数
+
+#### [normalizeKpi(kpi)](file:///Users/riho/Documents/GitHub/AI-/pages/yield/yield.js#3778-3791)
+
+```javascript
+function normalizeKpi(kpi = {}) {
+  return {
+    newInterviews: num(kpi.newInterviews ?? kpi.new_interviews),
+    proposals: num(kpi.proposals),
+    recommendations: num(kpi.recommendations),
+    interviewsScheduled: num(kpi.interviewsScheduled ?? kpi.interviews_scheduled),
+    interviewsHeld: num(kpi.interviewsHeld ?? kpi.interviews_held),
+    offers: num(kpi.offers),
+    accepts: num(kpi.accepts),
+    hires: num(kpi.hires),
+    
+    // 転換率
+    proposalRate: num(kpi.proposalRate ?? kpi.proposal_rate),
+    recommendationRate: num(kpi.recommendationRate ?? kpi.recommendation_rate),
+    interviewScheduleRate: num(kpi.interviewScheduleRate ?? kpi.interview_schedule_rate),
+    interviewHeldRate: num(kpi.interviewHeldRate ?? kpi.interview_held_rate),
+    offerRate: num(kpi.offerRate ?? kpi.offer_rate),
+    acceptRate: num(kpi.acceptRate ?? kpi.accept_rate),
+    hireRate: num(kpi.hireRate ?? kpi.hire_rate),
+    
+    // その他
+    revenue: num(kpi.revenue),
+    achievementRate: num(kpi.achievementRate ?? kpi.achievement_rate)
+  };
+}
+```
+
+---
+
+## 6. MS（Management Summary）管理
+
+### 6.1 部門別設定
+
+#### マーケティング部門
+
+| 指標 | targetKey |
+|------|-----------|
+| 有効応募数 | `validApplications` |
+
+**期間**: 前月17日 〜 当月20日
+
+---
+
+#### CS部門
+
+| 指標 | targetKey |
+|------|-----------|
+| 設定数 | `appointments` |
+| 着座数 | `sitting` |
+
+**期間**: 前月18日 〜 当月21日
+
+---
+
+#### 営業部門
+
+| 指標 | targetKey |
+|------|-----------|
+| 新規面談数 | `newInterviews` |
+| 提案数 | `proposals` |
+| 推薦数 | `recommendations` |
+| 面接設定数 | `interviewSettings` |
+| 面接実施数 | `interviewExecutions` |
+| 内定数 | `offers` |
+| 承諾数 | `acceptances` |
+
+**期間**: 前月18日 〜 当月21日
+
+---
+
+### 6.2 MS目標管理
+
+**MSテーブル構造**:
+
+```javascript
+state.companyMs = {
+  metricKeys: {
+    marketing: 'validApplications',  // 指標選択
+    cs: 'appointments',
+    sales: 'newInterviews'
+  },
+  dates: ['2025-01-17', '2025-01-18', ...],  // 対象日付
+  
+  msTargets: {
+    marketing: {
+      '2025-01-17': 10,  // 日別MS目標
+      '2025-01-18': 10
+    },
+    cs: { ... },
+    sales: { ... }
+  },
+  
+  msActuals: {
+    marketing: {
+      '2025-01-17': 8,   // 日別実績
+      '2025-01-18': 12
+    },
+    cs: { ... },
+    sales: { ... }
+  }
+};
+```
+
+---
+
+## 7. データフロー全体図
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ ユーザー操作                                             │
+│ - 期間選択                                               │
+│ - 計算モード切替（cohort/period）                        │
+│ - 率計算モード切替（base/step）                          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│ フロントエンド（yield.js）                               │
+│ - loadYieldData()                                        │
+│ - fetchPersonalKpiFromApi()                              │
+│ - fetchCompanyKpiFromApi()                               │
+│ - fetchDailyYieldFromApi()                               │
+└────────────────────┬────────────────────────────────────┘
+                     │ HTTP GET /kpi/yield?...
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│ Lambda関数（ats-api-dev-kpi-yield）                      │
+│ 1. パラメータ解析                                        │
+│ 2. 計算モード判定（cohort/period）                      │
+│ 3. SQL構築                                               │
+│ 4. PostgreSQL クエリ実行                                 │
+│ 5. 転換率計算                                            │
+│ 6. JSON レスポンス                                       │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│ PostgreSQL                                               │
+│ - candidates（候補者）                                   │
+│   └─ advisor_user_id, created_at, first_contact_at      │
+│ - candidate_applications（応募）                         │
+│   └─ recommended_at, first_interview_at, offer_at, ...  │
+│ - placements（紹介料）                                   │
+│   └─ fee_amount                                          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│ レスポンス例                                             │
+│ {                                                        │
+│   "items": [{                                            │
+│     "advisorUserId": 30,                                 │
+│     "kpi": {                                             │
+│       "newInterviews": 50,                               │
+│       "proposals": 40,                                   │
+│       "recommendations": 30,                             │
+│       "interviewsScheduled": 25,                         │
+│       "interviewsHeld": 20,                              │
+│       "offers": 10,                                      │
+│       "accepts": 8,                                      │
+│       "hires": 7,                                        │
+│       "proposalRate": 80.0,                              │
+│       "recommendationRate": 60.0,                        │
+│       ...                                                │
+│     }                                                    │
+│   }]                                                     │
+│ }                                                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. パフォーマンス最適化
+
+### 8.1 並列処理
+
+```javascript
+// 複数期間のデータを並列取得
+await Promise.all([
+  fetchPersonalKpiFromApi({ startDate: '2025-01-01', endDate: '2025-01-31' }),
+  fetchCompanyKpiFromApi({ startDate: '2025-01-01', endDate: '2025-01-31' }),
+  fetchDailyYieldFromApi({ startDate: '2025-01-01', endDate: '2025-01-31', advisorUserId: 30 })
+]);
+```
+
+### 8.2 インデックス
+
+**推奨インデックス**:
+```sql
+-- candidatesテーブル
+CREATE INDEX idx_candidates_advisor_created ON candidates (advisor_user_id, created_at);
+CREATE INDEX idx_candidates_first_contact ON candidates (first_contact_at);
+
+-- candidate_applicationsテーブル
+CREATE INDEX idx_applications_candidate ON candidate_applications (candidate_id);
+CREATE INDEX idx_applications_recommended ON candidate_applications (recommended_at);
+CREATE INDEX idx_applications_first_interview_set ON candidate_applications (first_interview_set_at);
+CREATE INDEX idx_applications_first_interview ON candidate_applications (first_interview_at);
+CREATE INDEX idx_applications_offer ON candidate_applications (offer_at);
+CREATE INDEX idx_applications_offer_accepted ON candidate_applications (offer_accepted_at);
+CREATE INDEX idx_applications_joined ON candidate_applications (joined_at);
+```
+
+---
+
+## 9. まとめ
+
+### 使用するDBテーブル（主要4テーブル）
+
+1. **candidates**: 候補者基本情報（新規面談数の算出）
+2. **candidate_applications**: 応募・選考情報（KPI計算の中核）
+3. **users**: ユーザー情報（アドバイザー名の解決）
+4. **placements**: 紹介料（売上の算出）
+
+### 計算モード
+
+- **Cohort**: 応募時期を基準に集計
+- **Period**: イベント発生時期を基準に集計
+
+### 率計算モード
+
+- **Base**: すべての率を新規面談数で割る
+- **Step**: 各段階の前段階の数で割る
+
+### Lambda関数の役割
+
+- パラメータに応じてSQLを動的に構築
+- DB から生データを取得
+- 転換率を計算
+- JSON形式でレスポンス
+
+### フロントエンドの役割
+
+- API呼び出し
+- データ正規化（snake_case → camelCase）
+- キャッシュ管理
+- UI レンダリング
+
+……これで歩留まり管理画面の全体像がわかったと思うよ。質問があったら教えてね！

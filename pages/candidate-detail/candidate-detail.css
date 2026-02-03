@@ -1,0 +1,170 @@
+/* ========================================
+   候補者詳細ページ | 既存モーダルスタイル互換
+   ======================================== */
+
+/* 既存のcandidates.cssからスタイルをインポート */
+@import url('../candidates/candidates.css');
+
+/* ===== Page Container ===== */
+.cd-page {
+    background: #f8fafc;
+    min-height: 100vh;
+    padding-bottom: 40px;
+}
+
+/* ===== Header Bar ===== */
+.cd-header-bar {
+    background: linear-gradient(135deg, #0077c7 0%, #005a9e 100%);
+    color: white;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.cd-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cd-back-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.cd-page-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* ===== Content Wrapper ===== */
+.cd-content-wrapper {
+    padding: 24px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ===== 既存のモーダルスタイルとの互換性 ===== */
+/* candidates.css から必要なスタイルを継承するため、
+   既存のクラス名をそのまま使用 */
+
+.cd-page .candidate-detail-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+}
+
+/* セクションのマージン調整（モーダルよりも広いスペース） */
+.cd-page .candidate-detail-section {
+    margin-bottom: 24px;
+}
+
+.cd-page .candidate-detail-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+    margin-bottom: 16px;
+}
+
+/* タブのスタイル調整 */
+.cd-page .candidate-detail-tabs {
+    position: sticky;
+    top: 80px;
+    z-index: 9;
+    background: #f1f5f9;
+}
+
+/* 編集ボタンのスタイル強調 */
+.cd-page .detail-edit-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #374151;
+}
+
+.cd-page .detail-edit-btn:hover {
+    border-color: #0077c7;
+    color: #0077c7;
+}
+
+.cd-page .detail-edit-btn.is-active {
+    background: #0077c7;
+    border-color: transparent;
+    color: white;
+}
+
+.cd-page .detail-edit-btn.is-active:hover {
+    background: #005a9e;
+}
+
+/* フォーム入力の強調 */
+.cd-page input[type="text"],
+.cd-page input[type="date"],
+.cd-page input[type="number"],
+.cd-page input[type="email"],
+.cd-page input[type="tel"],
+.cd-page select,
+.cd-page textarea {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cd-page input:focus,
+.cd-page select:focus,
+.cd-page textarea:focus {
+    outline: none;
+    border-color: #0077c7;
+    box-shadow: 0 0 0 3px rgba(0, 119, 199, 0.15);
+}
+
+/* テーブルスタイル */
+.cd-page table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cd-page th,
+.cd-page td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cd-page th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .cd-header-bar {
+        padding: 12px 16px;
+    }
+
+    .cd-content-wrapper {
+        padding: 16px;
+    }
+
+    .cd-page-title {
+        font-size: 16px;
+    }
+}

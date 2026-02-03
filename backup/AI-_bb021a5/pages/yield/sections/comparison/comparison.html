@@ -1,0 +1,65 @@
+<!-- 4軸比較サマリーセクション -->
+<div class="section-shell space-y-4" id="comparison-section">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">4軸比較サマリー</h3>
+    <div class="flex gap-2 text-sm">
+      <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap" data-axis="media">媒体別</button>
+      <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap" data-axis="job-type">職種別</button>
+      <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap" data-axis="period">時期別</button>
+      <button class="px-3 py-2 border border-slate-300 rounded-md whitespace-nowrap" data-axis="interviewer">面接官別</button>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-6">
+    <div class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm" id="radarChart">
+      レーダー / バブルチャート領域
+    </div>
+    <div class="h-56 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm" id="distributionChart">
+      分布比較チャート領域
+    </div>
+  </div>
+  <div class="h-48 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm" id="trendChart">
+    時系列トレンド（CV数・歩留・TAT）ラインチャート領域
+  </div>
+</div>
+
+<!-- CA担当一覧（歩留トンネル）セクション -->
+<div class="section-shell space-y-5" id="funnel-section">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h3 class="text-lg font-semibold text-slate-800 whitespace-nowrap">CA担当一覧（歩留トンネル）</h3>
+      <p class="text-sm text-slate-500">ボトルネックと滞留案件を即座に把握し、次アクションへ誘導</p>
+    </div>
+    <div class="flex gap-2 text-sm">
+      <select class="px-3 py-2 border border-slate-300 rounded-md">
+        <option>全CA</option>
+        <option>新人CA</option>
+        <option>ベテランCA</option>
+      </select>
+      <button class="px-3 py-2 bg-blue-500 text-white rounded-md whitespace-nowrap">フィルター適用</button>
+    </div>
+  </div>
+  
+  <div class="overflow-x-auto table-surface table-teleapo">
+    <table class="table-grid min-w-[1400px]" id="funnelTable">
+      <thead>
+        <tr>
+          <th class="fixed-col">CA名</th>
+          <th>進行中</th>
+          <th>今週面談</th>
+          <th>書類選考中</th>
+          <th>1次面接待ち</th>
+          <th>最終面接待ち</th>
+          <th>内定通知待ち</th>
+          <th>承諾待ち</th>
+          <th>入社調整中</th>
+          <th>今月決定</th>
+          <th>歩留率</th>
+          <th>次アクション</th>
+        </tr>
+      </thead>
+      <tbody id="funnelTableBody">
+        <!-- JavaScriptで生成 -->
+      </tbody>
+    </table>
+  </div>
+</div>
