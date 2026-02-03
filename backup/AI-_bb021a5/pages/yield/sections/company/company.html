@@ -1,0 +1,144 @@
+<!-- 社内成績セクション -->
+<div class="kpi-v2-section" id="company-section">
+  <div class="kpi-v2-header">
+    <h3 class="kpi-v2-title">社内成績</h3>
+    <div class="kpi-v2-range-picker">
+      <input type="date" id="companyRangeStart" class="kpi-v2-date-input" />
+      <span class="kpi-v2-date-separator">〜</span>
+      <input type="date" id="companyRangeEnd" class="kpi-v2-date-input" />
+    </div>
+  </div>
+
+  <!-- 全体成績 -->
+  <div class="kpi-v2-subsection">
+    <h4 class="kpi-v2-subtitle">全体成績</h4>
+    
+    <!-- 全体 7KPI 数の行 -->
+    <div class="kpi-v2-scroll-wrapper">
+      <div class="kpi-v2-row" data-kpi-type="counts">
+        <div class="kpi-v2-card" data-kpi="proposals">
+          <div class="kpi-v2-label">提案数</div>
+          <div class="kpi-v2-value" id="companyProposals">127</div>
+          <div class="kpi-v2-meta">新規面談数 185(42)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="recommendations">
+          <div class="kpi-v2-label">推薦数</div>
+          <div class="kpi-v2-value" id="companyRecommendations">89</div>
+          <div class="kpi-v2-meta">推薦数 89(27)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="interviewsScheduled">
+          <div class="kpi-v2-label">面談設定数</div>
+          <div class="kpi-v2-value" id="companyInterviewsScheduled">156</div>
+          <div class="kpi-v2-meta">面談設定数 156(39)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="interviewsHeld">
+          <div class="kpi-v2-label">面談実施数</div>
+          <div class="kpi-v2-value" id="companyInterviewsHeld">132</div>
+          <div class="kpi-v2-meta">面談実施数 132(28)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="offers">
+          <div class="kpi-v2-label">内定数</div>
+          <div class="kpi-v2-value" id="companyOffers">68</div>
+          <div class="kpi-v2-meta">内定数 68(15)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="accepts">
+          <div class="kpi-v2-label">承諾数</div>
+          <div class="kpi-v2-value" id="companyAccepts">41</div>
+          <div class="kpi-v2-meta">承諾数 41(9)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全体 7KPI 率の行 -->
+    <div class="kpi-v2-scroll-wrapper">
+      <div class="kpi-v2-row" data-kpi-type="rates">
+        <div class="kpi-v2-card" data-kpi="proposalRate">
+          <div class="kpi-v2-label">提案率</div>
+          <div class="kpi-v2-value" id="companyProposalRate">69%</div>
+          <div class="kpi-v2-meta">提案数 127/ 新規面談数 185(42)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="recommendationRate">
+          <div class="kpi-v2-label">推薦率</div>
+          <div class="kpi-v2-value" id="companyRecommendationRate">70%</div>
+          <div class="kpi-v2-meta">推薦数 89/ 提案数 127(27)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="interviewScheduleRate">
+          <div class="kpi-v2-label">面談設定率</div>
+          <div class="kpi-v2-value" id="companyInterviewScheduleRate">175%</div>
+          <div class="kpi-v2-meta">面談設定数 156/ 推薦数 89(39)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="interviewHeldRate">
+          <div class="kpi-v2-label">面談実施率</div>
+          <div class="kpi-v2-value" id="companyInterviewHeldRate">85%</div>
+          <div class="kpi-v2-meta">面談実施数 132/面談設定数 156(28)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="offerRate">
+          <div class="kpi-v2-label">内定率</div>
+          <div class="kpi-v2-value" id="companyOfferRate">52%</div>
+          <div class="kpi-v2-meta">内定数 68/ 面談実施数 132(15)</div>
+        </div>
+        <div class="kpi-v2-card" data-kpi="acceptRate">
+          <div class="kpi-v2-label">承諾率</div>
+          <div class="kpi-v2-value" id="companyAcceptRate">60%</div>
+          <div class="kpi-v2-meta">承諾数 41/ 内定数 68(9)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 社員成績 -->
+  <div class="kpi-v2-subsection">
+    <div class="kpi-v2-employee-header">
+      <h4 class="kpi-v2-subtitle">社員成績</h4>
+      <div class="kpi-v2-employee-controls">
+        <input type="text" id="employeeSearchInput" class="kpi-v2-search-input" placeholder="社員名で検索..." />
+        <select id="employeeSortSelect" class="kpi-v2-sort-select">
+          <option value="name-asc">社員名（昇順）</option>
+          <option value="proposals-desc">提案数（降順）</option>
+          <option value="offers-desc">内定数（降順）</option>
+          <option value="acceptRate-desc">承諾率（降順）</option>
+        </select>
+        <button id="employeeViewToggle" class="kpi-v2-view-toggle" data-view="table">
+          <span class="toggle-text">カード表示</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 表形式表示 -->
+    <div id="employeeTableView" class="kpi-v2-employee-table-wrapper">
+      <div class="kpi-v2-scroll-wrapper">
+        <table class="kpi-v2-employee-table">
+          <thead>
+            <tr>
+              <th scope="col">社員名</th>
+              <th scope="col">提案数</th>
+              <th scope="col">推薦数</th>
+              <th scope="col">面談設定数</th>
+              <th scope="col">面談実施数</th>
+              <th scope="col">内定数</th>
+              <th scope="col">承諾数</th>
+              <th scope="col">提案率</th>
+              <th scope="col">推薦率</th>
+              <th scope="col">面談設定率</th>
+              <th scope="col">面談実施率</th>
+              <th scope="col">内定率</th>
+              <th scope="col">承諾率</th>
+            </tr>
+          </thead>
+          <tbody id="employeeTableBody">
+            <!-- JavaScriptで生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- カード形式表示 -->
+    <div id="employeeCardView" class="kpi-v2-employee-card-wrapper hidden">
+      <div class="kpi-v2-scroll-wrapper">
+        <div class="kpi-v2-employee-cards" id="employeeCardContainer">
+          <!-- JavaScriptで生成 -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -24,10 +24,10 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-xl);
+  box-shadow: var(--app-shadow-xl);
   overflow: hidden;
 }
 
@@ -35,10 +35,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  gap: var(--app-space-md);
+  padding: var(--app-space-lg);
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface);
 }
 
 .referral-candidate-eyebrow {
@@ -55,29 +55,29 @@
 }
 
 .referral-candidate-body {
-  padding: 16px 20px 20px;
+  padding: 24px;
   overflow: auto;
 }
 
 .referral-candidate-close {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #475569;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--app-radius-full);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-elevated);
+  color: var(--app-text-secondary);
   font-size: 20px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .referral-candidate-close:hover {
-  background: #f1f5f9;
-  color: #1e293b;
-  border-color: #cbd5e1;
+  background: var(--app-surface);
+  color: var(--app-text-primary);
 }
 
 body.referral-candidate-open {
@@ -85,11 +85,11 @@ body.referral-candidate-open {
 }
 
 .referral-candidate-detail {
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #ffffff;
-  padding: 16px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  padding: var(--app-space-lg);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .referral-candidate-top {
@@ -142,9 +142,9 @@ body.referral-candidate-open {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
 }
 
 .referral-candidate-item.is-wide {

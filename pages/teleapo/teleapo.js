@@ -3,6 +3,103 @@ import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 
 console.log('teleapo.js loaded');
 
+// グローバル関数: タブ切り替え（onclick属性から呼び出し）
+window.switchTeleapoTab = function (targetPanel, clickedTab) {
+  const performancePanel = document.getElementById('teleapoPerformancePanel');
+  const managementPanel = document.getElementById('teleapoManagementPanel');
+  const tabs = document.querySelectorAll('.teleapo-tab');
+
+  // タブのアクティブ状態を更新
+  tabs.forEach(t => t.classList.remove('active'));
+  clickedTab.classList.add('active');
+
+  // パネルの表示を切り替え
+  if (targetPanel === 'performance') {
+    performancePanel.style.display = 'block';
+    performancePanel.classList.add('active');
+    managementPanel.style.display = 'none';
+    managementPanel.classList.remove('active');
+  } else if (targetPanel === 'management') {
+    performancePanel.style.display = 'none';
+    performancePanel.classList.remove('active');
+    managementPanel.style.display = 'block';
+    managementPanel.classList.add('active');
+  }
+};
+
+function bindTeleapoTabs() {
+  const tabs = document.querySelectorAll('.teleapo-tab');
+  if (!tabs.length) return;
+  tabs.forEach(tab => {
+    if (tab.dataset.bound) return;
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab || 'performance';
+      window.switchTeleapoTab?.(target, tab);
+    });
+    tab.dataset.bound = 'true';
+  });
+}
+
+function bindTeleapoCollapsibles() {
+  const headers = document.querySelectorAll('.teleapo-collapsible-header');
+  if (!headers.length) return;
+  headers.forEach(header => {
+    if (header.id === 'teleapoCsTaskToggle' || header.id === 'teleapoMissingInfoToggle') {
+      return;
+    }
+    if (header.dataset.bound) return;
+    const parent = header.closest('.teleapo-collapsible');
+    const content = parent?.querySelector('.teleapo-collapsible-content');
+    if (content) {
+      const isOpen = parent?.classList.contains('open');
+      content.style.display = isOpen ? 'block' : 'none';
+    }
+    header.addEventListener('click', () => {
+      window.toggleTeleapoCollapsible?.(header);
+    });
+    const btn = header.querySelector('.teleapo-collapsible-btn');
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.toggleTeleapoCollapsible?.(header);
+      });
+      btn.dataset.bound = 'true';
+    }
+    header.dataset.bound = 'true';
+  });
+}
+
+// グローバル関数: 折りたたみセクションのトグル
+window.toggleTeleapoCollapsible = function (header) {
+  const parent = header.closest('.teleapo-collapsible');
+  if (!parent) return;
+  const content = parent.querySelector('.teleapo-collapsible-content');
+  const willOpen = !parent.classList.contains('open');
+  parent.classList.toggle('open', willOpen);
+  if (content) {
+    content.style.display = willOpen ? 'block' : 'none';
+  }
+  const btn = parent.querySelector('.teleapo-collapsible-btn');
+  if (btn) {
+    if (willOpen) {
+      btn.textContent = '閉じる';
+    } else {
+      btn.textContent = '一覧を開く';
+    }
+  }
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    bindTeleapoTabs();
+    bindTeleapoCollapsibles();
+  });
+} else {
+  bindTeleapoTabs();
+  bindTeleapoCollapsibles();
+}
+
+
 const ROUTE_TEL = 'tel';
 const ROUTE_OTHER = 'other';
 const TELEAPO_RATE_MODE_CONTACT = 'contact';
@@ -3720,22 +3817,32 @@ function setToggleButtonState(button, isOpen) {
 }
 
 function initCsTaskToggle() {
-  const toggleBtn = document.getElementById('teleapoCsTaskToggle');
+  const header = document.getElementById('teleapoCsTaskToggle');
   const wrapper = document.getElementById('teleapoCsTaskTableWrapper');
+  if (!header) return;
+  const toggleBtn = header.querySelector('.teleapo-collapsible-btn');
   if (!toggleBtn) return;
+  const parent = header.closest('.teleapo-collapsible');
+  const onToggle = () => {
+    csTaskExpanded = !csTaskExpanded;
+    updateLabel();
+    if (parent) parent.classList.toggle('open', csTaskExpanded);
+    if (wrapper) wrapper.style.display = csTaskExpanded ? 'block' : 'none';
+    if (csTaskExpanded) {
+      renderCsTaskTable(teleapoCsTaskCandidates);
+    }
+  };
   const updateLabel = () => {
     toggleBtn.textContent = csTaskExpanded ? '一覧を閉じる' : '一覧を開く';
     setToggleButtonState(toggleBtn, csTaskExpanded);
   };
   updateLabel();
-  if (wrapper) wrapper.classList.toggle('hidden', !csTaskExpanded);
-  toggleBtn.addEventListener('click', () => {
-    csTaskExpanded = !csTaskExpanded;
-    updateLabel();
-    if (wrapper) wrapper.classList.toggle('hidden', !csTaskExpanded);
-    if (csTaskExpanded) {
-      renderCsTaskTable(teleapoCsTaskCandidates);
-    }
+  if (parent) parent.classList.toggle('open', csTaskExpanded);
+  if (wrapper) wrapper.style.display = csTaskExpanded ? 'block' : 'none';
+  header.addEventListener('click', onToggle);
+  toggleBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onToggle();
   });
 }
 
@@ -3754,20 +3861,30 @@ function initMissingInfoTableActions() {
 }
 
 function initMissingInfoToggle() {
-  const toggleBtn = document.getElementById('teleapoMissingInfoToggle');
+  const header = document.getElementById('teleapoMissingInfoToggle');
   const wrapper = document.getElementById('teleapoMissingInfoTableWrapper');
+  if (!header) return;
+  const toggleBtn = header.querySelector('.teleapo-collapsible-btn');
   if (!toggleBtn) return;
+  const parent = header.closest('.teleapo-collapsible');
+  const onToggle = () => {
+    missingInfoExpanded = !missingInfoExpanded;
+    updateLabel();
+    if (parent) parent.classList.toggle('open', missingInfoExpanded);
+    if (wrapper) wrapper.style.display = missingInfoExpanded ? 'block' : 'none';
+    renderMissingInfoTable(teleapoMissingInfoCandidates);
+  };
   const updateLabel = () => {
     toggleBtn.textContent = missingInfoExpanded ? '一覧を閉じる' : '一覧を開く';
     setToggleButtonState(toggleBtn, missingInfoExpanded);
   };
   updateLabel();
-  if (wrapper) wrapper.classList.toggle('hidden', !missingInfoExpanded);
-  toggleBtn.addEventListener('click', () => {
-    missingInfoExpanded = !missingInfoExpanded;
-    updateLabel();
-    if (wrapper) wrapper.classList.toggle('hidden', !missingInfoExpanded);
-    renderMissingInfoTable(teleapoMissingInfoCandidates);
+  if (parent) parent.classList.toggle('open', missingInfoExpanded);
+  if (wrapper) wrapper.style.display = missingInfoExpanded ? 'block' : 'none';
+  header.addEventListener('click', onToggle);
+  toggleBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onToggle();
   });
 }
 

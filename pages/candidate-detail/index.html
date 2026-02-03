@@ -1,0 +1,24 @@
+<!-- 候補者詳細ページ | 既存のモーダルロジックを再利用 -->
+<div class="section-shell cd-page" id="candidateDetailPage" data-page="candidate-detail">
+
+    <!-- ヘッダー -->
+    <div class="cd-header-bar">
+        <button type="button" class="cd-back-btn" id="cdBackBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span>候補者一覧に戻る</span>
+        </button>
+        <span class="cd-page-title">候補者詳細</span>
+    </div>
+
+    <!-- 既存のモーダルと同じコンテナ構造 -->
+    <div class="cd-content-wrapper">
+        <div id="candidateDetailContent">
+            <div class="candidate-detail-empty">
+                <p class="text-sm text-slate-500">候補者データを読み込み中...</p>
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -2375,318 +2375,167 @@ function renderCompanyDetail() {
   const recommendedHtml = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
 
   detail.innerHTML = `
-    <div class="border border-indigo-200 border-l-4 border-l-indigo-500 rounded-xl p-4 bg-gradient-to-br from-indigo-50 via-white to-blue-50 space-y-4 shadow-lg text-sm text-slate-800">
-
-      <!-- ヘッダー：会社名と闉じるボタン -->
-      <div class="flex items-start justify-between gap-4">
-        <div class="flex-1 min-w-0">
-          <h2 class="text-2xl font-bold text-indigo-900">${company.company}</h2>
-          <div class="mt-1 text-xs text-slate-500">
-            担当者: <span class="font-semibold text-slate-600">${contactNameDisplay}</span>
-            <span class="mx-1 text-slate-300">/</span>
-            ${contactEmailHtml}
+    <div class="referral-detail-panel">
+      <!-- ヘッダー -->
+      <div class="referral-detail-header">
+        <div>
+          <h2 class="referral-detail-company">${company.company}</h2>
+          <div class="referral-detail-meta">担当者: ${contactNameDisplay}</div>
+          <div class="referral-detail-tags">
+            <span class="referral-detail-tag">🏢 ${company.industry || '-'}</span>
+            <span class="referral-detail-tag">📍 ${company.location || '-'}</span>
           </div>
         </div>
-        <button
-          id="closeCompanyDetail"
-          class="flex-shrink-0 p-2 hover:bg-indigo-100 rounded-lg transition text-indigo-700 hover:text-indigo-900"
-          title="闉じる">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+        <button id="closeCompanyDetail" class="referral-detail-close" title="閉じる">✕</button>
       </div>
 
-      <!-- 基本情報 -->
-      <div class="space-y-2">
-        <!-- 業種・所在地 -->
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs">🏢 ${company.industry}</span>
-          <span class="px-2.5 py-1 rounded-full bg-cyan-100 text-cyan-700 border border-cyan-200 font-semibold text-xs">📍 ${company.location}</span>
+      <!-- ボディ -->
+      <div class="referral-detail-body">
+        <!-- 募集ポジション -->
+        <div class="referral-detail-section">
+          <div class="referral-detail-section-title">募集ポジション</div>
+          <div style="font-size: 18px; font-weight: 700; color: #1e293b;">${company.highlightPosition || company.jobTitle || '-'}</div>
         </div>
-      </div>
 
-      <!-- 募集ポジション -->
-      <div class="bg-gradient-to-r from-slate-50 to-blue-50 rounded-lg px-3 py-2 border border-slate-300 shadow-sm">
-        <div class="flex items-center gap-1.5 mb-1">
-          <span class="text-lg">💼</span>
-          <span class="text-xs font-semibold text-slate-700 uppercase tracking-wide">募集ポジション</span>
-        </div>
-        <div class="text-lg font-bold text-slate-900">${company.highlightPosition}</div>
-      </div>
-
-      <!-- 各種指標 -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <div class="${retentionClass} px-3 py-2 text-center shadow-sm rounded-lg">
-          <div class="text-[10px] mb-0.5 opacity-80">
-            📊 定着率<span class="ml-1 text-[9px] font-normal text-slate-500">（返金発生期間）</span>
+        <!-- 指標カード -->
+        <div class="referral-detail-stats">
+          <div class="referral-detail-stat">
+            <div class="referral-detail-stat-value">${company.retention || '-'}</div>
+            <div class="referral-detail-stat-label">📊 定着率</div>
           </div>
-          <div class="text-base font-bold">${company.retention}</div>
-        </div>
-        <div class="${leadClass} px-3 py-2 text-center shadow-sm rounded-lg">
-          <div class="text-[10px] mb-0.5 opacity-80">
-            ⏱️ リードタイム<span class="ml-1 text-[9px] font-normal text-slate-500">（推薦から入社までの期間）</span>
+          <div class="referral-detail-stat">
+            <div class="referral-detail-stat-value">${company.leadTime || 0}日</div>
+            <div class="referral-detail-stat-label">⏱️ リードタイム</div>
           </div>
-          <div class="text-base font-bold">${company.leadTime}日</div>
-        </div>
-        <div class="bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-800 border border-indigo-200 px-3 py-2 text-center shadow-sm rounded-lg">
-          <div class="text-[10px] mb-0.5 opacity-80">💰 合計Fee</div>
-          <div class="text-base font-bold">${company.feeDisplay}</div>
-        </div>
-        <div class="${refundClass} px-3 py-2 text-center shadow-sm rounded-lg">
-          <div class="text-[10px] mb-0.5 opacity-80">${Number(company.refundAmount) > 0 ? '❌' : '✅'} 返金</div>
-          <div class="text-base font-bold">${formatCurrency(company.refundAmount)}</div>
-        </div>
-      </div>
-      
-
-      
-
-      <div class="p-3 border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 rounded-lg leading-relaxed w-full shadow-sm">
-
-        <div class="font-bold text-blue-900 text-sm mb-1.5 flex items-center gap-1.5">
-          <span class="text-base">📝</span>
-          <span>企業メモ</span>
-        </div>
-
-        <div class="text-sm text-slate-800 font-semibold w-full max-w-none">${buildAIInsight(company)}</div>
-
-        <div class="text-slate-800 text-xs mt-1.5">${buildAgencyInsight(company)}</div>
-
-      </div>
-
-
-
-      <div class="space-y-2 pt-1">
-
-        <div class="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-          <span class="text-lg">📈</span>
-          <span>募集・選考の進捗</span>
-        </div>
-
-        <div class="flex flex-col gap-3 w-full max-w-full rounded-lg p-3 border border-slate-200 bg-slate-50/50">
-          ${flowListHtml}
-        </div>
-
-      </div>
-
-
-
-      
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-2.5 text-center">
-
-        <div class="p-3 border border-slate-300 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm hover:shadow-md transition">
-
-          <div class="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">採用予定</div>
-
-          <div class="text-2xl font-bold text-slate-900 mt-1">${company.planHeadcount}<span class="text-sm text-slate-600">名</span></div>
-
-        </div>
-
-        <div class="p-3 border border-blue-300 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm hover:shadow-md transition">
-
-          <div class="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">内定 / 入社</div>
-
-          <div class="text-2xl font-bold text-blue-900 mt-1">${company.offer} <span class="text-blue-600">/</span> ${company.joined}</div>
-
-        </div>
-
-        <div class="p-3 border border-slate-300 rounded-lg bg-gradient-to-br from-slate-50 to-blue-50 shadow-sm hover:shadow-md transition">
-
-          <div class="text-[10px] font-semibold text-slate-700 uppercase tracking-wide">残り人数</div>
-
-          <div class="text-2xl font-bold text-slate-900 mt-1">${company.remaining}<span class="text-sm text-slate-600">名</span></div>
-
-        </div>
-      </div>
-      <!-- 求人情報 -->
-      <div class="bg-white/50 rounded-xl p-4 border border-slate-200">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="text-xl">🎯</span>
-            <span>求人情報</span>
+          <div class="referral-detail-stat highlight">
+            <div class="referral-detail-stat-value">${company.feeDisplay || '-'}</div>
+            <div class="referral-detail-stat-label">💰 合計Fee</div>
           </div>
-          ${editActions}
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm">
-          <!-- 欲しい人材 -->
-          <div class="p-3 bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-200 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-              <div class="font-bold text-blue-900 text-sm flex items-center gap-1.5">
-                <span>👥</span>
-                <span>欲しい人材</span>
-              </div>
-              ${editing ? '<span class="text-[10px] text-slate-500">カンマ区切り</span>' : ''}
-            </div>
-            ${desiredContent}
-          </div>
-
-          <!-- 選考メモ -->
-          <div class="p-3 bg-gradient-to-br from-slate-50 to-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-2">
-              <span>📋</span>
-              <span>選考メモ</span>
-            </div>
-            ${memoContent}
-          </div>
-        </div>
-      </div>
-
-      <!-- 契約情報 -->
-      <!-- 担当者情報 -->
-      <div class="bg-white/80 rounded-xl p-4 border border-slate-300 shadow-md">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="text-xl">👤</span>
-            <span>担当者情報</span>
-          </h3>
-          <button
-            id="contactInfoEditBtn"
-            class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
-            編集
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              <span>👤</span>
-              <span>担当者名</span>
-            </div>
-            <div id="contactNameDisplay" class="text-sm text-slate-800 min-h-[36px] leading-relaxed">
-              ${contactNameDisplay}
-            </div>
-            <input
-              id="contactNameInput"
-              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="担当者名を入力"
-              value="${company.contactName || ''}">
-          </div>
-          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              <span>✉️</span>
-              <span>メールアドレス</span>
-            </div>
-            <div id="contactEmailDisplay" class="text-sm text-slate-800 min-h-[36px] leading-relaxed">
-              ${contactEmailHtml}
-            </div>
-            <input
-              id="contactEmailInput"
-              type="email"
-              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="example@company.com"
-              value="${company.contactEmail || ''}">
-          </div>
-        </div>
-        <div id="contactInfoEditActions" class="hidden mt-3 flex gap-2 justify-end">
-          <button
-            id="contactInfoCancelBtn"
-            class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
-            キャンセル
-          </button>
-          <button
-            id="contactInfoSaveBtn"
-            class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 border border-blue-700 rounded-lg transition">
-            保存
-          </button>
-        </div>
-      </div>
-
-      <div class="bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 rounded-xl p-4 border border-slate-300 shadow-md">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span class="text-xl">📝</span>
-            <span>契約情報（人材会社 ⇔ 顧客企業間）</span>
-          </h3>
-          <button 
-            id="contractInfoEditBtn" 
-            class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
-            📝 編集
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <!-- 返金保証期間 -->
-          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              <span>⏰</span>
-              <span>返金保証期間</span>
-            </div>
-            <div id="warrantyPeriodDisplay" class="text-sm text-slate-800 min-h-[60px] leading-relaxed">
-              ${company.warrantyPeriod ? `${company.warrantyPeriod}日` : '-'}
-            </div>
-            <textarea 
-              id="warrantyPeriodInput" 
-              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
-              placeholder="例: 90日、3ヶ月など">${company.warrantyPeriod || ''}</textarea>
-          </div>
-
-          <!-- Fee契約内容 -->
-          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              <span>💰</span>
-              <span>Fee契約内容</span>
-            </div>
-            <div id="feeContractDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
-              ${feeDetailsDisplay || '-'}
-            </div>
-            <textarea 
-              id="feeContractInput" 
-              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
-              placeholder="Fee契約の詳細を入力">${company.feeDetails || company.feeContract || ''}</textarea>
-          </div>
-
-          <!-- その他契約メモ -->
-          <div class="p-3 bg-white rounded-lg border border-slate-300 shadow-sm">
-            <div class="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              <span>📌</span>
-              <span>その他</span>
-            </div>
-            <div id="contractNotesDisplay" class="text-sm text-slate-800 whitespace-pre-wrap min-h-[60px] leading-relaxed">
-              ${contractNoteDisplay || '-'}
-            </div>
-            <textarea 
-              id="contractNotesInput" 
-              class="hidden w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" 
-              placeholder="その他の契約に関するメモ">${company.contractNote || company.contractNotes || ''}</textarea>
+          <div class="referral-detail-stat">
+            <div class="referral-detail-stat-value">${formatCurrency(company.refundAmount)}</div>
+            <div class="referral-detail-stat-label">${Number(company.refundAmount) > 0 ? '❌' : '✅'} 返金</div>
           </div>
         </div>
 
-        <!-- 編集時の保存/キャンセルボタン -->
-        <div id="contractInfoEditActions" class="hidden mt-3 flex gap-2 justify-end">
-          <button 
-            id="contractInfoCancelBtn" 
-            class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition">
-            キャンセル
-          </button>
-          <button 
-            id="contractInfoSaveBtn" 
-            class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 border border-blue-700 rounded-lg transition">
-            保存
-          </button>
+        <!-- 採用状況 -->
+        <div class="referral-detail-section">
+          <div class="referral-detail-section-title">採用状況</div>
+          <div class="referral-detail-stats" style="margin-bottom: 0;">
+            <div class="referral-detail-stat">
+              <div class="referral-detail-stat-value">${company.planHeadcount}<span style="font-size: 14px; color: #64748b;">名</span></div>
+              <div class="referral-detail-stat-label">採用予定</div>
+            </div>
+            <div class="referral-detail-stat highlight">
+              <div class="referral-detail-stat-value">${company.offer} / ${company.joined}</div>
+              <div class="referral-detail-stat-label">内定 / 入社</div>
+            </div>
+            <div class="referral-detail-stat">
+              <div class="referral-detail-stat-value">${company.remaining}<span style="font-size: 14px; color: #64748b;">名</span></div>
+              <div class="referral-detail-stat-label">残り人数</div>
+            </div>
+          </div>
         </div>
+
+        <!-- 企業メモ -->
+        <div class="referral-detail-section">
+          <div class="referral-detail-section-title">企業メモ</div>
+          <div class="referral-detail-memo">
+            <div style="font-weight: 600; margin-bottom: 8px;">${buildAIInsight(company)}</div>
+            <div>${buildAgencyInsight(company)}</div>
+          </div>
+        </div>
+
+        <!-- 募集・選考の進捗 -->
+        <div class="referral-detail-section">
+          <div class="referral-detail-section-title">募集・選考の進捗</div>
+          <div style="background: #f8fafc; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0;">
+            ${flowListHtml}
+          </div>
+        </div>
+
+        <!-- 求人情報 -->
+        <div class="referral-detail-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="referral-detail-section-title" style="margin-bottom: 0;">求人情報</div>
+            ${editActions}
+          </div>
+          <div class="referral-detail-grid">
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">👥 欲しい人材</div>
+              <div class="referral-detail-card-content">${desiredContent}</div>
+            </div>
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">📋 選考メモ</div>
+              <div class="referral-detail-card-content">${memoContent}</div>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- 担当者情報 -->
+        <div class="referral-detail-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="referral-detail-section-title" style="margin-bottom: 0;">担当者情報</div>
+            <button id="contactInfoEditBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">編集</button>
+          </div>
+          <div class="referral-detail-grid">
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">👤 担当者名</div>
+              <div id="contactNameDisplay" class="referral-detail-card-content">${contactNameDisplay}</div>
+              <input id="contactNameInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px;" placeholder="担当者名を入力" value="${company.contactName || ''}">
+            </div>
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">✉️ メールアドレス</div>
+              <div id="contactEmailDisplay" class="referral-detail-card-content">${contactEmailHtml}</div>
+              <input id="contactEmailInput" type="email" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px;" placeholder="example@company.com" value="${company.contactEmail || ''}">
+            </div>
+          </div>
+          <div id="contactInfoEditActions" style="display: none; margin-top: 12px; justify-content: flex-end; gap: 8px;">
+            <button id="contactInfoCancelBtn" style="padding: 6px 12px; font-size: 12px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">キャンセル</button>
+            <button id="contactInfoSaveBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">保存</button>
+          </div>
+        </div>
+
+        <!-- 契約情報 -->
+        <div class="referral-detail-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="referral-detail-section-title" style="margin-bottom: 0;">契約情報</div>
+            <button id="contractInfoEditBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">📝 編集</button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">⏰ 返金保証期間</div>
+              <div id="warrantyPeriodDisplay" class="referral-detail-card-content">${company.warrantyPeriod ? `${company.warrantyPeriod}日` : '-'}</div>
+              <textarea id="warrantyPeriodInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="例: 90日">${company.warrantyPeriod || ''}</textarea>
+            </div>
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">💰 Fee契約内容</div>
+              <div id="feeContractDisplay" class="referral-detail-card-content" style="white-space: pre-wrap;">${feeDetailsDisplay || '-'}</div>
+              <textarea id="feeContractInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="Fee契約の詳細">${company.feeDetails || company.feeContract || ''}</textarea>
+            </div>
+            <div class="referral-detail-card">
+              <div class="referral-detail-card-title">📌 その他</div>
+              <div id="contractNotesDisplay" class="referral-detail-card-content" style="white-space: pre-wrap;">${contractNoteDisplay || '-'}</div>
+              <textarea id="contractNotesInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="その他メモ">${company.contractNote || company.contractNotes || ''}</textarea>
+            </div>
+          </div>
+          <div id="contractInfoEditActions" style="display: none; margin-top: 12px; justify-content: flex-end; gap: 8px;">
+            <button id="contractInfoCancelBtn" style="padding: 6px 12px; font-size: 12px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">キャンセル</button>
+            <button id="contractInfoSaveBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">保存</button>
+          </div>
+        </div>
+
+        <!-- AIマッチング候補者 -->
+        <div class="referral-detail-section">
+          <div class="referral-detail-section-title">🤖 AIマッチング候補者 (Top 3)</div>
+          <div id="referralRecommendedCandidates" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            ${recommendedHtml}
+          </div>
+        </div>
+
       </div>
-
-
-
-      <div class="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-50 rounded-lg p-3 border border-slate-300 shadow-sm">
-
-         <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-           <span class="text-base">🤖</span>
-           <span>AIマッチング候補者 (Top 3)</span>
-         </h4>
-
-         <div class="grid grid-cols-1 md:grid-cols-3 gap-2" id="referralRecommendedCandidates">
-
-           ${recommendedHtml}
-
-         </div>
-
-      </div>
-
     </div>
-
   `;
 
   renderRecommendedCandidates(company);
@@ -3699,7 +3548,10 @@ function updatePaginationInfo() {
 
   const total = Math.ceil(filteredData.length / pageSize) || 1;
 
-  document.getElementById('referralPageInfo').textContent = `${currentPage} / ${total}`;
+  const pageInfo = document.getElementById('referralPageInfo');
+  if (pageInfo) {
+    pageInfo.textContent = `${currentPage} / ${total}`;
+  }
 
 }
 
@@ -3707,7 +3559,10 @@ function updatePaginationInfo() {
 
 function updateFilterCount() {
 
-  document.getElementById('referralFilterCount').textContent = `${filteredData.length}社`;
+  const filterCount = document.getElementById('referralFilterCount');
+  if (filterCount) {
+    filterCount.textContent = `${filteredData.length}社`;
+  }
 
 }
 

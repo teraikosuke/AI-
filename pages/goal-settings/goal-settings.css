@@ -1,14 +1,14 @@
 /* Settings page standalone styles */
 
 :root {
-  --settings-bg: #f8fafc;
-  --settings-text: #475569;
-  --settings-muted: #94a3b8;
-  --settings-border: #e2e8f0;
-  --settings-line: #cbd5e1;
-  --settings-primary: #0f3a7a;
-  --settings-primary-strong: #103a75;
-  --control-radius: 4px;
+  --settings-bg: var(--app-surface);
+  --settings-text: var(--app-text-secondary);
+  --settings-muted: var(--app-text-muted);
+  --settings-border: var(--app-border);
+  --settings-line: var(--app-border-dark);
+  --settings-primary: var(--app-primary);
+  --settings-primary-strong: var(--app-primary-dark);
+  --control-radius: var(--app-radius-sm);
   --control-padding-y: 0.45rem;
   --control-padding-x: 0.75rem;
   --control-font-size: 0.95rem;

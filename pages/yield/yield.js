@@ -21,6 +21,11 @@ const DEFAULT_ADVISOR_USER_ID = 30;
 const DEFAULT_CALC_MODE = 'cohort';
 const DEFAULT_RATE_CALC_MODE = 'base';
 const RATE_CALC_MODE_STORAGE_KEY = 'yieldRateCalcMode.v1';
+const YIELD_UI_VERSION = '20260203_14';
+
+if (typeof window !== 'undefined') {
+  window.__yieldVersion = YIELD_UI_VERSION;
+}
 
 async function fetchJson(url, params = {}) {
   const query = new URLSearchParams(params);
@@ -1391,6 +1396,10 @@ const state = {
   }
 };
 
+if (typeof window !== 'undefined') {
+  window.__yieldState = state;
+}
+
 let chartJsPromise = null;
 
 function resolveYieldScope(root) {
@@ -1444,7 +1453,10 @@ function getDashboardTrendGranularity(scope) {
 }
 
 function isoDate(date) {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function formatPeriodMonthLabel(period) {
@@ -2917,8 +2929,8 @@ function formatAchievementCell(percent) {
 }
 
 function formatDayLabel(dateStr) {
-  const parsed = new Date(dateStr);
-  if (Number.isNaN(parsed)) return dateStr;
+  const parsed = parseLocalDate(dateStr);
+  if (!parsed || Number.isNaN(parsed)) return dateStr;
   return String(parsed.getDate());
 }
 
@@ -3430,12 +3442,20 @@ function getAutoCalculatedActual(memberId, date, metricKey) {
   return 0;
 }
 
+function parseLocalDate(dateStr) {
+  if (!dateStr) return null;
+  const parts = String(dateStr).split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+}
+
 function enumerateDateRange(startDate, endDate) {
   if (!startDate || !endDate) return [];
   const dates = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start) || Number.isNaN(end)) return [];
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
+  if (!start || !end || Number.isNaN(start) || Number.isNaN(end)) return [];
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     dates.push(isoDate(d));
   }
@@ -3454,16 +3474,6 @@ function resolveCompanyMsRanges(period) {
     return emptyResult;
   }
   const baseRange = { startDate: period.startDate, endDate: period.endDate };
-  const ruleType = goalSettingsService.getEvaluationRule()?.type;
-  if (ruleType !== 'master-month') {
-    return {
-      salesRange: baseRange,
-      revenueRange: baseRange,
-      marketingRange: baseRange,
-      csRange: baseRange
-    };
-  }
-  // 期間の終了日から当月を算出
   const end = new Date(period.endDate);
   if (Number.isNaN(end.getTime())) {
     return {
@@ -3476,23 +3486,15 @@ function resolveCompanyMsRanges(period) {
   const currentYear = end.getFullYear();
   const currentMonth = end.getMonth(); // 0-indexed
 
-  // マーケ: 前月17日 〜 当月19日
+  // 個人日別実績と同じ基準（前月/当月の固定日）でMS期間を算出する
   const marketingStart = new Date(currentYear, currentMonth - 1, 17);
   const marketingEnd = new Date(currentYear, currentMonth, 19);
-
-  // CS: 前月18日 〜 当月20日
   const csStart = new Date(currentYear, currentMonth - 1, 18);
   const csEnd = new Date(currentYear, currentMonth, 20);
-
-  // 営業: 前月18日 〜 当月19日
   const salesStart = new Date(currentYear, currentMonth - 1, 18);
   const salesEnd = new Date(currentYear, currentMonth, 19);
-
-  // 売上: 当月1日 〜 当月末日
   const revenueStart = new Date(currentYear, currentMonth, 1);
   const revenueEnd = new Date(currentYear, currentMonth + 1, 0);
-
-  // MS全体: 前月17日 〜 当月末日（全事業部をカバー）
   const msOverallStart = new Date(currentYear, currentMonth - 1, 17);
   const msOverallEnd = new Date(currentYear, currentMonth + 1, 0);
 
@@ -3503,6 +3505,25 @@ function resolveCompanyMsRanges(period) {
     csRange: { startDate: isoDate(csStart), endDate: isoDate(csEnd) },
     msOverallRange: { startDate: isoDate(msOverallStart), endDate: isoDate(msOverallEnd) }
   };
+}
+
+if (typeof window !== 'undefined') {
+  window.__yieldDebug = window.__yieldDebug || {};
+  window.__yieldDebug.getCompanyMsRange = () => {
+    const period = state.evaluationPeriods.find(p => p.id === state.companyMsPeriodId);
+    return {
+      periodId: state.companyMsPeriodId,
+      period,
+      ranges: resolveCompanyMsRanges(period)
+    };
+  };
+  window.__yieldDebug.getCompanyMsDates = () => ({
+    periodId: state.companyMsPeriodId,
+    count: state.companyMs?.dates?.length || 0,
+    head: (state.companyMs?.dates || []).slice(0, 5),
+    tail: (state.companyMs?.dates || []).slice(-5)
+  });
+  window.__yieldDebug.reloadCompanyMs = () => loadAndRenderCompanyMs();
 }
 
 async function resolveAdvisorEmployeeIds() {
@@ -3587,7 +3608,8 @@ function isDateBeforeDeptStart(date, deptKey) {
   const end = new Date(period.endDate);
   const currentYear = end.getFullYear();
   const currentMonth = end.getMonth();
-  const dateObj = new Date(date);
+  const dateObj = parseLocalDate(date);
+  if (!dateObj) return false;
 
   // 部門別開始日
   let startDate;
@@ -3617,7 +3639,8 @@ function isDateAfterDeptEnd(date, deptKey) {
   const end = new Date(period.endDate);
   const currentYear = end.getFullYear();
   const currentMonth = end.getMonth();
-  const dateObj = new Date(date);
+  const dateObj = parseLocalDate(date);
+  if (!dateObj) return false;
 
   // 部門別終了日
   let endDate;
@@ -4655,7 +4678,39 @@ async function loadAndRenderCompanyMs() {
   state.companyMs.msTargets = {};
   state.companyMs.msTargetTotals = {};
   const ranges = resolveCompanyMsRanges(period);
-  const payload = await ensureDailyYieldData(periodId);
+  const msOverallRange = ranges.msOverallRange || ranges.salesRange;
+
+  // Always update dates first so headers are correct even if API calls fail.
+  state.companyMs = {
+    ...state.companyMs,
+    metricKeys: {
+      marketing: state.companyMs.metricKeys?.marketing || getMetricsForDept('marketing')[0]?.key,
+      cs: state.companyMs.metricKeys?.cs || getMetricsForDept('cs')[0]?.key,
+      sales: state.companyMs.metricKeys?.sales || getMetricsForDept('sales')[0]?.key
+    },
+    dates: enumerateDateRange(msOverallRange.startDate, msOverallRange.endDate),
+    marketingDates: enumerateDateRange(ranges.marketingRange?.startDate || '', ranges.msOverallRange?.endDate || ''),
+    csDates: enumerateDateRange(ranges.csRange?.startDate || '', ranges.msOverallRange?.endDate || ''),
+    salesDates: enumerateDateRange(ranges.salesRange?.startDate || '', ranges.msOverallRange?.endDate || ''),
+    revenueDates: enumerateDateRange(ranges.revenueRange?.startDate || '', ranges.msOverallRange?.endDate || ''),
+    dailyTotals: {},
+    companyTarget: {},
+    revenue: { actual: 0, target: 0 }
+  };
+  state.companySales = {
+    ...state.companySales,
+    dates: enumerateDateRange(ranges.salesRange.startDate, ranges.salesRange.endDate)
+  };
+
+  let payload;
+  try {
+    payload = await ensureDailyYieldData(periodId);
+  } catch (error) {
+    console.warn('[yield] failed to load daily yield data for MS', error);
+    renderCompanyMsTable();
+    renderCompanySalesTable();
+    return;
+  }
   const advisors = await resolveAdvisorEmployees();
   const fallbackAdvisors = (payload?.employees || [])
     .map(emp => ({
@@ -4695,20 +4750,8 @@ async function loadAndRenderCompanyMs() {
       revenueActual = 0;
     }
   }
-  // 事業部ごとの日付を保存
-  const msOverallRange = ranges.msOverallRange || ranges.salesRange;
   state.companyMs = {
     ...state.companyMs,
-    metricKeys: {
-      marketing: state.companyMs.metricKeys?.marketing || getMetricsForDept('marketing')[0]?.key,
-      cs: state.companyMs.metricKeys?.cs || getMetricsForDept('cs')[0]?.key,
-      sales: state.companyMs.metricKeys?.sales || getMetricsForDept('sales')[0]?.key
-    },
-    dates: enumerateDateRange(msOverallRange.startDate, msOverallRange.endDate),
-    marketingDates: enumerateDateRange(ranges.marketingRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
-    csDates: enumerateDateRange(ranges.csRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
-    salesDates: enumerateDateRange(ranges.salesRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
-    revenueDates: enumerateDateRange(ranges.revenueRange?.startDate || '', ranges.msOverallRange?.endDate || ''), // 末日まで延長
     dailyTotals,
     companyTarget,
     revenue: {
@@ -4716,11 +4759,7 @@ async function loadAndRenderCompanyMs() {
       target: num(companyTarget.revenueTarget ?? 0)
     }
   };
-  state.companySales = {
-    ...state.companySales,
-    employees: effectiveAdvisors,
-    dates: enumerateDateRange(ranges.salesRange.startDate, ranges.salesRange.endDate)
-  };
+  state.companySales = { ...state.companySales, employees: effectiveAdvisors };
   await loadCompanyMsTargets(periodId);
   renderCompanyMsTable();
   renderCompanySalesTable();
@@ -5257,6 +5296,9 @@ function loadEvaluationPeriods() {
   if (!hasCompanyTerm && (todayPeriodId || first)) state.companyTermPeriodId = todayPeriodId || first?.id || '';
   if (!hasCompanyTerm && (todayPeriodId || first)) state.companyTermPeriodId = todayPeriodId || first?.id || '';
   if (!hasCompanyMs && (todayPeriodId || first)) state.companyMsPeriodId = todayPeriodId || first?.id || '';
+  if (state.personalDailyPeriodId && !state.companyMsPeriodId) {
+    state.companyMsPeriodId = state.personalDailyPeriodId;
+  }
   const hasPersonalMs = state.evaluationPeriods.some(period => period.id === state.personalMsPeriodId);
   if (!hasPersonalMs && (todayPeriodId || first)) state.personalMsPeriodId = todayPeriodId || first?.id || '';
   ensureCompanyDailyEmployeeId();
@@ -5372,12 +5414,16 @@ async function handlePersonalMsPeriodChange(event) {
 
 function handlePersonalDailyPeriodChange(event) {
   state.personalDailyPeriodId = event.target.value || '';
+  if (state.personalDailyPeriodId) {
+    state.companyMsPeriodId = state.personalDailyPeriodId;
+  }
   state.personalDisplayMode = 'monthly'; // Force daily mode when dropdown is used
   if (state.personalDailyMs) {
     state.personalDailyMs.targets = {};
     state.personalDailyMs.totals = {};
   }
   loadAndRenderPersonalDaily();
+  loadAndRenderCompanyMs();
 }
 
 function handleCompanyDailyPeriodChange(event) {
@@ -5827,13 +5873,17 @@ function resolveDeptEndDate(periodId, deptKey) {
 function isDateBeforeDeptStartForPeriod(date, deptKey, periodId) {
   const startDate = resolveDeptStartDate(periodId, deptKey);
   if (!startDate) return false;
-  return new Date(date) < startDate;
+  const dateObj = parseLocalDate(date);
+  if (!dateObj) return false;
+  return dateObj < startDate;
 }
 
 function isDateAfterDeptEndForPeriod(date, deptKey, periodId) {
   const endDate = resolveDeptEndDate(periodId, deptKey);
   if (!endDate) return false;
-  return new Date(date) > endDate;
+  const dateObj = parseLocalDate(date);
+  if (!dateObj) return false;
+  return dateObj > endDate;
 }
 
 function isDateBeforePersonalDeptStart(date, deptKey, periodId = state.personalMsPeriodId) {

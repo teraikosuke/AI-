@@ -1,0 +1,221 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>業務ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/base.css?v=20260130" />
+  <link rel="stylesheet" href="styles/utilities.css" />
+</head>
+
+<body class="bg-slate-100">
+  <div class="flex min-h-screen transition-all duration-300">
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-100 flex flex-col transition-all duration-300 ease-in-out">
+      <div class="px-6 py-5 border-b border-slate-700 flex items-start justify-between gap-3">
+        <div class="sidebar-title-wrapper">
+          <p class="text-sm uppercase tracking-wide text-slate-400 sidebar-title-text">
+            Recruiting Ops
+          </p>
+          <h1 class="text-xl font-semibold mt-2 sidebar-title-text">
+            業務ダッシュボード
+          </h1>
+        </div>
+        <button type="button" id="sidebarToggle"
+          class="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-slate-300" aria-label="サイドバーを折りたたみ">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+      <nav class="flex-1 overflow-y-auto">
+        <ul>
+          <li>
+            <button type="button" data-target="mypage" class="nav-link w-full text-left whitespace-nowrap transition"
+              aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 10a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10zm0 2c-3.1 0-5.5 1.4-5.5 3.5V17h11v-1.5C15.5 13.4 13.1 12 10 12z" />
+                </svg>
+              </span>
+              <span class="nav-label">マイページ</span>
+            </button>
+          </li>
+          <li class="nav-group" data-nav-group="yield">
+            <button type="button" class="nav-link nav-group-toggle w-full text-left whitespace-nowrap transition"
+              data-submenu-toggle="yield" aria-expanded="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path d="M10 2.5 2.5 8v9h5v-4h5v4h5v-9L10 2.5z" />
+                </svg>
+              </span>
+              <span class="nav-label">歩留まり管理・総合</span>
+              <span class="nav-caret" aria-hidden="true">▾</span>
+            </button>
+            <ul class="nav-submenu" data-submenu="yield">
+              <li>
+                <button type="button" data-target="yield-personal"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">個人成績</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="yield-company"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">社内成績</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="yield-admin"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">管理者画面</span>
+                </button>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <button type="button" data-target="candidates"
+              class="nav-link w-full text-left whitespace-nowrap transition" aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 10a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 10 10zm0 2c-3.1 0-5.5 1.4-5.5 3.5V17h11v-1.5C15.5 13.4 13.1 12 10 12z" />
+                </svg>
+              </span>
+              <span class="nav-label">候補者管理</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-target="referral" class="nav-link w-full text-left whitespace-nowrap transition"
+              aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M4 11h4v2H4a3 3 0 1 1 0-6h4v2H4a1 1 0 1 0 0 2zm8-4h4a3 3 0 1 1 0 6h-4v-2h4a1 1 0 1 0 0-2h-4z" />
+                  <path d="M7 9h6v2H7z" />
+                </svg>
+              </span>
+              <span class="nav-label">紹介先企業管理</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-target="ad-performance"
+              class="nav-link w-full text-left whitespace-nowrap transition" aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path d="M3 15h14v2H3zm2-4h2v3H5zm4-5h2v8H9zm4 3h2v5h-2z" />
+                </svg>
+              </span>
+              <span class="nav-label">広告管理</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-target="teleapo" class="nav-link w-full text-left whitespace-nowrap transition"
+              aria-current="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M3.5 4A1.5 1.5 0 0 1 5 2.5h2A1.5 1.5 0 0 1 8.5 4v1.5A1.5 1.5 0 0 1 7 7H6.5a8.5 8.5 0 0 0 6 6.5V13a1.5 1.5 0 0 1 1.5-1.5H15A1.5 1.5 0 0 1 16.5 13v2A1.5 1.5 0 0 1 15 16.5 12.5 12.5 0 0 1 3.5 5Z" />
+                </svg>
+              </span>
+              <span class="nav-label">架電管理</span>
+            </button>
+          </li>
+          <li class="nav-group" data-nav-group="settings">
+            <button type="button" class="nav-link nav-group-toggle w-full text-left whitespace-nowrap transition"
+              data-submenu-toggle="settings" aria-expanded="false">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path
+                    d="M10 2a2 2 0 0 1 1.91 1.41l.13.42 1.16.23a2 2 0 0 1 1.47 1.47l.23 1.16.42.13A2 2 0 0 1 16 8v4a2 2 0 0 1-1.41 1.91l-.42.13-.23 1.16a2 2 0 0 1-1.47 1.47l-1.16.23-.13.42A2 2 0 0 1 10 18H8a2 2 0 0 1-1.91-1.41l-.13-.42-1.16-.23a2 2 0 0 1-1.47-1.47l-.23-1.16-.42-.13A2 2 0 0 1 2 12V8a2 2 0 0 1 1.41-1.91l.42-.13.23-1.16a2 2 0 0 1 1.47-1.47l1.16-.23.13-.42A2 2 0 0 1 8 2zm0 4.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 10 6.5Zm0 2a1.5 1.5 0 1 1-1.5 1.5A1.5 1.5 0 0 1 10 8.5Z" />
+                </svg>
+              </span>
+              <span class="nav-label">設定</span>
+              <span class="nav-caret" aria-hidden="true">▾</span>
+            </button>
+            <ul class="nav-submenu" data-submenu="settings">
+              <li>
+                <button type="button" data-target="settings"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">有効応募基準設定</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="goal-settings"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">評価・目標設定</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" data-target="members"
+                  class="nav-link nav-sub-link w-full text-left whitespace-nowrap transition" aria-current="false">
+                  <span class="nav-label">メンバー設定</span>
+                </button>
+              </li>
+              <li>
+                <!-- ログアウトはユーザー表示の横に移動 -->
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <div class="sidebar-user-slot">
+        <div id="sidebarUserBadgeSlot"></div>
+        <button type="button" class="sidebar-logout-button" data-action="logout" aria-label="ログアウト">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 sidebar-logout-icon" aria-hidden="true">
+            <path d="M8 3a2 2 0 0 0-2 2v3h2V5h7v10H8v-3H6v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8z" />
+            <path d="M3.293 9.293 1.586 11l1.707 1.707L5 11.999 4.002 11H10v-2H4.002L5 8.001 3.293 9.293z" />
+          </svg>
+          <span class="sidebar-logout-label">ログアウト</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col main-layout">
+      <header class="bg-white border-b border-slate-200 page-header">
+        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div>
+            <h2 id="pageTitle" class="text-2xl font-semibold text-slate-900">
+              歩留管理（総合）
+            </h2>
+          </div>
+          <div class="flex items-center gap-2 header-actions">
+
+            <!-- <button
+                type="button"
+                data-action="logout"
+                class="px-3 py-2 rounded-lg border border-red-300 text-sm font-medium hover:bg-red-50 text-red-600 whitespace-nowrap"
+              >
+                ログアウト
+              </button>
+              <button
+                type="button"
+                id="sidebarToggleMobile"
+                class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50 lg:hidden"
+              >
+                メニュー
+              </button> -->
+          </div>
+        </div>
+      </header>
+
+      <main id="app" class="flex-1 p-6 overflow-auto bg-slate-50">
+        <!-- Dynamic page content will be loaded here -->
+      </main>
+    </div>
+  </div>
+
+  <script type="module">
+    import { boot } from './scripts/router.js?v=20260120_2';
+    boot();
+  </script>
+</body>
+
+</html>

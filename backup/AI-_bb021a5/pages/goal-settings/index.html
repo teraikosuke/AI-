@@ -1,0 +1,325 @@
+<div class="settings-page" id="settingsPage">
+  <div class="settings-section">
+    <div class="settings-tab-group" data-settings-tab-group="settings">
+      <button type="button" class="settings-tab is-active" data-settings-tab="company-settings">会社設定</button>
+      <button type="button" class="settings-tab" data-settings-tab="personal-settings">個人設定</button>
+    </div>
+
+    <div class="settings-tab-panel" data-settings-tab-panel="company-settings">
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">評価期間設定</h4>
+            <p class="settings-muted">この会社の評価サイクルを設定します。KPI の目標と実績の集計単位に使います。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <div class="settings-radio-group" id="evaluationRuleGroup">
+              <label class="settings-radio">
+                <input type="radio" name="evaluationRule" value="monthly" checked />
+                <span>月（1日から月末）</span>
+              </label>
+            </div>
+            <!-- <button type="button" id="saveEvaluationRuleButton" class="settings-primary-button">期間設定を保存</button> -->
+          </div>
+        </div>
+        <!-- Advanced options removed -->
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveEvaluationRuleButton" class="settings-primary-button">期間設定を保存</button>
+          <!-- <span class="settings-save-status" id="evaluationSaveStatus" aria-live="polite"></span> -->
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">期間目標設定（会社共通）</h4>
+            <p class="settings-muted">各評価期間あたりの会社全体の目標値を設定します。期間ごとに異なる目標を設定できます。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="companyPeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-target-table-wrapper table-surface">
+          <table class="settings-target-table">
+            <thead>
+              <tr>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+              </tr>
+            </thead>
+            <tbody id="companyTargetTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveCompanyTargetButton" class="settings-primary-button">この期間の会社目標を保存</button>
+          <span class="settings-save-status" id="companyTargetSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">ページ別目標設定</h4>
+            <p class="settings-muted">各画面で表示される「率」の目標値を設定します。目標に対する達成度に応じて表示色が変わります。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="pageRatePeriodSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-rate-groups">
+          <!-- 紹介先実績管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">紹介先実績管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>定着率（返金発生期間）</span>
+                <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="clientRetentionRate" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 広告管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">広告管理画面</h5>
+
+            <div class="settings-rate-subgroup">
+              <h6 class="settings-rate-subgroup-title">共通・有効応募数基準</h6>
+              <div class="settings-rate-grid">
+                <label class="settings-rate-field">
+                  <span>有効応募率</span>
+                  <p class="settings-rate-note">分子：有効応募数 / 分母：応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adValidAppRate" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>初回面談設定率</span>
+                  <p class="settings-rate-note">分子：初回面談設定数 / 分母：有効応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adInterviewSetupRate" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>内定率（有効応募数基準）</span>
+                  <p class="settings-rate-note">分子：内定数 / 分母：有効応募数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adOfferRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>入社率（有効応募数基準）</span>
+                  <p class="settings-rate-note">分子：入社数 / 分母：有効応募数（決定率）</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adHireRateTarget" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>定着率（返金発生期間）</span>
+                  <p class="settings-rate-note">分子：返金発生期間以上勤続した人数（返金が発生しなかった人数） / 分母：入社数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adRetentionRate" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <!-- 決定率は入社率（有効応募数基準）と重複するため削除または統合 -->
+                <input type="hidden" data-rate-key="adDecisionRateTarget" />
+              </div>
+            </div>
+
+            <div class="settings-rate-subgroup" style="margin-top: 16px;">
+              <h6 class="settings-rate-subgroup-title">段階別基準（Step）</h6>
+              <div class="settings-rate-grid">
+                <label class="settings-rate-field">
+                  <span>内定率（段階別基準）</span>
+                  <p class="settings-rate-note">分子：内定数 / 分母：初回面談実施数</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adOfferRateTargetStep" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+                <label class="settings-rate-field">
+                  <span>入社率（段階別基準）</span>
+                  <p class="settings-rate-note">分子：入社数 / 分母：内定承諾数（または内定数）</p>
+                  <div class="settings-rate-input-wrap">
+                    <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                      data-rate-key="adHireRateTargetStep" />
+                    <span class="settings-rate-unit">%</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 架電管理画面 -->
+          <div class="settings-rate-group">
+            <h5 class="settings-rate-group-title">架電管理画面</h5>
+            <div class="settings-rate-grid">
+              <label class="settings-rate-field">
+                <span>接触率</span>
+                <p class="settings-rate-note">分子：接触数 / 分母：架電数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoContactRate" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>設定率</span>
+                <p class="settings-rate-note">分子：設定数 / 分母：接触数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoSetupRate" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>着座率（分母：設定数）</span>
+                <p class="settings-rate-note">分子：面談実施数 / 分母：設定数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoAttendanceRate" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>着座率（分母：接触数）</span>
+                <p class="settings-rate-note">分子：面談実施数 / 分母：接触数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoAttendanceRateContact" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+              <label class="settings-rate-field">
+                <span>通電率</span>
+                <p class="settings-rate-note">分子：通電数 / 分母：架電数</p>
+                <div class="settings-rate-input-wrap">
+                  <input type="number" min="0" max="100" step="0.1" class="settings-rate-input"
+                    data-rate-key="teleapoConnectionRate" />
+                  <span class="settings-rate-unit">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-rate-legend">
+          <span class="settings-rate-legend-item settings-rate-legend-green">目標達成（100%以上）</span>
+          <span class="settings-rate-legend-item settings-rate-legend-amber">目標80%〜99%</span>
+          <span class="settings-rate-legend-item settings-rate-legend-red">目標80%未満</span>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="savePageRateTargetsButton" class="settings-primary-button">ページ別率目標を保存</button>
+          <span class="settings-save-status" id="pageRateTargetSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel is-hidden" data-settings-tab-panel="personal-settings">
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">期間目標設定（自分）</h4>
+            <p class="settings-muted">ログイン中の自分の評価期間ごとの目標値を設定します。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="personalPeriodSelect"></select>
+            </label>
+            <button type="button" id="copyCompanyTargetButton" class="settings-ghost-button">会社目標をコピーして編集</button>
+          </div>
+        </div>
+
+        <div class="settings-target-table-wrapper table-surface">
+          <table class="settings-target-table">
+            <thead>
+              <tr>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+                <th scope="col">指標名</th>
+                <th scope="col">目標値</th>
+              </tr>
+            </thead>
+            <tbody id="personalTargetTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="savePersonalTargetButton" class="settings-primary-button">この期間の個人目標を保存</button>
+          <span class="settings-save-status" id="personalTargetSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-headline">
+          <div class="settings-section-header-row">
+            <h4 class="settings-section-title">日別目標設定</h4>
+            <p class="settings-muted">選択中の評価期間内で、日ごとの目標値を設定します。</p>
+          </div>
+          <div class="settings-section-subrow">
+            <label class="settings-inline-select">
+              <span>評価期間</span>
+              <select id="personalDailyPeriodSelect"></select>
+            </label>
+            <button type="button" id="distributeDailyButton" class="settings-ghost-button">期間目標から均等割りで自動入力</button>
+            <button type="button" id="copyPreviousDailyButton" class="settings-ghost-button">前月と同じ値を入れる</button>
+          </div>
+        </div>
+
+        <div class="settings-table-wrapper table-surface">
+          <div class="settings-scroll-area">
+            <table class="settings-table settings-daily-table">
+              <thead>
+                <tr>
+                  <th scope="col">日付</th>
+                  <th scope="col">新規面談数</th>
+                  <th scope="col">提案数</th>
+                  <th scope="col">推薦数</th>
+                  <th scope="col">面接設定数</th>
+                  <th scope="col">面接実施数</th>
+                  <th scope="col">内定数</th>
+                  <th scope="col">承諾数</th>
+                </tr>
+              </thead>
+              <tbody id="personalDailyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="settings-card-actions">
+          <button type="button" id="saveDailyTargetsButton" class="settings-primary-button">日別目標を保存</button>
+          <span class="settings-save-status" id="dailyTargetSaveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,66 @@
+/* Comparison Section Specific Styles */
+
+/* ４軸比較チャートエリア */
+#comparison-section .chart-container {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ４軸比較の軸切り替えボタン */
+#comparison-section .axis-switch-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  margin: 4px;
+  transition: all 0.3s ease;
+}
+
+#comparison-section .axis-switch-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+#comparison-section .axis-switch-btn.active {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+/* ４軸比較のファンネルテーブル */
+#comparison-section .funnel-table {
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+#comparison-section .funnel-table thead th {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+#comparison-section .funnel-table tbody tr:nth-child(even) {
+  background: rgba(139, 92, 246, 0.03);
+}
+
+/* ４軸比較のKPIカード */
+#comparison-section .kpi-v2-card {
+  border-left: 3px solid #8b5cf6;
+  position: relative;
+}
+
+#comparison-section .kpi-v2-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* ４軸比較の数値強調 */
+#comparison-section .kpi-v2-value-large {
+  color: #7c3aed;
+  font-weight: 800;
+}

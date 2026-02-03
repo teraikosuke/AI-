@@ -1,0 +1,723 @@
+# データベース完全仕様書
+
+## 📊 概要
+
+このシステムは**13テーブル、188カラム**で構成されています。
+
+---
+
+## 📑 目次
+
+1. [テーブル一覧](#1-テーブル一覧)
+2. [ER図（リレーション）](#2-er図リレーション)
+3. [各テーブルの詳細仕様](#3-各テーブルの詳細仕様)
+4. [画面別テーブル使用状況](#4-画面別テーブル使用状況)
+5. [インデックス提案](#5-インデックス提案)
+6. [データフロー](#6-データフロー)
+
+---
+
+## 1. テーブル一覧
+
+| # | テーブル名 | 用途 | 主キー | 外部キー | カラム数 |
+|---|-----------|------|--------|---------|---------|
+| 1 | `ad_details` | 広告媒体契約管理 | id | - | 11 |
+| 2 | `candidate_applications` | 応募・選考情報 | id | candidate_id, client_id | 42 |
+| 3 | `candidate_tasks` | 候補者タスク管理 | id | candidate_id | 8 |
+| 4 | [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | 候補者基本情報 | id | advisor_user_id, partner_user_id | 61 |
+| 5 | [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) | クライアント企業 | id | - | 24 |
+| 6 | `goal_daily_targets` | 日次目標 | id | - | 7 |
+| 7 | `goal_settings` | 目標設定ルール | id | - | 4 |
+| 8 | `goal_targets` | 期間目標 | id | - | 7 |
+| 9 | `kpi_targets` | KPI目標 | id | - | 6 |
+| 10 | `placements` | 成約・紹介料 | id | candidate_application_id | 8 |
+| 11 | `screening_rules` | スクリーニングルール | id | - | 6 |
+| 12 | [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | テレアポログ | id | candidate_id, caller_user_id | 9 |
+| 13 | `users` | ユーザー管理 | id | - | 8 |
+
+**合計**: 13テーブル、188カラム
+
+---
+
+## 2. ER図（リレーション）
+
+```
+┌──────────────────┐
+│ users            │
+│ ─────────────────│
+│ id (PK)          │◄─────────┐
+│ name             │           │
+│ email            │           │
+│ role             │           │
+│ password_hash    │           │
+└──────────────────┘           │
+                               │
+                               │ advisor_user_id
+                               │ partner_user_id
+                               │
+┌──────────────────────────────┴───────┐
+│ candidates                            │
+│ ──────────────────────────────────────│
+│ id (PK)                               │
+│ advisor_user_id (FK → users.id)       │◄───────┐
+│ partner_user_id (FK → users.id)       │        │
+│ name                                  │        │
+│ email                                 │        │
+│ phone                                 │        │
+│ birth_date                            │        │
+│ is_effective_application              │        │
+│ is_connected                          │        │
+│ first_contact_at                      │        │
+│ ...                                   │        │
+└───────────────┬───────────────────────┘        │
+                │                                │
+                │ candidate_id                   │
+                │                                │
+    ┌───────────┼────────────────────────────────┤
+    │           │                                │
+    │           │                                │
+    ▼           ▼                                │
+┌───────────────────────┐  ┌──────────────────────┐
+│ candidate_applications│  │ candidate_tasks      │
+│ ──────────────────────│  │ ─────────────────────│
+│ id (PK)               │  │ id (PK)              │
+│ candidate_id (FK)     │  │ candidate_id (FK)    │
+│ client_id (FK)        │◄─┤ action_date          │
+│ recommended_at        │  │ action_note          │
+│ first_interview_at    │  │ is_completed         │
+│ offer_at              │  └──────────────────────┘
+│ offer_accepted_at     │
+│ joined_at             │
+│ ...                   │
+└───────┬───────────────┘
+        │
+        │ candidate_application_id
+        │
+        ▼
+┌──────────────────┐
+│ placements       │
+│ ─────────────────│
+│ id (PK)          │
+│ candidate_       │
+│ application_id   │
+│ (FK)             │
+│ fee_amount       │
+│ refund_amount    │
+└──────────────────┘
+
+┌──────────────────┐
+│ clients          │
+│ ─────────────────│
+│ id (PK)          │◄─── client_id (FK)
+│ name             │
+│ industry         │
+│ ...              │
+└──────────────────┘
+
+┌──────────────────┐
+│ teleapo          │
+│ ─────────────────│
+│ id (PK)          │
+│ candidate_id (FK)│───► candidates.id
+│ caller_user_id   │───► users.id
+│ called_at        │
+│ result           │
+│ memo             │
+└──────────────────┘
+
+┌──────────────────┐
+│ ad_details       │
+│ ─────────────────│
+│ id (PK)          │
+│ media_name       │
+│ contract_amount  │
+└──────────────────┘
+
+┌──────────────────────┐
+│ goal_targets         │
+│ ─────────────────────│
+│ id (PK)              │
+│ scope                │
+│ advisor_user_id      │
+│ period_id            │
+│ targets (JSONB)      │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ goal_daily_targets   │
+│ ─────────────────────│
+│ id (PK)              │
+│ advisor_user_id      │
+│ period_id            │
+│ target_date          │
+│ targets (JSONB)      │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ goal_settings        │
+│ ─────────────────────│
+│ id (PK)              │
+│ evaluation_rule_type │
+│ evaluation_rule_     │
+│ options (JSONB)      │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ kpi_targets          │
+│ ─────────────────────│
+│ id (PK)              │
+│ target_month         │
+│ metric_key           │
+│ target_value         │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ screening_rules      │
+│ ─────────────────────│
+│ id (PK)              │
+│ min_age              │
+│ max_age              │
+│ allowed_jlpt_levels  │
+│ target_nationalities │
+└──────────────────────┘
+```
+
+---
+
+## 3. 各テーブルの詳細仕様
+
+### 3.1 `ad_details`（広告媒体契約）
+
+**用途**: Indeed、求人ボックスなどの広告媒体の契約情報を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | integer | NO | nextval | 主キー |
+| 2 | media_name | varchar(255) | NO | - | 媒体名（Indeed、求人ボックスなど） |
+| 3 | contract_start_date | date | YES | - | 契約開始日 |
+| 4 | contract_end_date | date | YES | - | 契約終了日 |
+| 5 | contract_amount | integer | YES | 0 | 契約金額（円） |
+| 6 | amount_period | varchar(50) | YES | - | 金額期間（月額、年額） |
+| 7 | contract_method | text | YES | - | 契約方法 |
+| 8 | renewal_terms | text | YES | - | 更新条件 |
+| 9 | memo | text | YES | - | メモ |
+| 10 | created_at | timestamptz | YES | now() | 作成日時 |
+| 11 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**使用画面**: 広告管理画面
+
+---
+
+### 3.2 `candidate_applications`（応募・選考情報）
+
+**用途**: 候補者の企業への応募情報を管理（**KPI計算の中核テーブル**）
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 | KPI計算での役割 |
+|---|---------|---------|------|-----------|------|----------------|
+| 1 | id | bigint | NO | nextval | 主キー | - |
+| 2 | candidate_id | bigint | NO | - | 候補者ID（外部キー） | JOIN用 |
+| 3 | client_id | bigint | NO | - | クライアント企業ID | JOIN用 |
+| 4 | kintone_sub_id | text | YES | - | kintoneサブID | - |
+| 5 | job_title | text | YES | - | 求人タイトル | - |
+| 8 | apply_route | text | YES | - | 応募経路 | - |
+| 10 | recommended_at | timestamptz | YES | - | 推薦日時 | **推薦数カウント** |
+| 11 | first_interview_set_at | timestamptz | YES | - | 一次面接設定日時 | **面接設定数カウント** |
+| 12 | first_interview_at | timestamptz | YES | - | 一次面接実施日時 | **面接実施数カウント** |
+| 13 | second_interview_set_at | timestamptz | YES | - | 二次面接設定日時 | （追加カウント） |
+| 14 | second_interview_at | timestamptz | YES | - | 二次面接実施日時 | （追加カウント） |
+| 15 | offer_date | timestamptz | YES | - | 内定日時（旧） | - |
+| 16 | close_expected_at | timestamptz | YES | - | クロージング予定日時 | - |
+| 17 | offer_accept_date | timestamptz | YES | - | 承諾日時（旧） | - |
+| 18 | join_date | timestamptz | YES | - | 入社日時（旧） | - |
+| 19 | pre_join_withdraw_date | timestamptz | YES | - | 入社前辞退日時 | 失注判定 |
+| 20 | post_join_quit_date | timestamptz | YES | - | 入社後退職日時 | 早期退職判定 |
+| 21 | stage_current | text | YES | - | 現在のステージ | フィルタ |
+| 25 | is_quit_30 | boolean | YES | - | 30日以内退職フラグ | - |
+| 28 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 | **提案数カウント** |
+| 29 | updated_at | timestamptz | NO | CURRENT_TIMESTAMP | 更新日時 | - |
+| 34 | selection_note | text | YES | - | 選考メモ | - |
+| 39 | pre_join_withdraw_reason | text | YES | - | 入社前辞退理由 | - |
+| 41 | post_join_quit_reason | text | YES | - | 入社後退職理由 | - |
+| 42 | recommendation_text | text | YES | - | 推薦文 | - |
+| 43 | final_interview_set_at | date | YES | - | 最終面接設定日 | （追加カウント） |
+| 44 | final_interview_at | date | YES | - | 最終面接実施日 | （追加カウント） |
+| 45 | offer_at | date | YES | - | 内定日 | **内定数カウント** |
+| 46 | offer_accepted_at | date | YES | - | 承諾日 | **承諾数カウント** |
+| 47 | joined_at | date | YES | - | 入社日 | **入社数カウント** |
+| 48 | declined_after_offer_at | date | YES | - | 内定後辞退日 | 失注判定 |
+| 49 | declined_after_offer_reason | text | YES | - | 内定後辞退理由 | - |
+| 50 | early_turnover_at | date | YES | - | 早期退職日 | 早期退職判定 |
+| 51 | early_turnover_reason | text | YES | - | 早期退職理由 | - |
+| 52 | closing_forecast_at | date | YES | - | クロージング予測日 | - |
+| 53 | fee | integer | YES | - | 紹介料 | 売上計算 |
+| 54 | note | text | YES | - | 備考 | - |
+
+**外部キー**:
+- `candidate_id` → [candidates(id)](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) ON DELETE CASCADE
+- `client_id` → `clients(id)` ON DELETE CASCADE
+
+**使用画面**: 候補者管理画面、歩留まり管理画面
+
+---
+
+### 3.3 `candidate_tasks`（候補者タスク）
+
+**用途**: 候補者に対するタスク（次回アクションなど）を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | integer | NO | nextval | 主キー |
+| 2 | candidate_id | integer | NO | - | 候補者ID（外部キー） |
+| 3 | action_date | date | YES | - | アクション予定日 |
+| 4 | action_note | text | YES | - | アクション内容 |
+| 5 | is_completed | boolean | YES | false | 完了フラグ |
+| 6 | completed_at | timestamp | YES | - | 完了日時 |
+| 7 | created_at | timestamp | YES | now() | 作成日時 |
+| 8 | updated_at | timestamp | YES | now() | 更新日時 |
+
+**外部キー**:
+- `candidate_id` → [candidates(id)](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) ON DELETE CASCADE
+
+**使用画面**: 候補者管理画面
+
+---
+
+### 3.4 [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13)（候補者基本情報）
+
+**用途**: 候補者の基本情報を管理（**システムの中核テーブル**）
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 | KPI計算での役割 |
+|---|---------|---------|------|-----------|------|----------------|
+| 1 | id | bigint | NO | nextval | 主キー | - |
+| 2 | kintone_app_id | integer | YES | - | kintoneアプリID | - |
+| 3 | kintone_record_id | integer | YES | - | kintoneレコードID | - |
+| 4 | candidate_code | text | YES | - | 候補者コード | - |
+| 5 | advisor_user_id | bigint | YES | - | 担当アドバイザーID | **個人KPIフィルタ** |
+| 6 | partner_user_id | bigint | YES | - | パートナーID | - |
+| 8 | name | text | NO | - | 氏名 | - |
+| 9 | name_kana | text | YES | - | フリガナ | - |
+| 10 | gender | text | YES | - | 性別 | 分析軸 |
+| 11 | birth_date | date | YES | - | 生年月日 | 年齢計算 |
+| 12 | age | integer | YES | - | 年齢 | スクリーニング |
+| 13 | final_education | text | YES | - | 最終学歴 | - |
+| 14 | phone | text | YES | - | 電話番号 | - |
+| 15 | email | text | YES | - | メールアドレス | - |
+| 16 | postal_code | text | YES | - | 郵便番号 | - |
+| 17 | address_pref | text | YES | - | 都道府県 | - |
+| 18 | address_city | text | YES | - | 市区町村 | - |
+| 19 | address_detail | text | YES | - | 住所詳細 | - |
+| 20 | employment_status | text | YES | - | 就業状況（就業中、離職中） | - |
+| 21 | current_income | text | YES | - | 現在の年収 | - |
+| 22 | desired_income | text | YES | - | 希望年収 | - |
+| 23 | first_interview_note | text | YES | - | 初回面談メモ | - |
+| 24 | career_motivation | text | YES | - | 転職動機 | - |
+| 25 | desired_location | text | YES | - | 希望勤務地 | - |
+| 26 | memo | text | YES | - | メモ | - |
+| 28 | new_status | text | YES | - | ステータス | フィルタ |
+| 30 | first_schedule_fixed_at | timestamptz | YES | - | 初回日程確定日時 | - |
+| 31 | first_contact_planned_at | timestamptz | YES | - | 初回接触予定日時 | - |
+| 32 | first_contact_at | timestamptz | YES | - | 初回接触日時 | **新規面談数カウント** |
+| 33 | first_interview_attended | boolean | YES | - | 初回面談出席フラグ | **着座数カウント** |
+| 35 | is_effective_application | boolean | YES | - | 有効応募フラグ | **有効応募数カウント** |
+| 37 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 | **応募日時** |
+| 38 | updated_at | timestamptz | NO | CURRENT_TIMESTAMP | 更新日時 | - |
+| 39 | sms_sent_flag | boolean | YES | - | SMS送信済みフラグ | **SMS送信数カウント** |
+| 40 | is_connected | boolean | YES | - | 通電フラグ | **通電数カウント** |
+| 41 | first_call_at | timestamp | YES | - | 初回架電日時 | - |
+| 43 | skills | text | YES | - | スキル | - |
+| 44 | personality | text | YES | - | 人柄・性格 | - |
+| 45 | work_experience | text | YES | - | 職務経歴 | - |
+| 46 | contact_preferred_time | text | YES | - | 連絡希望時間帯 | - |
+| 47 | mandatory_interview_items | text | YES | - | 必須ヒアリング項目 | - |
+| 48 | apply_company_name | text | YES | - | 応募企業名 | - |
+| 49 | apply_job_name | text | YES | - | 応募職種名 | - |
+| 50 | apply_route_text | text | YES | - | 応募経路テキスト | 分析軸 |
+| 51 | application_note | text | YES | - | 応募メモ | - |
+| 52 | desired_job_type | text | YES | - | 希望職種 | - |
+| 53 | career_reason | text | YES | - | 転職理由 | - |
+| 54 | transfer_timing | text | YES | - | 転職時期 | - |
+| 55 | other_selection_status | text | YES | - | 他社選考状況 | - |
+| 56 | interview_preferred_date | text | YES | - | 面談希望日 | - |
+| 57 | recommendation_text | text | YES | - | 推薦文 | - |
+| 58 | nationality | varchar(100) | YES | - | 国籍 | スクリーニング |
+| 59 | japanese_level | varchar(10) | YES | - | 日本語レベル（N1、N2など） | スクリーニング |
+| 60 | next_action_date | date | YES | - | 次回アクション日 | タスク管理 |
+| 61 | next_action_note | text | YES | - | 次回アクション内容 | - |
+
+**外部キー**:
+- `advisor_user_id` → `users(id)`
+- `partner_user_id` → `users(id)`
+
+**使用画面**: 候補者管理画面、歩留まり管理画面、テレアポ管理画面
+
+---
+
+### 3.5 [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients)（クライアント企業）
+
+**用途**: 紹介先企業の情報を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | name | text | NO | - | 企業名 |
+| 3 | industry | text | YES | - | 業界 |
+| 4 | location | text | YES | - | 所在地 |
+| 5 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 |
+| 6 | updated_at | timestamptz | NO | CURRENT_TIMESTAMP | 更新日時 |
+| 9 | job_categories | text | YES | - | 職種カテゴリ |
+| 16 | planned_hires_count | integer | YES | 0 | 採用予定人数 |
+| 23 | salary_range | text | YES | - | 給与レンジ |
+| 24 | must_qualifications | text | YES | - | 必須資格 |
+| 25 | nice_qualifications | text | YES | - | 歓迎資格 |
+| 26 | desired_locations | text | YES | - | 希望勤務地 |
+| 27 | personality_traits | text | YES | - | 求める人物像 |
+| 28 | required_experience | text | YES | - | 必要経験 |
+| 29 | selection_note | text | YES | - | 選考メモ |
+| 30 | warranty_period | integer | YES | 90 | 保証期間（日数） |
+| 31 | contact_name | text | YES | - | 担当者名 |
+| 32 | contact_email | text | YES | - | 担当者メール |
+| 33 | fee_details | text | YES | - | 料金詳細 |
+| 34 | contract_note | text | YES | - | 契約メモ |
+
+**使用画面**: クライアント管理画面、候補者管理画面
+
+---
+
+### 3.6 `goal_daily_targets`（日次目標）
+
+**用途**: 日別の目標値を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | advisor_user_id | integer | NO | - | アドバイザーID |
+| 3 | period_id | text | NO | - | 期間ID（YYYY-MM形式） |
+| 4 | target_date | date | NO | - | 対象日 |
+| 5 | targets | jsonb | NO | '{}' | 目標値（JSON） |
+| 6 | created_at | timestamptz | NO | now() | 作成日時 |
+| 7 | updated_at | timestamptz | NO | now() | 更新日時 |
+
+**targets JSONの例**:
+```json
+{
+  "newInterviewsTarget": 5,
+  "proposalsTarget": 4,
+  "recommendationsTarget": 3
+}
+```
+
+**使用画面**: 歩留まり管理画面（日別目標設定）
+
+---
+
+### 3.7 `goal_settings`（目標設定ルール）
+
+**用途**: 目標設定の評価ルールを管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | smallint | NO | 1 | 主キー |
+| 2 | evaluation_rule_type | text | NO | - | 評価ルールタイプ（master-month等） |
+| 3 | evaluation_rule_options | jsonb | NO | '{}' | 評価ルールオプション（JSON） |
+| 4 | updated_at | timestamptz | NO | now() | 更新日時 |
+
+**使用画面**: 歩留まり管理画面（MS期間計算）
+
+---
+
+### 3.8 `goal_targets`（期間目標）
+
+**用途**: 期間別の目標値を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | scope | text | NO | - | スコープ（personal、company） |
+| 3 | advisor_user_id | integer | YES | - | アドバイザーID |
+| 4 | period_id | text | NO | - | 期間ID（YYYY-MM形式） |
+| 5 | targets | jsonb | NO | '{}' | 目標値（JSON） |
+| 6 | created_at | timestamptz | NO | now() | 作成日時 |
+| 7 | updated_at | timestamptz | NO | now() | 更新日時 |
+
+**targets JSONの例**:
+```json
+{
+  "newInterviewsTarget": 50,
+  "proposalsTarget": 40,
+  "recommendationsTarget": 30,
+  "revenueTarget": 500000
+}
+```
+
+**使用画面**: 歩留まり管理画面（期間目標）
+
+---
+
+### 3.9 `kpi_targets`（KPI目標）
+
+**用途**: 月次KPI目標を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | integer | NO | nextval | 主キー |
+| 2 | target_month | varchar(7) | NO | - | 対象月（YYYY-MM形式） |
+| 3 | metric_key | varchar(50) | NO | - | 指標キー |
+| 4 | target_value | numeric(5,1) | YES | - | 目標値 |
+| 5 | created_at | timestamp | YES | now() | 作成日時 |
+| 6 | updated_at | timestamp | YES | now() | 更新日時 |
+
+**使用画面**: 歩留まり管理画面（率の目標設定）
+
+---
+
+### 3.10 `placements`（成約・紹介料）
+
+**用途**: 成約情報と紹介料を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | candidate_application_id | bigint | NO | - | 応募ID（外部キー） |
+| 3 | fee_amount | integer | YES | - | 紹介料金額（円） |
+| 9 | refund_amount | integer | YES | - | 返金額（円） |
+| 16 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 |
+| 17 | updated_at | timestamptz | NO | CURRENT_TIMESTAMP | 更新日時 |
+| 19 | order_reported | boolean | YES | false | 受注報告済みフラグ |
+| 20 | refund_reported | boolean | YES | false | 返金報告済みフラグ |
+
+**外部キー**:
+- `candidate_application_id` → `candidate_applications(id)` ON DELETE CASCADE
+
+**使用画面**: 歩留まり管理画面（売上計算）
+
+---
+
+### 3.11 `screening_rules`（スクリーニングルール）
+
+**用途**: 候補者スクリーニングのルールを管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | integer | NO | nextval | 主キー |
+| 2 | min_age | integer | YES | 18 | 最小年齢 |
+| 3 | max_age | integer | YES | 60 | 最大年齢 |
+| 4 | allowed_jlpt_levels | ARRAY | YES | '{N1,N2}' | 許可される日本語レベル |
+| 5 | updated_at | timestamptz | YES | now() | 更新日時 |
+| 6 | target_nationalities | text | YES | '日本' | 対象国籍 |
+
+**使用画面**: 候補者管理画面（有効応募判定）
+
+---
+
+### 3.12 [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo)（テレアポログ）
+
+**用途**: テレアポの架電履歴を管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | candidate_id | bigint | NO | - | 候補者ID（外部キー） |
+| 3 | call_no | integer | NO | - | 架電回数 |
+| 4 | called_at | timestamptz | NO | - | 架電日時 |
+| 5 | route | text | YES | - | 経路 |
+| 6 | result | text | YES | - | 結果（通電、不通など） |
+| 7 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 |
+| 8 | caller_user_id | bigint | YES | - | 架電者のユーザーID |
+| 9 | memo | text | YES | - | メモ |
+
+**外部キー**:
+- `candidate_id` → [candidates(id)](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) ON DELETE CASCADE
+- `caller_user_id` → `users(id)`
+
+**使用画面**: テレアポ管理画面、候補者管理画面
+
+---
+
+### 3.13 `users`（ユーザー）
+
+**用途**: システムユーザーを管理
+
+| # | カラム名 | データ型 | NULL | デフォルト | 説明 |
+|---|---------|---------|------|-----------|------|
+| 1 | id | bigint | NO | nextval | 主キー |
+| 2 | name | text | NO | - | 氏名 |
+| 3 | email | text | NO | - | メールアドレス |
+| 4 | role | text | NO | - | ロール（advisor、caller、admin） |
+| 5 | created_at | timestamptz | NO | CURRENT_TIMESTAMP | 作成日時 |
+| 6 | updated_at | timestamptz | NO | CURRENT_TIMESTAMP | 更新日時 |
+| 7 | password_hash | text | YES | - | パスワードハッシュ |
+| 8 | is_admin | boolean | NO | false | 管理者フラグ |
+
+**使用画面**: 全画面（認証、アドバイザー名解決）
+
+---
+
+## 4. 画面別テーブル使用状況
+
+### 4.1 候補者管理画面
+
+| テーブル | 用途 |
+|---------|------|
+| [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | 候補者一覧・詳細表示 |
+| `candidate_applications` | 選考進捗表示 |
+| `candidate_tasks` | タスク表示 |
+| [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | テレアポログ表示 |
+| [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) | 企業名表示 |
+| `users` | 担当者名表示 |
+| `screening_rules` | 有効応募判定 |
+
+### 4.2 歩留まり管理画面
+
+| テーブル | 用途 |
+|---------|------|
+| [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | 新規面談数の算出 |
+| `candidate_applications` | KPI指標の算出（推薦数、面接数、内定数など） |
+| `placements` | 売上の算出 |
+| `users` | アドバイザー名解決 |
+| `goal_targets` | 期間目標の表示 |
+| `goal_daily_targets` | 日別目標の表示 |
+| `goal_settings` | MS期間計算 |
+| `kpi_targets` | 率の目標設定 |
+
+### 4.3 テレアポ管理画面
+
+| テーブル | 用途 |
+|---------|------|
+| [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | テレアポログ一覧・作成 |
+| [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | 候補者情報表示 |
+| `users` | 架電者名表示 |
+
+### 4.4 広告管理画面
+
+| テーブル | 用途 |
+|---------|------|
+| `ad_details` | 広告媒体契約一覧・詳細 |
+
+---
+
+## 5. インデックス提案
+
+### 5.1 必須インデックス（パフォーマンス重視）
+
+```sql
+-- candidates テーブル
+CREATE INDEX idx_candidates_advisor_created ON candidates (advisor_user_id, created_at);
+CREATE INDEX idx_candidates_first_contact ON candidates (first_contact_at);
+CREATE INDEX idx_candidates_is_effective ON candidates (is_effective_application);
+
+-- candidate_applications テーブル
+CREATE INDEX idx_applications_candidate ON candidate_applications (candidate_id);
+CREATE INDEX idx_applications_client ON candidate_applications (client_id);
+CREATE INDEX idx_applications_recommended ON candidate_applications (recommended_at);
+CREATE INDEX idx_applications_first_interview_set ON candidate_applications (first_interview_set_at);
+CREATE INDEX idx_applications_first_interview ON candidate_applications (first_interview_at);
+CREATE INDEX idx_applications_offer ON candidate_applications (offer_at);
+CREATE INDEX idx_applications_offer_accepted ON candidate_applications (offer_accepted_at);
+CREATE INDEX idx_applications_joined ON candidate_applications (joined_at);
+CREATE INDEX idx_applications_created ON candidate_applications (created_at);
+
+-- teleapo テーブル
+CREATE INDEX idx_teleapo_candidate ON teleapo (candidate_id);
+CREATE INDEX idx_teleapo_called_at ON teleapo (called_at);
+CREATE INDEX idx_teleapo_caller ON teleapo (caller_user_id);
+
+-- placements テーブル
+CREATE INDEX idx_placements_application ON placements (candidate_application_id);
+
+-- goal_targets テーブル
+CREATE INDEX idx_goal_targets_scope_period ON goal_targets (scope, period_id);
+CREATE INDEX idx_goal_targets_advisor_period ON goal_targets (advisor_user_id, period_id);
+
+-- goal_daily_targets テーブル
+CREATE INDEX idx_goal_daily_advisor_period_date ON goal_daily_targets (advisor_user_id, period_id, target_date);
+
+-- kpi_targets テーブル
+CREATE INDEX idx_kpi_targets_month ON kpi_targets (target_month);
+
+-- users テーブル
+CREATE INDEX idx_users_email ON users (email);
+CREATE UNIQUE INDEX idx_users_email_unique ON users (email);
+```
+
+---
+
+## 6. データフロー
+
+### 6.1 候補者応募 → 入社までのフロー
+
+```
+1. 応募
+   ↓
+   candidates テーブルに INSERT
+   (created_at, advisor_user_id, is_effective_application)
+   
+2. 初回接触
+   ↓
+   candidates.first_contact_at を UPDATE
+   
+3. 提案（企業への紹介）
+   ↓
+   candidate_applications テーブルに INSERT
+   (candidate_id, client_id, created_at)
+   
+4. 推薦
+   ↓
+   candidate_applications.recommended_at を UPDATE
+   
+5. 面接設定
+   ↓
+   candidate_applications.first_interview_set_at を UPDATE
+   
+6. 面接実施
+   ↓
+   candidate_applications.first_interview_at を UPDATE
+   
+7. 内定
+   ↓
+   candidate_applications.offer_at を UPDATE
+   
+8. 承諾
+   ↓
+   candidate_applications.offer_accepted_at を UPDATE
+   
+9. 入社
+   ↓
+   candidate_applications.joined_at を UPDATE
+   ↓
+   placements テーブルに INSERT
+   (candidate_application_id, fee_amount)
+```
+
+---
+
+## 7. まとめ
+
+### データベース規模
+
+- **テーブル数**: 13
+- **カラム数**: 188
+- **主要な外部キー**: 7
+
+### テーブルの重要度
+
+| 重要度 | テーブル | 理由 |
+|--------|---------|------|
+| ★★★★★ | [candidates](file:///Users/riho/Documents/GitHub/AI-/pages/candidates/candidates.js#12-13) | システムの中核 |
+| ★★★★★ | `candidate_applications` | KPI計算の中核 |
+| ★★★★ | `users` | 認証・アドバイザー管理 |
+| ★★★★ | `goal_targets` | 目標管理 |
+| ★★★ | `placements` | 売上管理 |
+| ★★★ | [teleapo](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-teleapo) | 架電履歴 |
+| ★★★ | [clients](file:///Users/riho/Documents/GitHub/AI-/archive/unused-20260127/lambda_backup/aws-toolkit-ap-northeast-1/.ats-api-dev-kpi-clients) | 企業管理 |
+| ★★ | `goal_daily_targets` | 日別目標 |
+| ★★ | `kpi_targets` | 率目標 |
+| ★ | その他 | 補助的 |
+
+### パフォーマンス最適化のポイント
+
+1. **複合インデックス**: [(advisor_user_id, created_at)](file:///Users/riho/Documents/GitHub/AI-/scripts/api/client.js#92-106) で個人KPI検索を高速化
+2. **日時カラムのインデックス**: KPI集計で頻繁に使用
+3. **外部キー制約**: データ整合性の維持
+4. **JSONB型の活用**: 柔軟な目標設定
+
+……これで全DBテーブルの詳細がわかったと思うよ。質問があったら教えてね！

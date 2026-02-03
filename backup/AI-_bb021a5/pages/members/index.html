@@ -1,0 +1,131 @@
+﻿<section class="members-page">
+  <div class="members-section">
+    <div class="members-section__header">
+      <div>
+        <p class="members-section__eyebrow">メンバー</p>
+        <h2 class="members-section__title">メンバー一覧</h2>
+        <p class="members-section__note">メールアドレスは本人または管理者のみ変更できます。</p>
+      </div>
+      <div class="members-section__actions">
+        <div class="members-section__meta" id="membersCount"></div>
+        <button class="members-add-button" id="memberAddButton" type="button">
+          新規登録申請
+        </button>
+      </div>
+    </div>
+    <div class="members-tabs" data-admin-only data-admin-strict>
+      <button class="members-tab is-active" type="button" data-members-tab="members" aria-selected="true">
+        現在のメンバー
+      </button>
+      <button class="members-tab" type="button" data-members-tab="create-requests" aria-selected="false">
+        新規登録待ち <span class="members-tab__count" id="memberCreateRequestsTabCount"></span>
+      </button>
+      <button class="members-tab" type="button" data-members-tab="delete-requests" aria-selected="false">
+        削除承認待ち <span class="members-tab__count" id="memberDeleteRequestsTabCount"></span>
+      </button>
+    </div>
+    <p class="members-section__notice" id="membersNotice" role="status" aria-live="polite" hidden></p>
+    <div class="members-tab-panel" data-members-panel="members">
+      <div class="members-table-wrap" aria-label="メンバー一覧">
+      <table class="members-table">
+        <thead>
+          <tr>
+            <th>氏名</th>
+            <th>メール</th>
+            <th>役割</th>
+            <th>登録日</th>
+            <th>更新日</th>
+            <th data-admin-only>操作</th>
+          </tr>
+        </thead>
+        <tbody id="membersTableBody"></tbody>
+      </table>
+    </div>
+    </div>
+    <div class="members-tab-panel" data-members-panel="create-requests" data-admin-only data-admin-strict hidden>
+      <div class="members-section__meta" id="memberCreateRequestsCount"></div>
+      <p class="members-section__note">承認は運営側で行います（メール通知）。</p>
+      <div class="members-table-wrap" aria-label="新規登録待ち一覧">
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>氏名</th>
+              <th>メール</th>
+              <th>権限</th>
+              <th>申請者</th>
+              <th>申請日</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="memberCreateRequestsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="members-tab-panel" data-members-panel="delete-requests" data-admin-only data-admin-strict hidden>
+      <div class="members-section__meta" id="memberDeleteRequestsCount"></div>
+      <p class="members-section__note">削除承認も運営側で行います（メール通知）。</p>
+      <div class="members-table-wrap" aria-label="削除承認待ち一覧">
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>削除対象</th>
+              <th>メール</th>
+              <th>申請者</th>
+              <th>申請日</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="memberDeleteRequestsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="members-modal" id="memberModal" aria-hidden="true">
+  <div class="members-modal__card" role="dialog" aria-modal="true" aria-labelledby="memberModalTitle">
+    <button class="members-modal__close" type="button" id="memberModalClose" aria-label="閉じる">
+      ×
+    </button>
+    <div class="members-modal__header">
+      <p class="members-modal__eyebrow">メンバー</p>
+      <h3 class="members-modal__title" id="memberModalTitle">新規登録申請</h3>
+      <p class="members-modal__note" id="memberRequestNote">
+        申請後、運営者の承認完了でログイン可能になります。
+      </p>
+    </div>
+    <form class="members-form" id="memberForm">
+      <div class="members-form__grid">
+        <label class="members-form__field">
+          <span>氏名</span>
+          <input type="text" name="name" id="memberNameInput" required />
+        </label>
+        <label class="members-form__field">
+          <span>メール</span>
+          <input type="email" name="email" id="memberEmailInput" required />
+        </label>
+        <label class="members-form__field">
+          <span>役割</span>
+          <select name="role" id="memberRoleInput" required></select>
+        </label>
+        <label class="members-form__field members-form__checkbox">
+          <span>管理者</span>
+          <input type="checkbox" name="isAdmin" id="memberAdminInput" />
+        </label>
+        <label class="members-form__field">
+          <span>パスワード</span>
+          <input type="password" name="password" id="memberPasswordInput" autocomplete="new-password" />
+          <small class="members-form__helper">編集時は空欄で変更しません。</small>
+        </label>
+      </div>
+      <p class="members-form__error" id="memberFormError" role="alert" hidden></p>
+      <div class="members-form__actions">
+        <button type="button" class="members-action-secondary" id="memberFormCancel">キャンセル</button>
+        <button type="submit" class="members-action-primary" id="memberFormSubmit">申請する</button>
+      </div>
+    </form>
+  </div>
+</div>
+

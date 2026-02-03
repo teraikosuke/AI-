@@ -1,6 +1,8 @@
 /* Base styles and fonts */
 body {
-  font-family: "Noto Sans JP", "Inter", sans-serif;
+  font-family: var(--app-font-family);
+  background-color: var(--app-bg-page);
+  color: var(--app-text-main);
 }
 
 #sidebar {
@@ -37,22 +39,30 @@ body {
 #sidebar .nav-link {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.75rem;
   width: 100%;
-  padding: 1rem 1.2rem;
+  padding: 0.875rem 1.25rem;
   border: none;
+  border-left: 3px solid transparent;
   background-color: transparent;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #94a3b8;
+  transition: all 0.2s ease;
 }
 
 #sidebar .nav-link:hover {
-  background-color: #374151;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  border-left-color: rgba(255, 255, 255, 0.2);
 }
 
 #sidebar .nav-link.is-active {
-  background-color: #4b5563;
-  color: #ffffff;
+  background-color: rgba(0, 102, 204, 0.15) !important;
+  color: #ffffff !important;
+  border-left-color: var(--app-primary) !important;
+  font-weight: 600;
 }
 
 #sidebar .nav-link .nav-label {
@@ -67,13 +77,15 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  color: #94a3b8;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: currentColor;
+  opacity: 0.85;
 }
 
 #sidebar .nav-link.is-active .nav-icon {
   color: #ffffff;
+  opacity: 1;
 }
 
 #sidebar .nav-group {
@@ -91,7 +103,7 @@ body {
   transition: transform 0.2s ease, color 0.2s ease;
 }
 
-#sidebar .nav-group.is-open > .nav-group-toggle .nav-caret {
+#sidebar .nav-group.is-open>.nav-group-toggle .nav-caret {
   transform: rotate(180deg);
   color: #e2e8f0;
 }
@@ -100,16 +112,28 @@ body {
   display: none;
   list-style: none;
   margin: 0;
-  padding: 0 0 0.25rem;
+  padding: 0.25rem 0 0.5rem;
+  background: rgba(0, 0, 0, 0.15);
 }
 
-#sidebar .nav-group.is-open > .nav-submenu {
+#sidebar .nav-group.is-open>.nav-submenu {
   display: block;
 }
 
 #sidebar .nav-sub-link {
-  padding-left: 2.6rem;
-  font-size: 0.95rem;
+  padding-left: 3rem;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+#sidebar .nav-sub-link:hover {
+  color: #e2e8f0;
+}
+
+#sidebar .nav-sub-link.is-active {
+  color: #ffffff;
+  background-color: rgba(0, 102, 204, 0.15);
+  border-left-color: var(--app-primary);
 }
 
 #sidebar .nav-link[data-action="logout"] {
@@ -127,6 +151,23 @@ body {
 
 #sidebar .sidebar-title-text {
   font-size: 1.1rem;
+}
+
+/* Global Header Redesign */
+.page-header {
+  background-color: var(--app-surface) !important;
+  border-bottom: 1px solid var(--app-border);
+  color: var(--app-text-primary);
+  /* Ensure header sits above content */
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+#pageTitle {
+  color: var(--app-text-primary) !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 
@@ -175,33 +216,35 @@ body {
 }
 
 .table-surface {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  background-color: #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .table-grid th,
 .table-grid td {
-  border: 1px solid #d1d5db;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.85rem;
-  background-color: #ffffff;
+  border: 1px solid var(--app-border-dark);
+  padding: var(--app-space-sm) var(--app-space-md);
+  font-size: var(--app-font-size-sm);
+  background-color: var(--app-surface-elevated);
 }
 
 .table-grid thead th {
   position: sticky;
   top: 0;
-  background-color: #f8fafc;
+  background-color: var(--app-surface);
   z-index: 5;
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-text-secondary);
 }
 
 .table-grid tbody tr:nth-child(even) td {
-  background-color: #f1f5f9;
+  background-color: var(--app-section-bg);
 }
 
 .table-grid tbody tr:hover td {
-  background-color: #e2e8f0;
+  background-color: var(--app-primary-light);
 }
 
 .table-grid .fixed-col {
@@ -211,11 +254,11 @@ body {
   z-index: 4;
 }
 
-/* Teleapo-style table theme */
+/* Teleapo-style table theme - Flat */
 .table-teleapo {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background-color: #ffffff;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
   box-shadow: none;
 }
 
@@ -305,177 +348,25 @@ body {
   color: #0f172a;
 }
 
-/* Section shell */
+/* Section shell - Flat style */
 .section-shell {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
-/* ===== KPI v2: 個人成績・全体セクション ===== */
-[data-kpi="v2"] .kpi-v2-section {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  border: 1px solid #e2e8f0;
-  padding: 1.5rem;
-  box-shadow: 0 12px 45px rgba(15, 23, 42, 0.08);
-}
-
-[data-kpi="v2"] .kpi-v2-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-[data-kpi="v2"] .kpi-v2-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-range-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #475569;
-  min-width: 140px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-date-input:focus {
-  outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-[data-kpi="v2"] .kpi-v2-date-separator {
-  color: #64748b;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-[data-kpi="v2"] .kpi-v2-summary-unified {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: 0.875rem;
-  padding: 1rem 1.5rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-[data-kpi="v2"] .kpi-v2-achievement-section {
-  flex: 1;
-  text-align: center;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-target-section {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-kpi="v2"] .kpi-v2-label {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-[data-kpi="v2"] .kpi-v2-value {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
-}
-
-[data-kpi="v2"] .kpi-v2-value-large {
-  font-size: 2.25rem;
-  color: #3b82f6;
-}
-
-[data-kpi="v2"] .kpi-v2-current {
-  color: #059669;
-}
-
-[data-kpi="v2"] .kpi-v2-separator {
-  color: #64748b;
-  margin: 0 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-target {
-  color: #64748b;
-}
-
-[data-kpi="v2"] .kpi-v2-scroll-wrapper {
-  overflow-x: auto;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-row {
-  display: flex;
-  gap: 1rem;
-  min-width: fit-content;
-}
-
-[data-kpi="v2"] .kpi-v2-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1rem;
-  min-width: 140px;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-[data-kpi="v2"] .kpi-v2-card:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-}
-
-[data-kpi="v2"] .kpi-v2-card .kpi-v2-label {
-  margin-bottom: 0.75rem;
-  font-size: 0.8rem;
-}
-
-[data-kpi="v2"] .kpi-v2-card .kpi-v2-value {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-[data-kpi="v2"] .kpi-v2-meta {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  line-height: 1.3;
-}
+/* ===== KPI v2 styles moved to pages/yield/yield.css ===== */
+/* 重複削除: 2026/02/03 */
 
 .sidebar-user-slot {
-  border-top: 1px solid #1f2933;
-  padding: 0.75rem 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-user-chip {
@@ -531,24 +422,26 @@ body {
 }
 
 .sidebar-logout-button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fca5a5;
-  background: transparent;
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .sidebar-logout-button:hover {
-  background-color: #7f1d1d;
-  border-color: #7f1d1d;
-  color: #ffffff;
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
 }
 
 #sidebar.sidebar-collapsed .sidebar-logout-button {
@@ -576,4 +469,779 @@ body {
   white-space: nowrap;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.4);
   z-index: 50;
+}
+
+/* =========================================
+   App 共通ボタンスタイル
+   ========================================= */
+
+/* プライマリボタン（App Blue） */
+.btn-app-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-text-inverse);
+  background-color: var(--app-primary);
+  border: 1px solid var(--app-primary);
+  border-radius: var(--app-radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.btn-app-primary:hover {
+  background-color: var(--app-primary-dark);
+  border-color: var(--app-primary-dark);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.btn-app-primary:active {
+  transform: translateY(1px);
+}
+
+/* セカンダリボタン（アウトライン） */
+.btn-app-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-primary);
+  background-color: var(--app-surface-elevated);
+  border: 1px solid var(--app-border-dark);
+  border-radius: var(--app-radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-app-secondary:hover {
+  background-color: var(--app-primary-light);
+  border-color: var(--app-primary);
+}
+
+/* デンジャーボタン（削除用） */
+.btn-app-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-danger);
+  background-color: var(--app-danger-light);
+  border: 1px solid var(--app-danger-light);
+  border-radius: var(--app-radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-app-danger:hover {
+  background-color: var(--app-danger);
+  color: var(--app-text-inverse);
+  border-color: var(--app-danger);
+}
+
+/* ゴーストボタン（テキストのみ） */
+.btn-app-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-text-secondary);
+  background-color: transparent;
+  border: none;
+  border-radius: var(--app-radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-app-ghost:hover {
+  background-color: var(--app-surface);
+  color: var(--app-text-primary);
+}
+
+/* ボタンサイズ */
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: var(--app-font-size-xs);
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: var(--app-font-size-base);
+}
+
+/* ========================================
+   Tailwind → App カラーマッピング
+   ======================================== 
+   
+   Tailwind設定でprimaryカラーを定義済み:
+   - .bg-primary-500, .text-primary-600 等が使用可能
+   - indigoクラスは互換性のために残すが、新規では primary を使用推奨
+   
+   ======================================== */
+
+/* 互換性維持: indigo → primary へのエイリアス */
+.bg-indigo-600 {
+  background-color: var(--app-primary);
+}
+
+.bg-indigo-600:hover,
+.hover\:bg-indigo-500:hover {
+  background-color: var(--app-primary-dark);
+}
+
+.text-indigo-600 {
+  color: var(--app-primary);
+}
+
+.border-indigo-500,
+.border-indigo-600 {
+  border-color: var(--app-primary);
+}
+
+.ring-indigo-600,
+.focus\:ring-indigo-600:focus {
+  --tw-ring-color: var(--app-primary);
+}
+
+.focus-visible\:outline-indigo-600:focus-visible {
+  outline-color: var(--app-primary);
+}
+
+/* ===== SmartHR風 モーダル共通スタイル ===== */
+.modal-app {
+  border-radius: var(--app-radius-xl);
+  box-shadow: var(--app-shadow-xl);
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-elevated);
+}
+
+.modal-app-title {
+  font-size: 1.25rem;
+  font-weight: var(--app-font-weight-bold);
+  color: var(--app-text-primary);
+  line-height: 1.4;
+}
+
+.modal-app-close {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--app-radius-full);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.modal-app-close:hover {
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+}
+
+.modal-app-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+/* ===== SmartHR風 タブ共通スタイル ===== */
+.tabs-app {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-bottom: 2px solid var(--app-border);
+}
+
+.tab-app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-medium);
+  color: var(--app-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.tab-app:hover {
+  color: var(--app-primary);
+  background: var(--app-primary-light);
+}
+
+.tab-app.is-active {
+  color: var(--app-primary);
+  font-weight: var(--app-font-weight-bold);
+  border-bottom-color: var(--app-primary);
+  background: var(--app-primary-light);
+}
+
+.tab-app-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ===== SmartHR風 フォーム共通スタイル ===== */
+.form-field-app {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label-app {
+  font-size: 14px;
+  font-weight: var(--app-font-weight-medium);
+  color: #5c5c5c;
+}
+
+.form-label-app .required {
+  color: var(--app-danger);
+  margin-left: 4px;
+}
+
+.form-input-app {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+  background: var(--app-surface-elevated);
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input-app:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px var(--app-primary-light);
+  outline: none;
+}
+
+.form-input-app::placeholder {
+  color: #b3b3b3;
+}
+
+.form-select-app {
+  height: 40px;
+  padding: 0 40px 0 16px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+  background: var(--app-surface-elevated) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c5c5c' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 14px center;
+  background-size: 12px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-select-app:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px var(--app-primary-light);
+  outline: none;
+}
+
+.form-textarea-app {
+  min-height: 100px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+  background: var(--app-surface-elevated);
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-textarea-app:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px var(--app-primary-light);
+  outline: none;
+}
+
+/* ===== SmartHR風 バッジ共通スタイル ===== */
+.badge-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: var(--app-font-weight-bold);
+  border-radius: 16px;
+  white-space: nowrap;
+}
+
+.badge-app-primary {
+  background: var(--app-primary-light);
+  color: var(--app-primary);
+}
+
+.badge-app-success {
+  background: var(--app-success-light);
+  color: var(--app-success);
+}
+
+.badge-app-warning {
+  background: var(--app-warning-light);
+  color: var(--app-warning);
+}
+
+.badge-app-danger {
+  background: var(--app-danger-light);
+  color: var(--app-danger);
+}
+
+.badge-app-neutral {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+/* ===== SmartHR風 カード共通スタイル ===== */
+.card-app {
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  padding: 24px;
+  box-shadow: var(--app-shadow-sm);
+}
+
+.card-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-app-title {
+  font-size: 16px;
+  font-weight: var(--app-font-weight-bold);
+  color: var(--app-text-primary);
+}
+
+.card-app-section {
+  padding: 16px 0;
+  border-top: 1px solid var(--app-border-light);
+}
+
+.card-app-section:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* ===== テキスト階層共通 ===== */
+.text-heading-1 {
+  font-size: 20px;
+  font-weight: var(--app-font-weight-bold);
+  color: var(--app-text-primary);
+  line-height: 1.4;
+}
+
+.text-heading-2 {
+  font-size: 16px;
+  font-weight: var(--app-font-weight-semibold);
+  color: var(--app-text-primary);
+  line-height: 1.5;
+}
+
+.text-body {
+  font-size: 14px;
+  font-weight: var(--app-font-weight-normal);
+  color: var(--app-text-primary);
+  line-height: 1.6;
+}
+
+.text-caption {
+  font-size: 12px;
+  font-weight: var(--app-font-weight-normal);
+  color: #757575;
+  line-height: 1.5;
+}
+
+.text-label {
+  font-size: 12px;
+  font-weight: var(--app-font-weight-medium);
+  color: #5c5c5c;
+  line-height: 1.4;
+}
+
+/* Phase 3: SmartHR風ヘッダースタイル */
+.page-header {
+  background-color: var(--app-surface-primary, #fff);
+  border-bottom: 1px solid var(--app-border, #e0e0e0);
+  padding: 12px 24px;
+}
+
+.page-header h2,
+.page-header #pageTitle {
+  font-size: 16px;
+  font-weight: var(--app-font-weight-bold, 600);
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ===== SmartHR風 フラットレイアウト ===== */
+/* 
+   リファクタリング: 2026/02/03
+   - ワイルドカードセレクタ [class*="-card"] を排除
+   - 矛盾するルール（border: none → border: 1px）を統合
+   - CSS変数を使用してハードコード値を削減
+   - !important を最小限に
+*/
+
+/* セクション間の区切り */
+.section-divider,
+.kpi-v2-section+.kpi-v2-section,
+.filter-section+.content-section {
+  border-top: 1px solid var(--app-border, #e2e8f0);
+  padding-top: 24px;
+  margin-top: 24px;
+}
+
+/* テーブルコンテナ: フラット化 */
+.table-surface,
+.table-teleapo,
+.referral-table-wrapper {
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+/* KPIカード: 白カードスタイル */
+.kpi-card,
+.kpi-v2-card {
+  background: var(--app-card-bg, #ffffff);
+  padding: 16px;
+  border-radius: var(--app-radius-lg, 8px);
+  border: 1px solid var(--app-border, #e2e8f0);
+  box-shadow: var(--app-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+/* KPIサマリーカード: グラデーション背景 */
+.kpi-v2-summary-unified {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 20px;
+  border-radius: var(--app-radius-lg, 8px);
+  box-shadow: var(--app-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+/* ダッシュボードカード */
+.dashboard-card {
+  background: var(--app-card-bg, #ffffff);
+  border: 1px solid var(--app-border, #e2e8f0);
+  border-radius: var(--app-radius-lg, 8px);
+  box-shadow: var(--app-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+/* フォームカード: 薄い背景で区別 */
+.form-card,
+.create-form-panel {
+  background: var(--app-surface, #f8fafc);
+  padding: 20px;
+  border: none;
+  border-radius: var(--app-radius-lg, 8px);
+  box-shadow: none;
+}
+
+/* 余白ユーティリティ */
+.space-y-4>*+* {
+  margin-top: 16px;
+}
+
+.space-y-6>*+* {
+  margin-top: 24px;
+}
+
+/* セクションタイトル非表示（ユーザー要望） */
+.kpi-v2-title,
+.kpi-v2-section>.kpi-v2-header>.kpi-v2-title {
+  display: none !important;
+}
+
+/* 歩留管理タブを中央揃え */
+.yield-tabs,
+.tabs-app,
+.kpi-tab-group {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* KPI v2 テーブル関連スタイルは pages/yield/yield.css に移動済み */
+/* 重複削除: 2026/02/03 */
+
+/* ========================================
+   マイページ - SmartHR風 UI オーバーライド
+   ======================================== */
+
+/* 説明文（サブタイトル）を非表示 */
+.mypage-card-subtitle {
+  display: none !important;
+}
+
+/* mypage-cardの影を消す */
+.mypage-card {
+  box-shadow: none !important;
+}
+
+.mypage-card:hover {
+  box-shadow: none !important;
+}
+
+/* テーブルラッパー - グレー背景で囲む */
+.mypage-table-wrapper {
+  background: #f6f8fa !important;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5e9f0 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* テーブル本体は白背景でコントラスト */
+.mypage-table {
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.mypage-table tbody tr {
+  background: #ffffff !important;
+}
+
+.mypage-table tbody tr:nth-child(even) {
+  background: #fafbfc !important;
+}
+
+/* カレンダースクロールエリア - グレー背景で囲む */
+.mypage-calendar-scroll {
+  background: #f6f8fa !important;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5e9f0 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* カレンダー曜日ヘッダー */
+.mypage-calendar-weekday {
+  background: #e5e9f0 !important;
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  padding: 8px 4px !important;
+  border-radius: 6px !important;
+  margin-bottom: 4px !important;
+}
+
+/* カレンダー日付番号 */
+.mypage-calendar-day-number {
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  background: #f1f5f9 !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  display: inline-block !important;
+}
+
+/* カレンダー日付セル */
+.mypage-calendar-day {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  transition: box-shadow 0.15s ease !important;
+}
+
+.mypage-calendar-day:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 今日のセル */
+.mypage-calendar-day.is-today {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* リストセクションもグレー背景 */
+.mypage-list {
+  background: #f6f8fa !important;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5e9f0 !important;
+}
+
+/* ========================================
+   歩留管理 KPI v2 スタイルは pages/yield/yield.css に移動済み
+   重複削除: 2026/02/03
+   ======================================== */
+
+/* ========================================
+   候補者管理ページ - SmartHR風 UI
+   ======================================== */
+
+/* ページ全体の余白を歩留まりと同じに */
+#candidatesPage {
+  padding: 24px !important;
+}
+
+/* フィルターバー */
+.candidates-filter-bar {
+  padding: 16px 0 !important;
+  margin-bottom: 16px !important;
+}
+
+/* テーブルカード - グレー背景で囲む */
+.candidates-table-card {
+  background: #f6f8fa !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  border: 1px solid #e5e9f0 !important;
+}
+
+/* テーブル本体 - 白背景、影付き */
+.candidates-table-card .table-grid {
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+/* テーブルヘッダー - SmartHR風フラットデザイン */
+.candidates-table-card .table-grid th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-top: none !important;
+}
+
+/* テーブルセル */
+.candidates-table-card .table-grid td {
+  background: #ffffff !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  font-size: 14px !important;
+  color: #1e293b !important;
+}
+
+/* 行ホバー */
+.candidates-table-card .table-grid tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* 次回アクション列のハイライト */
+.candidates-table-card .table-grid th.next-action-head {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.candidates-table-card .table-grid td.candidate-next-action-cell {
+  background: #eff6ff !important;
+  border-left: 3px solid #2563eb !important;
+}
+
+.candidates-table-card .table-grid tbody tr:hover td.candidate-next-action-cell {
+  background: #dbeafe !important;
+}
+
+/* カレンダーカードも同様のスタイル */
+.candidates-calendar-card {
+  background: #f6f8fa !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  border: 1px solid #e5e9f0 !important;
+}
+
+/* タブバー */
+.candidates-tab-bar {
+  margin-bottom: 20px !important;
+}
+
+/* ツールバー */
+.candidates-table-toolbar {
+  background: #ffffff !important;
+  border-radius: 8px 8px 0 0 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-bottom: none !important;
+}
+
+/* ==================================================
+ * ページ共通スタイル
+ * ================================================== */
+
+/* 全ページ共通の余白 */
+#app>* {
+  padding: 24px !important;
+}
+
+/* 白背景のページ（デフォルト） */
+#mypagePage,
+#candidatesPage,
+#yieldAdminPage,
+#yieldPersonalPage,
+#settingsPage {
+  background-color: #ffffff;
+}
+
+/* グレー背景のページ */
+#adPerformancePage,
+[data-page="referral"] {
+  background-color: #f6f8fa !important;
+}
+
+/* 架電管理ページ（白背景） */
+[data-page="teleapo"] {
+  background-color: #ffffff;
 }

@@ -511,6 +511,53 @@ export function unmount() {
 }
 
 // =========================
+// 詳細ページ用マウント（別ページで表示する場合）
+// =========================
+export async function mountDetailPage(candidateId) {
+  if (!candidateId) {
+    console.error("候補者IDが指定されていません");
+    return false;
+  }
+
+  // イベントリスナー初期化
+  initializeDetailContentListeners();
+
+  // 候補者データを取得して表示
+  try {
+    const detail = await fetchCandidateDetailById(String(candidateId), { includeMaster: true });
+    if (!detail) {
+      setCandidateDetailLoading("候補者データが見つかりません。");
+      return false;
+    }
+
+    const normalized = normalizeCandidate(detail, { source: "detail" });
+    updateMastersFromDetail(detail);
+
+    // 正規化した候補者をグローバルリストにも追加（編集時に必要）
+    const existingIndex = allCandidates.findIndex(c => String(c.id) === String(normalized.id));
+    if (existingIndex >= 0) {
+      allCandidates[existingIndex] = { ...allCandidates[existingIndex], ...normalized };
+    } else {
+      allCandidates.push(normalized);
+    }
+
+    selectedCandidateId = String(normalized.id);
+    renderCandidateDetail(normalized, { preserveEditState: false });
+    return true;
+  } catch (error) {
+    console.error("候補者データの取得に失敗:", error);
+    setCandidateDetailLoading("データの取得に失敗しました。");
+    return false;
+  }
+}
+
+export function unmountDetailPage() {
+  detailSectionKeys.forEach((key) => (detailEditState[key] = false));
+  selectedCandidateId = null;
+  currentDetailCandidateId = null;
+}
+
+// =========================
 // 初期化
 // =========================
 function initializeCandidatesFilters() {
@@ -577,7 +624,8 @@ function initializeCandidatesTabs() {
     calendarBody.addEventListener("click", handleCalendarEventClick);
   }
 
-  setCandidatesActiveTab("calendar");
+  const restoredTab = getReturnTabFromDetail() || "calendar";
+  setCandidatesActiveTab(restoredTab);
 }
 
 // =========================
@@ -623,6 +671,8 @@ async function loadCandidatesData(filtersOverride = {}) {
     refreshSelectionState();
     closeCandidateModal({ clearSelection: true, force: true });
 
+    restoreScrollToCandidate();
+
     const { candidateIdFromUrl, shouldAutoOpenDetail } = getCandidateUrlParams();
     // ★ teleapo → candidates で ?candidateId= が来ている場合の自動詳細は明示時のみ
     if (AUTO_OPEN_DETAIL_FROM_URL && !openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
@@ -641,6 +691,61 @@ async function loadCandidatesData(filtersOverride = {}) {
     updateCandidatesCount(0);
     updateLastSyncedDisplay(null);
   }
+}
+
+const RETURN_STATE_KEY = "candidates.returnState";
+
+function saveReturnState(candidateId) {
+  try {
+    const activeTab = document.querySelector("[data-candidates-tab].is-active")?.dataset?.candidatesTab || "list";
+    const payload = { tab: activeTab, candidateId: String(candidateId || "") };
+    sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function consumeReturnState() {
+  try {
+    const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(RETURN_STATE_KEY);
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getReturnTabFromDetail() {
+  let state = null;
+  try {
+    const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+    state = raw ? JSON.parse(raw) : null;
+  } catch {
+    state = null;
+  }
+  if (!state) return null;
+  // Always return to list when coming back from detail
+  return "list";
+}
+
+let pendingReturnCandidateId = null;
+
+function restoreScrollToCandidate() {
+  if (pendingReturnCandidateId) return;
+  const state = consumeReturnState();
+  if (!state?.candidateId) return;
+  pendingReturnCandidateId = state.candidateId;
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`.candidate-item[data-id="${CSS.escape(pendingReturnCandidateId)}"]`);
+    if (row) {
+      setCandidatesActiveTab("list");
+      row.scrollIntoView({ block: "center" });
+      row.classList.add("is-highlighted");
+      setTimeout(() => row.classList.remove("is-highlighted"), 1200);
+    }
+    pendingReturnCandidateId = null;
+  });
 }
 
 async function prefetchNextActionDates(candidates) {
@@ -1622,13 +1727,9 @@ async function handleTableClick(event) {
   const id = row.dataset.id;
   if (!id) return;
 
-  try {
-    await openCandidateById(id);
-  } catch (e) {
-    console.error(e);
-    setCandidateDetailLoading("詳細の取得に失敗しました。ネットワーク状態を確認してください。");
-    openCandidateModal();
-  }
+  // 新しい詳細ページに遷移
+  saveReturnState(id);
+  window.location.hash = `#/candidate-detail?id=${encodeURIComponent(id)}`;
 }
 
 // =========================

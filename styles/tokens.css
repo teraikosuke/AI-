@@ -1,27 +1,83 @@
 :root {
-  /* Primary colors */
-  --primary-blue: #3b82f6;
-  --primary-indigo: #6366f1;
-  
-  /* Slate color palette */
-  --slate-50: #f8fafc;
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-300: #cbd5e1;
-  --slate-500: #64748b;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1e293b;
-  --slate-900: #0f172a;
-  
-  /* Heatmap specific colors */
-  --heatmap-cell-1: #f7fafc;
-  --heatmap-cell-2: #e2e8f0;
-  --heatmap-cell-3: #cbd5e1;
-  --heatmap-cell-4: #94a3b8;
-  --heatmap-cell-5: #64748b;
-  --heatmap-cell-6: #475569;
-  --heatmap-cell-7: #334155;
-  --heatmap-cell-8: #1e293b;
-  --heatmap-cell-9: #1a365d;
+  /* =========================================
+     Color: Brand & Functional
+     ========================================= */
+  /* Primary: Intelligent Blue */
+  --app-primary: #0071C1;
+  --app-primary-hover: #005A99;
+  --app-primary-light: #E0F2FF;
+  /* Focus ring & Backgrounds */
+  --app-primary-dark: #004B87;
+
+  /* Text */
+  --app-text-main: #333333;
+  --app-text-primary: #333333;
+  /* Alias */
+  --app-text-sub: #666666;
+  --app-text-secondary: #666666;
+  /* Alias */
+  --app-text-disabled: #999999;
+  --app-text-inverse: #FFFFFF;
+
+  /* Background */
+  --app-bg-page: #F5F7FA;
+  /* SaaS Gray - Global Background */
+  --app-bg-surface: #FFFFFF;
+  --app-bg-input: #FAFAFA;
+  --app-surface: #FFFFFF;
+  --app-surface-elevated: #FFFFFF;
+  --app-section-bg: #F5F7FA;
+
+  /* Border */
+  --app-border: #E0E0E0;
+  --app-border-light: #E0E0E0;
+  --app-border-medium: #CCCCCC;
+  --app-border-dark: #B3B3B3;
+
+  /* Status */
+  --app-success: #00A86B;
+  --app-warning: #F2994A;
+  --app-danger: #EB5757;
+  --app-danger-light: #FDE8E8;
+
+  /* =========================================
+     Spacing: 8px Grid System
+     ========================================= */
+  --app-space-xs: 4px;
+  --app-space-sm: 8px;
+  --app-space-md: 16px;
+  --app-space-lg: 24px;
+  --app-space-xl: 32px;
+  --app-space-xxl: 48px;
+
+  /* =========================================
+     Typography
+     ========================================= */
+  --app-font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --app-font-size-xs: 12px;
+  --app-font-size-sm: 14px;
+  --app-font-size-base: 16px;
+  --app-font-size-md: 16px;
+  --app-font-size-lg: 20px;
+  --app-font-size-xl: 24px;
+
+  --app-font-weight-normal: 400;
+  --app-font-weight-medium: 500;
+  --app-font-weight-semibold: 600;
+  --app-font-weight-bold: 700;
+
+  /* =========================================
+     Effects
+     ========================================= */
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --app-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --app-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --app-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  --app-radius-sm: 4px;
+  --app-radius-md: 8px;
+  --app-radius-lg: 12px;
+  --app-radius-xl: 16px;
+  --app-radius-full: 9999px;
 }

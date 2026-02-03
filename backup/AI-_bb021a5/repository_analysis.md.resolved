@@ -1,0 +1,233 @@
+# リポジトリ構成分析レポート（最終版）
+
+## 📊 概要
+
+AI-Dashboardは、採用活動とKPI管理を統合したWebダッシュボードアプリケーションです。
+
+**現在のアーキテクチャ**:
+- **フロントエンド**: Vanilla JavaScript SPA → Vercel デプロイ
+- **バックエンド**: **AWS Lambda + API Gateway + RDS PostgreSQL**（本番稼働中）
+- **Lambda関数**: **22個** デプロイ済み
+- **バックアップ**: Lambda関数のコードは `archive/unused-20260127/lambda_backup/` に保管
+
+---
+
+## 1. AWS Lambda関数の全リスト（22個）
+
+| # | 関数名 | エンドポイント | 処理内容 |
+|---|--------|---------------|---------|
+| 1 | **ats-api-dev-auth-login** | `POST /api/auth/login` | ユーザー認証・JWT発行 |
+| 2 | **ats-api-dev-auth-me** | `GET /api/auth/me` | ログインユーザー情報取得 |
+| 3 | **ats-api-dev-candidates-list** | `GET /api/candidates` | 候補者一覧・検索・フィルタ |
+| 4 | **ats-api-dev-candidates-detail** | `GET/PUT /api/candidates/:id` | 候補者詳細・更新・タスク管理 |
+| 5 | **ats-api-dev-mypage** | `GET /api/mypage` | マイページ（候補者・タスク・カレンダー） |
+| 6 | **ats-api-dev-kpi-yield** | `GET /api/kpi/yield` | KPI集計（コホート分析） |
+| 7 | **ats-api-dev-kpi-yield-daily** | `GET /api/kpi/yield/daily` | 日次KPI集計 |
+| 8 | **ats-api-dev-kpi-yield-personal** | `GET /api/kpi/yield/personal` | 個人KPI集計 |
+| 9 | **ats-api-dev-kpi-clients** | `GET /api/kpi/clients` | クライアント別KPI |
+| 10 | **ats-api-dev-kpi-clients-edit** | `PUT /api/kpi/clients/:id` | クライアント情報更新 |
+| 11 | **ats-api-dev-kpi-teleapo** | `GET /api/kpi/teleapo` | テレアポKPI統計 |
+| 12 | **ats-api-dev-kpi-ads** | `GET /api/kpi/ads` | 広告パフォーマンスKPI |
+| 13 | **ats-api-dev-kpi-ads-detail** | `GET /api/kpi/ads/:id` | 広告詳細データ |
+| 14 | **ats-api-dev-kpi-targets** | `GET /api/kpi/targets` | 目標達成率取得 |
+| 15 | **ats-api-dev-teleapo-logs** | `GET /api/teleapo/logs` | テレアポログ一覧 |
+| 16 | **ats-api-dev-teleapo-log-create** | `POST /api/teleapo/log` | テレアポログ作成 |
+| 17 | **ats-api-dev-teleapo-candidate-contact** | `GET /api/teleapo/candidate/:id/contact` | 候補者の架電履歴取得 |
+| 18 | **ats-api-dev-clients-create** | `POST /api/clients` | クライアント企業作成 |
+| 19 | **ats-api-dev-members** | `GET /api/members` | メンバー（従業員）一覧 |
+| 20 | **ats-api-dev-goal-settings** | `GET/PUT /api/goal-settings` | 目標設定・取得・更新 |
+| 21 | **ats-api-settings-screening-rules** | `GET/PUT /api/settings/screening-rules` | 選考ルール設定 |
+| 22 | **ats-test** | `GET /test` | テスト用エンドポイント |
+
+---
+
+## 2. 機能別Lambda関数グループ
+
+### 🔐 認証（2個）
+- `auth-login`: ログイン処理
+- `auth-me`: ユーザー情報取得
+
+### 👥 候補者管理（2個）
+- `candidates-list`: 候補者一覧・検索
+- `candidates-detail`: 候補者詳細・更新
+
+### 📊 KPI分析（7個）
+- `kpi-yield`: 全体KPI（コホート分析含む）
+- `kpi-yield-daily`: 日次KPI
+- `kpi-yield-personal`: 個人別KPI
+- `kpi-clients`: クライアント別KPI
+- `kpi-clients-edit`: クライアントKPI更新
+- `kpi-teleapo`: テレアポKPI
+- `kpi-ads`: 広告パフォーマンスKPI
+- `kpi-ads-detail`: 広告詳細
+- `kpi-targets`: 目標達成率
+
+### 📞 テレアポ管理（3個）
+- `teleapo-logs`: テレアポログ一覧
+- `teleapo-log-create`: ログ作成
+- `teleapo-candidate-contact`: 候補者の架電履歴
+
+### 🏠 マイページ（1個）
+- `mypage`: ダッシュボード・タスク・カレンダー
+
+### 🏢 クライアント管理（1個）
+- `clients-create`: クライアント企業作成
+
+### 👨‍💼 メンバー管理（1個）
+- `members`: 従業員一覧
+
+### 🎯 目標設定（1個）
+- `goal-settings`: 目標設定CRUD
+
+### ⚙️ 設定（1個）
+- `settings-screening-rules`: 選考ルール設定
+
+### 🧪 テスト（1個）
+- `ats-test`: テスト用
+
+---
+
+## 3. 重要な発見
+
+### 🎉 フロントエンドのモック不要
+
+以前の分析では「モック依存」と記載していましたが、**すべての機能にLambda関数が存在**しています。
+
+| 機能 | 以前の分析 | 実際の状況 |
+|------|-----------|-----------|
+| テレアポログ | ⚠️ モック依存 | ✅ Lambda実装済み（3個） |
+| 広告パフォーマンス | ⚠️ モック依存 | ✅ Lambda実装済み（2個） |
+| 目標設定 | ⚠️ モック依存 | ✅ Lambda実装済み（1個） |
+
+**結論**: フロントエンドの `scripts/mock/` は**開発用のみ**で、本番では不要です。
+
+---
+
+## 4. データベース（RDS PostgreSQL）
+
+### 📦 使用テーブル
+
+Lambda関数が使用している主要テーブル:
+- `users`: ユーザー認証・情報
+- `candidates`: 候補者基本information
+- `candidate_applications`: 企業応募情報
+- `candidate_tasks`: 候補者タスク管理
+- `teleapo`: テレアポログ
+- `clients`: クライアント企業
+- `goal_targets`: 目標設定（月次）
+- `goal_daily_targets`: 目標設定（日次）
+- `goal_settings`: 目標評価ルール
+- `ad_details`: 広告媒体契約情報
+- その他（15テーブル）
+
+---
+
+## 5. フロントエンド（Vercel）
+
+### 🎨 ページとLambda関数の対応
+
+| ページ | データソース | Lambda関数 |
+|--------|-------------|-----------|
+| **login** | Lambda API | `auth-login` |
+| **mypage** | Lambda API | `mypage` |
+| **candidates** | Lambda API | `candidates-list`, `candidates-detail` |
+| **yield-personal** | Lambda API | `kpi-yield-personal` |
+| **yield-company** | Lambda API | `kpi-yield` |
+| **yield-admin** | Lambda API | `kpi-yield`, `kpi-yield-daily` |
+| **members** | Lambda API | `members` |
+| **teleapo** | Lambda API | `teleapo-logs`, `teleapo-log-create`, `kpi-teleapo` |
+| **ad-performance** | Lambda API | `kpi-ads`, `kpi-ads-detail` |
+| **goal-settings** | Lambda API | `goal-settings` |
+
+**結論**: すべてのページがLambda APIに接続可能。モックは不要。
+
+---
+
+## 6. モックコードの扱い
+
+### 📁 現在のモックファイル
+
+```
+scripts/mock/
+├── candidates.js    # 開発用（削除可能）
+├── metrics.js       # 開発用（削除可能）
+└── users.js         # 開発用（削除可能）
+```
+
+### 🗑️ 削除推奨
+
+モックコードは**開発時のテスト用**であり、本番では不要です。
+
+**推奨対応**:
+1. フロントエンドのAPI呼び出しがすべてLambda接続になっていることを確認
+2. `scripts/mock/` フォルダを削除（または `.gitignore` に追加）
+
+---
+
+## 7. アーキテクチャ図
+
+```mermaid
+graph TB
+    subgraph Vercel[Vercel]
+        Frontend[Frontend SPA]
+    end
+
+    subgraph AWS[AWS Cloud]
+        APIGateway[API Gateway]
+        
+        subgraph Lambda[22 Lambda Functions]
+            Auth[認証 2個]
+            Candidates[候補者管理 2個]
+            KPI[KPI分析 7個]
+            Teleapo[テレアポ 3個]
+            Mypage[マイページ]
+            Clients[クライアント]
+            Members[メンバー]
+            Goals[目標設定]
+            Settings[設定]
+        end
+        
+        subgraph Database[RDS PostgreSQL]
+            Tables[(15 Tables)]
+        end
+    end
+
+    Frontend -->|HTTPS| APIGateway
+    APIGateway --> Lambda
+    Lambda --> Tables
+    
+    style Lambda fill:#ff9900,stroke:#232f3e
+    style Database fill:#527fff,stroke:#232f3e
+    style Frontend fill:#00c7b7,stroke:#232f3e
+```
+
+---
+
+## 8. まとめ
+
+### 現状の構成
+
+- **Lambda関数**: **22個**デプロイ済み（全機能カバー）
+- **データベース**: RDS PostgreSQL（15テーブル）
+- **フロントエンド**: Vercel（静的サイトホスティング）
+- **モックコード**: 開発用のみ（本番不要）
+
+### 整理の優先順位
+
+1. ✅ **完了**: Expressサーバー削除
+2. 🟡 **推奨**: モックコードの削除（開発に不要なら）
+3. 🟢 **任意**: Lambda関数のモックフォールバック追加（DB接続エラー時）
+
+### AWS中心のシンプルな構成
+
+```
+Vercel (Frontend) → API Gateway → 22 Lambda Functions → RDS PostgreSQL
+```
+
+この構成により:
+- ✅ 完全サーバーレス
+- ✅ 全機能がLambdaで実装済み
+- ✅ スケーラブルで運用コスト削減
+- ✅ フロントエンドにモック不要
+
+……これで正確な分析になったはず。22個のLambda関数がちゃんと動いてるんだね。

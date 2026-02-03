@@ -1,0 +1,109 @@
+<!-- 個人成績セクション -->
+<div class="kpi-v2-section" id="personal-section">
+  <div class="kpi-v2-header">
+    <h3 class="kpi-v2-title">個人成績</h3>
+    <div class="kpi-v2-range-picker">
+      <input type="date" id="personalRangeStart" class="kpi-v2-date-input" />
+      <span class="kpi-v2-date-separator">〜</span>
+      <input type="date" id="personalRangeEnd" class="kpi-v2-date-input" />
+    </div>
+  </div>
+  
+  <!-- 売り上げ達成率と目標金額（統合カード） -->
+  <div class="kpi-v2-summary-unified">
+    <div class="kpi-v2-achievement-section">
+      <div class="kpi-v2-label">売り上げ達成率</div>
+      <div class="kpi-v2-value kpi-v2-value-large" id="personalAchievementRate">33%</div>
+    </div>
+    <div class="kpi-v2-target-section">
+      <div class="kpi-v2-label">現状 / 目標金額</div>
+      <div class="kpi-v2-value">
+        <span class="kpi-v2-current" id="personalCurrent">¥957,000</span>
+        <span class="kpi-v2-separator">/</span>
+        <span class="kpi-v2-target" id="personalTarget">¥3,000,000</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7KPI 数の行 -->
+  <div class="kpi-v2-scroll-wrapper">
+    <div class="kpi-v2-row" data-kpi-type="counts">
+      <div class="kpi-v2-card" data-kpi="proposals">
+        <div class="kpi-v2-label">提案数</div>
+        <div class="kpi-v2-value" id="personalProposals">10</div>
+        <div class="kpi-v2-meta">新規面談数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="recommendations">
+        <div class="kpi-v2-label">推薦数</div>
+        <div class="kpi-v2-value" id="personalRecommendations">10</div>
+        <div class="kpi-v2-meta">推薦数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="interviewsScheduled">
+        <div class="kpi-v2-label">面談設定数</div>
+        <div class="kpi-v2-value" id="personalInterviewsScheduled">10</div>
+        <div class="kpi-v2-meta">面談設定数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="interviewsHeld">
+        <div class="kpi-v2-label">面談実施数</div>
+        <div class="kpi-v2-value" id="personalInterviewsHeld">10</div>
+        <div class="kpi-v2-meta">面談実施数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="offers">
+        <div class="kpi-v2-label">内定数</div>
+        <div class="kpi-v2-value" id="personalOffers">10</div>
+        <div class="kpi-v2-meta">内定数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="accepts">
+        <div class="kpi-v2-label">承諾数</div>
+        <div class="kpi-v2-value" id="personalAccepts">10</div>
+        <div class="kpi-v2-meta">承諾数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="hires">
+        <div class="kpi-v2-label">決定数</div>
+        <div class="kpi-v2-value" id="personalHires">10</div>
+        <div class="kpi-v2-meta">提案数 30(10)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7KPI 率の行 -->
+  <div class="kpi-v2-scroll-wrapper">
+    <div class="kpi-v2-row" data-kpi-type="rates">
+      <div class="kpi-v2-card" data-kpi="proposalRate">
+        <div class="kpi-v2-label">提案率</div>
+        <div class="kpi-v2-value" id="personalProposalRate">33%</div>
+        <div class="kpi-v2-meta">提案数 10/ 新規面談数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="recommendationRate">
+        <div class="kpi-v2-label">推薦率</div>
+        <div class="kpi-v2-value" id="personalRecommendationRate">33%</div>
+        <div class="kpi-v2-meta">推薦数 10/ 提案数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="interviewScheduleRate">
+        <div class="kpi-v2-label">面談設定率</div>
+        <div class="kpi-v2-value" id="personalInterviewScheduleRate">33%</div>
+        <div class="kpi-v2-meta">面談設定数 10/ 推薦数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="interviewHeldRate">
+        <div class="kpi-v2-label">面談実施率</div>
+        <div class="kpi-v2-value" id="personalInterviewHeldRate">33%</div>
+        <div class="kpi-v2-meta">面談実施数 10/ 面談設定数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="offerRate">
+        <div class="kpi-v2-label">内定率</div>
+        <div class="kpi-v2-value" id="personalOfferRate">33%</div>
+        <div class="kpi-v2-meta">内定数 10/ 面談実施数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="acceptRate">
+        <div class="kpi-v2-label">承諾率</div>
+        <div class="kpi-v2-value" id="personalAcceptRate">33%</div>
+        <div class="kpi-v2-meta">承諾数 10/ 内定数 30(10)</div>
+      </div>
+      <div class="kpi-v2-card" data-kpi="hireRate">
+        <div class="kpi-v2-label">決定率</div>
+        <div class="kpi-v2-value" id="personalHireRate">33%</div>
+        <div class="kpi-v2-meta">決定数 10/ 承諾数 30(10)</div>
+      </div>
+    </div>
+  </div>
+</div>

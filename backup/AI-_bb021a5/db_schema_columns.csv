@@ -1,0 +1,215 @@
+table_schema,table_name,ordinal_position,column_name,data_type,is_nullable,column_default,character_maximum_length,numeric_precision,numeric_scale
+public,ad_details,1,id,integer,NO,nextval('ad_details_id_seq'::regclass),,32,0
+public,ad_details,2,media_name,character varying,NO,,255,,
+public,ad_details,3,contract_start_date,date,YES,,,,
+public,ad_details,4,contract_end_date,date,YES,,,,
+public,ad_details,5,contract_amount,integer,YES,0,,32,0
+public,ad_details,6,amount_period,character varying,YES,,50,,
+public,ad_details,7,contract_method,text,YES,,,,
+public,ad_details,8,renewal_terms,text,YES,,,,
+public,ad_details,9,memo,text,YES,,,,
+public,ad_details,10,created_at,timestamp with time zone,YES,now(),,,
+public,ad_details,11,updated_at,timestamp with time zone,YES,now(),,,
+public,candidate_applications,1,id,bigint,NO,nextval('candidate_applications_id_seq'::regclass),,64,0
+public,candidate_applications,2,candidate_id,bigint,NO,,,64,0
+public,candidate_applications,3,client_id,bigint,NO,,,64,0
+public,candidate_applications,4,kintone_sub_id,text,YES,,,,
+public,candidate_applications,5,job_title,text,YES,,,,
+public,candidate_applications,8,apply_route,text,YES,,,,
+public,candidate_applications,10,recommended_at,timestamp with time zone,YES,,,,
+public,candidate_applications,11,first_interview_set_at,timestamp with time zone,YES,,,,
+public,candidate_applications,12,first_interview_at,timestamp with time zone,YES,,,,
+public,candidate_applications,13,second_interview_set_at,timestamp with time zone,YES,,,,
+public,candidate_applications,14,second_interview_at,timestamp with time zone,YES,,,,
+public,candidate_applications,15,offer_date,timestamp with time zone,YES,,,,
+public,candidate_applications,16,close_expected_at,timestamp with time zone,YES,,,,
+public,candidate_applications,17,offer_accept_date,timestamp with time zone,YES,,,,
+public,candidate_applications,18,join_date,timestamp with time zone,YES,,,,
+public,candidate_applications,19,pre_join_withdraw_date,timestamp with time zone,YES,,,,
+public,candidate_applications,20,post_join_quit_date,timestamp with time zone,YES,,,,
+public,candidate_applications,21,stage_current,text,YES,,,,
+public,candidate_applications,25,is_quit_30,boolean,YES,,,,
+public,candidate_applications,28,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,candidate_applications,29,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,candidate_applications,34,selection_note,text,YES,,,,
+public,candidate_applications,39,pre_join_withdraw_reason,text,YES,,,,
+public,candidate_applications,41,post_join_quit_reason,text,YES,,,,
+public,candidate_applications,42,recommendation_text,text,YES,,,,
+public,candidate_applications,43,final_interview_set_at,date,YES,,,,
+public,candidate_applications,44,final_interview_at,date,YES,,,,
+public,candidate_applications,45,offer_at,date,YES,,,,
+public,candidate_applications,46,offer_accepted_at,date,YES,,,,
+public,candidate_applications,47,joined_at,date,YES,,,,
+public,candidate_applications,48,declined_after_offer_at,date,YES,,,,
+public,candidate_applications,49,declined_after_offer_reason,text,YES,,,,
+public,candidate_applications,50,early_turnover_at,date,YES,,,,
+public,candidate_applications,51,early_turnover_reason,text,YES,,,,
+public,candidate_applications,52,closing_forecast_at,date,YES,,,,
+public,candidate_applications,53,fee,integer,YES,,,32,0
+public,candidate_applications,54,note,text,YES,,,,
+public,candidate_applications,55,proposal_date,timestamp with time zone,YES,,,,
+public,candidate_tasks,1,id,integer,NO,nextval('candidate_tasks_id_seq'::regclass),,32,0
+public,candidate_tasks,2,candidate_id,integer,NO,,,32,0
+public,candidate_tasks,3,action_date,date,YES,,,,
+public,candidate_tasks,4,action_note,text,YES,,,,
+public,candidate_tasks,5,is_completed,boolean,YES,false,,,
+public,candidate_tasks,6,completed_at,timestamp without time zone,YES,,,,
+public,candidate_tasks,7,created_at,timestamp without time zone,YES,now(),,,
+public,candidate_tasks,8,updated_at,timestamp without time zone,YES,now(),,,
+public,candidates,1,id,bigint,NO,nextval('candidates_id_seq'::regclass),,64,0
+public,candidates,2,kintone_app_id,integer,YES,,,32,0
+public,candidates,3,kintone_record_id,integer,YES,,,32,0
+public,candidates,4,candidate_code,text,YES,,,,
+public,candidates,5,advisor_user_id,bigint,YES,,,64,0
+public,candidates,6,partner_user_id,bigint,YES,,,64,0
+public,candidates,8,name,text,NO,,,,
+public,candidates,9,name_kana,text,YES,,,,
+public,candidates,10,gender,text,YES,,,,
+public,candidates,11,birth_date,date,YES,,,,
+public,candidates,12,age,integer,YES,,,32,0
+public,candidates,13,final_education,text,YES,,,,
+public,candidates,14,phone,text,YES,,,,
+public,candidates,15,email,text,YES,,,,
+public,candidates,16,postal_code,text,YES,,,,
+public,candidates,17,address_pref,text,YES,,,,
+public,candidates,18,address_city,text,YES,,,,
+public,candidates,19,address_detail,text,YES,,,,
+public,candidates,20,employment_status,text,YES,,,,
+public,candidates,21,current_income,text,YES,,,,
+public,candidates,22,desired_income,text,YES,,,,
+public,candidates,23,first_interview_note,text,YES,,,,
+public,candidates,24,career_motivation,text,YES,,,,
+public,candidates,25,desired_location,text,YES,,,,
+public,candidates,26,memo,text,YES,,,,
+public,candidates,28,new_status,text,YES,,,,
+public,candidates,30,first_schedule_fixed_at,timestamp with time zone,YES,,,,
+public,candidates,31,first_contact_planned_at,timestamp with time zone,YES,,,,
+public,candidates,32,first_contact_at,timestamp with time zone,YES,,,,
+public,candidates,33,first_interview_attended,boolean,YES,,,,
+public,candidates,35,is_effective_application,boolean,YES,,,,
+public,candidates,37,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,candidates,38,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,candidates,39,sms_sent_flag,boolean,YES,,,,
+public,candidates,40,is_connected,boolean,YES,,,,
+public,candidates,41,first_call_at,timestamp without time zone,YES,,,,
+public,candidates,43,skills,text,YES,,,,
+public,candidates,44,personality,text,YES,,,,
+public,candidates,45,work_experience,text,YES,,,,
+public,candidates,46,contact_preferred_time,text,YES,,,,
+public,candidates,47,mandatory_interview_items,text,YES,,,,
+public,candidates,48,apply_company_name,text,YES,,,,
+public,candidates,49,apply_job_name,text,YES,,,,
+public,candidates,50,apply_route_text,text,YES,,,,
+public,candidates,51,application_note,text,YES,,,,
+public,candidates,52,desired_job_type,text,YES,,,,
+public,candidates,53,career_reason,text,YES,,,,
+public,candidates,54,transfer_timing,text,YES,,,,
+public,candidates,55,other_selection_status,text,YES,,,,
+public,candidates,56,interview_preferred_date,text,YES,,,,
+public,candidates,57,recommendation_text,text,YES,,,,
+public,candidates,58,nationality,character varying,YES,,100,,
+public,candidates,59,japanese_level,character varying,YES,,10,,
+public,candidates,60,next_action_date,date,YES,,,,
+public,candidates,61,next_action_note,text,YES,,,,
+public,clients,1,id,bigint,NO,nextval('clients_id_seq'::regclass),,64,0
+public,clients,2,name,text,NO,,,,
+public,clients,3,industry,text,YES,,,,
+public,clients,4,location,text,YES,,,,
+public,clients,5,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,clients,6,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,clients,9,job_categories,text,YES,,,,
+public,clients,16,planned_hires_count,integer,YES,0,,32,0
+public,clients,23,salary_range,text,YES,,,,
+public,clients,24,must_qualifications,text,YES,,,,
+public,clients,25,nice_qualifications,text,YES,,,,
+public,clients,26,desired_locations,text,YES,,,,
+public,clients,27,personality_traits,text,YES,,,,
+public,clients,28,required_experience,text,YES,,,,
+public,clients,29,selection_note,text,YES,,,,
+public,clients,30,warranty_period,integer,YES,90,,32,0
+public,clients,31,contact_name,text,YES,,,,
+public,clients,32,contact_email,text,YES,,,,
+public,clients,33,fee_details,text,YES,,,,
+public,clients,34,contract_note,text,YES,,,,
+public,goal_daily_targets,1,id,bigint,NO,nextval('goal_daily_targets_id_seq'::regclass),,64,0
+public,goal_daily_targets,2,advisor_user_id,integer,NO,,,32,0
+public,goal_daily_targets,3,period_id,text,NO,,,,
+public,goal_daily_targets,4,target_date,date,NO,,,,
+public,goal_daily_targets,5,targets,jsonb,NO,'{}'::jsonb,,,
+public,goal_daily_targets,6,created_at,timestamp with time zone,NO,now(),,,
+public,goal_daily_targets,7,updated_at,timestamp with time zone,NO,now(),,,
+public,goal_settings,1,id,smallint,NO,1,,16,0
+public,goal_settings,2,evaluation_rule_type,text,NO,,,,
+public,goal_settings,3,evaluation_rule_options,jsonb,NO,'{}'::jsonb,,,
+public,goal_settings,4,updated_at,timestamp with time zone,NO,now(),,,
+public,goal_targets,1,id,bigint,NO,nextval('goal_targets_id_seq'::regclass),,64,0
+public,goal_targets,2,scope,text,NO,,,,
+public,goal_targets,3,advisor_user_id,integer,YES,,,32,0
+public,goal_targets,4,period_id,text,NO,,,,
+public,goal_targets,5,targets,jsonb,NO,'{}'::jsonb,,,
+public,goal_targets,6,created_at,timestamp with time zone,NO,now(),,,
+public,goal_targets,7,updated_at,timestamp with time zone,NO,now(),,,
+public,kpi_targets,1,id,integer,NO,nextval('kpi_targets_id_seq'::regclass),,32,0
+public,kpi_targets,2,target_month,character varying,NO,,7,,
+public,kpi_targets,3,metric_key,character varying,NO,,50,,
+public,kpi_targets,4,target_value,numeric,YES,,,5,1
+public,kpi_targets,5,created_at,timestamp without time zone,YES,now(),,,
+public,kpi_targets,6,updated_at,timestamp without time zone,YES,now(),,,
+public,ms_daily_targets,1,id,bigint,NO,nextval('ms_daily_targets_id_seq'::regclass),,64,0
+public,ms_daily_targets,2,scope,text,NO,,,,
+public,ms_daily_targets,3,department_key,text,NO,,,,
+public,ms_daily_targets,4,metric_key,text,NO,,,,
+public,ms_daily_targets,5,advisor_user_id,bigint,YES,,,64,0
+public,ms_daily_targets,6,period_id,text,NO,,,,
+public,ms_daily_targets,7,target_date,date,NO,,,,
+public,ms_daily_targets,8,target_value,numeric,NO,0,,,
+public,ms_daily_targets,9,created_at,timestamp with time zone,NO,now(),,,
+public,ms_daily_targets,10,updated_at,timestamp with time zone,NO,now(),,,
+public,ms_period_targets,1,id,bigint,NO,nextval('ms_period_targets_id_seq'::regclass),,64,0
+public,ms_period_targets,2,scope,text,NO,,,,
+public,ms_period_targets,3,department_key,text,NO,,,,
+public,ms_period_targets,4,metric_key,text,NO,,,,
+public,ms_period_targets,5,advisor_user_id,bigint,YES,,,64,0
+public,ms_period_targets,6,period_id,text,NO,,,,
+public,ms_period_targets,7,target_total,numeric,NO,0,,,
+public,ms_period_targets,8,created_at,timestamp with time zone,NO,now(),,,
+public,ms_period_targets,9,updated_at,timestamp with time zone,NO,now(),,,
+public,placements,1,id,bigint,NO,nextval('placements_id_seq'::regclass),,64,0
+public,placements,2,candidate_application_id,bigint,NO,,,64,0
+public,placements,3,fee_amount,integer,YES,,,32,0
+public,placements,21,order_date,date,YES,,,,
+public,placements,9,refund_amount,integer,YES,,,32,0
+public,placements,22,withdraw_date,date,YES,,,,
+public,placements,16,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,placements,17,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,placements,19,order_reported,boolean,YES,false,,,
+public,placements,20,refund_reported,boolean,YES,false,,,
+public,screening_rules,1,id,integer,NO,nextval('screening_rules_id_seq'::regclass),,32,0
+public,screening_rules,2,min_age,integer,YES,18,,32,0
+public,screening_rules,3,max_age,integer,YES,60,,32,0
+public,screening_rules,4,allowed_jlpt_levels,ARRAY,YES,"'{N1,N2}'::text[]",,,
+public,screening_rules,5,updated_at,timestamp with time zone,YES,now(),,,
+public,screening_rules,6,target_nationalities,text,YES,'日本'::text,,,
+public,teleapo,1,id,bigint,NO,nextval('teleapo_logs_id_seq'::regclass),,64,0
+public,teleapo,2,candidate_id,bigint,NO,,,64,0
+public,teleapo,3,call_no,integer,NO,,,32,0
+public,teleapo,4,called_at,timestamp with time zone,NO,,,,
+public,teleapo,5,route,text,YES,,,,
+public,teleapo,6,result,text,YES,,,,
+public,teleapo,7,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,teleapo,8,caller_user_id,bigint,YES,,,64,0
+public,teleapo,9,memo,text,YES,,,,
+public,user_important_metrics,1,id,bigint,NO,nextval('user_important_metrics_id_seq'::regclass),,64,0
+public,user_important_metrics,2,user_id,bigint,NO,,,64,0
+public,user_important_metrics,3,department_key,text,NO,,,,
+public,user_important_metrics,4,metric_key,text,NO,,,,
+public,user_important_metrics,5,created_at,timestamp with time zone,NO,now(),,,
+public,user_important_metrics,6,updated_at,timestamp with time zone,NO,now(),,,
+public,users,1,id,bigint,NO,nextval('users_id_seq'::regclass),,64,0
+public,users,2,name,text,NO,,,,
+public,users,3,email,text,NO,,,,
+public,users,4,role,text,NO,,,,
+public,users,5,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,users,6,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
+public,users,7,password_hash,text,YES,,,,
+public,users,8,is_admin,boolean,NO,false,,,

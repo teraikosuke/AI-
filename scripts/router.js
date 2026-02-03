@@ -12,11 +12,12 @@ const routes = {
   login: () => import("../pages/login/login.js"),
   mypage: () => import("../pages/mypage/mypage.js"),
   members: () => import("../pages/members/members.js"),
-  yield: () => import("../pages/yield/yield.js?v=20260202_10"),
-  "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260202_10"),
-  "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260202_10"),
-  "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260202_10"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260322_75"),
+  yield: () => import("../pages/yield/yield.js?v=20260203_14"),
+  "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
+  "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260203_01"),
+  "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260203_01"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260203_76"),
+  "candidate-detail": () => import("../pages/candidate-detail/candidate-detail.js?v=20260203_02"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_13"),
   teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_22"),
   referral: () => import("../pages/referral/referral.js?v=20260322_56"),
@@ -33,6 +34,7 @@ const routeMeta = {
   "yield-company": { roles: ['admin', 'member'] },
   "yield-admin": { roles: ['admin'] },
   candidates: { roles: ['admin', 'member'] },
+  "candidate-detail": { roles: ['admin', 'member'] },
   'ad-performance': { roles: ['admin', 'member'] },
   teleapo: { roles: ['admin', 'member'] },
   referral: { roles: ['admin', 'member'] },
@@ -44,12 +46,13 @@ const routeMeta = {
 
 // CSS files for specific pages
 const pageCSS = {
-  yield: "pages/yield/yield.css?v=20260202_05",
-  "yield-personal": "pages/yield/yield.css?v=20260202_05",
-  "yield-company": "pages/yield/yield.css?v=20260202_05",
-  "yield-admin": "pages/yield/yield.css?v=20260202_05",
+  yield: "pages/yield/yield.css?v=20260203_01",
+  "yield-personal": "pages/yield/yield.css?v=20260203_01",
+  "yield-company": "pages/yield/yield.css?v=20260203_01",
+  "yield-admin": "pages/yield/yield.css?v=20260203_01",
   mypage: "pages/mypage/mypage.css?v=20260202_02",
   candidates: "pages/candidates/candidates.css?v=20260322_56",
+  "candidate-detail": "pages/candidate-detail/candidate-detail.css?v=20260203_01",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",
   teleapo: "pages/teleapo/teleapo.css?v=20260322_2",
   referral: "pages/referral/referral.css?v=20260322_48",
@@ -138,10 +141,11 @@ export function consumePostLoginRedirect() {
 
 export async function navigate(to) {
   const app = document.getElementById("app");
-  const segments = location.hash
-    .replace(/^#\/?/, "")
-    .split("/")
-    .filter(Boolean);
+
+  // ハッシュからクエリパラメータを分離
+  const hashPart = location.hash.replace(/^#\/?/, "");
+  const [pathPart] = hashPart.split("?");
+  const segments = pathPart.split("/").filter(Boolean);
   const rawPage = to || segments[0] || "candidates";
 
   // ルーターガード（beforeNavigate）で実際に表示すべきページを決定

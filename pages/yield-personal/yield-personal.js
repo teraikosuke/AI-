@@ -1,4 +1,4 @@
-import { mount as mountYield, unmount as unmountYield } from '../yield/yield.js?v=20260202_10';
+import { mount as mountYield, unmount as unmountYield } from '../yield/yield.js?v=20260203_14';
 
 let templateCache = null;
 let renderToken = 0;
@@ -49,5 +49,3 @@ export async function mount(root) {
 export function unmount() {
   unmountYield();
 }
-
-
