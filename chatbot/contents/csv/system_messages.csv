@@ -1,0 +1,11 @@
+﻿key,value
+welcome,こんにちは！ヘルプボットです。何かお困りですか？
+not_found,該当する回答が見つかりませんでした。
+search_prompt,検索キーワードを入力してください（2文字以上）
+search_too_short,2文字以上で入力してください。
+search_results,「{query}」の検索結果です（{count}件）。
+search_no_result,「{query}」に該当する項目がありませんでした。
+select_from_options,選択肢からお選びください。
+category_empty,この項目には該当するヘルプがありません。
+error,エラーが発生しました。もう一度お試しください。
+error_session_expired,セッションが期限切れです。画面を再読み込みしてください。

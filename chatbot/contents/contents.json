@@ -48,6 +48,46 @@
                 "/members"
             ],
             "group": "members"
+        },
+        "teleapo": {
+            "name": "架電管理",
+            "routes": [
+                "/teleapo",
+                "/pages/teleapo"
+            ],
+            "group": "teleapo"
+        },
+        "referral": {
+            "name": "紹介先企業管理",
+            "routes": [
+                "/referral",
+                "/pages/referral"
+            ],
+            "group": "referral"
+        },
+        "ad_performance": {
+            "name": "広告管理",
+            "routes": [
+                "/ad-performance",
+                "/pages/ad-performance"
+            ],
+            "group": "ad"
+        },
+        "candidates": {
+            "name": "候補者管理",
+            "routes": [
+                "/candidates",
+                "/pages/candidates"
+            ],
+            "group": "candidates"
+        },
+        "goal_settings": {
+            "name": "評価・目標設定",
+            "routes": [
+                "/goal-settings",
+                "/pages/goal-settings"
+            ],
+            "group": "settings"
         }
     },
     "system_messages": {
@@ -560,6 +600,364 @@
                     "next_state": "ans:item_010"
                 }
             ]
+        },
+        "home:teleapo": {
+            "message": "架電管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:teleapo"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:teleapo"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:teleapo"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:teleapo"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:teleapo"
+                }
+            ]
+        },
+        "cat:faq:teleapo": {
+            "message": "架電管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "架電管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_015"
+                }
+            ]
+        },
+        "cat:howto:teleapo": {
+            "message": "架電管理の使い方です。",
+            "options": [
+                {
+                    "label": "架電管理の使い方(ダミー)",
+                    "next_state": "ans:item_016"
+                }
+            ]
+        },
+        "cat:glossary:teleapo": {
+            "message": "架電管理の用語です。",
+            "options": [
+                {
+                    "label": "架電数",
+                    "next_state": "ans:item_017"
+                },
+                {
+                    "label": "通電数",
+                    "next_state": "ans:item_018"
+                }
+            ]
+        },
+        "cat:error:teleapo": {
+            "message": "架電管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "架電管理のエラー(ダミー)",
+                    "next_state": "ans:item_019"
+                }
+            ]
+        },
+        "cat:general:teleapo": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "架電管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_020"
+                }
+            ]
+        },
+        "home:referral": {
+            "message": "紹介先企業管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:referral"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:referral"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:referral"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:referral"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:referral"
+                }
+            ]
+        },
+        "cat:faq:referral": {
+            "message": "紹介先企業管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "紹介先企業管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_021"
+                }
+            ]
+        },
+        "cat:howto:referral": {
+            "message": "紹介先企業管理の使い方です。",
+            "options": [
+                {
+                    "label": "紹介先企業管理の使い方(ダミー)",
+                    "next_state": "ans:item_022"
+                }
+            ]
+        },
+        "cat:glossary:referral": {
+            "message": "紹介先企業管理の用語です。",
+            "options": [
+                {
+                    "label": "CSVエクスポート",
+                    "next_state": "ans:item_023"
+                },
+                {
+                    "label": "新規紹介先企業登録",
+                    "next_state": "ans:item_024"
+                }
+            ]
+        },
+        "cat:error:referral": {
+            "message": "紹介先企業管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "紹介先企業管理のエラー(ダミー)",
+                    "next_state": "ans:item_025"
+                }
+            ]
+        },
+        "cat:general:referral": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "紹介先企業管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_026"
+                }
+            ]
+        },
+        "home:ad_performance": {
+            "message": "広告管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:ad_performance"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:ad_performance"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:ad_performance"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:ad_performance"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:ad_performance"
+                }
+            ]
+        },
+        "cat:faq:ad_performance": {
+            "message": "広告管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "広告管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_027"
+                }
+            ]
+        },
+        "cat:howto:ad_performance": {
+            "message": "広告管理の使い方です。",
+            "options": [
+                {
+                    "label": "広告管理の使い方(ダミー)",
+                    "next_state": "ans:item_028"
+                }
+            ]
+        },
+        "cat:glossary:ad_performance": {
+            "message": "広告管理の用語です。",
+            "options": [
+                {
+                    "label": "広告管理の用語(ダミー)",
+                    "next_state": "ans:item_029"
+                }
+            ]
+        },
+        "cat:error:ad_performance": {
+            "message": "広告管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "広告管理のエラー(ダミー)",
+                    "next_state": "ans:item_030"
+                }
+            ]
+        },
+        "cat:general:ad_performance": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "広告管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_031"
+                }
+            ]
+        },
+        "home:candidates": {
+            "message": "候補者管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:candidates"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:candidates"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:candidates"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:candidates"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:candidates"
+                }
+            ]
+        },
+        "cat:faq:candidates": {
+            "message": "候補者管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "候補者管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_032"
+                }
+            ]
+        },
+        "cat:howto:candidates": {
+            "message": "候補者管理の使い方です。",
+            "options": [
+                {
+                    "label": "候補者管理の使い方(ダミー)",
+                    "next_state": "ans:item_033"
+                }
+            ]
+        },
+        "cat:glossary:candidates": {
+            "message": "候補者管理の用語です。",
+            "options": [
+                {
+                    "label": "候補者管理の用語(ダミー)",
+                    "next_state": "ans:item_034"
+                }
+            ]
+        },
+        "cat:error:candidates": {
+            "message": "候補者管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "候補者管理のエラー(ダミー)",
+                    "next_state": "ans:item_035"
+                }
+            ]
+        },
+        "cat:general:candidates": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "候補者管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_036"
+                }
+            ]
+        },
+        "home:goal_settings": {
+            "message": "評価・目標設定のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:goal_settings"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:goal_settings"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:goal_settings"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:goal_settings"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:goal_settings"
+                }
+            ]
+        },
+        "cat:faq:goal_settings": {
+            "message": "評価・目標設定のよくある質問です。",
+            "options": [
+                {
+                    "label": "評価・目標設定のよくある質問(ダミー)",
+                    "next_state": "ans:item_037"
+                }
+            ]
+        },
+        "cat:howto:goal_settings": {
+            "message": "評価・目標設定の使い方です。",
+            "options": [
+                {
+                    "label": "評価・目標設定の使い方(ダミー)",
+                    "next_state": "ans:item_038"
+                }
+            ]
+        },
+        "cat:glossary:goal_settings": {
+            "message": "評価・目標設定の用語です。",
+            "options": [
+                {
+                    "label": "評価・目標設定の用語(ダミー)",
+                    "next_state": "ans:item_039"
+                }
+            ]
+        },
+        "cat:error:goal_settings": {
+            "message": "評価・目標設定のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "評価・目標設定のエラー(ダミー)",
+                    "next_state": "ans:item_040"
+                }
+            ]
+        },
+        "cat:general:goal_settings": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "評価・目標設定の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_041"
+                }
+            ]
         }
     },
     "content_items": {
@@ -796,6 +1194,357 @@
             ],
             "links": [],
             "priority": 80
+        },
+        "item_015": {
+            "title": "架電管理のよくある質問(ダミー)",
+            "body": "架電管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_016": {
+            "title": "架電管理の使い方(ダミー)",
+            "body": "架電管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_017": {
+            "title": "架電数",
+            "body": "架電数 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電数"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_018": {
+            "title": "通電数",
+            "body": "通電数 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "通電数"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_019": {
+            "title": "架電管理のエラー(ダミー)",
+            "body": "架電管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_020": {
+            "title": "架電管理の全体ヘルプ(ダミー)",
+            "body": "架電管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_021": {
+            "title": "紹介先企業管理のよくある質問(ダミー)",
+            "body": "紹介先企業管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_022": {
+            "title": "紹介先企業管理の使い方(ダミー)",
+            "body": "紹介先企業管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_023": {
+            "title": "CSVエクスポート",
+            "body": "CSVエクスポート のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "CSVエクスポート"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_024": {
+            "title": "新規紹介先企業登録",
+            "body": "新規紹介先企業登録 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "新規紹介先企業登録"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_025": {
+            "title": "紹介先企業管理のエラー(ダミー)",
+            "body": "紹介先企業管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_026": {
+            "title": "紹介先企業管理の全体ヘルプ(ダミー)",
+            "body": "紹介先企業管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_027": {
+            "title": "広告管理のよくある質問(ダミー)",
+            "body": "広告管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_028": {
+            "title": "広告管理の使い方(ダミー)",
+            "body": "広告管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_029": {
+            "title": "広告管理の用語(ダミー)",
+            "body": "広告管理の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_030": {
+            "title": "広告管理のエラー(ダミー)",
+            "body": "広告管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_031": {
+            "title": "広告管理の全体ヘルプ(ダミー)",
+            "body": "広告管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_032": {
+            "title": "候補者管理のよくある質問(ダミー)",
+            "body": "候補者管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_033": {
+            "title": "候補者管理の使い方(ダミー)",
+            "body": "候補者管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_034": {
+            "title": "候補者管理の用語(ダミー)",
+            "body": "候補者管理の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_035": {
+            "title": "候補者管理のエラー(ダミー)",
+            "body": "候補者管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_036": {
+            "title": "候補者管理の全体ヘルプ(ダミー)",
+            "body": "候補者管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_037": {
+            "title": "評価・目標設定のよくある質問(ダミー)",
+            "body": "評価・目標設定のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_038": {
+            "title": "評価・目標設定の使い方(ダミー)",
+            "body": "評価・目標設定の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_039": {
+            "title": "評価・目標設定の用語(ダミー)",
+            "body": "評価・目標設定の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_040": {
+            "title": "評価・目標設定のエラー(ダミー)",
+            "body": "評価・目標設定のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_041": {
+            "title": "評価・目標設定の全体ヘルプ(ダミー)",
+            "body": "評価・目標設定の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
         }
     },
     "search_config": {

@@ -12,6 +12,8 @@ class Config:
     BASE_DIR = Path(__file__).parent.parent
     CONTENT_PATH = os.getenv("CONTENT_PATH", str(BASE_DIR / "contents" / "contents.json"))
     SCHEMA_PATH = os.getenv("SCHEMA_PATH", str(BASE_DIR / "contents" / "contents.schema.json"))
+    CONTENT_SOURCE = os.getenv("CONTENT_SOURCE", "json")  # "json" or "csv"
+    CONTENT_CSV_DIR = os.getenv("CONTENT_CSV_DIR", str(BASE_DIR / "contents" / "csv"))
     
     # セッション設定
     SESSION_TTL = int(os.getenv("SESSION_TTL", "1800"))  # 30分

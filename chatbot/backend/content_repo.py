@@ -1,6 +1,7 @@
 # コンテンツリポジトリ
 # contents.json の読み込みと参照整合性チェック
 
+import csv
 import json
 import logging
 from pathlib import Path
@@ -26,15 +27,175 @@ class ContentRepository:
     
     def load(self) -> None:
         """コンテンツを読み込み、検証する"""
-        if not self.content_path.exists():
-            raise ContentValidationError(f"Content file not found: {self.content_path}")
-        
-        with open(self.content_path, "r", encoding="utf-8") as f:
-            self._data = json.load(f)
+        if config.CONTENT_SOURCE.lower() == "csv":
+            self._data = self._load_from_csv()
+        else:
+            if not self.content_path.exists():
+                raise ContentValidationError(f"Content file not found: {self.content_path}")
+            with open(self.content_path, "r", encoding="utf-8") as f:
+                self._data = json.load(f)
         
         self._validate()
         self._loaded = True
         logger.info(f"Loaded contents from {self.content_path}")
+
+    def _load_from_csv(self) -> Dict[str, Any]:
+        """CSV からコンテンツを読み込む"""
+        base_dir = Path(config.CONTENT_CSV_DIR)
+        if not base_dir.exists():
+            raise ContentValidationError(f"CSV directory not found: {base_dir}")
+
+        def read_rows(filename: str) -> List[Dict[str, str]]:
+            path = base_dir / filename
+            if not path.exists():
+                raise ContentValidationError(f"CSV file not found: {path}")
+            with open(path, "r", encoding="utf-8-sig", newline="") as f:
+                return list(csv.DictReader(f))
+
+        def split_list(value: str) -> List[str]:
+            if not value:
+                return []
+            return [v.strip() for v in value.split("|") if v.strip()]
+
+        # meta
+        meta_rows = read_rows("meta.csv")
+        meta = {}
+        for row in meta_rows:
+            key = (row.get("key") or "").strip()
+            val = (row.get("value") or "").strip()
+            if key:
+                meta[key] = val
+
+        # system_messages
+        sys_rows = read_rows("system_messages.csv")
+        system_messages = {}
+        for row in sys_rows:
+            key = (row.get("key") or "").strip()
+            val = row.get("value") or ""
+            if key:
+                system_messages[key] = val
+
+        # screen_registry
+        screen_rows = read_rows("screens.csv")
+        screen_registry = {}
+        for row in screen_rows:
+            screen_id = (row.get("screen_id") or "").strip()
+            if not screen_id:
+                continue
+            name = row.get("name") or ""
+            routes = split_list(row.get("routes") or "")
+            group = (row.get("group") or "").strip()
+            screen_registry[screen_id] = {
+                "name": name,
+                "routes": routes,
+                "group": group
+            }
+
+        # menus + options
+        menu_rows = read_rows("menus.csv")
+        menus = {}
+        temp_options = {}
+        for row in menu_rows:
+            menu_id = (row.get("menu_id") or "").strip()
+            if not menu_id:
+                continue
+            message = row.get("message") or ""
+            option_label = (row.get("option_label") or "").strip()
+            option_next = (row.get("option_next_state") or "").strip()
+            order_raw = (row.get("option_order") or "").strip()
+            try:
+                order = int(order_raw) if order_raw else 0
+            except ValueError:
+                order = 0
+
+            menu = menus.setdefault(menu_id, {"message": "", "options": []})
+            if message and not menu.get("message"):
+                menu["message"] = message
+
+            if option_label and option_next:
+                temp_options.setdefault(menu_id, []).append((order, {
+                    "label": option_label,
+                    "next_state": option_next
+                }))
+
+        for menu_id, opts in temp_options.items():
+            opts_sorted = sorted(opts, key=lambda x: x[0])
+            menus[menu_id]["options"] = [opt for _, opt in opts_sorted]
+
+        # content_items
+        content_rows = read_rows("content_items.csv")
+        content_items = {}
+        for row in content_rows:
+            item_id = (row.get("id") or "").strip()
+            if not item_id:
+                continue
+            title = row.get("title") or ""
+            body = row.get("body") or ""
+            category = (row.get("category") or "").strip()
+            screens = split_list(row.get("screens") or "")
+            keywords = split_list(row.get("keywords") or "")
+            priority_raw = (row.get("priority") or "").strip()
+            try:
+                priority = int(priority_raw) if priority_raw else 0
+            except ValueError:
+                priority = 0
+
+            content_items[item_id] = {
+                "title": title,
+                "body": body,
+                "category": category,
+                "screens": screens,
+                "keywords": keywords,
+                "links": [],
+                "related": [],
+                "priority": priority
+            }
+
+        # content_links (optional)
+        links_path = base_dir / "content_links.csv"
+        if links_path.exists():
+            link_rows = read_rows("content_links.csv")
+            for row in link_rows:
+                content_id = (row.get("content_id") or "").strip()
+                label = row.get("label") or ""
+                url = row.get("url") or ""
+                order_raw = (row.get("order") or "").strip()
+                try:
+                    order = int(order_raw) if order_raw else 0
+                except ValueError:
+                    order = 0
+                if content_id in content_items and label and url:
+                    content_items[content_id]["links"].append((order, {
+                        "label": label,
+                        "url": url
+                    }))
+            for item in content_items.values():
+                item["links"] = [l for _, l in sorted(item["links"], key=lambda x: x[0])]
+
+        # content_related (optional)
+        related_path = base_dir / "content_related.csv"
+        if related_path.exists():
+            related_rows = read_rows("content_related.csv")
+            for row in related_rows:
+                content_id = (row.get("content_id") or "").strip()
+                related_id = (row.get("related_id") or "").strip()
+                order_raw = (row.get("order") or "").strip()
+                try:
+                    order = int(order_raw) if order_raw else 0
+                except ValueError:
+                    order = 0
+                if content_id in content_items and related_id:
+                    content_items[content_id]["related"].append((order, related_id))
+            for item in content_items.values():
+                item["related"] = [rid for _, rid in sorted(item["related"], key=lambda x: x[0])]
+
+        return {
+            "meta": meta,
+            "screen_registry": screen_registry,
+            "system_messages": system_messages,
+            "menus": menus,
+            "content_items": content_items
+        }
     
     def _validate(self) -> None:
         """参照整合性チェック"""

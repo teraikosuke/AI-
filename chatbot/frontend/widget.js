@@ -16,6 +16,11 @@
         apiBase: 'http://127.0.0.1:5001/api/v1/helpchat',
         screenResolvers: {
             // パス -> screen_id のマッピング
+            '/teleapo': 'teleapo',
+            '/referral': 'referral',
+            '/ad-performance': 'ad_performance',
+            '/candidates': 'candidates',
+            '/goal-settings': 'goal_settings',
             '/pages/yield-personal': 'yield_personal',
             '/yield-personal': 'yield_personal',
             '/pages/yield-company': 'yield_company',
@@ -33,6 +38,7 @@
     let config = { ...DEFAULT_CONFIG };
     let sessionId = null;
     let currentState = null;
+    let currentScreenId = null;
     let isOpen = false;
     let isFreeTextEnabled = false;
     let triggerPos = { x: null, y: null };
@@ -130,6 +136,9 @@
             const observer = new ResizeObserver(() => positionDrawer());
             observer.observe(elements.drawer);
         }
+
+        // ルート変更時に画面判定を更新（SPA用）
+        window.addEventListener('hashchange', handleRouteChange);
     }
 
     // === 開閉制御 ===
@@ -147,10 +156,8 @@
         isOpen = true;
         requestAnimationFrame(positionDrawer);
 
-        // 初回 or セッション切れの場合は開始
-        if (!sessionId) {
-            await startSession();
-        }
+        // 初回 or 画面変更 or セッション切れの場合は開始
+        await startSession();
     }
 
     function close() {
@@ -382,6 +389,15 @@
     // === screen_id 解決 ===
     function resolveScreenId() {
         const pathname = window.location.pathname;
+        const hashPath = (window.location.hash || '').replace(/^#\/?/, '').split('/')[0];
+
+        // ハッシュルート優先（/#/teleapo など）
+        if (hashPath && config.screenResolvers[`/${hashPath}`]) {
+            return config.screenResolvers[`/${hashPath}`];
+        }
+        if (hashPath && config.screenResolvers[hashPath]) {
+            return config.screenResolvers[hashPath];
+        }
 
         // 完全一致
         if (config.screenResolvers[pathname]) {
@@ -396,13 +412,36 @@
         }
 
         // フォールバック
-        console.warn('[HelpChat] Unknown path:', pathname);
+        console.warn('[HelpChat] Unknown path:', pathname || hashPath || '(empty)');
         return 'global';
+    }
+
+    function resetSessionForScreen(screenId) {
+        sessionId = null;
+        currentState = null;
+        currentScreenId = screenId;
+        if (elements.messages) elements.messages.innerHTML = '';
+        if (elements.options) elements.options.innerHTML = '';
+        if (elements.input) elements.input.value = '';
+        if (elements.inputArea) elements.inputArea.classList.add('helpchat-hidden');
+    }
+
+    function handleRouteChange() {
+        const screenId = resolveScreenId();
+        if (screenId !== currentScreenId) {
+            resetSessionForScreen(screenId);
+            if (isOpen) {
+                startSession();
+            }
+        }
     }
 
     // === API通信 ===
     async function startSession() {
         const screenId = resolveScreenId();
+        if (screenId !== currentScreenId) {
+            resetSessionForScreen(screenId);
+        }
         showLoading();
 
         try {
