@@ -1038,7 +1038,7 @@ body {
 /* テーブルラッパー - グレー背景で囲む */
 .mypage-table-wrapper {
   background: #f6f8fa !important;
-  padding: 16px !important;
+  /* padding: 16px !important; */
   border-radius: 12px !important;
   border: 1px solid #e5e9f0 !important;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04) !important;
@@ -1140,7 +1140,7 @@ body {
 .candidates-table-card {
   background: #f6f8fa !important;
   border-radius: 12px !important;
-  padding: 20px !important;
+  /* padding: 20px !important; */
   border: 1px solid #e5e9f0 !important;
 }
 
@@ -1200,7 +1200,7 @@ body {
 .candidates-calendar-card {
   background: #f6f8fa !important;
   border-radius: 12px !important;
-  padding: 20px !important;
+  /* padding: 20px !important; */
   border: 1px solid #e5e9f0 !important;
 }
 
@@ -1223,7 +1223,7 @@ body {
 
 /* 全ページ共通の余白 */
 #app>* {
-  padding: 24px !important;
+  padding: 32px !important;
 }
 
 /* 白背景のページ（デフォルト） */
@@ -1232,7 +1232,7 @@ body {
 #yieldAdminPage,
 #yieldPersonalPage,
 #settingsPage {
-  background-color: #ffffff;
+  /* background-color: #ffffff; */
 }
 
 /* グレー背景のページ */

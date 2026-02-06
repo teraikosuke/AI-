@@ -161,8 +161,14 @@ function initializeAdFilters() {
   resetBtn?.addEventListener('click', () => {
     const filter = document.getElementById('adMediaFilter');
     if (filter) filter.value = '';
+    const start = document.getElementById('adStartDate');
+    const end = document.getElementById('adEndDate');
+    if (start) start.value = '';
+    if (end) end.value = '';
+    if (calcModeSelect) calcModeSelect.value = 'base';
+    adState.calcMode = 'base';
     selectedMediaFilter = null;
-    applyFilters('');
+    loadAdPerformanceData();
   });
 
   const calcModeSelect = document.getElementById('adCalcModeSelect');
@@ -195,13 +201,6 @@ function initializeAdFilters() {
     document.getElementById(id)?.addEventListener('change', () => loadAdPerformanceData());
   });
 
-  document.getElementById('adDateClear')?.addEventListener('click', () => {
-    const s = document.getElementById('adStartDate');
-    const e = document.getElementById('adEndDate');
-    if (s) s.value = '';
-    if (e) e.value = '';
-    loadAdPerformanceData();
-  });
 }
 
 function handleCalcModeChange(e) {
@@ -820,28 +819,11 @@ function renderAdMainChart(data) {
     retentionWarranty: Number(d.retentionWarranty) || 0
   }));
 
-  // Layout Dynamic Switching
-  if (currentGraphMetric === 'roas') {
-    // ROAS Mode: Bar + Pie
-    // Compact Bar Chart (400px)
-    if (barContainer) {
-      barContainer.classList.remove('h-[720px]');
-      barContainer.classList.add('h-[400px]');
-    }
-    if (pieContainer) pieContainer.classList.remove('hidden');
-  } else {
-    // Other Metrics Mode: Bar Only
-    // Expand Bar Chart (720px)
-    if (barContainer) {
-      barContainer.classList.remove('h-[400px]');
-      barContainer.classList.add('h-[720px]');
-    }
-    if (pieContainer) pieContainer.classList.add('hidden');
-    if (mainPieChart) {
-      mainPieChart.destroy();
-      mainPieChart = null;
-    }
+  if (barContainer) {
+    barContainer.classList.remove('h-[720px]');
+    barContainer.classList.add('h-[400px]');
   }
+  if (pieContainer) pieContainer.classList.remove('hidden');
 
   let sorted = normalized;
   let datasets = [];
@@ -860,7 +842,6 @@ function renderAdMainChart(data) {
   const allMediaNames = data.map(d => d.mediaName);
 
   if (currentGraphMetric === 'roas') {
-    renderRoasPieChart(normalized); // Ensure this is called
     sorted = [...normalized].sort((a, b) => b.roas - a.roas);
     datasets = [{
       label: 'ROAS',
@@ -903,6 +884,8 @@ function renderAdMainChart(data) {
     scales.x.ticks.callback = xTickFormatter;
   }
 
+  renderMetricPieChart(normalized, currentGraphMetric);
+
   const labels = sorted.map(d => d.mediaName);
   const handleClick = (evt, elements, chart) => {
     if (!elements.length) return;
@@ -926,7 +909,7 @@ function renderAdMainChart(data) {
         tooltip: {
           callbacks: { label: tooltipFormatter }
         },
-        legend: { display: currentGraphMetric !== 'roas' }
+        legend: { display: false }
       },
       interaction: { mode: 'nearest', intersect: true },
       onClick: handleClick,
@@ -936,33 +919,53 @@ function renderAdMainChart(data) {
 }
 
 
-function renderRoasPieChart(normalizedData) {
+function getGraphMetricLabel(metricKey) {
+  const metricLabels = {
+    initialInterviewRate: '初回面談設定率',
+    hireRate: '入社率',
+    retentionWarranty: '定着率',
+    roas: 'ROAS'
+  };
+  return metricLabels[metricKey] || metricKey || '指標';
+}
+
+function formatGraphMetricValue(metricKey, value) {
+  const numValue = Number(value) || 0;
+  if (metricKey === 'roas') return `${numValue.toFixed(1)}%`;
+  return `${numValue.toFixed(1)}%`;
+}
+
+function renderMetricPieChart(normalizedData, metricKey) {
   const canvas = document.getElementById('adMainPieChartCanvas');
+  const titleEl = document.querySelector('#adMainPieChartContainer .ad-pie-title');
   if (!canvas) return;
 
   if (mainPieChart) {
     mainPieChart.destroy();
   }
 
-  // Filter out items with 0 ROAS to keep clean
-  const validData = normalizedData.filter(d => d.roas > 0).sort((a, b) => b.roas - a.roas);
+  const label = getGraphMetricLabel(metricKey);
+  if (titleEl) titleEl.textContent = `媒体別${label}構成比`;
+
+  const validData = normalizedData
+    .map(d => ({ ...d, metricValue: Number(d[metricKey]) || 0 }))
+    .filter(d => d.metricValue > 0)
+    .sort((a, b) => b.metricValue - a.metricValue);
 
   if (validData.length === 0) {
-    // Clear canvas if no data
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     return;
   }
 
   const labels = validData.map(d => d.mediaName);
-  const data = validData.map(d => d.roas);
+  const data = validData.map(d => d.metricValue);
 
-  // Generate colors (using a palette or random if many)
   const baseColors = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff', '#94a3b8', '#cbd5e1'];
   const backgroundColors = validData.map((_, i) => baseColors[i % baseColors.length]);
 
   mainPieChart = new Chart(canvas.getContext('2d'), {
-    type: 'doughnut', // Doughnut or Pie
+    type: 'doughnut',
     data: {
       labels: labels,
       datasets: [{
@@ -976,16 +979,13 @@ function renderRoasPieChart(normalizedData) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'right', // Legend on right
+          position: 'right',
           align: 'center',
-          labels: { boxWidth: 12, font: { size: 12 } } // Bigger font
+          labels: { boxWidth: 12, font: { size: 12 } }
         },
         tooltip: {
           callbacks: {
-            label: (ctx) => {
-              const val = Number(ctx.raw) || 0;
-              return `${ctx.label}: ${val.toFixed(1)}%`;
-            }
+            label: (ctx) => `${ctx.label}: ${formatGraphMetricValue(metricKey, ctx.raw)}`
           }
         }
       }

@@ -78,13 +78,32 @@
 }
 
 /* 旧スタイル維持（互換性） */
+/* SmartHR Style - Filter Card - Simplified (Transparent) */
 .candidates-filter-card {
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 0 0 16px 0;
+  box-shadow: none;
+  margin-bottom: 26px;
+  /* Keep strict spacing (Merihari) */
+  padding: 0;
+  overflow: visible;
+}
+
+/* Filter Header (1st child div) */
+.candidates-filter-card>div.flex {
+  padding: 0 0 8px 0;
+  background: transparent;
+  border-bottom: 1px solid #e5e7eb;
+  /* Simplified Divider */
   margin-bottom: 0;
-  border-bottom: 1px solid var(--app-border);
+  gap: 1rem;
+}
+
+/* Filter Content Grid */
+.candidates-filter-grid {
+  padding: 8px 0 0 0;
+  /* Remove side padding, add top space */
 }
 
 .candidates-filter-grid {
@@ -145,13 +164,14 @@
   gap: 0.75rem;
 }
 
+/* SmartHR Style - Tab Bar */
 .candidates-tab-bar {
   display: flex;
   gap: 0;
   align-items: stretch;
-  border-bottom: none;
-  /* Removed border */
-  margin-bottom: 0;
+  border-bottom: 1px solid #e2e8f0;
+  /* Gray baseline */
+  margin-bottom: 20px !important;
 }
 
 .candidates-tab-btn {
@@ -160,28 +180,35 @@
   justify-content: center;
   gap: 8px;
   min-height: 48px;
+  min-width: 120px;
+  /* Ensure some width */
   padding: 0 24px;
   font-size: 14px;
   font-weight: var(--app-font-weight-medium);
   color: var(--app-text-secondary);
   background: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
+  border-bottom: 2px solid transparent;
+  /* Prepare for hover/active */
+  margin-bottom: -1px;
+  /* Overlap with container border */
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .candidates-tab-btn:hover {
   color: var(--app-primary);
-  background: var(--app-primary-light);
+  background-color: #f8fafc;
+  /* Subtle hover */
 }
 
 .candidates-tab-btn.is-active {
   color: var(--app-primary);
   font-weight: var(--app-font-weight-bold);
-  border-bottom-color: var(--app-primary);
-  background: var(--app-primary-light);
+  border-bottom: 2px solid var(--app-primary);
+  /* Blue underline */
+  background: #e0f2fe;
+  /* Light Blue Background */
 }
 
 .candidates-tab-panel {
@@ -205,13 +232,14 @@
 .candidates-table-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   background: transparent !important;
   border: none !important;
   border-radius: 0;
-  padding: 0 !important;
   box-shadow: none !important;
   margin-top: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .candidates-table-card .table-grid {
@@ -272,9 +300,8 @@
   border-radius: 0;
   box-shadow: none !important;
   overflow: visible;
-  margin-top: var(--app-space-md);
+  margin-top: 0;
   padding: 0;
-  /* No padding */
 }
 
 .candidates-calendar-header {
@@ -282,9 +309,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-md);
-  padding-bottom: var(--app-space-md);
-  margin-bottom: var(--app-space-md);
-  border-bottom: 1px solid var(--app-border-light);
+  padding: 16px 4px;
+  /* Tight side padding */
+  margin-bottom: 0;
+  border-bottom: none;
   background: transparent;
 }
 
@@ -332,7 +360,7 @@
 
 .candidates-calendar-body {
   padding: 0;
-  /* Flush inside card */
+  /* Flush */
   background: transparent;
 }
 
@@ -768,6 +796,96 @@ body.has-modal-open {
 
 #candidatesTableBody .candidate-item.is-active td {
   background-color: #eef2ff;
+}
+
+/* ==========================================================================
+   Candidate Detail Refactoring (SmartHR Style - Borderless Cards)
+   ========================================================================== */
+
+/* Main Card Container */
+.candidate-detail-section {
+  border: none !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  background-color: #ffffff !important;
+  border-radius: 12px !important;
+  margin-bottom: 24px;
+}
+
+/* Card Header */
+.candidate-detail-section-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  /* Very subtle divider */
+  padding: 16px 24px !important;
+}
+
+.candidate-detail-section-header h4 {
+  font-weight: 700;
+  color: #1f2937;
+  /* Gray-800 */
+}
+
+/* Card Body */
+.candidate-detail-section-body {
+  padding: 24px !important;
+}
+
+/* Subsections (Basic Info, Contact, etc.) - Merge into Parent */
+.detail-subsection {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-bottom: 32px;
+  border-bottom: 1px solid #f3f4f6;
+  /* Divider between blocks */
+  padding-bottom: 32px !important;
+}
+
+.detail-subsection:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Subsection Header */
+.detail-subsection-header {
+  margin-bottom: 16px;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.detail-subsection-header h5 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4b5563;
+  /* Gray-600 */
+  margin: 0;
+}
+
+/* Subsection Body */
+.detail-subsection-body {
+  padding: 0 !important;
+}
+
+/* Ensure inputs keep their borders for usability */
+.candidate-detail-section input[type="text"],
+.candidate-detail-section input[type="number"],
+.candidate-detail-section input[type="date"],
+.candidate-detail-section select,
+.candidate-detail-section textarea {
+  border: 1px solid #d1d5db !important;
+  /* Gray-300 */
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.candidate-detail-section input:focus,
+.candidate-detail-section select:focus,
+.candidate-detail-section textarea:focus {
+  border-color: #2563eb !important;
+  /* Blue-600 */
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
 }
 
 .candidate-detail-sections {
@@ -1424,4 +1542,588 @@ body.has-modal-open {
 
 .candidates-table-card th[data-sort-key][data-sort-dir="desc"]::before {
   opacity: 0.2;
+}
+
+/* =========================================
+   Phase 2026-02: SmartHR-Style Single Page Layout
+   - Tab → Anchor Navigation
+   - Card-based Sections
+   - Emoji-Free Professional Design
+   ========================================= */
+
+/* Smooth Scroll Behavior */
+.candidate-detail-card {
+  scroll-behavior: smooth;
+}
+
+/* -----------------------------------------
+   Anchor Navigation Bar
+   ----------------------------------------- */
+.detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.detail-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.detail-nav-link:hover {
+  color: #334155;
+  background-color: #f1f5f9;
+}
+
+.detail-nav-link.is-active {
+  color: #4f46e5;
+  background-color: #eef2ff;
+  font-weight: 600;
+}
+
+/* -----------------------------------------
+   Unified Card Design
+   ----------------------------------------- */
+.detail-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin-bottom: 40px;
+  overflow: hidden;
+}
+
+.detail-card:last-child {
+  margin-bottom: 0;
+}
+
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-card-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.detail-card-body {
+  padding: 24px;
+}
+
+/* -----------------------------------------
+   Edit Button (Outlined Style)
+   ----------------------------------------- */
+.detail-edit-btn--outlined {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.detail-edit-btn--outlined:hover {
+  color: #334155;
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.detail-edit-btn--outlined.is-active {
+  color: #fff;
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+/* -----------------------------------------
+   Definition Grid (2-3 Column Layout)
+   ----------------------------------------- */
+.detail-def-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 32px;
+}
+
+@media (min-width: 768px) {
+  .detail-def-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.detail-def-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-def-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.detail-def-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.detail-def-value--empty {
+  color: #94a3b8;
+}
+
+/* -----------------------------------------
+   Table (Horizontal Lines Only)
+   ----------------------------------------- */
+.detail-table--modern {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-table--modern thead {
+  background-color: #f8fafc;
+}
+
+.detail-table--modern th {
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-table--modern td {
+  padding: 12px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.detail-table--modern tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.detail-table--modern tbody tr:hover td {
+  background-color: #fafbfc;
+}
+
+/* -----------------------------------------
+   Timeline (for Interview Memos)
+   ----------------------------------------- */
+.detail-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.detail-timeline-item {
+  display: flex;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-timeline-item:last-child {
+  border-bottom: none;
+}
+
+.detail-timeline-date {
+  flex-shrink: 0;
+  width: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.detail-timeline-content {
+  flex: 1;
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+/* -----------------------------------------
+   Section Scroll Containers
+   ----------------------------------------- */
+.detail-sections-scroll {
+  padding: 24px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Scroll Target Offset for Sticky Navigation */
+.detail-card[id] {
+  scroll-margin-top: 80px;
+}
+
+/* -----------------------------------------
+   Header Refinements (No Blue Background)
+   ----------------------------------------- */
+.candidate-detail-header--compact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+@media (min-width: 768px) {
+  .candidate-detail-header--compact {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.candidate-detail-header--compact .candidate-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.candidate-detail-header--compact .candidate-header-meta {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Status Badges (Pastel Style) */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9999px;
+}
+
+.status-badge--valid {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-badge--invalid {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.status-badge--phase {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Assignee Info (Compact Inline) */
+.assignee-info {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.assignee-info strong {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* ==========================================================================
+   Table Refinement (Feedback: "Too many lines", "Too simple")
+   ========================================================================== */
+
+/* Remove Outer Wrapper Border & Radius */
+.detail-table-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Table Header Polish */
+.detail-table th {
+  background-color: #f8fafc !important;
+  /* Light Gray Header */
+  border: none !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  /* Stronger Horizontal Header Line */
+  color: #475569 !important;
+  /* Slate-600 */
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 12px 16px !important;
+  /* More Spacing ("Yutori") */
+  white-space: nowrap;
+}
+
+/* Table Cell Polish */
+.detail-table td {
+  border: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  /* Gentle Row Divider */
+  padding: 14px 16px !important;
+  /* Comfortable Spacing */
+  font-size: 14px !important;
+  color: #1f2937 !important;
+  /* Gray-800 */
+  background-color: transparent !important;
+  /* Ensure generic bg doesn't override */
+}
+
+/* Input Fields inside Table - Clean Look */
+.detail-table input[type="text"],
+.detail-table input[type="number"],
+.detail-table select {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  background: white;
+  transition: all 0.2s;
+}
+
+.detail-table input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Remove last row border */
+.detail-table tbody tr:last-child td {
+  border-bottom: none !important;
+  /* Clean bottom */
+}
+
+/* ==========================================================================
+   Sticky Header Implementation (Feedback: "Fix header part")
+   ========================================================================== */
+
+.sticky-nav-wrapper {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+/* Reset inner stickiness/styles so they flow in wrapper */
+.candidate-detail-header--compact {
+  position: static !important;
+  background-color: transparent !important;
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 8px !important;
+  /* Adjust spacing */
+}
+
+.detail-nav {
+  position: static !important;
+  background-color: transparent !important;
+  border-bottom: none !important;
+  padding: 0 24px 12px 24px !important;
+  /* Align with content */
+  top: auto !important;
+}
+
+/* Ensure Nav Items look like tabs */
+.detail-nav-link {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 8px 16px !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+.detail-nav-link:hover {
+  color: #2563eb !important;
+  background: transparent !important;
+}
+
+.detail-nav-link.is-active {
+  color: #2563eb !important;
+  border-bottom-color: #2563eb !important;
+  background: transparent !important;
+}
+
+/* ==========================================================================
+   2026-02-05 Refactor: Unified Summary & Sticky Nav
+   ========================================================================== */
+
+/* 1. Simplified Back Button */
+.detail-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px 0;
+  transition: color 0.15s ease;
+}
+
+.detail-back-btn:hover {
+  color: #334155;
+}
+
+/* 2. Unified Summary Card */
+.candidate-detail-wrapper {
+  padding-bottom: 40px;
+}
+
+.candidate-summary-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.summary-main-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .summary-main-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.summary-candidate-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-candidate-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.summary-meta-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  min-width: 200px;
+}
+
+.summary-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-meta-item .meta-label {
+  width: 70px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.summary-meta-item .meta-value {
+  color: #334155;
+  font-weight: 600;
+}
+
+.summary-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 20px 0;
+}
+
+.summary-meeting-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: center;
+}
+
+.summary-meeting-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-meeting-item .meeting-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.summary-meeting-item .meeting-value {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+/* 3. Sticky Nav Refinement */
+.sticky-nav-wrapper {
+  /* Already defined above but overriding margins for safety */
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  /* Ensure it spans full width of modal content area if needed, or matches card width */
+  /* Actually, modal padding usually constrains this. Let's keep it simple first. */
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px);
+}
+
+.detail-nav {
+  padding: 0 !important;
+  /* Reset padding inside wrapper */
 }

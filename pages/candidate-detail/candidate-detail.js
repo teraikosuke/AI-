@@ -4,7 +4,7 @@
  */
 
 // candidates.jsから必要な関数をインポート
-import { mountDetailPage, unmountDetailPage } from '../candidates/candidates.js?v=20260322_76';
+import { mountDetailPage, unmountDetailPage, confirmCandidateDetailClose } from '../candidates/candidates.js?v=20260205_01';
 
 console.log('candidate-detail.js loaded');
 
@@ -22,6 +22,7 @@ function getCandidateIdFromUrl() {
 
 // 戻るボタン
 function handleBack() {
+    if (!confirmCandidateDetailClose()) return;
     window.location.hash = '#/candidates';
 }
 

@@ -175,6 +175,7 @@ async function loadReferralData() {
 
 
   allData = items.map((item, index) => normalizeReferralItem(item, index));
+  updateJobFilterOptions();
 
   // Don't auto-select any company
   selectedCompanyId = null;
@@ -417,6 +418,40 @@ function formatFee(val) {
 function formatCurrency(val) {
 
   return val == null ? '-' : `${Number(val).toLocaleString('ja-JP')}`;
+}
+
+function updateJobFilterOptions() {
+  const select = document.getElementById('referralJobFilter');
+  if (!select) return;
+
+  const current = select.value || '';
+  const jobSet = new Set();
+  (allData || []).forEach(item => {
+    const title = String(item?.jobTitle || '').trim();
+    if (!title || title === '-' || title === 'ー') return;
+    jobSet.add(title);
+  });
+
+  const jobs = Array.from(jobSet).sort((a, b) => a.localeCompare(b, 'ja'));
+
+  while (select.firstChild) select.removeChild(select.firstChild);
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = '全て';
+  select.appendChild(allOption);
+
+  jobs.forEach(job => {
+    const opt = document.createElement('option');
+    opt.value = job;
+    opt.textContent = job;
+    select.appendChild(opt);
+  });
+
+  if (current && jobs.includes(current)) {
+    select.value = current;
+  } else {
+    select.value = '';
+  }
 }
 
 
@@ -1852,21 +1887,7 @@ function renderTable() {
 
 
 
-  const prioritized = [...pageData];
-
-  const selIdx = prioritized.findIndex(p => p.id === selectedCompanyId);
-
-  if (selIdx > 0) {
-
-    const [sel] = prioritized.splice(selIdx, 1);
-
-    prioritized.unshift(sel);
-
-  }
-
-
-
-  tbody.innerHTML = prioritized.map(item => {
+  tbody.innerHTML = pageData.map(item => {
 
     const isSelected = item.id === selectedCompanyId;
 
@@ -2069,310 +2090,95 @@ function renderCompanyDetail() {
   const editActions = editing
     ? `
       <div class="flex items-center gap-2">
-        <button type="button" id="referralDetailSaveBtn" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-500">保存</button>
-        <button type="button" id="referralDetailCancelBtn" class="px-3 py-1.5 border border-slate-300 rounded-md text-xs text-slate-600 hover:bg-slate-100">キャンセル</button>
+        <button type="button" id="referralDetailSaveBtn" class="referral-primary-btn text-xs px-3 py-1.5">保存</button>
+        <button type="button" id="referralDetailCancelBtn" class="referral-secondary-btn text-xs px-3 py-1.5">キャンセル</button>
       </div>
     `
-    : `<button type="button" id="referralDetailEditBtn" class="px-3 py-1.5 border border-slate-300 rounded-md text-xs text-slate-600 hover:bg-slate-100">編集</button>`;
+    : `<button type="button" id="referralDetailEditBtn" class="referral-secondary-btn text-xs px-3 py-1.5">編集</button>`;
 
   const desiredContent = editing
     ? `
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">年収レンジ（万円）</span>
-        <div class="flex items-center gap-2">
-          <input type="number" min="0" id="referralDesiredSalaryMin" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm w-full" placeholder="600" value="${salaryMinInput}">
-          <span class="text-xs text-slate-400">&#x301c;</span>
-          <input type="number" min="0" id="referralDesiredSalaryMax" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm w-full" placeholder="900" value="${salaryMaxInput}">
-        </div>
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">必須資格</span>
-        <input type="text" id="referralDesiredMust" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.mustQualifications)}">
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">歓迎資格</span>
-        <input type="text" id="referralDesiredNice" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.niceQualifications)}">
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">勤務地</span>
-        <input type="text" id="referralDesiredLocations" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.locations)}">
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">性格傾向</span>
-        <input type="text" id="referralDesiredPersonality" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り" value="${listToInputValue(desired.personality)}">
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">経験</span>
-        <textarea rows="2" id="referralDesiredExperiences" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="カンマ区切り">${listToInputValue(desired.experiences)}</textarea>
-      </label>
+      <div class="space-y-3">
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">年収レンジ（万円）</span>
+          <div class="flex items-center gap-2">
+            <input type="number" min="0" id="referralDesiredSalaryMin" class="referral-input text-sm w-full" placeholder="600" value="${salaryMinInput}">
+            <span class="text-xs text-slate-400">〜</span>
+            <input type="number" min="0" id="referralDesiredSalaryMax" class="referral-input text-sm w-full" placeholder="900" value="${salaryMaxInput}">
+          </div>
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">必須資格</span>
+          <input type="text" id="referralDesiredMust" class="referral-input text-sm w-full" placeholder="カンマ区切り" value="${listToInputValue(desired.mustQualifications)}">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">歓迎資格</span>
+          <input type="text" id="referralDesiredNice" class="referral-input text-sm w-full" placeholder="カンマ区切り" value="${listToInputValue(desired.niceQualifications)}">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">勤務地</span>
+          <input type="text" id="referralDesiredLocations" class="referral-input text-sm w-full" placeholder="カンマ区切り" value="${listToInputValue(desired.locations)}">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">性格傾向</span>
+          <input type="text" id="referralDesiredPersonality" class="referral-input text-sm w-full" placeholder="カンマ区切り" value="${listToInputValue(desired.personality)}">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 block mb-1">経験</span>
+          <textarea rows="2" id="referralDesiredExperiences" class="referral-input text-sm w-full" placeholder="カンマ区切り">${listToInputValue(desired.experiences)}</textarea>
+        </label>
+      </div>
     `
     : `
-      <div><span class="font-semibold text-slate-700">年収レンジ：</span>${salaryLabel}</div>
-      <div><span class="font-semibold text-slate-700">必須資格：</span>${mustDisplay}</div>
-      <div><span class="font-semibold text-slate-700">歓迎資格：</span>${niceDisplay}</div>
-      <div><span class="font-semibold text-slate-700">勤務地：</span>${locationDisplay}</div>
-      <div><span class="font-semibold text-slate-700">性格傾向：</span>${personalityDisplay}</div>
-      <div><span class="font-semibold text-slate-700">経験：</span>${experienceDisplay}</div>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">年収レンジ</span>
+            <span class="text-slate-700 font-medium text-right flex-1">${salaryLabel}</span>
+        </div>
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">必須資格</span>
+            <span class="text-slate-700 text-right flex-1">${mustDisplay}</span>
+        </div>
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">歓迎資格</span>
+            <span class="text-slate-700 text-right flex-1">${niceDisplay}</span>
+        </div>
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">勤務地</span>
+            <span class="text-slate-700 text-right flex-1">${locationDisplay}</span>
+        </div>
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">性格傾向</span>
+            <span class="text-slate-700 text-right flex-1">${personalityDisplay}</span>
+        </div>
+        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+            <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">経験</span>
+            <span class="text-slate-700 text-right flex-1">${experienceDisplay}</span>
+        </div>
+      </div>
     `;
 
   const memoContent = editing
     ? `
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-semibold text-slate-600">メモ内容</span>
-        <textarea rows="6" id="referralSelectionNote" class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="選考メモを入力">${selectionNoteText}</textarea>
+      <label class="block">
+        <span class="text-xs font-semibold text-slate-600 block mb-1">メモ内容</span>
+        <textarea rows="6" id="referralSelectionNote" class="referral-input text-sm w-full" placeholder="選考メモを入力">${selectionNoteText}</textarea>
       </label>
-      <div class="text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
+      <div class="mt-2 text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
     `
     : `
-      <div class="whitespace-pre-wrap text-slate-700">${selectionNoteText || 'メモがありません'}</div>
-      <div class="text-xs text-slate-500">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
+      <div class="whitespace-pre-wrap text-sm text-slate-700">${selectionNoteText || 'メモがありません'}</div>
+      <div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400">入社前辞退：${company.prejoinDeclines ?? 0}名 (${company.prejoinDeclineReason || '理由未登録'}) / 選考脱落者：${company.dropoutCount ?? 0}名</div>
     `;
 
   // ---------------------------------------------------------
   // Helper: Selection Flow Card & Chart (Ported from candidates.js)
   // ---------------------------------------------------------
+  const flowCandidates = getFlowCandidates(company);
+  const flowListHtml = buildHorizontalSteps(flowCandidates); // This function needs to be available or imported
 
-  function escapeHtml(str) {
-    if (typeof str !== 'string') return str;
-    return str.replace(/[&<>"']/g, function (m) {
-      switch (m) {
-        case '&': return '&amp;';
-        case '<': return '&lt;';
-        case '>': return '&gt;';
-        case '"': return '&quot;';
-        case "'": return '&#039;';
-      }
-      return m;
-    });
-  }
-
-  function escapeHtmlAttr(str) {
-    if (!str) return '';
-    return String(str).replace(/"/g, '&quot;');
-  }
-
-  function formatDateJP(date) {
-    if (!date) return '-';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '-';
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-  }
-
-  function resolveSelectionStatusVariant(status) {
-    if (!status) return ""; // Default/Gray
-    const s = String(status);
-    if (s.includes("内定") || s.includes("オファー") || s.includes("承諾") || s.includes("入社") || s.includes("成約")) return "success";
-    if (s.includes("辞退") || s.includes("不合格") || s.includes("失注") || s.includes("破談") || s.includes("終了")) return "danger";
-    if (s.includes("調整") || s.includes("設定") || s.includes("実施")) return "info";
-    return "";
-  }
-
-  function resolveSelectionStatusPillClass(variant) {
-    switch (variant) {
-      case "success": return "bg-green-100 text-green-700 border-green-200";
-      case "danger": return "bg-red-100 text-red-700 border-red-200";
-      case "info": return "bg-blue-100 text-blue-700 border-blue-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  }
-
-  function normalizeSelectionRow(row) {
-    // 1. Resolve Company Name if missing (link client_id to company list)
-    let cName = row.companyName || row.company || row.clientName || row.client_name;
-    if (!cName && (row.clientId || row.client_id) && typeof allData !== 'undefined') {
-      const found = allData.find(d => String(d.id) === String(row.clientId || row.client_id));
-      if (found) cName = found.company;
-    }
-
-    return {
-      candidateId: row.id || row.candidateId || row.candidate_id,
-      candidateName: row.name || row.candidateName || row.candidate_name,
-      companyName: cName,
-      route: row.route ?? row.source ?? row.applicationRoute ?? row.application_route,
-      status: row.status || row.phase || row.stage || row.selectionStatus || row.selection_status,
-
-      // Date mappings (support _at, At, Date variants)
-      recommendationDate: row.recommendationDate ?? row.date ?? row.recommendationAt ?? row.recommendation_at,
-
-      firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt ?? row.first_interview_set_at ?? row.interviewSetupDate,
-      firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.first_interview_at ?? row.interviewDate,
-
-      secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt ?? row.second_interview_set_at ?? row.secondInterviewSetupDate,
-      secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt ?? row.second_interview_at,
-
-      finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt ?? row.final_interview_set_at ?? row.finalInterviewSetupDate,
-      finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt ?? row.final_interview_at,
-
-      offerDate: row.offerDate ?? row.offerAt ?? row.offer_at,
-      offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.offer_accepted_at ?? row.acceptanceDate,
-      joinedDate: row.joinedDate ?? row.joinedAt ?? row.joined_at ?? row.onboardingDate,
-
-      note: row.note ?? row.selectionNote ?? row.selection_note,
-    };
-  }
-
-  function renderSelectionFlowCard(rawRow) {
-    const r = normalizeSelectionRow(rawRow);
-    const statusVariant = resolveSelectionStatusVariant(r.status);
-    const statusLabel = r.status || "未設定";
-
-    // Flow Steps Definition
-    const steps = [
-      { label: "推薦", date: r.recommendationDate, sub: null, keywords: ["推薦", "書類"] },
-      { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null, keywords: ["一次"] },
-      { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null, keywords: ["二次"] },
-      { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null, keywords: ["最終"] },
-      { label: "内定", date: r.offerDate, sub: null, keywords: ["内定", "オファー"] },
-      { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null, keywords: ["承諾", "入社"] },
-    ];
-
-    // Detect Drop/Failure Status
-    const isDropped = ["辞退", "不合格", "失注", "破談", "終了"].some(k => (r.status || "").includes(k));
-
-    // Find "Current" step based on Status Text matching (fallback to dates)
-    let statusIndex = -1;
-    if (r.status) {
-      steps.forEach((step, idx) => {
-        if (step.keywords && step.keywords.some(k => r.status.includes(k))) {
-          statusIndex = idx;
-        }
-      });
-    }
-
-    // Find the last step that has a confirmed date (Progress tracking)
-    let lastDateIndex = -1;
-    steps.forEach((step, idx) => {
-      if (step.date) lastDateIndex = idx;
-    });
-
-    // Decide the "Active" limit
-    const activeLimitIndex = (statusIndex > lastDateIndex) ? statusIndex : lastDateIndex;
-
-    const flowHtml = steps.map((step, idx) => {
-      const hasDate = Boolean(step.date);
-      const isReached = idx <= activeLimitIndex;
-      const isCurrent = idx === activeLimitIndex;
-      const isDropStep = isDropped && isCurrent;
-
-      // Circle Color
-      let circleClass = "bg-slate-200 text-slate-400"; // default (future)
-      if (isReached) {
-        if (isDropStep) {
-          circleClass = "bg-red-500 text-white ring-4 ring-red-100 scale-110"; // Dropped
-        } else if (isCurrent) {
-          circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
-        } else {
-          circleClass = hasDate
-            ? "bg-indigo-600 text-white"
-            : "bg-white border-2 border-indigo-600 text-indigo-600"; // Skipped (Hollow)
-        }
-      }
-
-      // Bar Color (Connector to next)
-      let barHtml = "";
-      if (idx < steps.length - 1) {
-        let barClass = "bg-slate-200 h-0.5"; // default
-        if (idx < activeLimitIndex) {
-          const nextHasDate = Boolean(steps[idx + 1].date);
-          if (isDropped && idx === activeLimitIndex - 1) {
-            barClass = "bg-indigo-600 h-0.5";
-          } else {
-            barClass = nextHasDate ? "bg-indigo-600 h-0.5" : "border-t-2 border-indigo-400 border-dashed h-0 bg-transparent";
-          }
-        }
-        barHtml = `<div class="absolute top-3 left-1/2 w-full ${barClass} -z-0"></div>`;
-      }
-
-      const dateStr = formatDateJP(step.date);
-      const dateHtml = hasDate
-        ? `<div class="text-[10px] font-bold ${isDropStep ? 'text-red-600' : 'text-indigo-700'} mt-1 truncate w-full text-center">${dateStr}</div>`
-        : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
-
-      let labelClass = "text-slate-700";
-      if (isDropStep) labelClass = "text-red-700 font-bold";
-      else if (isCurrent) labelClass = "text-indigo-800 font-bold";
-
-      return `
-        <div class="flex-1 relative group min-w-[60px]">
-          ${barHtml}
-          <div class="relative z-10 flex flex-col items-center">
-            <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass} z-10">
-              ${idx + 1}
-            </div>
-            <div class="mt-2 text-[10px] font-medium ${labelClass} transition-colors truncate w-full text-center">${step.label}</div>
-            ${dateHtml}
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    const pillClass = resolveSelectionStatusPillClass(statusVariant);
-
-    // Main Card HTML
-    return `
-      <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-3 mb-3 hover:shadow-md transition-shadow relative">
-         <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <button onclick="window.navigateToCandidate('${r.candidateId}')" class="text-sm font-bold text-indigo-700 hover:underline flex items-center gap-1">
-                    ${escapeHtml(r.candidateName)} <span class="text-xs font-normal text-slate-500">さん</span>
-                </button>
-                <span class="px-2 py-0.5 rounded text-[10px] font-medium ${pillClass} border">${escapeHtml(statusLabel)}</span>
-            </div>
-            <div class="text-[10px] text-slate-400">ID: ${r.candidateId}</div>
-         </div>
-
-         <!-- Horizontal Flow Chart -->
-         <div class="flex justify-between items-start w-full px-1 overflow-x-auto pb-1">
-            ${flowHtml}
-         </div>
-         
-         ${r.note ? `<div class="mt-2 text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100"><span class="font-bold">Note:</span> ${escapeHtml(r.note)}</div>` : ''}
-      </div>
-    `;
-  }
-
-
-
-  // Retrieve candidates for this company
-  let flowCandidates = getFlowCandidates(company);
-
-  // If no candidates found, and we haven't loaded the global list yet, try loading it.
-  const needLoad = flowCandidates.length === 0 && (!candidateSummaries || candidateSummaries.length === 0) && !candidateSummaryPromise;
-
-  if (needLoad) {
-    loadCandidateSummaries().then(() => {
-      if (selectedCompanyId === company.id) {
-        renderCompanyDetail();
-      }
-    });
-  }
-
-  const isLoading = candidateSummaryPromise && (!candidateSummaries || candidateSummaries.length === 0);
-
-  // Render list
-  const flowListHtml = isLoading
-    ? `<div class="p-8 text-center text-slate-400 text-sm bg-slate-50 rounded-lg"><div class="inline-block w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2"></div>候補者データを読み込み中...</div>`
-    : flowCandidates.length > 0
-      ? flowCandidates.map(c => {
-        // Find the specific progress row for this company or construct one from base data
-        const companyNameNorm = normalizeCompanyName(company.company);
-        const selectionRow = (c.selectionProgress || []).find(sp => normalizeCompanyName(sp.companyName) === companyNameNorm)
-          || { ...c, companyName: company.company };
-
-        // Merge vital info
-        const fullRow = {
-          ...selectionRow,
-          id: c.id,
-          name: c.name,
-          candidateId: c.id,
-          candidateName: c.name,
-          status: selectionRow.status || c.stage || c.phase || c.status
-        };
-        return renderSelectionFlowCard(fullRow);
-      }).join("")
-      : `<div class="p-4 text-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">選考進行中の候補者はいません</div>`;
-
-  const recommendedHtml = '<div class="text-xs text-slate-400">\u5019\u88dc\u8005\u60c5\u5831\u3092\u53d6\u5f97\u4e2d...</div>';
+  // Generate recommended candidates HTML
+  const recommendedHtml = buildRecommendedCandidatesList(company); // Ensure this function is available
 
   detail.innerHTML = `
     <div class="referral-detail-panel">
@@ -2382,8 +2188,8 @@ function renderCompanyDetail() {
           <h2 class="referral-detail-company">${company.company}</h2>
           <div class="referral-detail-meta">担当者: ${contactNameDisplay}</div>
           <div class="referral-detail-tags">
-            <span class="referral-detail-tag">🏢 ${company.industry || '-'}</span>
-            <span class="referral-detail-tag">📍 ${company.location || '-'}</span>
+            <span class="referral-detail-tag">${company.industry || '-'}</span>
+            <span class="referral-detail-tag">${company.location || '-'}</span>
           </div>
         </div>
         <button id="closeCompanyDetail" class="referral-detail-close" title="閉じる">✕</button>
@@ -2394,35 +2200,35 @@ function renderCompanyDetail() {
         <!-- 募集ポジション -->
         <div class="referral-detail-section">
           <div class="referral-detail-section-title">募集ポジション</div>
-          <div style="font-size: 18px; font-weight: 700; color: #1e293b;">${company.highlightPosition || company.jobTitle || '-'}</div>
+          <div class="text-lg font-bold text-slate-800">${company.highlightPosition || company.jobTitle || '-'}</div>
         </div>
 
         <!-- 指標カード -->
         <div class="referral-detail-stats">
           <div class="referral-detail-stat">
             <div class="referral-detail-stat-value">${company.retention || '-'}</div>
-            <div class="referral-detail-stat-label">📊 定着率</div>
+            <div class="referral-detail-stat-label">定着率</div>
           </div>
           <div class="referral-detail-stat">
             <div class="referral-detail-stat-value">${company.leadTime || 0}日</div>
-            <div class="referral-detail-stat-label">⏱️ リードタイム</div>
+            <div class="referral-detail-stat-label">リードタイム</div>
           </div>
           <div class="referral-detail-stat highlight">
             <div class="referral-detail-stat-value">${company.feeDisplay || '-'}</div>
-            <div class="referral-detail-stat-label">💰 合計Fee</div>
+            <div class="referral-detail-stat-label">合計Fee</div>
           </div>
           <div class="referral-detail-stat">
             <div class="referral-detail-stat-value">${formatCurrency(company.refundAmount)}</div>
-            <div class="referral-detail-stat-label">${Number(company.refundAmount) > 0 ? '❌' : '✅'} 返金</div>
+            <div class="referral-detail-stat-label">返金</div>
           </div>
         </div>
 
         <!-- 採用状況 -->
         <div class="referral-detail-section">
           <div class="referral-detail-section-title">採用状況</div>
-          <div class="referral-detail-stats" style="margin-bottom: 0;">
+          <div class="referral-detail-stats !mb-0">
             <div class="referral-detail-stat">
-              <div class="referral-detail-stat-value">${company.planHeadcount}<span style="font-size: 14px; color: #64748b;">名</span></div>
+              <div class="referral-detail-stat-value">${company.planHeadcount}<span class="text-sm font-normal text-slate-400 ml-1">名</span></div>
               <div class="referral-detail-stat-label">採用予定</div>
             </div>
             <div class="referral-detail-stat highlight">
@@ -2430,7 +2236,7 @@ function renderCompanyDetail() {
               <div class="referral-detail-stat-label">内定 / 入社</div>
             </div>
             <div class="referral-detail-stat">
-              <div class="referral-detail-stat-value">${company.remaining}<span style="font-size: 14px; color: #64748b;">名</span></div>
+              <div class="referral-detail-stat-value">${company.remaining}<span class="text-sm font-normal text-slate-400 ml-1">名</span></div>
               <div class="referral-detail-stat-label">残り人数</div>
             </div>
           </div>
@@ -2440,96 +2246,95 @@ function renderCompanyDetail() {
         <div class="referral-detail-section">
           <div class="referral-detail-section-title">企業メモ</div>
           <div class="referral-detail-memo">
-            <div style="font-weight: 600; margin-bottom: 8px;">${buildAIInsight(company)}</div>
-            <div>${buildAgencyInsight(company)}</div>
+            <div class="font-semibold mb-2">${buildAIInsight(company)}</div>
+            <div class="text-sm">${buildAgencyInsight(company)}</div>
           </div>
         </div>
 
         <!-- 募集・選考の進捗 -->
         <div class="referral-detail-section">
           <div class="referral-detail-section-title">募集・選考の進捗</div>
-          <div style="background: #f8fafc; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0;">
+          <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
             ${flowListHtml}
           </div>
         </div>
 
         <!-- 求人情報 -->
         <div class="referral-detail-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div class="referral-detail-section-title" style="margin-bottom: 0;">求人情報</div>
+          <div class="flex justify-between items-center mb-4">
+            <div class="referral-detail-section-title !mb-0 !border-0 !pb-0">求人情報</div>
             ${editActions}
           </div>
           <div class="referral-detail-grid">
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">👥 欲しい人材</div>
+              <div class="referral-detail-card-title">欲しい人材</div>
               <div class="referral-detail-card-content">${desiredContent}</div>
             </div>
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">📋 選考メモ</div>
+              <div class="referral-detail-card-title">選考メモ</div>
               <div class="referral-detail-card-content">${memoContent}</div>
             </div>
           </div>
         </div>
 
-
-
         <!-- 担当者情報 -->
         <div class="referral-detail-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div class="referral-detail-section-title" style="margin-bottom: 0;">担当者情報</div>
-            <button id="contactInfoEditBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">編集</button>
+          <div class="flex justify-between items-center mb-4">
+            <div class="referral-detail-section-title !mb-0 !border-0 !pb-0">担当者情報</div>
+            <button id="contactInfoEditBtn" class="referral-secondary-btn text-xs px-2 py-1">編集</button>
           </div>
           <div class="referral-detail-grid">
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">👤 担当者名</div>
-              <div id="contactNameDisplay" class="referral-detail-card-content">${contactNameDisplay}</div>
-              <input id="contactNameInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px;" placeholder="担当者名を入力" value="${company.contactName || ''}">
+              <div class="referral-detail-card-title">担当者名</div>
+              <div id="contactNameDisplay" class="referral-detail-card-content font-medium text-slate-800">${contactNameDisplay}</div>
+              <input id="contactNameInput" style="display: none;" class="referral-input text-sm w-full mt-2" placeholder="担当者名を入力" value="${company.contactName || ''}">
             </div>
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">✉️ メールアドレス</div>
+              <div class="referral-detail-card-title">メールアドレス</div>
               <div id="contactEmailDisplay" class="referral-detail-card-content">${contactEmailHtml}</div>
-              <input id="contactEmailInput" type="email" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px;" placeholder="example@company.com" value="${company.contactEmail || ''}">
+              <input id="contactEmailInput" type="email" style="display: none;" class="referral-input text-sm w-full mt-2" placeholder="example@company.com" value="${company.contactEmail || ''}">
             </div>
           </div>
           <div id="contactInfoEditActions" style="display: none; margin-top: 12px; justify-content: flex-end; gap: 8px;">
-            <button id="contactInfoCancelBtn" style="padding: 6px 12px; font-size: 12px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">キャンセル</button>
-            <button id="contactInfoSaveBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">保存</button>
+            <button id="contactInfoCancelBtn" class="referral-secondary-btn text-xs px-3 py-1.5">キャンセル</button>
+            <button id="contactInfoSaveBtn" class="referral-primary-btn text-xs px-3 py-1.5">保存</button>
           </div>
         </div>
 
         <!-- 契約情報 -->
         <div class="referral-detail-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div class="referral-detail-section-title" style="margin-bottom: 0;">契約情報</div>
-            <button id="contractInfoEditBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">📝 編集</button>
+          <div class="flex justify-between items-center mb-4">
+            <div class="referral-detail-section-title !mb-0 !border-0 !pb-0">契約情報</div>
+            <button id="contractInfoEditBtn" class="referral-secondary-btn text-xs px-2 py-1">編集</button>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div class="referral-detail-grid">
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">⏰ 返金保証期間</div>
-              <div id="warrantyPeriodDisplay" class="referral-detail-card-content">${company.warrantyPeriod ? `${company.warrantyPeriod}日` : '-'}</div>
-              <textarea id="warrantyPeriodInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="例: 90日">${company.warrantyPeriod || ''}</textarea>
+              <div class="referral-detail-card-title">返金保証期間</div>
+              <div id="warrantyPeriodDisplay" class="referral-detail-card-content font-medium text-slate-800">${company.warrantyPeriod || '-'}</div>
+              <input id="warrantyPeriodInput" style="display: none;" class="referral-input text-sm w-full mt-2" placeholder="例：3ヶ月" value="${company.warrantyPeriod || ''}">
             </div>
             <div class="referral-detail-card">
-              <div class="referral-detail-card-title">💰 Fee契約内容</div>
-              <div id="feeContractDisplay" class="referral-detail-card-content" style="white-space: pre-wrap;">${feeDetailsDisplay || '-'}</div>
-              <textarea id="feeContractInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="Fee契約の詳細">${company.feeDetails || company.feeContract || ''}</textarea>
+              <div class="referral-detail-card-title">Fee契約詳細</div>
+              <div id="feeContractDisplay" class="referral-detail-card-content">${feeDetailsDisplay || '-'}</div>
+              <input id="feeContractInput" style="display: none;" class="referral-input text-sm w-full mt-2" placeholder="詳細を入力" value="${feeDetailsDisplay || ''}">
             </div>
-            <div class="referral-detail-card">
-              <div class="referral-detail-card-title">📌 その他</div>
-              <div id="contractNotesDisplay" class="referral-detail-card-content" style="white-space: pre-wrap;">${contractNoteDisplay || '-'}</div>
-              <textarea id="contractNotesInput" style="display: none; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px; min-height: 60px;" placeholder="その他メモ">${company.contractNote || company.contractNotes || ''}</textarea>
+            <div class="referral-detail-card" style="grid-column: span 2;">
+              <div class="referral-detail-card-title">その他メモ</div>
+              <div id="contractNotesDisplay" class="referral-detail-card-content whitespace-pre-wrap">${contractNoteDisplay || '-'}</div>
+              <textarea id="contractNotesInput" style="display: none;" class="referral-input text-sm w-full mt-2" rows="3" placeholder="メモを入力">${contractNoteDisplay || ''}</textarea>
             </div>
           </div>
           <div id="contractInfoEditActions" style="display: none; margin-top: 12px; justify-content: flex-end; gap: 8px;">
-            <button id="contractInfoCancelBtn" style="padding: 6px 12px; font-size: 12px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">キャンセル</button>
-            <button id="contractInfoSaveBtn" style="padding: 6px 12px; font-size: 12px; background: #0077c7; color: white; border: none; border-radius: 6px; cursor: pointer;">保存</button>
+            <button id="contractInfoCancelBtn" class="referral-secondary-btn text-xs px-3 py-1.5">キャンセル</button>
+            <button id="contractInfoSaveBtn" class="referral-primary-btn text-xs px-3 py-1.5">保存</button>
           </div>
         </div>
 
+
         <!-- AIマッチング候補者 -->
         <div class="referral-detail-section">
-          <div class="referral-detail-section-title">🤖 AIマッチング候補者 (Top 3)</div>
-          <div id="referralRecommendedCandidates" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div class="referral-detail-section-title">AIマッチング候補者 (Top 3)</div>
+          <div id="referralRecommendedCandidates" class="referral-detail-grid !grid-cols-3">
             ${recommendedHtml}
           </div>
         </div>
@@ -2623,29 +2428,29 @@ function attachContractInfoEditHandlers(company) {
 
   editBtn.addEventListener('click', () => {
     // Show edit mode
-    document.getElementById('warrantyPeriodDisplay').classList.add('hidden');
-    document.getElementById('warrantyPeriodInput').classList.remove('hidden');
-    document.getElementById('feeContractDisplay').classList.add('hidden');
-    document.getElementById('feeContractInput').classList.remove('hidden');
-    document.getElementById('contractNotesDisplay').classList.add('hidden');
-    document.getElementById('contractNotesInput').classList.remove('hidden');
+    document.getElementById('warrantyPeriodDisplay').style.display = 'none';
+    document.getElementById('warrantyPeriodInput').style.display = 'block';
+    document.getElementById('feeContractDisplay').style.display = 'none';
+    document.getElementById('feeContractInput').style.display = 'block';
+    document.getElementById('contractNotesDisplay').style.display = 'none';
+    document.getElementById('contractNotesInput').style.display = 'block';
 
-    editBtn.classList.add('hidden');
-    editActions.classList.remove('hidden');
+    editBtn.style.display = 'none';
+    editActions.style.display = 'flex';
   });
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
       // Cancel edit mode
-      document.getElementById('warrantyPeriodDisplay').classList.remove('hidden');
-      document.getElementById('warrantyPeriodInput').classList.add('hidden');
-      document.getElementById('feeContractDisplay').classList.remove('hidden');
-      document.getElementById('feeContractInput').classList.add('hidden');
-      document.getElementById('contractNotesDisplay').classList.remove('hidden');
-      document.getElementById('contractNotesInput').classList.add('hidden');
+      document.getElementById('warrantyPeriodDisplay').style.display = 'block';
+      document.getElementById('warrantyPeriodInput').style.display = 'none';
+      document.getElementById('feeContractDisplay').style.display = 'block';
+      document.getElementById('feeContractInput').style.display = 'none';
+      document.getElementById('contractNotesDisplay').style.display = 'block';
+      document.getElementById('contractNotesInput').style.display = 'none';
 
-      editBtn.classList.remove('hidden');
-      editActions.classList.add('hidden');
+      editBtn.style.display = 'block';
+      editActions.style.display = 'none';
 
       // Reset values
       renderCompanyDetail();
@@ -2675,21 +2480,19 @@ function attachContractInfoEditHandlers(company) {
         });
 
         // Exit edit mode and refresh display
-        document.getElementById('warrantyPeriodDisplay').classList.remove('hidden');
-        document.getElementById('warrantyPeriodInput').classList.add('hidden');
-        document.getElementById('feeContractDisplay').classList.remove('hidden');
-        document.getElementById('feeContractInput').classList.add('hidden');
-        document.getElementById('contractNotesDisplay').classList.remove('hidden');
-        document.getElementById('contractNotesInput').classList.add('hidden');
+        document.getElementById('warrantyPeriodDisplay').style.display = 'block';
+        document.getElementById('warrantyPeriodInput').style.display = 'none';
+        document.getElementById('feeContractDisplay').style.display = 'block';
+        document.getElementById('feeContractInput').style.display = 'none';
+        document.getElementById('contractNotesDisplay').style.display = 'block';
+        document.getElementById('contractNotesInput').style.display = 'none';
 
-        editBtn.classList.remove('hidden');
-        editActions.classList.add('hidden');
+        editBtn.style.display = 'block';
+        editActions.style.display = 'none';
 
         // Refresh the detail view
         renderCompanyDetail();
         renderTable();
-
-        alert('契約情報を保存しました');
       } catch (error) {
         console.error('Failed to save contract info:', error);
         alert('保存に失敗しました');
@@ -2707,24 +2510,24 @@ function attachContactInfoEditHandlers(company) {
   if (!editBtn) return;
 
   editBtn.addEventListener('click', () => {
-    document.getElementById('contactNameDisplay').classList.add('hidden');
-    document.getElementById('contactNameInput').classList.remove('hidden');
-    document.getElementById('contactEmailDisplay').classList.add('hidden');
-    document.getElementById('contactEmailInput').classList.remove('hidden');
+    document.getElementById('contactNameDisplay').style.display = 'none';
+    document.getElementById('contactNameInput').style.display = 'block';
+    document.getElementById('contactEmailDisplay').style.display = 'none';
+    document.getElementById('contactEmailInput').style.display = 'block';
 
-    editBtn.classList.add('hidden');
-    editActions.classList.remove('hidden');
+    editBtn.style.display = 'none';
+    editActions.style.display = 'flex';
   });
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
-      document.getElementById('contactNameDisplay').classList.remove('hidden');
-      document.getElementById('contactNameInput').classList.add('hidden');
-      document.getElementById('contactEmailDisplay').classList.remove('hidden');
-      document.getElementById('contactEmailInput').classList.add('hidden');
+      document.getElementById('contactNameDisplay').style.display = 'block';
+      document.getElementById('contactNameInput').style.display = 'none';
+      document.getElementById('contactEmailDisplay').style.display = 'block';
+      document.getElementById('contactEmailInput').style.display = 'none';
 
-      editBtn.classList.remove('hidden');
-      editActions.classList.add('hidden');
+      editBtn.style.display = 'block';
+      editActions.style.display = 'none';
 
       renderCompanyDetail();
     });
@@ -2748,18 +2551,17 @@ function attachContactInfoEditHandlers(company) {
           contact: contactName || contactEmail || '-'
         });
 
-        document.getElementById('contactNameDisplay').classList.remove('hidden');
-        document.getElementById('contactNameInput').classList.add('hidden');
-        document.getElementById('contactEmailDisplay').classList.remove('hidden');
-        document.getElementById('contactEmailInput').classList.add('hidden');
+        document.getElementById('contactNameDisplay').style.display = 'block';
+        document.getElementById('contactNameInput').style.display = 'none';
+        document.getElementById('contactEmailDisplay').style.display = 'block';
+        document.getElementById('contactEmailInput').style.display = 'none';
 
-        editBtn.classList.remove('hidden');
-        editActions.classList.add('hidden');
+        editBtn.style.display = 'block';
+        editActions.style.display = 'none';
 
         renderCompanyDetail();
         renderTable();
 
-        alert('担当者情報を保存しました');
       } catch (error) {
         console.error('Failed to save contact info:', error);
         alert('保存に失敗しました');
@@ -3386,6 +3188,8 @@ async function handleCreateSubmit() {
 
     detailEditMode = false;
 
+    updateJobFilterOptions();
+
     applyFilters();
 
     resetCreateForm(false);
@@ -3552,6 +3356,10 @@ function updatePaginationInfo() {
   if (pageInfo) {
     pageInfo.textContent = `${currentPage} / ${total}`;
   }
+  const prevBtn = document.getElementById('referralPrevBtn');
+  const nextBtn = document.getElementById('referralNextBtn');
+  if (prevBtn) prevBtn.disabled = currentPage <= 1;
+  if (nextBtn) nextBtn.disabled = currentPage >= total;
 
 }
 
@@ -3812,6 +3620,7 @@ export async function mount(appElement) {
 
     updateUI();
 
+    initializeSort();
     attachFilters();
     attachPagination();
 
@@ -3873,4 +3682,80 @@ function attachFilters() {
       updateUI();
     });
   }
+}
+
+// ==========================================
+// 補助関数: 選考フロー可視化 & AIマッチング
+// ==========================================
+
+function buildHorizontalSteps(flowCandidates) {
+  if (!flowCandidates || flowCandidates.length === 0) {
+    return `<div class="p-4 text-center text-slate-400 text-sm">進行中の選考はありません</div>`;
+  }
+
+  return flowCandidates.map(candidate => {
+    const status = candidate.status || candidate.selectionStatus || '';
+
+    const steps = [
+      { label: '推薦', reached: true },
+      { label: '書類', reached: status.includes('書類') || status.includes('面接') || status.includes('内定') || status.includes('入社') },
+      { label: '一次', reached: status.includes('一次') || status.includes('二次') || status.includes('最終') || status.includes('内定') || status.includes('入社') },
+      { label: '二次', reached: status.includes('二次') || status.includes('最終') || status.includes('内定') || status.includes('入社') },
+      { label: '最終', reached: status.includes('最終') || status.includes('内定') || status.includes('入社') },
+      { label: '内定', reached: status.includes('内定') || status.includes('入社') },
+      { label: '入社', reached: status.includes('入社') }
+    ];
+
+    let activeIndex = 0;
+    if (status.includes('書類')) activeIndex = 1;
+    if (status.includes('一次')) activeIndex = 2;
+    if (status.includes('二次')) activeIndex = 3;
+    if (status.includes('最終')) activeIndex = 4;
+    if (status.includes('内定')) activeIndex = 5;
+    if (status.includes('入社')) activeIndex = 6;
+
+    const stepsHtml = steps.map((step, idx) => {
+      const isCompleted = idx <= activeIndex;
+      const isCurrent = idx === activeIndex;
+
+      let circleClass = "bg-slate-200 text-slate-400";
+      let barClass = "bg-slate-200";
+
+      if (isCompleted) {
+        circleClass = isCurrent ? "bg-indigo-600 text-white ring-2 ring-indigo-200" : "bg-indigo-600 text-white";
+        barClass = "bg-indigo-600";
+      }
+
+      const barHtml = idx < steps.length - 1
+        ? `<div class="absolute top-1/2 left-1/2 w-full h-0.5 -translate-y-1/2 -z-10 ${barClass}"></div>`
+        : '';
+
+      return `
+        <div class="relative flex-1 flex flex-col items-center group">
+           ${barHtml}
+           <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold z-10 ${circleClass}">
+             ${idx + 1}
+           </div>
+           <div class="mt-1 text-[10px] font-medium ${isCompleted ? 'text-indigo-800' : 'text-slate-400'}">${step.label}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="bg-white border border-slate-100 rounded-lg p-3 mb-3 last:mb-0 shadow-sm">
+        <div class="flex justify-between items-center mb-2">
+            <div class="font-bold text-sm text-slate-700">${candidate.candidateName || '候補者名不明'}</div>
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${status || 'ステータス不明'}</span>
+        </div>
+        <div class="flex items-center justify-between relative">
+            ${stepsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function buildRecommendedCandidatesList(company) {
+  // プレースホルダー実装（実際のAIマッチングロジックに置き換え予定）
+  return `<div class="col-span-3 text-center text-sm text-slate-400 py-6">マッチング候補者なし</div>`;
 }
