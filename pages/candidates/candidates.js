@@ -1076,7 +1076,8 @@ async function loadScreeningRulesForCandidates() {
   screeningRulesLoading = true;
   try {
     let response = await fetch(SCREENING_RULES_ENDPOINT);
-    if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
+    // 互換フォールバックは route 未作成(404)時のみ実施する
+    if (response.status === 404 && SCREENING_RULES_FALLBACK_ENDPOINT) {
       response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT);
     }
     if (!response.ok) {

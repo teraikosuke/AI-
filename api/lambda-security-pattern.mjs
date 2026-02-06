@@ -79,32 +79,33 @@ const pool = new Pool({
 });
 
 // =============================================================================
-// CORS設定 (環境変数から取得)
+// CORS設定 (コード固定 + 環境変数で任意追加)
 // =============================================================================
 
 /**
  * 許可するオリジンのセットを構築
- * 環境変数 CORS_ALLOWED_ORIGINS からカンマ区切りで取得
+ * - コード側既定値は常に有効
+ * - 環境変数(ALLOWED_ORIGINS / CORS_ALLOWED_ORIGINS)は追加分としてマージ
  */
 function buildAllowedOrigins() {
-    const envOrigins = process.env.CORS_ALLOWED_ORIGINS || "";
-    const defaultOrigins = ["http://localhost:8000", "http://localhost:8001"];
+    const codeDefaults = [
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:3000",
+        "https://develop.agent-key.pages.dev",
+        "https://agent-key.pages.dev",
+    ];
 
-    if (!envOrigins.trim()) {
-        // 本番環境で未設定の場合は警告
-        if (process.env.NODE_ENV === "production") {
-            console.warn("CORS_ALLOWED_ORIGINS is not set. Using restrictive default.");
-            return new Set(); // 本番では空セット（オリジン拒否）
-        }
-        return new Set(defaultOrigins);
-    }
+    const envOriginsRaw = [process.env.ALLOWED_ORIGINS || "", process.env.CORS_ALLOWED_ORIGINS || ""]
+        .filter(Boolean)
+        .join(",");
 
-    const origins = envOrigins
+    const envOrigins = envOriginsRaw
         .split(",")
         .map((o) => o.trim())
         .filter((o) => o.length > 0);
 
-    return new Set(origins);
+    return new Set([...codeDefaults, ...envOrigins]);
 }
 
 const ALLOWED_ORIGINS = buildAllowedOrigins();
