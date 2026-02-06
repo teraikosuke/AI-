@@ -12,7 +12,7 @@ const routes = {
   login: () => import("../pages/login/login.js"),
   mypage: () => import("../pages/mypage/mypage.js?v=20260206_01"),
   members: () => import("../pages/members/members.js"),
-  yield: () => import("../pages/yield/yield.js?v=20260203_14"),
+  yield: () => import("../pages/yield/yield.js?v=20260206_02"),
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
   "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260203_01"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260203_01"),
