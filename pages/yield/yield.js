@@ -1733,6 +1733,14 @@ export async function mount(root) {
   safe('initializeRateModeControls', initializeRateModeControls);
   safe('initializeMsRateToggles', initializeMsRateToggles);
   safe('loadYieldData', loadYieldData);
+
+  // Force load CSS with cache buster
+  if (typeof document !== 'undefined') {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = './pages/yield/yield.css?v=20260205_140149';
+    document.head.appendChild(link);
+  }
 }
 
 export function unmount() { }
@@ -3133,9 +3141,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       const isImportant = !isRevenue && importantMetricKey && metricKey === importantMetricKey;
       const highlightClass = isImportant ? 'ms-important-row' : '';
 
-      const distributeButton = isRevenue
-        ? ''
-        : `<button type="button" class="ms-distribute-btn" data-ms-distribute data-scope="personalDaily" data-dept="${dept}" data-metric="${metricKey}">日割り</button>`;
+      const distributeButton = `<button type="button" class="ms-distribute-btn" data-ms-distribute data-scope="personalDaily" data-dept="${dept}" data-metric="${metricKey}">日割り</button>`;
       const metricCell = `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="${isRevenue ? 2 : 3}">
            <div class="ms-metric-cell">
              <span>${metricLabel}</span>
@@ -3280,6 +3286,16 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       }
       const finalDeptCell = isRevenue ? deptCell : '';
       const finalMetricCell = isRevenue ? metricCell : '';
+      if (isRevenue) {
+        rows.push(`
+          <tr class="${tripletAlt} ${highlightClass}">
+            ${finalDeptCell}
+            ${finalMetricCell}
+            <td class="daily-type">MS</td>
+            ${msCells}
+          </tr>
+        `);
+      }
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
           ${finalDeptCell}
@@ -3667,6 +3683,19 @@ function sumTargetValues(targets = {}) {
   return Object.values(targets).reduce((sum, value) => sum + num(value), 0);
 }
 
+function getLastCumulativeTargetForCompany(dates, targets = {}, deptKey) {
+  let last = 0;
+  dates.forEach(date => {
+    const disabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
+    if (disabled) return;
+    const value = targets?.[date];
+    if (value !== undefined && value !== null && value !== '') {
+      last = num(value);
+    }
+  });
+  return last;
+}
+
 function getCompanyMsTargetMap(deptKey, metricKey) {
   return state.companyMs.msTargets?.[deptKey]?.[metricKey] || {};
 }
@@ -3675,9 +3704,10 @@ async function persistCompanyMsTargets(deptKey, metricKey) {
   const periodId = state.companyMsPeriodId;
   if (!periodId || !deptKey || !metricKey) return;
   const dailyTargets = getCompanyMsTargetMap(deptKey, metricKey);
+  const dates = state.companyMs.dates || [];
   const targetTotal =
     state.companyMs.msTargetTotals?.[deptKey]?.[metricKey] ??
-    sumTargetValues(dailyTargets);
+    (dates.length ? getLastCumulativeTargetForCompany(dates, dailyTargets, deptKey) : sumTargetValues(dailyTargets));
   try {
     await goalSettingsService.saveMsTargets({
       scope: 'company',
@@ -3733,7 +3763,10 @@ function handleMsTargetInput(event) {
   state.companyMs.msTargets[dept][metric][date] = value;
   if (!state.companyMs.msTargetTotals) state.companyMs.msTargetTotals = {};
   if (!state.companyMs.msTargetTotals[dept]) state.companyMs.msTargetTotals[dept] = {};
-  state.companyMs.msTargetTotals[dept][metric] = sumTargetValues(state.companyMs.msTargets[dept][metric]);
+  const dates = state.companyMs.dates || [];
+  state.companyMs.msTargetTotals[dept][metric] = dates.length
+    ? getLastCumulativeTargetForCompany(dates, state.companyMs.msTargets[dept][metric], dept)
+    : sumTargetValues(state.companyMs.msTargets[dept][metric]);
 
   // 進捗率は全体に影響するため再描画
   renderCompanyMsTable();
@@ -3745,13 +3778,13 @@ function distributeMsTargets(totalTarget, dates, deptKey, periodId) {
     const disabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
     return !disabled;
   });
-  const perDay = buildDailyTargetsFromTotal(totalTarget, activeDates.length);
+  const cumulative = buildCumulativeSeries(totalTarget, activeDates.length);
   const map = {};
   let activeIndex = 0;
   dates.forEach(date => {
     const disabled = isDateBeforeDeptStart(date, deptKey) || isDateAfterDeptEnd(date, deptKey);
     if (disabled) return;
-    map[date] = perDay[activeIndex] ?? 0;
+    map[date] = cumulative[activeIndex] ?? 0;
     activeIndex += 1;
   });
   return map;
@@ -3763,7 +3796,9 @@ function handleCompanyMsDistribute(event) {
   const metricKey = button.dataset.metric;
   const periodId = state.companyMsPeriodId;
   if (!deptKey || !metricKey || !periodId) return;
-  const currentTotal = state.companyMs.msTargetTotals?.[deptKey]?.[metricKey] ?? sumTargetValues(getCompanyMsTargetMap(deptKey, metricKey));
+  const dates = state.companyMs.dates || [];
+  const currentTotal = state.companyMs.msTargetTotals?.[deptKey]?.[metricKey]
+    ?? (dates.length ? getLastCumulativeTargetForCompany(dates, getCompanyMsTargetMap(deptKey, metricKey), deptKey) : sumTargetValues(getCompanyMsTargetMap(deptKey, metricKey)));
   const input = prompt('最終目標値を入力してください', currentTotal ? String(currentTotal) : '');
   if (input === null) return;
   const total = Number(input);
@@ -3904,17 +3939,17 @@ function renderCompanyMsTable() {
          </th>`;
 
     const targetMap = state.companyMs.msTargets?.[dept.key]?.[metricKey] || {};
-    const dailyTargets = [];
+    const cumulativeTargets = [];
     const dailyActuals = [];
     dates.forEach(date => {
       const isDisabled = isDateBeforeDeptStart(date, dept.key) || isDateAfterDeptEnd(date, dept.key);
       if (isDisabled) {
-        dailyTargets.push(null);
+        cumulativeTargets.push(null);
         dailyActuals.push(null);
         return;
       }
       const savedMs = targetMap?.[date];
-      dailyTargets.push(savedMs !== undefined && savedMs !== null ? num(savedMs) : null);
+      cumulativeTargets.push(savedMs !== undefined && savedMs !== null ? num(savedMs) : null);
       const dailyCount = isRevenue
         ? getDailyMetricValue(state.companyMs.dailyTotals?.[date], null, 'revenue')
         : getDailyMetricValue(state.companyMs.dailyTotals?.[date], metricOption, metricKey || '');
@@ -3924,12 +3959,12 @@ function renderCompanyMsTable() {
     const cumulativeActuals = buildCumulativeFromDaily(dailyActuals.map(value => (value === null ? 0 : value)));
     const totalTarget = Number.isFinite(state.companyMs.msTargetTotals?.[dept.key]?.[metricKey])
       ? num(state.companyMs.msTargetTotals?.[dept.key]?.[metricKey])
-      : dailyTargets.reduce((sum, value) => sum + (Number.isFinite(value) ? num(value) : 0), 0);
+      : getLastCumulativeTargetForCompany(dates, targetMap, dept.key);
 
     const msCells = dates.map((date, idx) => {
       const isDisabled = isDateBeforeDeptStart(date, dept.key) || isDateAfterDeptEnd(date, dept.key);
       if (isDisabled) return `<td class="ms-cell-disabled"></td>`;
-      const savedMs = dailyTargets[idx];
+      const savedMs = cumulativeTargets[idx];
       const displayValue = Number.isFinite(savedMs) ? savedMs : '';
       return `
         <td class="ms-target-cell">
@@ -3947,14 +3982,10 @@ function renderCompanyMsTable() {
       const isDisabled = isDateBeforeDeptStart(date, dept.key) || isDateAfterDeptEnd(date, dept.key);
       if (isDisabled) return `<td class="ms-cell-disabled"></td>`;
 
-      const dailyTarget = dailyTargets[idx];
-      const dailyActual = dailyActuals[idx] ?? 0;
       const cumulativeActual = cumulativeActuals[idx] ?? 0;
-
-      // 進捗率: デフォルトは「毎日」。全体は累計/期間合計
-      const useOverall = state.msRateModes?.companyMs === 'overall';
-      const numerator = useOverall ? cumulativeActual : dailyActual;
-      const denominator = useOverall ? totalTarget : dailyTarget;
+      const cumulativeTarget = cumulativeTargets[idx] ?? 0;
+      const numerator = cumulativeActual;
+      const denominator = cumulativeTarget;
 
       let rateDisplay = '-';
       let rateClass = '';

@@ -1058,17 +1058,6 @@
   max-height: 340px;
 }
 
-/* セクション外枠（タブと対応する領域） */
-[data-page="teleapo"] #teleapoSectionKpi,
-[data-page="teleapo"] #teleapoSectionEmployees,
-[data-page="teleapo"] #teleapoSectionHeatmap,
-[data-page="teleapo"] #teleapoSectionLogForm {
-  background-color: #f9fafb;
-  border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-  padding: 0.85rem 0.85rem;
-}
-
 /* KPIセクションは少し青みの背景 */
 [data-page="teleapo"] #teleapoSectionKpi {
   background-color: #eff6ff;
@@ -1151,12 +1140,12 @@
 
 [data-page="teleapo"] .teleapo-panel,
 [data-page="teleapo"] .teleapo-form-card {
-  margin-top: 0.75rem;
-  border: 1px solid #c7d2fe;
-  border-left: 4px solid #818cf8;
-  border-radius: 0.75rem;
-  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 50%, #f8fafc 100%);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  margin-top: 0;
+  border: none;
+  border-left: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 [data-page="teleapo"] #teleapoSectionLogs {

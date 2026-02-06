@@ -16,11 +16,11 @@ const routes = {
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
   "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260203_01"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260203_01"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260203_76"),
-  "candidate-detail": () => import("../pages/candidate-detail/candidate-detail.js?v=20260203_02"),
-  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_13"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260205_01"),
+  "candidate-detail": () => import("../pages/candidate-detail/candidate-detail.js?v=20260205_01"),
+  "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_14"),
   teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_22"),
-  referral: () => import("../pages/referral/referral.js?v=20260322_56"),
+  referral: () => import("../pages/referral/referral.js?v=20260205_04"),
   settings: () => import("../pages/settings/settings.js?v=20260322_01"),
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
@@ -144,9 +144,13 @@ export async function navigate(to) {
 
   // ハッシュからクエリパラメータを分離
   const hashPart = location.hash.replace(/^#\/?/, "");
-  const [pathPart] = hashPart.split("?");
+  const [pathPart, hashQueryRaw] = hashPart.split("?");
+  const hashQuery = hashQueryRaw ? `?${hashQueryRaw}` : "";
   const segments = pathPart.split("/").filter(Boolean);
-  const rawPage = to || segments[0] || "candidates";
+  const toValue = to ? String(to) : "";
+  const [toPath, toQueryRaw] = toValue.split("?");
+  const rawPage = toPath || segments[0] || "candidates";
+  const toQuery = toQueryRaw ? `?${toQueryRaw}` : "";
 
   // ルーターガード（beforeNavigate）で実際に表示すべきページを決定
   const guardedPage = beforeNavigate(rawPage);
@@ -158,6 +162,7 @@ export async function navigate(to) {
   }
 
   const page = guardedPage;
+  const queryPart = guardedPage === rawPage ? (toQuery || (rawPage === segments[0] ? hashQuery : "")) : "";
 
   // Unmount current page
   if (current?.unmount) {
@@ -194,7 +199,7 @@ export async function navigate(to) {
     updatePageTitle(page);
 
     // Update URL
-    history.replaceState({}, "", `#/${page}`);
+    history.replaceState({}, "", `#/${page}${queryPart}`);
 
     // Update navigation state
     updateNavigation(page);

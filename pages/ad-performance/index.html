@@ -65,10 +65,11 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 20px;
-    padding: 16px 20px;
-    background: #ffffff;
-    border-radius: 10px;
-    margin-bottom: 24px;
+    padding: 16px 0;
+    /* 背景がないため左右パディング削除 */
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
   .ad-filter-group {
@@ -86,17 +87,20 @@
 
   .ad-filter-input {
     padding: 10px 14px;
-    border: none;
+    border: 1px solid #e2e8f0;
+    /* 枠線追加 */
     border-radius: 8px;
     font-size: 14px;
-    background: #f1f5f9;
+    background: #ffffff;
+    /* 背景白 */
     color: #334155;
     transition: all 0.15s;
   }
 
   .ad-filter-input:focus {
     outline: none;
-    background: #e2e8f0;
+    border-color: #0077c7;
+    background: #ffffff;
   }
 
   .ad-filter-btn {
@@ -439,7 +443,6 @@
       <input id="adEndDate" type="month" class="ad-filter-input" style="width: 140px;" />
     </div>
     <div class="ad-filter-group" style="margin-left: auto;">
-      <button id="adDateClear" class="ad-filter-btn">クリア</button>
       <button id="adResetFilter" class="ad-filter-btn">リセット</button>
       <button id="exportAdManagement" class="ad-filter-btn" style="background: #0077c7; color: white;">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
@@ -493,8 +496,8 @@
           <canvas id="adMainBarChartCanvas"></canvas>
         </div>
         <!-- 円グラフ -->
-        <div id="adMainPieChartContainer" class="ad-pie-section hidden">
-          <h5 class="ad-pie-title">媒体別ROAS構成比</h5>
+        <div id="adMainPieChartContainer" class="ad-pie-section">
+          <h5 class="ad-pie-title">媒体別構成比</h5>
           <div class="ad-pie-container">
             <canvas id="adMainPieChartCanvas"></canvas>
           </div>

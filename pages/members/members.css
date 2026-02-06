@@ -4,6 +4,13 @@
   gap: 24px;
 }
 
+/* Page Title Override for Members Page */
+/* Applying full-width divider to the global header */
+.page-header {
+  border-bottom: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+
 .members-section {
   background: var(--app-surface-elevated);
   border: 1px solid var(--app-border);
@@ -17,7 +24,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
   flex-wrap: wrap;
 }
 
@@ -27,6 +36,8 @@
   color: #64748b;
   text-transform: uppercase;
   margin: 0 0 4px 0;
+  display: none;
+  /* Hiding eyebrow to clean up header as requested */
 }
 
 .members-section__title {
@@ -51,7 +62,8 @@
 .members-tabs {
   display: flex;
   gap: 8px;
-  margin: 8px 0 16px;
+  margin: 0 0 32px;
+  /* Increased from 28px to 32px for more space */
   flex-wrap: wrap;
 }
 
@@ -144,8 +156,8 @@
 }
 
 .members-table-wrap {
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   background: #ffffff;
 }
@@ -158,23 +170,33 @@
 
 .members-table th {
   text-align: left;
-  padding: 12px 16px;
-  background: #f8fafc;
-  color: #64748b;
+  padding: 16px 24px;
+  /* Increased padding */
+  background: #f9fafb;
+  color: #374151;
+  /* Darker gray */
   font-size: 12px;
+  font-weight: 700;
+  /* Bolder */
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
+  border-left: none !important;
+  border-right: none !important;
 }
 
 .members-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  color: #0f172a;
+  padding: 16px 24px;
+  /* Increased padding */
+  border-bottom: 1px solid #e5e7eb;
+  border-left: none !important;
+  border-right: none !important;
+  color: #1f2937;
+  font-size: 14px;
 }
 
 .members-table tbody tr:hover {
-  background: #f8fafc;
+  background: #f9fafb;
 }
 
 .members-name {
@@ -187,8 +209,10 @@
 .members-admin-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #92400e;
-  background: #fef3c7;
+  color: #1f2937;
+  /* Dark gray text */
+  background: #f3f4f6;
+  /* Pastel gray bg */
   border-radius: 999px;
   padding: 2px 8px;
 }
@@ -199,25 +223,25 @@
   justify-content: center;
   padding: 4px 12px;
   border-radius: var(--app-radius-full);
-  font-size: var(--app-font-size-xs);
-  font-weight: var(--app-font-weight-bold);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .members-role--advisor {
-  background: var(--app-primary-light);
-  color: var(--app-primary);
+  background: #e0e7ff;
+  color: #3730a3;
 }
 
 .members-role--caller {
-  background: var(--app-success-light);
-  color: var(--app-success);
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .members-role--marketing {
-  background: var(--app-warning-light);
-  color: var(--app-warning);
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .members-actions {
@@ -226,19 +250,21 @@
 }
 
 .members-action {
-  border: 1px solid #cbd5f5;
-  border-radius: 999px;
-  padding: 0.35rem 1.1rem;
+  border: 1px solid #e5e7eb;
+  /* Thin gray border */
+  border-radius: 6px;
+  padding: 6px 14px;
   font-size: 12px;
-  font-weight: 700;
-  color: #1d4ed8;
+  font-weight: 500;
+  color: #374151;
   background-color: #ffffff;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .members-action:hover {
-  background-color: #eef2ff;
+  background-color: #f9fafb;
+  border-color: #9ca3af;
 }
 
 .members-action--danger {

@@ -1,457 +1,5 @@
-﻿<style>
-  /* Make all table headers sticky */
-  #referralTable thead th {
-    position: sticky !important;
-    top: 0 !important;
-    background: #f8fafc !important;
-    z-index: 20 !important;
-  }
+﻿<link rel="stylesheet" href="pages/referral/referral.css">
 
-  /* First column (company name) should be sticky both vertically and horizontally */
-  #referralTable thead th:first-child {
-    position: sticky !important;
-    left: 0 !important;
-    top: 0 !important;
-    background: #f8fafc !important;
-    z-index: 60 !important;
-  }
-
-  #referralTable .sticky-col {
-    position: sticky;
-    left: 0;
-    background: white;
-    z-index: 10;
-  }
-
-  #referralTable thead th.is-sorted {
-    background: #eef2ff;
-    color: #4338ca;
-  }
-
-  #referralTable .sticky-col-header.is-sorted {
-    background: #eef2ff;
-  }
-
-  .referral-table-wrapper {
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
-  /* 選択行ハイライトを右端まで維持 */
-  #referralTable tr.selected-row>td {
-    background: #eef2ff !important;
-  }
-
-  #referralTable tr.selected-row>td.sticky-col {
-    position: sticky;
-    left: 0;
-    background: #eef2ff !important;
-
-    z-index: 60;
-  }
-
-  /* ===== Referral Section Shell - グレー背景 + 余白 ===== */
-  .section-shell {
-    box-shadow: none !important;
-    background: #f6f8fa !important;
-  }
-
-  /* ===== Header Bar (統一スタイル) ===== */
-  .referral-header-bar {
-    background: linear-gradient(135deg, #0077c7 0%, #005a9e 100%);
-    padding: 16px 32px;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-
-  .referral-header-bar h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
-
-  .referral-header-bar p {
-    font-size: 13px;
-    opacity: 0.85;
-    margin: 4px 0 0 0;
-  }
-
-  /* ===== アクションボタン（フィルターバー用） ===== */
-  .referral-action-btn {
-    background: #0077c7;
-    border: none;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .referral-action-btn:hover {
-    background: #005a9e;
-  }
-
-  .referral-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-    margin: 24px 0;
-  }
-
-  .referral-stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #e2e8f0;
-    text-align: center;
-    transition: all 0.2s;
-  }
-
-  .referral-stat-card:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-  }
-
-  .referral-stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1e293b;
-  }
-
-  .referral-stat-label {
-    font-size: 12px;
-    color: #64748b;
-    margin-top: 4px;
-  }
-
-  .referral-filter-bar {
-    background: transparent;
-    border-radius: 0;
-    padding: 12px 0;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .referral-filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .referral-filter-label {
-    font-size: 12px;
-    color: #64748b;
-    font-weight: 500;
-  }
-
-  .referral-filter-input {
-    height: 36px;
-    padding: 0 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 13px;
-    background: white;
-    transition: all 0.2s;
-  }
-
-  .referral-filter-input:focus {
-    outline: none;
-    border-color: #0077c7;
-    box-shadow: 0 0 0 3px rgba(0, 119, 199, 0.15);
-  }
-
-  .referral-filter-btn {
-    height: 36px;
-    padding: 0 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .referral-filter-btn-primary {
-    background: #0077c7;
-    color: white;
-    border: none;
-  }
-
-  .referral-filter-btn-primary:hover {
-    background: #005a9e;
-  }
-
-  .referral-filter-btn-secondary {
-    background: white;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-  }
-
-  .referral-filter-btn-secondary:hover {
-    background: #f1f5f9;
-  }
-
-  .referral-count-badge {
-    background: #0077c7;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  /* ===== SmartHR/HRMOS風 テーブルスタイル ===== */
-  #referralTable {
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 13px;
-  }
-
-  #referralTable thead th {
-    background: #0077c7 !important;
-    color: white !important;
-    font-weight: 600;
-    font-size: 12px;
-    padding: 12px 16px;
-    text-align: left;
-    border-bottom: none;
-    white-space: nowrap;
-  }
-
-  #referralTable thead th:first-child {
-    background: #005a9e !important;
-    border-radius: 8px 0 0 0;
-  }
-
-  #referralTable thead th:last-child {
-    border-radius: 0 8px 0 0;
-  }
-
-  #referralTable thead th.is-sorted {
-    background: #005a9e !important;
-    color: white !important;
-  }
-
-  #referralTable tbody tr {
-    transition: background 0.15s;
-  }
-
-  #referralTable tbody tr:nth-child(even) {
-    background: #f8fafc;
-  }
-
-  #referralTable tbody tr:hover {
-    background: #e0f2fe !important;
-  }
-
-  #referralTable tbody td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
-  }
-
-  #referralTable tbody td.sticky-col {
-    background: inherit;
-    font-weight: 500;
-    color: #0077c7;
-  }
-
-  #referralTable tr.selected-row>td {
-    background: #dbeafe !important;
-  }
-
-  #referralTable tr.selected-row>td.sticky-col {
-    background: #dbeafe !important;
-  }
-
-  /* ===== SmartHR/HRMOS風 企業詳細パネル ===== */
-  .referral-detail-panel {
-    background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    overflow: hidden;
-    margin-bottom: 20px;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .referral-detail-header {
-    background: linear-gradient(135deg, #0077c7 0%, #00a0e9 100%);
-    color: white;
-    padding: 20px 24px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-
-  .referral-detail-company {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 4px 0;
-  }
-
-  .referral-detail-meta {
-    font-size: 13px;
-    opacity: 0.9;
-  }
-
-  .referral-detail-tags {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .referral-detail-tag {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .referral-detail-body {
-    padding: 20px;
-    max-width: 100%;
-    overflow-x: auto;
-    box-sizing: border-box;
-  }
-
-  .referral-detail-section {
-    margin-bottom: 24px;
-  }
-
-  .referral-detail-section:last-child {
-    margin-bottom: 0;
-  }
-
-  .referral-detail-section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #0077c7;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .referral-detail-section-title::before {
-    content: "";
-    display: inline-block;
-    width: 4px;
-    height: 16px;
-    background: #0077c7;
-    border-radius: 2px;
-  }
-
-  .referral-detail-stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  @media (max-width: 768px) {
-    .referral-detail-stats {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .referral-detail-stat {
-    background: #f8fafc;
-    border-radius: 10px;
-    padding: 16px;
-    text-align: center;
-    border: 1px solid #e2e8f0;
-  }
-
-  .referral-detail-stat.highlight {
-    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
-    border-color: #93c5fd;
-  }
-
-  .referral-detail-stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: #0077c7;
-  }
-
-  .referral-detail-stat-label {
-    font-size: 11px;
-    color: #64748b;
-    margin-top: 4px;
-  }
-
-  .referral-detail-memo {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 13px;
-    line-height: 1.7;
-    color: #78716c;
-  }
-
-  .referral-detail-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  .referral-detail-card {
-    background: #f8fafc;
-    border-radius: 10px;
-    padding: 16px;
-    border: 1px solid #e2e8f0;
-  }
-
-  .referral-detail-card-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .referral-detail-card-content {
-    font-size: 13px;
-    color: #334155;
-    line-height: 1.6;
-  }
-
-  .referral-detail-close {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: 18px;
-    cursor: pointer;
-    transition: background 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .referral-detail-close:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-</style>
 
 <!-- 紹介先企業管理ページ -->
 <div data-page="referral" class="section-shell space-y-6 max-w-screen-2xl mx-auto w-full">
@@ -459,7 +7,7 @@
   <!-- アクションボタン -->
   <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
     <button id="referralCreateToggle" type="button" aria-expanded="false" aria-controls="referralCreateFormPanel"
-      class="referral-action-btn">
+      class="referral-primary-btn">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M12 5v14M5 12h14" />
       </svg>
@@ -467,42 +15,35 @@
     </button>
   </div>
   <div id="referralCreateStatus" class="text-xs font-semibold text-indigo-600"></div>
-  <div id="referralCreateFormPanel" class="space-y-4 mt-3 rounded-lg border border-indigo-100 bg-white/80 p-4 hidden">
-    <div class="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
+  <div id="referralCreateFormPanel"
+    class="space-y-4 mt-3 rounded-lg border border-indigo-100 bg-white/80 p-6 hidden shadow-sm">
+    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
       <div class="flex items-center justify-between">
-        <div class="text-xs font-semibold text-slate-600">&#22522;&#26412;&#24773;&#22577;</div>
-        <div class="text-[11px] text-slate-400">* &#24517;&#38920;</div>
+        <div class="text-sm font-bold text-slate-700">基本情報</div>
+        <div class="text-[11px] text-slate-400">* 必須</div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-slate-600">&#x4F01;&#x696D;&#x540D; *</span>
-          <input type="text" id="referralCreateCompany" required
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-            placeholder="&#20363;&#65289;&#26666;&#24335;&#20250;&#31038;&#12469;&#12531;&#12503;&#12523;" />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-slate-600">企業名 *</span>
+          <input type="text" id="referralCreateCompany" required class="referral-input" placeholder="例）株式会社サンブル" />
         </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-slate-600">&#21215;&#38598;&#32887;&#31278; *</span>
-          <input type="text" id="referralCreateJobTitle" required
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-            placeholder="&#20363;&#65289;&#12456;&#12531;&#12472;&#12491;&#12450; / &#12475;&#12540;&#12523;&#12473;" />
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-slate-600">募集職種 *</span>
+          <input type="text" id="referralCreateJobTitle" required class="referral-input" placeholder="例）エンジニア / セールス" />
         </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-slate-600">&#x63A1;&#x7528;&#x4E88;&#x5B9A;&#x4EBA;&#x6570;</span>
-          <input type="number" min="0" id="referralCreatePlanHeadcount"
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="&#20363;&#65289;5" />
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-slate-600">採用予定人数</span>
+          <input type="number" min="0" id="referralCreatePlanHeadcount" class="referral-input" placeholder="例）5" />
         </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-slate-600">&#x696D;&#x754C;</span>
-          <input type="text" id="referralCreateIndustry"
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm"
-            placeholder="&#20363;&#65289;IT / SaaS" />
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-slate-600">業界</span>
+          <input type="text" id="referralCreateIndustry" class="referral-input" placeholder="例）IT / SaaS" />
         </label>
-        <label class="flex flex-col gap-1">
+        <label class="flex flex-col gap-1.5">
           <span class="text-xs font-semibold text-slate-600">勤務地</span>
-          <input type="text" id="referralCreateLocation"
-            class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="例）東京 / リモート" />
+          <input type="text" id="referralCreateLocation" class="referral-input" placeholder="例）東京 / リモート" />
         </label>
-        <label class="flex flex-col gap-1">
+        <label class="flex flex-col gap-1.5">
           <span class="text-xs font-semibold text-slate-600">担当者名</span>
           <input type="text" id="referralCreateContactName"
             class="bg-white border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="例）山田 太郎" />
@@ -598,7 +139,6 @@
     <div class="border border-slate-300 rounded-lg p-3 bg-gradient-to-br from-slate-50 to-white space-y-2">
       <div class="flex items-center justify-between">
         <div class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-          <span>📋</span>
           <span>選考メモ</span>
         </div>
         <div class="text-[11px] text-slate-400">任意</div>
@@ -620,49 +160,36 @@
   </div>
 </div>
 <!-- モダンフィルターバー -->
+
 <div class="referral-filter-bar">
   <div class="referral-filter-group">
     <span class="referral-filter-label">企業名検索</span>
-    <input type="text" id="referralCompanyFilter" class="referral-filter-input" placeholder="企業名で絞り込み..."
-      style="min-width: 180px;" />
+    <input type="text" id="referralCompanyFilter" class="referral-filter-input" placeholder="企業名..." />
   </div>
   <div class="referral-filter-group">
     <span class="referral-filter-label">期間</span>
-    <input type="date" id="referralDateStart" class="referral-filter-input" value="2024-01-01" />
-    <span style="color: #94a3b8;">〜</span>
-    <input type="date" id="referralDateEnd" class="referral-filter-input" value="2025-12-31" />
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input type="date" id="referralDateStart" class="referral-filter-input" value="2024-01-01" />
+      <span style="color: #cbd5e1;">-</span>
+      <input type="date" id="referralDateEnd" class="referral-filter-input" value="2025-12-31" />
+    </div>
   </div>
   <div class="referral-filter-group">
     <span class="referral-filter-label">職種</span>
-    <select id="referralJobFilter" class="referral-filter-input">
+    <select id="referralJobFilter" class="referral-filter-select">
       <option value="">全て</option>
       <option value="エンジニア">エンジニア</option>
       <option value="セールス">セールス</option>
       <option value="マネージャー">マネージャー</option>
     </select>
   </div>
-  <div class="referral-filter-group">
-    <span class="referral-filter-label">並び替え</span>
-    <select id="referralSortSelect" class="referral-filter-input">
-      <option value="company-asc">企業名（昇順）</option>
-      <option value="proposal-desc">推薦件数（降順）</option>
-      <option value="docScreen-desc">書類選考（降順）</option>
-      <option value="interview1-desc">一次面接（降順）</option>
-      <option value="offer-desc">内定（降順）</option>
-      <option value="joined-desc">入社（降順）</option>
-      <option value="fee-desc">合計Fee（降順）</option>
-    </select>
-  </div>
-  <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
-    <button id="referralFilterReset" class="referral-filter-btn referral-filter-btn-secondary">リセット</button>
-    <button id="referralExportBtn" class="referral-filter-btn referral-filter-btn-primary">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-        style="display: inline-block; vertical-align: middle; margin-right: 4px;">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-      </svg>
+  <div class="referral-action-btn-group">
+    <button id="referralFilterReset" class="referral-secondary-btn">リセット</button>
+    <button id="referralExportBtn" class="referral-primary-btn">
       CSVエクスポート
     </button>
-    <div id="referralFilterCount" class="referral-count-badge">-社</div>
+    <div id="referralFilterCount"
+      class="referral-count-badge bg-slate-900 text-white px-3 py-1 rounded-full text-xs font-semibold">-社</div>
   </div>
 </div>
 

@@ -7,21 +7,19 @@
       </div>
       <span class="mypage-role-badge" id="mypageRoleBadge">advisor</span>
     </div>
-    <div class="mypage-white-box">
-      <div class="mypage-table-wrapper" id="mypageTasksTableWrapper">
-        <table class="mypage-table mypage-tasks-table">
-          <thead>
-            <tr>
-              <th>次回アクション日</th>
-              <th>アクション名</th>
-              <th>求職者名</th>
-              <th>フェーズ</th>
-              <th>担当CS</th>
-            </tr>
-          </thead>
-          <tbody id="mypageTasksBody"></tbody>
-        </table>
-      </div>
+    <div class="mypage-table-wrapper" id="mypageTasksTableWrapper">
+      <table class="mypage-table mypage-tasks-table">
+        <thead>
+          <tr>
+            <th>次回アクション日</th>
+            <th>アクション名</th>
+            <th>求職者名</th>
+            <th>フェーズ</th>
+            <th>担当CS</th>
+          </tr>
+        </thead>
+        <tbody id="mypageTasksBody"></tbody>
+      </table>
       <div class="mypage-empty" id="mypageTasksEmpty">タスクはありません。</div>
     </div>
   </section>
@@ -57,7 +55,8 @@
     </div>
 
     <div class="mypage-upcoming-panel" data-upcoming-panel="calendar">
-      <div class="mypage-white-box">
+      <!-- Calendar Wrapper (using white box style) -->
+      <div class="mypage-white-box" style="padding: 16px;">
         <div class="mypage-calendar-header">
           <div class="mypage-calendar-nav">
             <button type="button" class="mypage-calendar-nav-btn" data-calendar-nav="prev">前月</button>
@@ -90,10 +89,8 @@
         <p class="mypage-card-subtitle">直近の更新をまとめて表示しています。</p>
       </div>
     </div>
-    <div class="mypage-white-box">
-      <ul class="mypage-list" id="mypageNotificationsList"></ul>
-      <div class="mypage-empty" id="mypageNotificationsEmpty">お知らせはありません。</div>
-    </div>
+    <ul class="mypage-list" id="mypageNotificationsList"></ul>
+    <div class="mypage-empty" id="mypageNotificationsEmpty">お知らせはありません。</div>
   </section>
 
   <section class="mypage-card" id="mypageCandidatesSection">
@@ -106,13 +103,11 @@
         <button type="button" class="mypage-ghost-btn" id="mypageCandidatesToggleClosed">クローズを表示</button>
       </div>
     </div>
-    <div class="mypage-white-box">
-      <div class="mypage-table-wrapper" id="mypageCandidatesTableWrapper">
-        <table class="mypage-table mypage-candidates-table">
-          <thead id="mypageCandidatesHead"></thead>
-          <tbody id="mypageCandidatesBody"></tbody>
-        </table>
-      </div>
+    <div class="mypage-table-wrapper" id="mypageCandidatesTableWrapper">
+      <table class="mypage-table mypage-candidates-table">
+        <thead id="mypageCandidatesHead"></thead>
+        <tbody id="mypageCandidatesBody"></tbody>
+      </table>
       <div class="mypage-empty" id="mypageCandidatesEmpty">候補者が見つかりません。</div>
     </div>
   </section>
