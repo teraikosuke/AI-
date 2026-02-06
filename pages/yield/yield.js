@@ -1699,24 +1699,33 @@ function initializeMsRateToggles() {
     if (!scope) return;
     const current = state.msRateModes?.[scope] || 'daily';
     updateMsRateToggleButton(button, current);
-    if (button.dataset.bound) return;
-    button.addEventListener('click', () => {
-      if (!state.msRateModes) state.msRateModes = {};
-      const next = state.msRateModes[scope] === 'overall' ? 'daily' : 'overall';
-      state.msRateModes[scope] = next;
-      updateMsRateToggleButton(button, next);
-      if (scope === 'personalDaily') {
-        const periodId = state.personalDailyPeriodId;
-        const dailyData = state.personalDailyData[periodId] || {};
-        renderPersonalDailyTable(periodId, dailyData);
-      }
-      if (scope === 'companyMs') {
-        renderCompanyMsTable();
-        renderAllPersonalMsTables();
-      }
-    });
-    button.dataset.bound = 'true';
   });
+
+  const root = document.body;
+  if (!root || root.dataset.msRateToggleBound === 'true') return;
+  const handler = (event) => {
+    const button = event.target.closest('[data-ms-rate-toggle]');
+    if (!button) return;
+    const scope = button.dataset.msRateScope;
+    if (!scope) return;
+    if (!state.msRateModes) state.msRateModes = {};
+    const next = state.msRateModes[scope] === 'overall' ? 'daily' : 'overall';
+    state.msRateModes[scope] = next;
+    document
+      .querySelectorAll(`[data-ms-rate-toggle][data-ms-rate-scope="${scope}"]`)
+      .forEach(btn => updateMsRateToggleButton(btn, next));
+    if (scope === 'personalDaily') {
+      const periodId = state.personalDailyPeriodId;
+      const dailyData = state.personalDailyData[periodId] || {};
+      renderPersonalDailyTable(periodId, dailyData);
+    }
+    if (scope === 'companyMs') {
+      renderCompanyMsTable();
+      renderAllPersonalMsTables();
+    }
+  };
+  root.addEventListener('click', handler);
+  root.dataset.msRateToggleBound = 'true';
 }
 
 export async function mount(root) {
@@ -2227,17 +2236,29 @@ function renderCompanyGoalCards(target = {}, actuals = {}) {
 
 function renderCompanyRateGoals() {
   const targets = state.kpiTargets || {};
+  const companyTarget = state.companyEvaluationPeriodId
+    ? goalSettingsService.getCompanyPeriodTarget(state.companyEvaluationPeriodId) || {}
+    : {};
   const rateKeys = [
     'proposalRate', 'recommendationRate', 'interviewScheduleRate',
     'interviewHeldRate', 'offerRate', 'acceptRate', 'hireRate'
   ];
+
+  const resolveFallbackTarget = (rateKey) => {
+    const entry = Object.entries(TARGET_TO_DATA_KEY).find(([, dataKey]) => dataKey === rateKey);
+    const targetKey = entry?.[0];
+    if (!targetKey) return undefined;
+    const raw = companyTarget[targetKey];
+    return raw === undefined || raw === null ? undefined : num(raw);
+  };
 
   rateKeys.forEach(key => {
     // 目標値表示
     const goalRef = `companyGoal-${key}`;
     const el = document.querySelector(`[data-ref="${goalRef}"]`);
     if (el) {
-      const val = targets[key];
+      const fallbackVal = resolveFallbackTarget(key);
+      const val = targets[key] !== undefined && targets[key] !== null ? targets[key] : fallbackVal;
       const hasVal = val !== undefined && val !== null;
       el.textContent = hasVal ? `${val}%` : '--';
 
@@ -2248,12 +2269,14 @@ function renderCompanyRateGoals() {
       el.onclick = (e) => handleRateGoalClick(e, key, val);
     }
 
-    // 達成率表示
+    // 進捗率表示
     const achvRef = `companyAchv-${key}`;
     const achvEl = document.querySelector(`[data-ref="${achvRef}"]`);
     if (achvEl) {
       const actual = num(state.kpi.companyMonthly?.[key]);
-      const targetVal = num(targets[key]);
+      const fallbackVal = resolveFallbackTarget(key);
+      const resolvedTarget = targets[key] !== undefined && targets[key] !== null ? targets[key] : fallbackVal;
+      const targetVal = num(resolvedTarget);
       if (targetVal > 0) {
         const rate = Math.round((actual / targetVal) * 100);
         achvEl.textContent = `${rate}%`;
@@ -3130,7 +3153,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
 
     if (!metrics.length) return;
 
-    const deptRowspan = metrics.length * 3; // MS、達成率、実績の3行を各指標ごとに生成
+    const deptRowspan = metrics.length * 3; // MS、進捗率、実績の3行を各指標ごとに生成
     const deptLabel = dept === 'marketing' ? 'マーケ' : dept === 'cs' ? 'CS' : dept === 'sales' ? '営業' : '売上';
     if (!state.personalMs.metricKeys) state.personalMs.metricKeys = {};
     if (!state.personalMs.metricKeys[dept]) {
@@ -3282,7 +3305,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
            </th>`
         : '';
 
-      // 3行構造で統一: MS → 達成率 → 実績
+      // 3行構造で統一: MS → 進捗率 → 実績
       // 1行目: MS（deptCell と metricCell を出力）
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
@@ -3292,10 +3315,10 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
           ${msCells}
         </tr>
       `);
-      // 2行目: 達成率（rowspanで結合済みなので空セル不要）
+      // 2行目: 進捗率（rowspanで結合済みなので空セル不要）
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
-          <td class="daily-type">達成率</td>
+          <td class="daily-type">進捗率</td>
           ${rateCells}
         </tr>
       `);
