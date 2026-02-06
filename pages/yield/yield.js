@@ -437,15 +437,19 @@ async function fetchPersonalKpiFromApi({ startDate, endDate, planned = false }) 
   return kpi;
 }
 
-async function fetchCompanyKpiFromApi({ startDate, endDate }) {
-  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, {
+async function fetchCompanyKpiFromApi({ startDate, endDate, msMode = false }) {
+  const params = {
     from: startDate,
     to: endDate,
     scope: 'company',
     granularity: 'summary',
     groupBy: 'none',
     ...buildCalcModeParams()
-  });
+  };
+  if (msMode) {
+    params.ms = '1';
+  }
+  const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
   console.log('[yield] company kpi response', json);
   const kpi = json?.items?.[0]?.kpi || null;
   console.log('[yield] company kpi fields', {
@@ -467,7 +471,7 @@ async function fetchCompanyKpiFromApi({ startDate, endDate }) {
 
 const dailyYieldCache = new Map();
 
-async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
+async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId, msMode = false }) {
   const params = {
     from: startDate,
     to: endDate,
@@ -476,6 +480,9 @@ async function fetchDailyYieldFromApi({ startDate, endDate, advisorUserId }) {
     groupBy: 'advisor',
     ...buildCalcModeParams()
   };
+  if (msMode) {
+    params.ms = '1';
+  }
   console.log('[yield] fetch daily kpi', params);
   const json = await fetchJson(`${KPI_API_BASE}${KPI_YIELD_PATH}`, params);
   console.log('[DEBUG] fetchDailyYieldFromApi raw json:', JSON.stringify(json, null, 2));
@@ -694,19 +701,20 @@ function ensureCompanyDailyEmployeeId() {
   }
 }
 
-async function ensureDailyYieldData(periodId) {
+async function ensureDailyYieldData(periodId, { msMode = false } = {}) {
   if (!periodId) return null;
   const period = state.evaluationPeriods.find(item => item.id === periodId);
   if (!period) return null;
   const advisorUserId = await resolveAdvisorUserId();
-  const cacheKey = `${periodId}:${advisorUserId || 'none'}:${getCalcMode()}`;
+  const cacheKey = `${periodId}:${advisorUserId || 'none'}:${getCalcMode()}:${msMode ? 'ms' : 'default'}`;
   if (dailyYieldCache.has(cacheKey)) return dailyYieldCache.get(cacheKey);
   try {
     // 営業向けのKPIデータを取得
     const payload = await fetchDailyYieldFromApi({
       startDate: period.startDate,
       endDate: period.endDate,
-      advisorUserId
+      advisorUserId,
+      msMode
     });
     dailyYieldCache.set(cacheKey, payload);
     applyDailyYieldResponse(periodId, payload);
@@ -3122,7 +3130,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
 
     if (!metrics.length) return;
 
-    const deptRowspan = metrics.reduce((acc, m) => acc + (isRevenue ? 2 : 3), 0);
+    const deptRowspan = metrics.length * 3; // MS、達成率、実績の3行を各指標ごとに生成
     const deptLabel = dept === 'marketing' ? 'マーケ' : dept === 'cs' ? 'CS' : dept === 'sales' ? '営業' : '売上';
     if (!state.personalMs.metricKeys) state.personalMs.metricKeys = {};
     if (!state.personalMs.metricKeys[dept]) {
@@ -3142,7 +3150,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
       const highlightClass = isImportant ? 'ms-important-row' : '';
 
       const distributeButton = `<button type="button" class="ms-distribute-btn" data-ms-distribute data-scope="personalDaily" data-dept="${dept}" data-metric="${metricKey}">日割り</button>`;
-      const metricCell = `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="${isRevenue ? 2 : 3}">
+      const metricCell = `<th scope="row" class="kpi-v2-sticky-label kpi-v2-ms-metric" rowspan="3">
            <div class="ms-metric-cell">
              <span>${metricLabel}</span>
              ${distributeButton}
@@ -3274,36 +3282,24 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
            </th>`
         : '';
 
-      if (!isRevenue) {
-        rows.push(`
-          <tr class="${tripletAlt} ${highlightClass}">
-            ${deptCell}
-            ${metricCell}
-            <td class="daily-type">MS</td>
-            ${msCells}
-          </tr>
-        `);
-      }
-      const finalDeptCell = isRevenue ? deptCell : '';
-      const finalMetricCell = isRevenue ? metricCell : '';
-      if (isRevenue) {
-        rows.push(`
-          <tr class="${tripletAlt} ${highlightClass}">
-            ${finalDeptCell}
-            ${finalMetricCell}
-            <td class="daily-type">MS</td>
-            ${msCells}
-          </tr>
-        `);
-      }
+      // 3行構造で統一: MS → 達成率 → 実績
+      // 1行目: MS（deptCell と metricCell を出力）
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
-          ${finalDeptCell}
-          ${finalMetricCell}
+          ${deptCell}
+          ${metricCell}
+          <td class="daily-type">MS</td>
+          ${msCells}
+        </tr>
+      `);
+      // 2行目: 達成率（rowspanで結合済みなので空セル不要）
+      rows.push(`
+        <tr class="${tripletAlt} ${highlightClass}">
           <td class="daily-type">達成率</td>
           ${rateCells}
         </tr>
       `);
+      // 3行目: 実績
       rows.push(`
         <tr class="${tripletAlt} ${highlightClass}">
           <td class="daily-type">実績</td>
@@ -4529,7 +4525,7 @@ async function loadPersonalMsData() {
     return;
   }
 
-  await ensureDailyYieldData(periodId);
+  await ensureDailyYieldData(periodId, { msMode: true });
 
   const members = await ensureMembersList();
   const ranges = resolveCompanyMsRanges(period);
@@ -4735,7 +4731,7 @@ async function loadAndRenderCompanyMs() {
 
   let payload;
   try {
-    payload = await ensureDailyYieldData(periodId);
+    payload = await ensureDailyYieldData(periodId, { msMode: true });
   } catch (error) {
     console.warn('[yield] failed to load daily yield data for MS', error);
     renderCompanyMsTable();
@@ -4773,7 +4769,8 @@ async function loadAndRenderCompanyMs() {
     try {
       const revenueKpi = await fetchCompanyKpiFromApi({
         startDate: ranges.revenueRange.startDate,
-        endDate: ranges.revenueRange.endDate
+        endDate: ranges.revenueRange.endDate,
+        msMode: true
       });
       revenueActual = normalizeCounts(revenueKpi || {}).revenue;
     } catch (error) {
@@ -5980,7 +5977,7 @@ async function loadAndRenderPersonalMs() {
   }
   const ranges = resolveCompanyMsRanges(period);
   const [payload, members] = await Promise.all([
-    ensureDailyYieldData(periodId),
+    ensureDailyYieldData(periodId, { msMode: true }),
     ensureMembersList()
   ]);
 
