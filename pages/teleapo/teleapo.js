@@ -2496,6 +2496,7 @@ function updateRateModeUI() {
       const mode = btn.dataset.rateMode;
       const isActive = mode === teleapoRateMode;
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      setTeleapoButtonActive(btn, isActive);
       btn.classList.toggle('bg-indigo-600', isActive);
       btn.classList.toggle('text-white', isActive);
       btn.classList.toggle('shadow-sm', isActive);
@@ -2753,7 +2754,7 @@ function setEmployeeTrendMode(mode) {
 function updateEmployeeTrendModeButtons() {
   document.querySelectorAll('[data-employee-trend-mode]').forEach((btn) => {
     const isActive = btn.dataset.employeeTrendMode === teleapoEmployeeTrendMode;
-    btn.classList.toggle('is-active', isActive);
+    setTeleapoButtonActive(btn, isActive);
     btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
   });
 }
@@ -3519,10 +3520,7 @@ function applyFilters() {
   const resultFilter = document.getElementById('teleapoLogResultFilter')?.value || '';
   const routeFilter = document.getElementById('teleapoLogRouteFilter')?.value || '';
   const targetSearch = (document.getElementById('teleapoLogTargetSearch')?.value || '').toLowerCase();
-  const startStr = document.getElementById('teleapoLogRangeStart')?.value || document.getElementById('teleapoCompanyRangeStart')?.value || '';
-  const endStr = document.getElementById('teleapoLogRangeEnd')?.value || document.getElementById('teleapoCompanyRangeEnd')?.value || '';
-  const start = startStr ? new Date(startStr + 'T00:00:00') : null;
-  const end = endStr ? new Date(endStr + 'T23:59:59') : null;
+  const { startStr, endStr, start, end } = getSelectedRange();
   const rangeLabel = formatRangeLabel(startStr, endStr);
 
   teleapoFilteredLogs = teleapoLogData.filter(log => {
@@ -3574,6 +3572,44 @@ function applyFilters() {
   setText('teleapoLogPeriodLabel', rangeLabel || '全期間');
 }
 
+function getSelectedRange() {
+  const startStr = document.getElementById('teleapoLogRangeStart')?.value
+    || document.getElementById('teleapoCompanyRangeStart')?.value
+    || '';
+  const endStr = document.getElementById('teleapoLogRangeEnd')?.value
+    || document.getElementById('teleapoCompanyRangeEnd')?.value
+    || '';
+  const start = startStr ? new Date(`${startStr}T00:00:00`) : null;
+  const end = endStr ? new Date(`${endStr}T23:59:59`) : null;
+  return { startStr, endStr, start, end };
+}
+
+function getLoadedDateRange(logs = teleapoLogData) {
+  const dates = (Array.isArray(logs) ? logs : [])
+    .map(log => parseDateTime(log.datetime))
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+  if (!dates.length) return null;
+  return { min: dates[0], max: dates[dates.length - 1] };
+}
+
+function isRangeWithinLoaded(selected, loaded) {
+  if (!loaded) return false;
+  if (selected.start && selected.start < loaded.min) return false;
+  if (selected.end && selected.end > loaded.max) return false;
+  return true;
+}
+
+function refreshForRangeChange() {
+  const selected = getSelectedRange();
+  const loaded = getLoadedDateRange();
+  if (!loaded || !isRangeWithinLoaded(selected, loaded)) {
+    loadTeleapoData();
+    return;
+  }
+  applyFilters();
+}
+
 function setRangePreset(preset) {
   const today = new Date();
   let start = new Date(today);
@@ -3612,16 +3648,41 @@ function clearDateFilters() {
   clearCompanyRangePresetSelection();
 }
 
-function clearCompanyRangePresetSelection() {
-  const companyPreset = document.querySelector('[data-scope="company"]');
-  if (companyPreset) {
-    companyPreset.querySelectorAll('.kpi-v2-range-btn').forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
+function getCompanyPresetButtons() {
+  const scoped = document.querySelector('[data-scope="company"]');
+  if (scoped) return Array.from(scoped.querySelectorAll('[data-preset]'));
+  return Array.from(document.querySelectorAll('#teleapoPerformancePanel [data-preset]'));
+}
+
+function isTeleapoButtonActive(button) {
+  return button.classList.contains('active')
+    || button.classList.contains('is-active')
+    || button.classList.contains('kpi-v2-range-btn-active');
+}
+
+function setTeleapoButtonActive(button, isActive) {
+  if (!button) return;
+  if (button.classList.contains('kpi-v2-range-btn')) {
+    button.classList.toggle('kpi-v2-range-btn-active', isActive);
   }
+  button.classList.toggle('active', isActive);
+  button.classList.toggle('is-active', isActive);
+  button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+}
+
+function syncTeleapoButtonGroup(buttons, activeButton) {
+  buttons.forEach(btn => setTeleapoButtonActive(btn, btn === activeButton));
+}
+
+function clearCompanyRangePresetSelection() {
+  const buttons = getCompanyPresetButtons();
+  if (!buttons.length) return;
+  buttons.forEach(btn => setTeleapoButtonActive(btn, false));
 }
 
 function initDateInputs() {
-  const presetWrapper = document.querySelector('[data-scope="company"]');
-  const activePreset = presetWrapper?.querySelector('.kpi-v2-range-btn-active')?.dataset?.preset;
+  const buttons = getCompanyPresetButtons();
+  const activePreset = buttons.find(btn => isTeleapoButtonActive(btn))?.dataset?.preset;
   if (activePreset) {
     setRangePreset(activePreset);
     return;
@@ -3634,7 +3695,7 @@ function initDateInputs() {
 function initFilters() {
   const handleRangeChange = () => {
     teleapoRangeTouched = true;
-    loadTeleapoData();
+    refreshForRangeChange();
   };
   ['teleapoLogEmployeeFilter', 'teleapoLogResultFilter', 'teleapoLogRouteFilter', 'teleapoLogTargetSearch', 'teleapoLogRangeStart', 'teleapoLogRangeEnd', 'teleapoCompanyRangeStart', 'teleapoCompanyRangeEnd'].forEach(id => {
     const el = document.getElementById(id);
@@ -3648,15 +3709,26 @@ function initFilters() {
     });
   });
   const resetBtn = document.getElementById('teleapoLogFilterReset');
-  if (resetBtn) resetBtn.onclick = () => { initDateInputs(); loadTeleapoData(); };
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      const emp = document.getElementById('teleapoLogEmployeeFilter');
+      const result = document.getElementById('teleapoLogResultFilter');
+      const route = document.getElementById('teleapoLogRouteFilter');
+      const target = document.getElementById('teleapoLogTargetSearch');
+      if (emp) emp.value = '';
+      if (result) result.value = '';
+      if (route) route.value = '';
+      if (target) target.value = '';
+      applyFilters();
+    };
+  }
 }
 
 function initHeatmapControls() {
   const rangeButtons = Array.from(document.querySelectorAll('[data-analysis-range]'));
   const syncButtons = () => {
-    rangeButtons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
     const active = rangeButtons.find(b => b.dataset.analysisRange === teleapoAnalysisRange);
-    if (active) active.classList.add('kpi-v2-range-btn-active');
+    syncTeleapoButtonGroup(rangeButtons, active || null);
   };
   syncButtons();
   rangeButtons.forEach(btn => {
@@ -3681,24 +3753,23 @@ function initEmployeeSort() {
 }
 
 function initCompanyRangePresets() {
-  const presetWrapper = document.querySelector('[data-scope="company"]');
-  if (!presetWrapper) return;
-  const buttons = presetWrapper.querySelectorAll('.kpi-v2-range-btn');
+  const buttons = getCompanyPresetButtons();
+  if (!buttons.length) return;
   buttons.forEach(btn => {
     btn.addEventListener('click', () => {
       teleapoRangeTouched = true;
       const preset = btn.dataset.preset || 'thisMonth';
-      const isActive = btn.classList.contains('kpi-v2-range-btn-active');
-      buttons.forEach(b => b.classList.remove('kpi-v2-range-btn-active'));
+      const isActive = isTeleapoButtonActive(btn);
+      syncTeleapoButtonGroup(buttons, null);
       if (isActive) {
         // 同じボタンを再クリック→プリセット解除＆日付クリアで全期間表示
         clearDateFilters();
-        loadTeleapoData();
+        refreshForRangeChange();
         return;
       }
       setRangePreset(preset);
-      btn.classList.add('kpi-v2-range-btn-active');
-      loadTeleapoData();
+      setTeleapoButtonActive(btn, true);
+      refreshForRangeChange();
     });
   });
 }
@@ -4089,14 +4160,25 @@ async function loadCandidates() {
 }
 
 async function loadTeleapoData() {
+  const prevLogs = Array.isArray(teleapoLogData) ? [...teleapoLogData] : [];
+  const prevRange = getLoadedDateRange(prevLogs);
+  const selectedRange = getSelectedRange();
   try {
     const data = await fetchTeleapoApi();
     const logs = Array.isArray(data?.logs) ? data.logs : Array.isArray(data?.items) ? data.items : [];
     const mappedLogs = logs.map(mapApiLog).filter(Boolean);
-    teleapoLogData = mappedLogs.filter(l => l.datetime);
-    if (!teleapoLogData.length && mappedLogs.length) {
-      teleapoLogData = mappedLogs;
+    let nextLogs = mappedLogs.filter(l => l.datetime);
+    if (!nextLogs.length && mappedLogs.length) {
+      nextLogs = mappedLogs;
     }
+    if (!nextLogs.length && prevLogs.length && (selectedRange.startStr || selectedRange.endStr) && prevRange) {
+      if (isRangeWithinLoaded(selectedRange, prevRange)) {
+        teleapoLogData = prevLogs;
+        applyFilters();
+        return;
+      }
+    }
+    teleapoLogData = nextLogs;
     if (!teleapoLogData.length && !teleapoRangeTouched && !teleapoAutoFallbackDone) {
       teleapoAutoFallbackDone = true;
       clearCompanyRangePresetSelection();
@@ -4155,6 +4237,8 @@ async function loadTeleapoRateTargets() {
 
 // 既存の mount をこれで上書き
 export function mount() {
+  bindTeleapoTabs();
+  bindTeleapoCollapsibles();
   ensureLogHighlightStyles();
   initDateInputs();
   initFilters();

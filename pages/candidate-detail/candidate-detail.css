@@ -7,7 +7,8 @@
 
 /* ===== Page Container ===== */
 .cd-page {
-    background: #f8fafc;
+    background: #f3f4f6;
+    /* Modernized Gray Background */
     min-height: 100vh;
     padding-bottom: 40px;
 }
@@ -47,7 +48,7 @@
 
 /* ===== Content Wrapper ===== */
 .cd-content-wrapper {
-    padding: 24px 32px;
+    /* padding: 24px 32px; */
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -160,9 +161,9 @@
         padding: 12px 16px;
     }
 
-    .cd-content-wrapper {
-        padding: 16px;
-    }
+    /* .cd-content-wrapper { */
+    /* padding: 16px; */
+    /* } */
 
     .cd-page-title {
         font-size: 16px;

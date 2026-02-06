@@ -291,11 +291,11 @@ function renderTaskTable({ tasks, sectionId, bodyId, emptyId, wrapperId }) {
   if (!taskRows.length) {
     body.innerHTML = '';
     empty.classList.add('is-visible');
-    tableWrapper.hidden = true;
+    // tableWrapper.hidden = true; // Removed to keep wrapper style visible for empty message
     return;
   }
 
-  tableWrapper.hidden = false;
+  // tableWrapper.hidden = false; // Removed
   empty.classList.remove('is-visible');
   body.innerHTML = taskRows
     .map((row) => {
