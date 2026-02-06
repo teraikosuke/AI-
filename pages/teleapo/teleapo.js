@@ -104,11 +104,11 @@ const ROUTE_TEL = 'tel';
 const ROUTE_OTHER = 'other';
 const TELEAPO_RATE_MODE_CONTACT = 'contact';
 const TELEAPO_RATE_MODE_STEP = 'step';
-const TELEAPO_API_URL = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/teleapo/logs`;
+const TELEAPO_API_URL = `${window.API_BASE_URL || 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev'}/teleapo/logs`;
 const TELEAPO_EMPLOYEES = ['佐藤', '鈴木', '高橋', '田中'];
 const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
-const SETTINGS_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
+const SETTINGS_API_BASE = window.API_BASE_URL || 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev';
 const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
 // Candidate detail URL (hash router + query)
 const CANDIDATE_ID_PARAM = 'candidateId';
@@ -116,7 +116,7 @@ const TARGET_CANDIDATE_STORAGE_KEY = 'target_candidate_id';
 // ...既存の定数の下に追加...
 
 // Candidates API URL (no trailing slash)
-const CANDIDATES_API_URL = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/candidates`;
+const CANDIDATES_API_URL = `${window.API_BASE_URL || 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev'}/candidates`;
 
 let candidateNameMap = new Map(); // Name -> ID
 let candidateIdMap = new Map(); // ID -> Name
@@ -4402,7 +4402,7 @@ function localDateTimeToRfc3339(localValue) {
 }
 
 // ★ ここを実際のAPI Gatewayに合わせる（teleapo GETと同じでOK）
-const TELEAPO_API_BASE = window.API_BASE_URL || "https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod";
+const TELEAPO_API_BASE = window.API_BASE_URL || "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev";
 const TELEAPO_LOGS_PATH = "/teleapo/logs";
 const TELEAPO_LOGS_URL = `${TELEAPO_API_BASE}${TELEAPO_LOGS_PATH}`;
 

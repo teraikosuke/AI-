@@ -7,7 +7,7 @@ import { setSession, logout as clearLocalSession, getSession } from '../../auth.
 import { mockUsers } from '../../mock/users.js';
 
 const DEV_AUTO_LOGIN_KEY = 'dashboard.devAutoLogin';
-const DEFAULT_AUTH_API_BASE = window.AUTH_API_BASE || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod/auth';
+const DEFAULT_AUTH_API_BASE = window.AUTH_API_BASE || 'https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev/auth';
 const AUTH_API_BASE = resolveAuthApiBase();
 
 /**
