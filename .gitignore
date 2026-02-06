@@ -1,5 +1,28 @@
-.vercel
-server.log
-*.log
-.DS_Store
+# Dependencies
 node_modules/
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Logs
+*.log
+server.log
+
+# OS files
+.DS_Store
+
+# Build outputs
+.vercel
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# AWS
+.aws-sam/

@@ -155,6 +155,18 @@ public,kpi_targets,3,metric_key,character varying,NO,,50,,
 public,kpi_targets,4,target_value,numeric,YES,,,5,1
 public,kpi_targets,5,created_at,timestamp without time zone,YES,now(),,,
 public,kpi_targets,6,updated_at,timestamp without time zone,YES,now(),,,
+public,member_requests,1,id,bigint,NO,nextval('member_requests_id_seq'::regclass),,64,0
+public,member_requests,2,name,text,NO,,,,
+public,member_requests,3,email,text,NO,,,,
+public,member_requests,4,role,text,NO,,,,
+public,member_requests,5,password_hash,text,NO,,,,
+public,member_requests,6,is_admin,boolean,YES,false,,,
+public,member_requests,7,status,text,YES,'pending'::text,,,
+public,member_requests,8,created_at,timestamp with time zone,YES,now(),,,
+public,member_requests,9,updated_at,timestamp with time zone,YES,now(),,,
+public,member_requests,10,approval_token,text,YES,,,,
+public,member_requests,11,request_type,text,YES,'create'::text,,,
+public,member_requests,12,target_user_id,bigint,YES,,,64,0
 public,ms_daily_targets,1,id,bigint,NO,nextval('ms_daily_targets_id_seq'::regclass),,64,0
 public,ms_daily_targets,2,scope,text,NO,,,,
 public,ms_daily_targets,3,department_key,text,NO,,,,
@@ -177,13 +189,13 @@ public,ms_period_targets,9,updated_at,timestamp with time zone,NO,now(),,,
 public,placements,1,id,bigint,NO,nextval('placements_id_seq'::regclass),,64,0
 public,placements,2,candidate_application_id,bigint,NO,,,64,0
 public,placements,3,fee_amount,integer,YES,,,32,0
-public,placements,21,order_date,date,YES,,,,
 public,placements,9,refund_amount,integer,YES,,,32,0
-public,placements,22,withdraw_date,date,YES,,,,
 public,placements,16,created_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
 public,placements,17,updated_at,timestamp with time zone,NO,CURRENT_TIMESTAMP,,,
 public,placements,19,order_reported,boolean,YES,false,,,
 public,placements,20,refund_reported,boolean,YES,false,,,
+public,placements,21,order_date,date,YES,,,,
+public,placements,22,withdraw_date,date,YES,,,,
 public,screening_rules,1,id,integer,NO,nextval('screening_rules_id_seq'::regclass),,32,0
 public,screening_rules,2,min_age,integer,YES,18,,32,0
 public,screening_rules,3,max_age,integer,YES,60,,32,0
