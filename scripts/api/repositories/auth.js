@@ -176,9 +176,10 @@ export const authRepo = {
       }
     }
 
-    if (isDevAutoLoginEnabled()) { // isDevHostチェックを一旦外す（デモ用）
+    if (isDevHost() && isDevAutoLoginEnabled()) {
       const mockUser = mockUsers.find(user => user.role === 'admin') || mockUsers[0];
       if (mockUser) {
+        console.log('[Auth] Development auto-login with mock user');
         const session = createSessionFromUser(mockUser);
         setSession(session);
         return session;
