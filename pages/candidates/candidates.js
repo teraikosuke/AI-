@@ -122,6 +122,8 @@ let screeningRulesLoading = false;
 let detailAutoSaveTimer = null;
 const nextActionCache = new Map();
 const contactPreferredTimeCache = new Map();
+const validityHydrationCache = new Map();
+const validityHydrationInFlight = new Set();
 let calendarViewDate = new Date();
 calendarViewDate.setDate(1);
 
@@ -678,6 +680,9 @@ async function loadCandidatesData(filtersOverride = {}) {
     updateHeaderSortStyles(); // Ensure headers reflect state
     updateCandidatesCount(filteredCandidates.length);
     prefetchNextActionDates(allCandidates);
+    if (screeningRules) {
+      void hydrateValidApplicationsFromDetail(filteredCandidates);
+    }
 
     lastSyncedAt = result.lastSyncedAt || null;
     updateLastSyncedDisplay(lastSyncedAt);
@@ -849,14 +854,19 @@ function resolveValidApplication(candidate) {
   // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
   // ルールがあれば計算を行う
   if (screeningRules) {
-    return computeValidApplication(candidate, screeningRules);
+    const computedValue = computeValidApplication(candidate, screeningRules);
+    if (computedValue === true || computedValue === false) return computedValue;
   }
+  return resolveValidApplicationRaw(candidate);
+}
+
+function resolveValidApplicationRaw(candidate) {
   const raw =
-    candidate.validApplication ??
-    candidate.valid_application ??
-    candidate.is_effective_application ??
-    candidate.active_flag ??
-    candidate.valid;
+    candidate?.validApplication ??
+    candidate?.valid_application ??
+    candidate?.is_effective_application ??
+    candidate?.active_flag ??
+    candidate?.valid;
   if (typeof raw === "string") {
     const normalized = raw.trim().toLowerCase();
     if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
@@ -956,7 +966,7 @@ function isJapaneseNationality(value) {
 function computeValidApplication(candidate, rules) {
   if (!candidate || !rules) return null;
   const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return false;
+  if (age === null) return null;
   if (!isUnlimitedMinAge(rules.minAge) && rules.minAge !== null && age < rules.minAge) return false;
   if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
 
@@ -967,28 +977,35 @@ function computeValidApplication(candidate, rules) {
 
   if (isJapaneseNationality(nationality)) return true;
   if (nonJapaneseTargets.length > 0) {
-    if (!nationality) return false;
+    if (!nationality) return null;
     const matched = nonJapaneseTargets.some((value) => value === nationality);
     if (!matched) return false;
   }
 
   const jlpt = String(candidate.japaneseLevel || "").trim();
-  if (!jlpt) return false;
+  if (!jlpt) return null;
   const allowedJlptLevels = rules.allowedJlptLevels || [];
-  if (!allowedJlptLevels.length) return false;
+  if (!allowedJlptLevels.length) return null;
   return allowedJlptLevels.includes(jlpt);
 }
 
 function refreshCandidateValidity(candidate) {
   if (!candidate || !screeningRules) return;
+  if (candidate.validApplicationLocked) return;
   const computed = computeValidApplication(candidate, screeningRules);
-  candidate.validApplicationComputed = computed;
+  if (computed === true || computed === false) {
+    candidate.validApplicationComputed = computed;
+  }
 }
 
 function applyScreeningRulesToCandidates() {
   if (!screeningRules || !allCandidates.length) return;
   allCandidates.forEach((candidate) => {
-    candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+    if (candidate.validApplicationLocked) return;
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) {
+      candidate.validApplicationComputed = computed;
+    }
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -996,6 +1013,62 @@ function applyScreeningRulesToCandidates() {
   renderCandidatesTable(filteredCandidates);
   updateHeaderSortStyles();
   updateCandidatesCount(filteredCandidates.length);
+  void hydrateValidApplicationsFromDetail(filteredCandidates);
+}
+
+async function hydrateValidApplicationsFromDetail(list) {
+  if (!screeningRules || !Array.isArray(list) || list.length === 0) return;
+
+  const targets = list.filter((candidate) => {
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) return false;
+    const id = String(candidate?.id ?? "");
+    if (!id) return false;
+    if (validityHydrationCache.has(id)) {
+      const cached = validityHydrationCache.get(id);
+      if (cached === true || cached === false) {
+        candidate.validApplicationComputed = cached;
+      }
+      return false;
+    }
+    return !validityHydrationInFlight.has(id);
+  });
+
+  if (targets.length === 0) return;
+
+  const concurrency = 6;
+  let index = 0;
+  const runWorker = async () => {
+    while (index < targets.length) {
+      const current = targets[index++];
+      const id = String(current?.id ?? "");
+      if (!id) continue;
+      if (validityHydrationInFlight.has(id)) continue;
+      validityHydrationInFlight.add(id);
+      try {
+        const detail = await fetchCandidateDetailById(id, { includeMaster: false });
+        const detailValue = resolveValidApplicationRaw(detail);
+        if (detailValue === true || detailValue === false) {
+          validityHydrationCache.set(id, detailValue);
+          const target = allCandidates.find((item) => String(item.id) === id);
+          if (target) {
+            target.validApplicationComputed = detailValue;
+            target.validApplicationLocked = true;
+          }
+          current.validApplicationComputed = detailValue;
+          current.validApplicationLocked = true;
+        }
+      } catch (error) {
+        console.warn(`[candidates] validity hydration failed for ${id}:`, error);
+      } finally {
+        validityHydrationInFlight.delete(id);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, runWorker));
+  renderCandidatesTable(filteredCandidates);
+  updateHeaderSortStyles();
 }
 
 async function loadScreeningRulesForCandidates() {
@@ -1966,9 +2039,11 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
   const tabContentMap = {
     nextAction: renderDetailCard("次回アクション", renderNextActionSection(candidate), "nextAction"),
     selection: renderDetailCard("選考進捗", renderSelectionProgressSection(candidate), "selection"),
-    profile: renderDetailCard("基本情報", renderApplicantInfoSection(candidate), "profile"),
+    profile: renderDetailCard("基本情報", renderApplicantInfoSection(candidate), "profile") +
+             renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
     hearing: renderDetailCard("面談メモ", renderHearingSection(candidate), "hearing"),
-    cs: renderDetailCard("架電結果", renderCsSection(candidate), "cs"),
+    cs: renderDetailCard("架電結果", renderCsSection(candidate), "cs") +
+        renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
     money: renderDetailCard("売上・返金", renderMoneySection(candidate), "money"),
     documents: renderDetailCard("書類作成", renderDocumentsSection(candidate), "documents"),
   };
@@ -1983,10 +2058,7 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     </div>
   `;
 
-  const otherSections = `
-    ${renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees")}
-    ${renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false })}
-  `;
+
 
   container.innerHTML = `
     <div class="candidate-detail-wrapper">
@@ -1996,9 +2068,6 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
         ${tabsHtml}
       </div>
       ${tabPanelsHtml}
-      <div class="detail-sections-scroll">
-        ${otherSections}
-      </div>
     </div>
   `;
 
@@ -2204,6 +2273,7 @@ function updateSelectionStatusCell(index, status) {
 // -----------------------
 function resolveCurrentPhases(candidate) {
   let phases = Array.isArray(candidate.phaseList) ? candidate.phaseList : (candidate.phase ? [candidate.phase] : []);
+  phases = phases.map((phase) => (String(phase).trim() === "新規" ? "未接触" : phase));
 
   // 通電等の接触履歴がある場合は「未接触」を除外する
   const hasContact = candidate.hasConnected || candidate.hasSms || (candidate.callCount > 0);

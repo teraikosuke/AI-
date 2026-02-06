@@ -16,7 +16,7 @@ const routes = {
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
   "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260203_01"),
   "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260203_01"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260322_05"),
+  candidates: () => import("../pages/candidates/candidates.js?v=20260322_09"),
   "candidate-detail": () => import("../pages/candidate-detail/candidate-detail.js?v=20260322_01"),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_14"),
   teleapo: () => import("../pages/teleapo/teleapo.js?v=20260322_25"),

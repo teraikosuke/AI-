@@ -2106,11 +2106,24 @@ function renderCompanyDetail() {
   const salaryLabel = (salaryMinValue || salaryMaxValue)
     ? `${salaryMinValue || '-'}\u301c${salaryMaxValue || '-'} 万円`
     : '-';
-  const mustDisplay = sanitizeList(desired.mustQualifications).join(' / ') || '-';
-  const niceDisplay = sanitizeList(desired.niceQualifications).join(' / ') || '-';
-  const locationDisplay = sanitizeList(desired.locations).join(' / ') || '-';
-  const personalityDisplay = sanitizeList(desired.personality).join(' / ') || '-';
-  const experienceDisplay = sanitizeList(desired.experiences).join(' / ') || '-';
+  const renderDesiredBadge = (t, color) => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${color} mr-1 mb-1">${t}</span>`;
+  const neutralBadgeClass = 'bg-slate-50 text-slate-700 border border-slate-200';
+
+  const mustDisplay = sanitizeList(desired.mustQualifications).length
+    ? sanitizeList(desired.mustQualifications).map(t => renderDesiredBadge(t, neutralBadgeClass)).join('')
+    : '<span class="text-slate-400">-</span>';
+  const niceDisplay = sanitizeList(desired.niceQualifications).length
+    ? sanitizeList(desired.niceQualifications).map(t => renderDesiredBadge(t, neutralBadgeClass)).join('')
+    : '<span class="text-slate-400">-</span>';
+  const locationDisplay = sanitizeList(desired.locations).length
+    ? sanitizeList(desired.locations).map(t => renderDesiredBadge(t, neutralBadgeClass)).join('')
+    : '<span class="text-slate-400">-</span>';
+  const personalityDisplay = sanitizeList(desired.personality).length
+    ? sanitizeList(desired.personality).map(t => renderDesiredBadge(t, neutralBadgeClass)).join('')
+    : '<span class="text-slate-400">-</span>';
+  const experienceDisplay = sanitizeList(desired.experiences).length
+    ? sanitizeList(desired.experiences).map(t => renderDesiredBadge(t, neutralBadgeClass)).join('')
+    : '<span class="text-slate-400">-</span>';
   const selectionNoteText = company.selectionNote || '';
   const editActions = editing
     ? `
@@ -2155,28 +2168,28 @@ function renderCompanyDetail() {
       </div>
     `
     : `
-      <div class="space-y-2 text-sm">
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+      <div class="space-y-0 text-sm border-t border-slate-100">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">年収レンジ</span>
             <span class="text-slate-700 font-medium text-right flex-1">${salaryLabel}</span>
         </div>
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">必須資格</span>
             <span class="text-slate-700 text-right flex-1">${mustDisplay}</span>
         </div>
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">歓迎資格</span>
             <span class="text-slate-700 text-right flex-1">${niceDisplay}</span>
         </div>
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">勤務地</span>
             <span class="text-slate-700 text-right flex-1">${locationDisplay}</span>
         </div>
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">性格傾向</span>
             <span class="text-slate-700 text-right flex-1">${personalityDisplay}</span>
         </div>
-        <div class="flex justify-between items-start border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+        <div class="grid grid-cols-[100px_1fr] gap-4 items-start py-3 border-b border-slate-100">
             <span class="text-xs text-slate-500 font-medium whitespace-nowrap mr-4 w-24">経験</span>
             <span class="text-slate-700 text-right flex-1">${experienceDisplay}</span>
         </div>
