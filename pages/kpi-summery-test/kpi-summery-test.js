@@ -1,4 +1,4 @@
-const ENDPOINT_URL = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod/kpi/summary';
+const ENDPOINT_URL = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/kpi/summary`;
 
 // 必要に応じて日付やユーザーIDを変更
 const DEFAULT_QUERY = {

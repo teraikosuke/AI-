@@ -9,7 +9,7 @@ import {
 } from './yield-metrics-from-candidates.js';
 
 // API接続設定
-const YIELD_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
+const YIELD_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
 const KPI_API_BASE = `${YIELD_API_BASE}/kpi`;
 const MEMBERS_API_BASE = YIELD_API_BASE;
 const MEMBERS_LIST_PATH = '/members';

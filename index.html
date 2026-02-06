@@ -36,6 +36,28 @@
       },
     }
   </script>
+  <script>
+      // --- API接続先の設定 ---
+      (function () {
+        const PROD_API_BASE = "https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod";
+        const DEV_API_BASE = "https://uqg1gdotaa.execute-api.ap-northeast-1.amazonaws.com/dev";
+
+        const currentHost = window.location.hostname;
+
+        // agent-key.pages.dev の場合のみ本番環境とみなす
+        if (currentHost === "agent-key.pages.dev") {
+          window.API_BASE_URL = PROD_API_BASE;
+        } else {
+          // develop.agent-key.pages.dev や localhost などは開発環境
+          window.API_BASE_URL = DEV_API_BASE;
+        }
+
+        // 認証用APIのベースURL設定
+        window.AUTH_API_BASE = `${window.API_BASE_URL}/auth`;
+
+        console.log(`[Environment] Host: ${currentHost}, API: ${window.API_BASE_URL}`);
+      })();
+  </script>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
     rel="stylesheet" />

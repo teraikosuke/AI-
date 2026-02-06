@@ -3,7 +3,7 @@ import { authRepo } from '../../scripts/api/repositories/auth.js';
 import { mount as mountYield } from '../yield/yield.js?v=20260127_01';
 import { mount as mountGoalSettings } from '../goal-settings/goal-settings.js';
 
-const MYPAGE_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
+const MYPAGE_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
 const MYPAGE_PATH = '/mypage';
 
 const state = {

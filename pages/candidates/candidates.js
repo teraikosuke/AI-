@@ -1,6 +1,6 @@
 ﻿// teleapo ???API Gateway? base
 
-const CANDIDATES_API_BASE = "https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod";
+const CANDIDATES_API_BASE = window.API_BASE_URL || "https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod";
 const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings-screening-rules`;
 const SCREENING_RULES_FALLBACK_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
 
@@ -2040,10 +2040,10 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     nextAction: renderDetailCard("次回アクション", renderNextActionSection(candidate), "nextAction"),
     selection: renderDetailCard("選考進捗", renderSelectionProgressSection(candidate), "selection"),
     profile: renderDetailCard("基本情報", renderApplicantInfoSection(candidate), "profile") +
-             renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
+      renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
     hearing: renderDetailCard("面談メモ", renderHearingSection(candidate), "hearing"),
     cs: renderDetailCard("架電結果", renderCsSection(candidate), "cs") +
-        renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
+      renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
     money: renderDetailCard("売上・返金", renderMoneySection(candidate), "money"),
     documents: renderDetailCard("書類作成", renderDocumentsSection(candidate), "documents"),
   };
