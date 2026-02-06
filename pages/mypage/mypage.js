@@ -177,7 +177,7 @@ function bindActions() {
     toggle.addEventListener('click', state.toggleHandler);
   }
 
-  ['mypageTasksBody', 'mypageUpcomingBody'].forEach((bodyId) => {
+  ['mypageTasksBody', 'mypageUpcomingBody', 'mypageCandidatesBody'].forEach((bodyId) => {
     const body = document.getElementById(bodyId);
     if (!body) return;
     const handler = (event) => {
@@ -228,11 +228,8 @@ function bindActions() {
 }
 
 function navigateToCandidate(candidateId) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('candidateId', String(candidateId));
-  url.searchParams.set('openDetail', '1');
-  url.hash = '#/candidates';
-  window.location.href = url.toString();
+  if (!candidateId) return;
+  window.location.hash = `#/candidate-detail?id=${encodeURIComponent(String(candidateId))}`;
 }
 
 function normalizeTaskRows(tasks) {
@@ -587,7 +584,7 @@ function renderCandidates(candidates, closedCandidates) {
       const phaseClass = candidate.phase ? '' : ' is-muted';
       if (isAdvisor) {
         return `
-          <tr class="mypage-candidate-row">
+          <tr class="mypage-candidate-row" data-candidate-id="${escapeHtml(String(candidate.candidateId || ''))}">
             <td>
               <div class="mypage-candidate-name">${name}</div>
             </td>
@@ -600,7 +597,7 @@ function renderCandidates(candidates, closedCandidates) {
         `;
       }
       return `
-        <tr class="mypage-candidate-row">
+        <tr class="mypage-candidate-row" data-candidate-id="${escapeHtml(String(candidate.candidateId || ''))}">
           <td>
             <div class="mypage-candidate-name">${name}</div>
           </td>
