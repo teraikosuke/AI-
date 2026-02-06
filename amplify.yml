@@ -1,0 +1,72 @@
+version: 1
+
+# =============================================================================
+# AWS Amplify ビルド設定
+# =============================================================================
+# このファイルはAmplify Hostingでのビルド・デプロイ設定を定義します。
+# フロントエンドは静的HTMLサイトのため、ビルドプロセスは最小限です。
+
+frontend:
+  phases:
+    # プリビルド: 依存関係のインストール（必要に応じて）
+    preBuild:
+      commands:
+        - echo "=== Pre-build phase ==="
+        # 将来的にnpm依存関係が必要になった場合のためのプレースホルダー
+        # - npm ci
+    
+    # ビルド: 静的ファイルの準備
+    build:
+      commands:
+        - echo "=== Build phase ==="
+        - echo "Static site - no build required"
+        # 将来的にビルドが必要になった場合のためのプレースホルダー
+        # - npm run build
+  
+  # デプロイするファイルの場所
+  artifacts:
+    # 静的サイトのため、ルートディレクトリ全体をデプロイ
+    baseDirectory: /
+    files:
+      - '**/*'
+    # 不要なファイルを除外
+    discard-paths: no
+
+  # キャッシュ設定（ビルド高速化）
+  cache:
+    paths:
+      - node_modules/**/*
+
+# =============================================================================
+# カスタムヘッダー設定
+# =============================================================================
+customHeaders:
+  - pattern: '**/*'
+    headers:
+      # セキュリティヘッダー
+      - key: 'X-Frame-Options'
+        value: 'DENY'
+      - key: 'X-Content-Type-Options'
+        value: 'nosniff'
+      - key: 'X-XSS-Protection'
+        value: '1; mode=block'
+      - key: 'Referrer-Policy'
+        value: 'strict-origin-when-cross-origin'
+  
+  # API呼び出しを許可するCSP（必要に応じて調整）
+  - pattern: '**/*.html'
+    headers:
+      - key: 'Content-Security-Policy'
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.execute-api.ap-northeast-1.amazonaws.com; font-src 'self' https://fonts.gstatic.com;"
+
+  # 静的アセットのキャッシュ設定
+  - pattern: '**/*.{js,css,png,jpg,jpeg,gif,svg,woff,woff2}'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=31536000, immutable'
+  
+  # HTMLファイルはキャッシュしない（常に最新を取得）
+  - pattern: '**/*.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache, no-store, must-revalidate'

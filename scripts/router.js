@@ -10,7 +10,7 @@ const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
 const routes = {
   login: () => import("../pages/login/login.js"),
-  mypage: () => import("../pages/mypage/mypage.js"),
+  mypage: () => import("../pages/mypage/mypage.js?v=20260206_01"),
   members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js?v=20260203_14"),
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
