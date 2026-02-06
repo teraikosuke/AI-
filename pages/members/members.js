@@ -1,7 +1,7 @@
 ﻿import { getSession } from '../../scripts/auth.js';
 import { mockUsers } from '../../scripts/mock/users.js';
 
-const MEMBERS_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
+const MEMBERS_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
 const MEMBERS_LIST_PATH = '/members';
 const MEMBERS_REQUESTS_PATH = '/members/requests';
 const ROLE_OPTIONS = [

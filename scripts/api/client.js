@@ -23,7 +23,8 @@
 export class ApiClient {
   constructor(baseUrl = '', options = {}) {
     // APIサーバーのベースURL（例: http://localhost:3000）
-    this.baseUrl = (baseUrl || 'http://localhost:3000').replace(/\/$/, '');
+    // window.API_BASE_URL が定義されていればそれをデフォルトとして使用
+    this.baseUrl = (baseUrl || window.API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       ...options.headers
@@ -44,7 +45,7 @@ export class ApiClient {
     const config = this.buildRequestConfig(options);
 
     let lastError = null;
-    
+
     // リトライ機能付きリクエスト実行
     for (let attempt = 0; attempt <= this.retryAttempts; attempt++) {
       try {
@@ -52,7 +53,7 @@ export class ApiClient {
         return await this.handleResponse(response, options.validateResponse);
       } catch (error) {
         lastError = error;
-        
+
         if (attempt < this.retryAttempts && this.shouldRetry(error)) {
           await this.delay(this.retryDelay * (attempt + 1));
           continue;
@@ -82,10 +83,10 @@ export class ApiClient {
    * @returns {Promise<ApiResponse>}
    */
   async post(endpoint, data, options = {}) {
-    return this.request(endpoint, { 
-      ...options, 
+    return this.request(endpoint, {
+      ...options,
       method: 'POST',
-      body: data 
+      body: data
     });
   }
 
@@ -97,10 +98,10 @@ export class ApiClient {
    * @returns {Promise<ApiResponse>}
    */
   async put(endpoint, data, options = {}) {
-    return this.request(endpoint, { 
-      ...options, 
+    return this.request(endpoint, {
+      ...options,
       method: 'PUT',
-      body: data 
+      body: data
     });
   }
 
@@ -137,8 +138,8 @@ export class ApiClient {
     };
 
     if (options.body && config.method !== 'GET') {
-      config.body = typeof options.body === 'string' 
-        ? options.body 
+      config.body = typeof options.body === 'string'
+        ? options.body
         : JSON.stringify(options.body);
     }
 
@@ -211,9 +212,9 @@ export class ApiClient {
    */
   shouldRetry(error) {
     // ネットワークエラーやサーバーエラーの場合はリトライ
-    return error.message.includes('timeout') || 
-           error.message.includes('network') ||
-           (error.status >= 500 && error.status < 600);
+    return error.message.includes('timeout') ||
+      error.message.includes('network') ||
+      (error.status >= 500 && error.status < 600);
   }
 
   /**

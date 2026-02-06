@@ -39,8 +39,8 @@ const PAGE_RATE_TARGET_KEYS = [
   'clientRetentionRate'
 ];
 
-const DEFAULT_GOAL_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod/goal';
-const KPI_TARGET_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'; // New API Base
+const DEFAULT_GOAL_API_BASE = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/goal`;
+const KPI_TARGET_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'; // New API Base
 const GOAL_API_BASE = resolveGoalApiBase();
 
 const cache = {

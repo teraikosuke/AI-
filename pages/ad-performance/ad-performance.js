@@ -6,7 +6,7 @@ import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 let adRateTargets = {};
 
 // ===== RDS API（あなたが作成した /dev/kpi/ads を利用）=====
-const ADS_KPI_API_URL = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod/kpi/ads';
+const ADS_KPI_API_URL = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/kpi/ads`;
 // groupBy は route 固定（apply_route）。必要なら route_mid に変更可
 const ADS_GROUP_BY = 'route';
 
@@ -14,7 +14,7 @@ const ADS_GROUP_BY = 'route';
 // ひとまず initialInterviews = firstInterviewDone として接続
 const MAP_INITIAL_INTERVIEWS_FIELD = 'firstInterviewDone';
 // API Gatewayの媒体契約情報エンドポイント
-const AD_CONTRACT_API_URL = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod/ads/detail';
+const AD_CONTRACT_API_URL = `${window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod'}/ads/detail`;
 
 const DEFAULT_CONTRACT_INFO = {
   contractStartDate: '',

@@ -21,7 +21,7 @@ let selectedCompanyId = null;
 let detailEditMode = false;
 let referralRateTargets = {}; // 目標値キャッシュ
 
-const REFERRAL_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
+const REFERRAL_API_BASE = window.API_BASE_URL || 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
 const CLIENTS_KPI_API_URL = `${REFERRAL_API_BASE}/kpi/clients`;
 const CLIENTS_PROFILE_API_URL = `${REFERRAL_API_BASE}/clients`;
 const CANDIDATES_API_BASE = REFERRAL_API_BASE;
