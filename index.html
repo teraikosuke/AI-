@@ -42,6 +42,7 @@
   <link rel="stylesheet" href="styles/tokens.css" />
   <link rel="stylesheet" href="styles/base.css?v=20260203_new" />
   <link rel="stylesheet" href="styles/utilities.css" />
+  <link rel="stylesheet" href="chatbot/frontend/widget.css" />
 </head>
 
 <body>
@@ -240,10 +241,55 @@
     </div>
   </div>
 
+  <!-- HelpChat widget -->
+  <div id="helpchat-widget" class="helpchat-widget">
+    <button id="helpchat-trigger" class="helpchat-trigger" aria-label="ヘルプを開く">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9 9a3 3 0 1 1 5.2 2c-.9.7-1.7 1.4-1.7 3" />
+        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    </button>
+
+    <div id="helpchat-drawer" class="helpchat-drawer" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="helpchat-header">
+        <h2 class="helpchat-title">ヘルプチャット</h2>
+        <button id="helpchat-close" class="helpchat-close" aria-label="閉じる">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div id="helpchat-messages" class="helpchat-messages" role="log" aria-live="polite"></div>
+      <div id="helpchat-options" class="helpchat-options"></div>
+
+      <div id="helpchat-input-area" class="helpchat-input-area helpchat-hidden">
+        <input type="text" id="helpchat-input" class="helpchat-input" placeholder="キーワードを入力..." autocomplete="off" />
+        <button id="helpchat-send" class="helpchat-send" aria-label="送信">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
+      <div class="helpchat-resize-handle" data-resize="n"></div>
+      <div class="helpchat-resize-handle" data-resize="w"></div>
+      <div class="helpchat-resize-handle" data-resize="nw"></div>
+    </div>
+  </div>
   <script type="module">
     import { boot } from './scripts/router.js?v=20260120_2';
     boot();
   </script>
+  <script>
+    window.HelpChatWidgetConfig = {
+      apiBase: 'http://127.0.0.1:5001/api/v1/helpchat'
+    };
+  </script>
+  <script src="chatbot/frontend/widget.js?v=20260204_1" defer></script>
 </body>
 
 </html>

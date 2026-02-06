@@ -1,0 +1,1584 @@
+{
+    "meta": {
+        "version": "1.0.0",
+        "lastUpdated": "2026-02-04T18:00:00+09:00",
+        "updatedBy": "engineer@example.com"
+    },
+    "screen_registry": {
+        "global": {
+            "name": "全体",
+            "routes": []
+        },
+        "yield_personal": {
+            "name": "歩留まり（個人）",
+            "routes": [
+                "/pages/yield-personal",
+                "/yield-personal"
+            ],
+            "group": "yield"
+        },
+        "yield_company": {
+            "name": "歩留まり（企業）",
+            "routes": [
+                "/pages/yield-company",
+                "/yield-company"
+            ],
+            "group": "yield"
+        },
+        "yield_admin": {
+            "name": "歩留まり（管理）",
+            "routes": [
+                "/pages/yield-admin",
+                "/yield-admin"
+            ],
+            "group": "yield"
+        },
+        "settings_main": {
+            "name": "設定",
+            "routes": [
+                "/pages/settings",
+                "/settings"
+            ],
+            "group": "settings"
+        },
+        "members_list": {
+            "name": "メンバー一覧",
+            "routes": [
+                "/pages/members",
+                "/members"
+            ],
+            "group": "members"
+        },
+        "teleapo": {
+            "name": "架電管理",
+            "routes": [
+                "/teleapo",
+                "/pages/teleapo"
+            ],
+            "group": "teleapo"
+        },
+        "referral": {
+            "name": "紹介先企業管理",
+            "routes": [
+                "/referral",
+                "/pages/referral"
+            ],
+            "group": "referral"
+        },
+        "ad_performance": {
+            "name": "広告管理",
+            "routes": [
+                "/ad-performance",
+                "/pages/ad-performance"
+            ],
+            "group": "ad"
+        },
+        "candidates": {
+            "name": "候補者管理",
+            "routes": [
+                "/candidates",
+                "/pages/candidates"
+            ],
+            "group": "candidates"
+        },
+        "goal_settings": {
+            "name": "評価・目標設定",
+            "routes": [
+                "/goal-settings",
+                "/pages/goal-settings"
+            ],
+            "group": "settings"
+        }
+    },
+    "system_messages": {
+        "welcome": "こんにちは！ヘルプボットです。何かお困りですか？",
+        "not_found": "該当する回答が見つかりませんでした。",
+        "search_prompt": "検索キーワードを入力してください（2文字以上）",
+        "search_too_short": "2文字以上で入力してください。",
+        "search_results": "「{query}」の検索結果です（{count}件）。",
+        "search_no_result": "「{query}」に該当する項目がありませんでした。",
+        "select_from_options": "選択肢からお選びください。",
+        "category_empty": "この項目には該当するヘルプがありません。",
+        "error": "エラーが発生しました。もう一度お試しください。",
+        "error_session_expired": "セッションが期限切れです。画面を再読み込みしてください。"
+    },
+    "menus": {
+        "home:global": {
+            "message": "こんにちは！何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:global"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:global"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:global"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:global"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:global"
+                }
+            ]
+        },
+        "home:yield_personal": {
+            "message": "歩留まり（個人）のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:yield_personal"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:yield_personal"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:yield_personal"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:yield_personal"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:yield_personal"
+                },
+                {
+                    "label": "歩留まりメニューに戻る",
+                    "next_state": "menu:watarimari"
+                }
+            ]
+        },
+        "home:yield_company": {
+            "message": "歩留まり（企業）のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:yield_company"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:yield_company"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:yield_company"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:yield_company"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:yield_company"
+                },
+                {
+                    "label": "歩留まりメニューに戻る",
+                    "next_state": "menu:watarimari"
+                }
+            ]
+        },
+        "home:yield_admin": {
+            "message": "歩留まり（管理）のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:yield_admin"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:yield_admin"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:yield_admin"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:yield_admin"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:yield_admin"
+                },
+                {
+                    "label": "歩留まりメニューに戻る",
+                    "next_state": "menu:watarimari"
+                }
+            ]
+        },
+        "home:settings_main": {
+            "message": "設定のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:settings_main"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:settings_main"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:settings_main"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:settings_main"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:settings_main"
+                },
+                {
+                    "label": "設定メニューに戻る",
+                    "next_state": "menu:settings"
+                }
+            ]
+        },
+        "home:members_list": {
+            "message": "メンバー一覧のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:members_list"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:members_list"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:members_list"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:members_list"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:members_list"
+                }
+            ]
+        },
+        "menu:watarimari": {
+            "message": "歩留まり関連の画面を選択してください。",
+            "options": [
+                {
+                    "label": "歩留まり（個人）へ",
+                    "next_state": "home:yield_personal"
+                },
+                {
+                    "label": "歩留まり（企業）へ",
+                    "next_state": "home:yield_company"
+                },
+                {
+                    "label": "歩留まり（管理）へ",
+                    "next_state": "home:yield_admin"
+                }
+            ]
+        },
+        "menu:settings": {
+            "message": "設定関連の画面を選択してください。",
+            "options": [
+                {
+                    "label": "設定（メイン）へ",
+                    "next_state": "home:settings_main"
+                }
+            ]
+        },
+        "cat:faq:yield_personal": {
+            "message": "歩留まり（個人）のよくある質問です。",
+            "options": [
+                {
+                    "label": "データの更新頻度は？",
+                    "next_state": "ans:item_003"
+                },
+                {
+                    "label": "自分のデータだけ見たい",
+                    "next_state": "ans:item_011"
+                }
+            ]
+        },
+        "cat:howto:yield_personal": {
+            "message": "歩留まり（個人）の使い方です。",
+            "options": [
+                {
+                    "label": "グラフの見方",
+                    "next_state": "ans:item_004"
+                },
+                {
+                    "label": "CSVでエクスポートしたい",
+                    "next_state": "ans:item_006"
+                }
+            ]
+        },
+        "cat:glossary:yield_personal": {
+            "message": "歩留まり関連の用語です。",
+            "options": [
+                {
+                    "label": "歩留まりとは？",
+                    "next_state": "ans:item_001"
+                },
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:yield_personal": {
+            "message": "歩留まり（個人）のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "グラフが表示されない",
+                    "next_state": "ans:item_002"
+                }
+            ]
+        },
+        "cat:faq:yield_company": {
+            "message": "歩留まり（企業）のよくある質問です。",
+            "options": [
+                {
+                    "label": "データの更新頻度は？",
+                    "next_state": "ans:item_003"
+                }
+            ]
+        },
+        "cat:howto:yield_company": {
+            "message": "歩留まり（企業）の使い方です。",
+            "options": [
+                {
+                    "label": "企業別歩留まりの見方",
+                    "next_state": "ans:item_012"
+                },
+                {
+                    "label": "グラフの見方",
+                    "next_state": "ans:item_004"
+                }
+            ]
+        },
+        "cat:glossary:yield_company": {
+            "message": "歩留まり関連の用語です。",
+            "options": [
+                {
+                    "label": "歩留まりとは？",
+                    "next_state": "ans:item_001"
+                },
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:yield_company": {
+            "message": "歩留まり（企業）のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "グラフが表示されない",
+                    "next_state": "ans:item_002"
+                }
+            ]
+        },
+        "cat:faq:yield_admin": {
+            "message": "歩留まり（管理）のよくある質問です。",
+            "options": [
+                {
+                    "label": "データの更新頻度は？",
+                    "next_state": "ans:item_003"
+                }
+            ]
+        },
+        "cat:howto:yield_admin": {
+            "message": "歩留まり（管理）の使い方です。",
+            "options": [
+                {
+                    "label": "CSVでエクスポートしたい",
+                    "next_state": "ans:item_006"
+                }
+            ]
+        },
+        "cat:faq:settings_main": {
+            "message": "設定のよくある質問です。",
+            "options": [
+                {
+                    "label": "通知が届かない",
+                    "next_state": "ans:item_013"
+                }
+            ]
+        },
+        "cat:howto:settings_main": {
+            "message": "設定の使い方です。",
+            "options": [
+                {
+                    "label": "通知設定を変更したい",
+                    "next_state": "ans:item_007"
+                }
+            ]
+        },
+        "cat:faq:members_list": {
+            "message": "メンバー一覧のよくある質問です。",
+            "options": [
+                {
+                    "label": "招待メールが届かない",
+                    "next_state": "ans:item_014"
+                }
+            ]
+        },
+        "cat:howto:members_list": {
+            "message": "メンバー一覧の使い方です。",
+            "options": [
+                {
+                    "label": "メンバーを招待したい",
+                    "next_state": "ans:item_008"
+                }
+            ]
+        },
+        "cat:faq:global": {
+            "message": "よくある質問です。",
+            "options": [
+                {
+                    "label": "ログインできない",
+                    "next_state": "ans:item_009"
+                },
+                {
+                    "label": "データの更新頻度は？",
+                    "next_state": "ans:item_003"
+                }
+            ]
+        },
+        "cat:howto:global": {
+            "message": "使い方です。",
+            "options": [
+                {
+                    "label": "CSVでエクスポートしたい",
+                    "next_state": "ans:item_006"
+                }
+            ]
+        },
+        "cat:glossary:global": {
+            "message": "用語集です。",
+            "options": [
+                {
+                    "label": "歩留まりとは？",
+                    "next_state": "ans:item_001"
+                },
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:global": {
+            "message": "エラー/困りごとです。",
+            "options": [
+                {
+                    "label": "ログインできない",
+                    "next_state": "ans:item_009"
+                },
+                {
+                    "label": "グラフが表示されない",
+                    "next_state": "ans:item_002"
+                }
+            ]
+        },
+        "cat:general:global": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "cat:general:yield_personal": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "cat:general:yield_company": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "cat:general:yield_admin": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "cat:glossary:yield_admin": {
+            "message": "歩留まり関連の用語です。",
+            "options": [
+                {
+                    "label": "歩留まりとは？",
+                    "next_state": "ans:item_001"
+                },
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:yield_admin": {
+            "message": "歩留まり（管理）のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "ログインできない",
+                    "next_state": "ans:item_009"
+                }
+            ]
+        },
+        "cat:glossary:settings_main": {
+            "message": "設定の用語です。",
+            "options": [
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:settings_main": {
+            "message": "設定のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "ログインできない",
+                    "next_state": "ans:item_009"
+                }
+            ]
+        },
+        "cat:general:settings_main": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "cat:glossary:members_list": {
+            "message": "メンバー一覧の用語です。",
+            "options": [
+                {
+                    "label": "ファネルとは？",
+                    "next_state": "ans:item_005"
+                }
+            ]
+        },
+        "cat:error:members_list": {
+            "message": "メンバー一覧のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "ログインできない",
+                    "next_state": "ans:item_009"
+                }
+            ]
+        },
+        "cat:general:members_list": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "問い合わせ先",
+                    "next_state": "ans:item_010"
+                }
+            ]
+        },
+        "home:teleapo": {
+            "message": "架電管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:teleapo"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:teleapo"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:teleapo"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:teleapo"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:teleapo"
+                }
+            ]
+        },
+        "cat:faq:teleapo": {
+            "message": "架電管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "架電管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_015"
+                }
+            ]
+        },
+        "cat:howto:teleapo": {
+            "message": "架電管理の使い方です。",
+            "options": [
+                {
+                    "label": "架電管理の使い方(ダミー)",
+                    "next_state": "ans:item_016"
+                }
+            ]
+        },
+        "cat:glossary:teleapo": {
+            "message": "架電管理の用語です。",
+            "options": [
+                {
+                    "label": "架電数",
+                    "next_state": "ans:item_017"
+                },
+                {
+                    "label": "通電数",
+                    "next_state": "ans:item_018"
+                }
+            ]
+        },
+        "cat:error:teleapo": {
+            "message": "架電管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "架電管理のエラー(ダミー)",
+                    "next_state": "ans:item_019"
+                }
+            ]
+        },
+        "cat:general:teleapo": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "架電管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_020"
+                }
+            ]
+        },
+        "home:referral": {
+            "message": "紹介先企業管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:referral"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:referral"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:referral"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:referral"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:referral"
+                }
+            ]
+        },
+        "cat:faq:referral": {
+            "message": "紹介先企業管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "紹介先企業管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_021"
+                }
+            ]
+        },
+        "cat:howto:referral": {
+            "message": "紹介先企業管理の使い方です。",
+            "options": [
+                {
+                    "label": "紹介先企業管理の使い方(ダミー)",
+                    "next_state": "ans:item_022"
+                }
+            ]
+        },
+        "cat:glossary:referral": {
+            "message": "紹介先企業管理の用語です。",
+            "options": [
+                {
+                    "label": "CSVエクスポート",
+                    "next_state": "ans:item_023"
+                },
+                {
+                    "label": "新規紹介先企業登録",
+                    "next_state": "ans:item_024"
+                }
+            ]
+        },
+        "cat:error:referral": {
+            "message": "紹介先企業管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "紹介先企業管理のエラー(ダミー)",
+                    "next_state": "ans:item_025"
+                }
+            ]
+        },
+        "cat:general:referral": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "紹介先企業管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_026"
+                }
+            ]
+        },
+        "home:ad_performance": {
+            "message": "広告管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:ad_performance"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:ad_performance"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:ad_performance"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:ad_performance"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:ad_performance"
+                }
+            ]
+        },
+        "cat:faq:ad_performance": {
+            "message": "広告管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "広告管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_027"
+                }
+            ]
+        },
+        "cat:howto:ad_performance": {
+            "message": "広告管理の使い方です。",
+            "options": [
+                {
+                    "label": "広告管理の使い方(ダミー)",
+                    "next_state": "ans:item_028"
+                }
+            ]
+        },
+        "cat:glossary:ad_performance": {
+            "message": "広告管理の用語です。",
+            "options": [
+                {
+                    "label": "広告管理の用語(ダミー)",
+                    "next_state": "ans:item_029"
+                }
+            ]
+        },
+        "cat:error:ad_performance": {
+            "message": "広告管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "広告管理のエラー(ダミー)",
+                    "next_state": "ans:item_030"
+                }
+            ]
+        },
+        "cat:general:ad_performance": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "広告管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_031"
+                }
+            ]
+        },
+        "home:candidates": {
+            "message": "候補者管理のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:candidates"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:candidates"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:candidates"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:candidates"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:candidates"
+                }
+            ]
+        },
+        "cat:faq:candidates": {
+            "message": "候補者管理のよくある質問です。",
+            "options": [
+                {
+                    "label": "候補者管理のよくある質問(ダミー)",
+                    "next_state": "ans:item_032"
+                }
+            ]
+        },
+        "cat:howto:candidates": {
+            "message": "候補者管理の使い方です。",
+            "options": [
+                {
+                    "label": "候補者管理の使い方(ダミー)",
+                    "next_state": "ans:item_033"
+                }
+            ]
+        },
+        "cat:glossary:candidates": {
+            "message": "候補者管理の用語です。",
+            "options": [
+                {
+                    "label": "候補者管理の用語(ダミー)",
+                    "next_state": "ans:item_034"
+                }
+            ]
+        },
+        "cat:error:candidates": {
+            "message": "候補者管理のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "候補者管理のエラー(ダミー)",
+                    "next_state": "ans:item_035"
+                }
+            ]
+        },
+        "cat:general:candidates": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "候補者管理の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_036"
+                }
+            ]
+        },
+        "home:goal_settings": {
+            "message": "評価・目標設定のヘルプです。何かお困りですか？",
+            "options": [
+                {
+                    "label": "よくある質問",
+                    "next_state": "cat:faq:goal_settings"
+                },
+                {
+                    "label": "使い方",
+                    "next_state": "cat:howto:goal_settings"
+                },
+                {
+                    "label": "用語",
+                    "next_state": "cat:glossary:goal_settings"
+                },
+                {
+                    "label": "エラー/困りごと",
+                    "next_state": "cat:error:goal_settings"
+                },
+                {
+                    "label": "全体ヘルプ",
+                    "next_state": "cat:general:goal_settings"
+                }
+            ]
+        },
+        "cat:faq:goal_settings": {
+            "message": "評価・目標設定のよくある質問です。",
+            "options": [
+                {
+                    "label": "評価・目標設定のよくある質問(ダミー)",
+                    "next_state": "ans:item_037"
+                }
+            ]
+        },
+        "cat:howto:goal_settings": {
+            "message": "評価・目標設定の使い方です。",
+            "options": [
+                {
+                    "label": "評価・目標設定の使い方(ダミー)",
+                    "next_state": "ans:item_038"
+                }
+            ]
+        },
+        "cat:glossary:goal_settings": {
+            "message": "評価・目標設定の用語です。",
+            "options": [
+                {
+                    "label": "評価・目標設定の用語(ダミー)",
+                    "next_state": "ans:item_039"
+                }
+            ]
+        },
+        "cat:error:goal_settings": {
+            "message": "評価・目標設定のエラー/困りごとです。",
+            "options": [
+                {
+                    "label": "評価・目標設定のエラー(ダミー)",
+                    "next_state": "ans:item_040"
+                }
+            ]
+        },
+        "cat:general:goal_settings": {
+            "message": "全体ヘルプです。",
+            "options": [
+                {
+                    "label": "評価・目標設定の全体ヘルプ(ダミー)",
+                    "next_state": "ans:item_041"
+                }
+            ]
+        }
+    },
+    "content_items": {
+        "item_001": {
+            "title": "歩留まりとは？",
+            "body": "歩留まりとは、採用プロセスにおける各段階の通過率を示す指標です。\n\n計算式: 次ステップ通過数 ÷ 現ステップ数 × 100\n\n例えば、書類選考に100名応募があり、20名が1次面接に進んだ場合、書類選考の歩留まりは20%となります。",
+            "category": "glossary",
+            "screens": [
+                "yield_personal",
+                "yield_company",
+                "yield_admin"
+            ],
+            "keywords": [
+                "歩留まり",
+                "通過率",
+                "指標",
+                "計算",
+                "パーセント"
+            ],
+            "links": [],
+            "priority": 100
+        },
+        "item_002": {
+            "title": "グラフが表示されない",
+            "body": "グラフが表示されない場合は、以下をご確認ください：\n\n1. データが登録されているか\n   - 対象期間にデータがない場合、グラフは表示されません\n\n2. 期間設定が正しいか\n   - 右上の期間フィルターを確認してください\n\n3. ブラウザのキャッシュをクリア\n   - Ctrl + Shift + Delete でキャッシュを削除\n\n上記で解決しない場合は、管理者にお問い合わせください。",
+            "category": "error",
+            "screens": [
+                "yield_personal",
+                "yield_company"
+            ],
+            "keywords": [
+                "グラフ",
+                "表示されない",
+                "エラー",
+                "空白",
+                "データなし"
+            ],
+            "links": [],
+            "priority": 95
+        },
+        "item_003": {
+            "title": "データの更新頻度は？",
+            "body": "データは以下のタイミングで更新されます：\n\n- リアルタイム更新: ステータス変更時に即時反映\n- 集計データ: 毎日午前3時に前日分を集計\n- グラフ表示: ページ読み込み時に最新データを取得\n\n最新データを確認したい場合は、ブラウザを再読み込み（F5）してください。",
+            "category": "faq",
+            "screens": [],
+            "keywords": [
+                "更新",
+                "頻度",
+                "タイミング",
+                "いつ",
+                "同期"
+            ],
+            "links": [],
+            "priority": 90
+        },
+        "item_004": {
+            "title": "グラフの見方",
+            "body": "歩留まりグラフの見方：\n\n■ 横軸: 選考ステップ（応募 → 書類 → 1次 → 最終 → 内定）\n■ 縦軸: 人数またはパーセンテージ\n■ 色分け:\n  - 青: 通過\n  - グレー: 不通過/辞退\n\n■ マウスオーバー: 詳細数値を表示\n■ クリック: ステップ別の詳細画面へ",
+            "category": "howto",
+            "screens": [
+                "yield_personal",
+                "yield_company"
+            ],
+            "keywords": [
+                "グラフ",
+                "見方",
+                "使い方",
+                "軸",
+                "凡例"
+            ],
+            "links": [],
+            "priority": 85
+        },
+        "item_005": {
+            "title": "ファネルとは？",
+            "body": "ファネル（漏斗）とは、採用プロセスを上から下へ流れる形で可視化した図です。\n\n応募（広い）\n　↓\n書類選考\n　↓\n面接\n　↓\n内定（狭い）\n\n上が広く下が狭くなる漏斗の形に似ていることから「ファネル」と呼ばれます。",
+            "category": "glossary",
+            "screens": [],
+            "keywords": [
+                "ファネル",
+                "漏斗",
+                "図",
+                "可視化",
+                "プロセス"
+            ],
+            "links": [],
+            "priority": 80
+        },
+        "item_006": {
+            "title": "CSVでデータをエクスポートしたい",
+            "body": "データのCSVエクスポート手順：\n\n1. 画面右上の「︙」メニューをクリック\n2. 「データエクスポート」を選択\n3. エクスポート対象を選択:\n   - 現在の表示データ\n   - 期間指定データ\n4. 「CSV形式でダウンロード」をクリック\n\n※ 大量データの場合、準備に時間がかかることがあります。",
+            "category": "howto",
+            "screens": [],
+            "keywords": [
+                "CSV",
+                "エクスポート",
+                "ダウンロード",
+                "出力",
+                "データ"
+            ],
+            "links": [],
+            "priority": 75
+        },
+        "item_007": {
+            "title": "通知設定を変更したい",
+            "body": "通知設定の変更手順：\n\n1. 右上のプロフィールアイコンをクリック\n2. 「設定」を選択\n3. 「通知設定」タブを開く\n4. 受け取りたい通知をON/OFF\n5. 「保存」をクリック\n\n設定可能な通知：\n- 日次レポート\n- 週次サマリー\n- 異常値アラート",
+            "category": "howto",
+            "screens": [
+                "settings_main"
+            ],
+            "keywords": [
+                "通知",
+                "設定",
+                "変更",
+                "メール",
+                "アラート"
+            ],
+            "links": [],
+            "priority": 70
+        },
+        "item_008": {
+            "title": "メンバーを招待したい",
+            "body": "新しいメンバーの招待手順：\n\n1. サイドメニューから「メンバー」を選択\n2. 右上の「メンバーを招待」ボタンをクリック\n3. 招待するメンバーのメールアドレスを入力\n4. 権限レベルを選択:\n   - 閲覧者: データ閲覧のみ\n   - 編集者: データ編集可能\n   - 管理者: 全機能利用可能\n5. 「招待を送信」をクリック\n\n招待メールは24時間有効です。",
+            "category": "howto",
+            "screens": [
+                "members_list"
+            ],
+            "keywords": [
+                "招待",
+                "メンバー",
+                "追加",
+                "ユーザー",
+                "権限"
+            ],
+            "links": [],
+            "priority": 70
+        },
+        "item_009": {
+            "title": "ログインできない",
+            "body": "ログインできない場合の対処法：\n\n1. メールアドレスの確認\n   - 会社のメールアドレスを使用しているか確認\n\n2. パスワードリセット\n   - ログイン画面の「パスワードを忘れた」から再設定\n\n3. ブラウザの確認\n   - Chrome / Edge / Safari の最新版を使用\n   - Cookie がブロックされていないか確認\n\n4. 社内ネットワークの確認\n   - VPN接続が必要な場合があります\n\n上記で解決しない場合は、IT管理者にお問い合わせください。",
+            "category": "error",
+            "screens": [],
+            "keywords": [
+                "ログイン",
+                "できない",
+                "パスワード",
+                "エラー",
+                "認証"
+            ],
+            "links": [],
+            "priority": 100
+        },
+        "item_010": {
+            "title": "問い合わせ先",
+            "body": "お問い合わせ先：\n\n■ 一般的なご質問\n  support@example.com\n\n■ 技術的なお問い合わせ\n  tech-support@example.com\n\n■ 緊急のお問い合わせ\n  Slackチャンネル: #system-support\n\n対応時間: 平日 9:00 - 18:00",
+            "category": "general",
+            "screens": [],
+            "keywords": [
+                "問い合わせ",
+                "連絡先",
+                "サポート",
+                "ヘルプ",
+                "メール"
+            ],
+            "links": [
+                {
+                    "label": "サポートサイト",
+                    "url": "https://support.example.com"
+                }
+            ],
+            "priority": 50
+        },
+        "item_011": {
+            "title": "自分のデータだけ見たい",
+            "body": "自分のデータのみ表示する方法：\n\n1. 画面左上のフィルターアイコンをクリック\n2. 「担当者」で自分の名前を選択\n3. 「適用」をクリック\n\nフィルターは画面を離れるとリセットされます。\n常に自分のデータを表示したい場合は「デフォルト設定」で保存できます。",
+            "category": "faq",
+            "screens": [
+                "yield_personal"
+            ],
+            "keywords": [
+                "自分",
+                "フィルター",
+                "担当者",
+                "絞り込み"
+            ],
+            "links": [],
+            "priority": 85
+        },
+        "item_012": {
+            "title": "企業別歩留まりの見方",
+            "body": "企業別歩留まり画面では、取引先企業ごとの採用パフォーマンスを比較できます。\n\n■ 表示内容\n- 企業名\n- 紹介数\n- 内定数\n- 歩留まり率\n\n■ ソート\n- 各列のヘッダーをクリックで並び替え\n\n■ フィルター\n- 期間、業種、担当者で絞り込み可能",
+            "category": "howto",
+            "screens": [
+                "yield_company"
+            ],
+            "keywords": [
+                "企業",
+                "取引先",
+                "比較",
+                "一覧",
+                "ソート"
+            ],
+            "links": [],
+            "priority": 90
+        },
+        "item_013": {
+            "title": "通知が届かない",
+            "body": "通知が届かない場合の対処法：\n\n1. 通知設定を確認\n   - 設定画面で該当の通知がONになっているか確認\n\n2. 迷惑メールフォルダを確認\n   - 通知メールが迷惑メールに振り分けられている可能性\n\n3. メールアドレスを確認\n   - プロフィールのメールアドレスが正しいか確認\n\n4. Slackの場合\n   - Slack連携が有効になっているか確認\n   - @notifications がチャンネルに招待されているか確認",
+            "category": "faq",
+            "screens": [
+                "settings_main"
+            ],
+            "keywords": [
+                "通知",
+                "届かない",
+                "メール",
+                "Slack"
+            ],
+            "links": [],
+            "priority": 85
+        },
+        "item_014": {
+            "title": "招待メールが届かない",
+            "body": "招待メールが届かない場合：\n\n1. 迷惑メールフォルダを確認\n   - 招待メールが迷惑メールに振り分けられている可能性\n\n2. メールアドレスを確認\n   - 正しいメールアドレスで招待されているか確認\n\n3. 再送する\n   - メンバー一覧から該当ユーザーを選択\n   - 「招待を再送」をクリック\n\n招待メールは24時間で期限切れになります。\n期限切れの場合は再度招待してください。",
+            "category": "faq",
+            "screens": [
+                "members_list"
+            ],
+            "keywords": [
+                "招待",
+                "メール",
+                "届かない",
+                "再送"
+            ],
+            "links": [],
+            "priority": 80
+        },
+        "item_015": {
+            "title": "架電管理のよくある質問(ダミー)",
+            "body": "架電管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_016": {
+            "title": "架電管理の使い方(ダミー)",
+            "body": "架電管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_017": {
+            "title": "架電数",
+            "body": "架電数 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電数"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_018": {
+            "title": "通電数",
+            "body": "通電数 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "通電数"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_019": {
+            "title": "架電管理のエラー(ダミー)",
+            "body": "架電管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_020": {
+            "title": "架電管理の全体ヘルプ(ダミー)",
+            "body": "架電管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "teleapo"
+            ],
+            "keywords": [
+                "架電管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_021": {
+            "title": "紹介先企業管理のよくある質問(ダミー)",
+            "body": "紹介先企業管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_022": {
+            "title": "紹介先企業管理の使い方(ダミー)",
+            "body": "紹介先企業管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_023": {
+            "title": "CSVエクスポート",
+            "body": "CSVエクスポート のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "CSVエクスポート"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_024": {
+            "title": "新規紹介先企業登録",
+            "body": "新規紹介先企業登録 のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "新規紹介先企業登録"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_025": {
+            "title": "紹介先企業管理のエラー(ダミー)",
+            "body": "紹介先企業管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_026": {
+            "title": "紹介先企業管理の全体ヘルプ(ダミー)",
+            "body": "紹介先企業管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "referral"
+            ],
+            "keywords": [
+                "紹介先企業管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_027": {
+            "title": "広告管理のよくある質問(ダミー)",
+            "body": "広告管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_028": {
+            "title": "広告管理の使い方(ダミー)",
+            "body": "広告管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_029": {
+            "title": "広告管理の用語(ダミー)",
+            "body": "広告管理の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_030": {
+            "title": "広告管理のエラー(ダミー)",
+            "body": "広告管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_031": {
+            "title": "広告管理の全体ヘルプ(ダミー)",
+            "body": "広告管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "ad_performance"
+            ],
+            "keywords": [
+                "広告管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_032": {
+            "title": "候補者管理のよくある質問(ダミー)",
+            "body": "候補者管理のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_033": {
+            "title": "候補者管理の使い方(ダミー)",
+            "body": "候補者管理の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_034": {
+            "title": "候補者管理の用語(ダミー)",
+            "body": "候補者管理の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_035": {
+            "title": "候補者管理のエラー(ダミー)",
+            "body": "候補者管理のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_036": {
+            "title": "候補者管理の全体ヘルプ(ダミー)",
+            "body": "候補者管理の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "candidates"
+            ],
+            "keywords": [
+                "候補者管理の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_037": {
+            "title": "評価・目標設定のよくある質問(ダミー)",
+            "body": "評価・目標設定のよくある質問(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "faq",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定のよくある質問(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_038": {
+            "title": "評価・目標設定の使い方(ダミー)",
+            "body": "評価・目標設定の使い方(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "howto",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の使い方(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_039": {
+            "title": "評価・目標設定の用語(ダミー)",
+            "body": "評価・目標設定の用語(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "glossary",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の用語(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_040": {
+            "title": "評価・目標設定のエラー(ダミー)",
+            "body": "評価・目標設定のエラー(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "error",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定のエラー(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        },
+        "item_041": {
+            "title": "評価・目標設定の全体ヘルプ(ダミー)",
+            "body": "評価・目標設定の全体ヘルプ(ダミー) のダミー説明です。後で内容を追加してください。",
+            "category": "general",
+            "screens": [
+                "goal_settings"
+            ],
+            "keywords": [
+                "評価・目標設定の全体ヘルプ(ダミー)"
+            ],
+            "links": [],
+            "priority": 50
+        }
+    },
+    "search_config": {
+        "enabled": true,
+        "min_query_length": 2,
+        "max_results": 5,
+        "synonyms": {
+            "歩留まり": [
+                "歩留り",
+                "ぶどまり",
+                "通過率"
+            ],
+            "エクスポート": [
+                "出力",
+                "ダウンロード",
+                "CSV"
+            ],
+            "表示されない": [
+                "見えない",
+                "出ない",
+                "消えた"
+            ]
+        },
+        "stopwords": [
+            "の",
+            "は",
+            "が",
+            "を",
+            "に",
+            "て",
+            "で",
+            "と",
+            "です",
+            "ます"
+        ]
+    }
+}

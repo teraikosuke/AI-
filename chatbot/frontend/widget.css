@@ -1,0 +1,352 @@
+/**
+ * ヘルプチャットボット ウィジェット CSS
+ * 最小スタイル（右下ボタン + ドロワー）
+ */
+
+/* === 変数 === */
+.helpchat-widget {
+  --helpchat-primary: #2563eb;
+  --helpchat-primary-hover: #1d4ed8;
+  --helpchat-accent: #38bdf8;
+  --helpchat-bg: rgba(255, 255, 255, 0.92);
+  --helpchat-bg-secondary: #f8fafc;
+  --helpchat-border: rgba(15, 23, 42, 0.12);
+  --helpchat-text: #0f172a;
+  --helpchat-text-secondary: #475569;
+  --helpchat-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  --helpchat-radius: 16px;
+  --helpchat-font: "Noto Sans JP", "Inter", "Sora", "Avenir Next", sans-serif;
+}
+
+/* === コンテナ === */
+.helpchat-widget {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  font-family: var(--helpchat-font);
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+/* === トリガーボタン === */
+.helpchat-trigger {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #1d4ed8, #2563eb 55%, #38bdf8);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.helpchat-trigger:hover {
+  transform: scale(1.05);
+  box-shadow: 0 14px 38px rgba(56, 189, 248, 0.35);
+}
+
+.helpchat-trigger:focus {
+  outline: 2px solid var(--helpchat-primary);
+  outline-offset: 2px;
+}
+
+.helpchat-trigger.is-dragging {
+  cursor: grabbing;
+  transform: scale(1.02);
+}
+
+/* === ドロワー === */
+.helpchat-drawer {
+  position: absolute;
+  width: 360px;
+  height: 500px;
+  max-width: 92vw;
+  max-height: 70vh;
+  min-width: 280px;
+  min-height: 260px;
+  background: var(--helpchat-bg);
+  border: 1px solid var(--helpchat-border);
+  border-radius: var(--helpchat-radius);
+  box-shadow: var(--helpchat-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(10px);
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.25s ease, opacity 0.25s ease, visibility 0.25s;
+  resize: none;
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+}
+
+.helpchat-drawer.open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+/* === ヘッダ === */
+.helpchat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--helpchat-border);
+  background: linear-gradient(120deg, rgba(37, 99, 235, 0.14), rgba(56, 189, 248, 0.18));
+}
+
+.helpchat-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--helpchat-text);
+}
+
+.helpchat-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--helpchat-text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.helpchat-close:hover {
+  background: var(--helpchat-border);
+  color: var(--helpchat-text);
+}
+
+/* === メッセージエリア === */
+.helpchat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+
+/* メッセージバブル */
+.helpchat-message {
+  max-width: 90%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.helpchat-message.bot {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--helpchat-text);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.helpchat-message.user {
+  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+/* コンテンツ表示 */
+.helpchat-content {
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  align-self: flex-start;
+  max-width: 95%;
+}
+
+.helpchat-content-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--helpchat-text);
+}
+
+.helpchat-content-body {
+  white-space: pre-wrap;
+  color: var(--helpchat-text-secondary);
+  font-size: 13px;
+}
+
+.helpchat-content-links {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--helpchat-border);
+}
+
+.helpchat-content-links a {
+  color: var(--helpchat-primary);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.helpchat-content-links a:hover {
+  text-decoration: underline;
+}
+
+/* === 選択肢エリア === */
+.helpchat-options {
+  padding: 12px;
+  border-top: 1px solid var(--helpchat-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* 選択肢ボタン */
+.helpchat-option {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--helpchat-text);
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.helpchat-option:hover {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+}
+
+.helpchat-option:focus {
+  outline: 2px solid var(--helpchat-primary);
+  outline-offset: -2px;
+}
+
+/* === 入力エリア === */
+.helpchat-input-area {
+  padding: 12px;
+  border-top: 1px solid var(--helpchat-border);
+  display: flex;
+  gap: 8px;
+}
+
+.helpchat-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--helpchat-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--helpchat-text);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.helpchat-input:focus {
+  outline: none;
+  border-color: var(--helpchat-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.helpchat-send {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.helpchat-send:hover {
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+}
+
+/* === ユーティリティ === */
+.helpchat-hidden {
+  display: none !important;
+}
+
+/* === ローディング === */
+.helpchat-loading {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  align-self: flex-start;
+}
+
+.helpchat-loading span {
+  width: 8px;
+  height: 8px;
+  background: var(--helpchat-text-secondary);
+  border-radius: 50%;
+  animation: helpchat-bounce 1.4s infinite ease-in-out both;
+}
+
+.helpchat-loading span:nth-child(1) { animation-delay: -0.32s; }
+.helpchat-loading span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes helpchat-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* === Resize handles === */
+.helpchat-resize-handle {
+  position: absolute;
+  z-index: 5;
+  background: transparent;
+}
+
+.helpchat-resize-handle[data-resize="n"] {
+  top: -6px;
+  left: 12px;
+  right: 12px;
+  height: 12px;
+  cursor: n-resize;
+}
+
+.helpchat-resize-handle[data-resize="w"] {
+  left: -6px;
+  top: 12px;
+  bottom: 12px;
+  width: 12px;
+  cursor: w-resize;
+}
+
+.helpchat-resize-handle[data-resize="nw"] {
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  cursor: nw-resize;
+}
+
+/* === レスポンシブ === */
+@media (max-width: 480px) {
+  .helpchat-widget {
+    inset: 0;
+  }
+  
+  .helpchat-drawer {
+    width: calc(100vw - 20px);
+    height: 70vh;
+  }
+}

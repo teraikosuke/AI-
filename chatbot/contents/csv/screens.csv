@@ -1,0 +1,12 @@
+﻿screen_id,name,routes,group
+global,全体,,
+yield_personal,歩留まり（個人）,/pages/yield-personal|/yield-personal,yield
+yield_company,歩留まり（企業）,/pages/yield-company|/yield-company,yield
+yield_admin,歩留まり（管理）,/pages/yield-admin|/yield-admin,yield
+settings_main,設定,/pages/settings|/settings,settings
+members_list,メンバー一覧,/pages/members|/members,members
+teleapo,架電管理,/teleapo|/pages/teleapo,teleapo
+referral,紹介先企業管理,/referral|/pages/referral,referral
+ad_performance,広告管理,/ad-performance|/pages/ad-performance,ad
+candidates,候補者管理,/candidates|/pages/candidates,candidates
+goal_settings,評価・目標設定,/goal-settings|/pages/goal-settings,settings

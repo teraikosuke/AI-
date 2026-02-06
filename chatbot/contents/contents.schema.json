@@ -1,0 +1,196 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Chatbot Contents Schema",
+    "description": "ルールベースチャットボットのコンテンツデータスキーマ",
+    "type": "object",
+    "required": [
+        "meta",
+        "screen_registry",
+        "system_messages",
+        "menus",
+        "content_items"
+    ],
+    "properties": {
+        "meta": {
+            "type": "object",
+            "required": [
+                "version"
+            ],
+            "properties": {
+                "version": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                },
+                "lastUpdated": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updatedBy": {
+                    "type": "string"
+                }
+            }
+        },
+        "screen_registry": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "routes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "group": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "system_messages": {
+            "type": "object",
+            "required": [
+                "welcome",
+                "error"
+            ],
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "menus": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "options"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "label",
+                                "next_state"
+                            ],
+                            "properties": {
+                                "label": {
+                                    "type": "string"
+                                },
+                                "next_state": {
+                                    "type": "string",
+                                    "pattern": "^(home:|menu:|cat:|ans:|search:|nf:)"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "content_items": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "title",
+                    "body"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "body": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "screens": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "keywords": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "links": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "label",
+                                "url"
+                            ],
+                            "properties": {
+                                "label": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    },
+                    "related": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                    }
+                }
+            }
+        },
+        "search_config": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "min_query_length": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "max_results": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "synonyms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "stopwords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}
