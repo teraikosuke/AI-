@@ -85,8 +85,8 @@ const PHASE_ORDER = [
 const CALENDAR_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const AUTO_OPEN_DETAIL_FROM_URL = false;
 
-let currentSortKey = "nextAction";
-let currentSortOrder = "asc";
+let currentSortKey = "registeredAt";
+let currentSortOrder = "desc";
 let candidateDetailCurrentTab = "nextAction";
 
 const japaneseLevelOptions = [
@@ -144,7 +144,13 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   // ★追加: 媒体情報のマッピング
   candidate.source = candidate.source ?? candidate.applyRouteText ?? "";
   candidate.createdAt = candidate.createdAt ?? candidate.created_at ?? null;
-  candidate.registeredAt = candidate.createdAt ?? candidate.registeredAt ?? candidate.registered_at ?? null;
+  candidate.registeredAt =
+    candidate.registeredAt ??
+    candidate.registered_at ??
+    candidate.registeredDate ??
+    candidate.registered_date ??
+    candidate.createdAt ??
+    null;
   candidate.candidateName = candidate.candidateName ?? candidate.candidate_name ?? candidate.name ?? "";
   candidate.validApplication =
     candidate.validApplication ??
@@ -1551,7 +1557,7 @@ function buildTableRow(candidate) {
   return `
     <tr class="candidate-item" data-id="${escapeHtmlAttr(String(candidate.id))}">
       ${renderTextCell(candidate, "registeredAt", {
-    format: (value, row) => formatDateTimeJP(row.createdAt || value || row.registeredDate),
+    format: (value, row) => formatDateTimeJP(value || row.registeredDate || row.createdAt),
     readOnly: true,
   })}
       ${renderTextCell(candidate, "phase", {
