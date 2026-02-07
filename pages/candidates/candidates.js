@@ -867,12 +867,20 @@ function resolveValidApplication(candidate) {
 }
 
 function resolveValidApplicationRaw(candidate) {
-  const raw =
-    candidate?.validApplication ??
+  const explicitRaw =
     candidate?.valid_application ??
     candidate?.is_effective_application ??
     candidate?.active_flag ??
     candidate?.valid;
+
+  // Some APIs always return `validApplication: false` as a default value even when
+  // the DB value is actually NULL. Treat that fallback false as "unknown".
+  let raw = explicitRaw;
+  if ((raw === null || raw === undefined || raw === "")) {
+    if (candidate?.validApplication === true) raw = true;
+    else if (candidate?.validApplication === false) raw = null;
+  }
+
   if (typeof raw === "string") {
     const normalized = raw.trim().toLowerCase();
     if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
@@ -981,9 +989,12 @@ function computeValidApplication(candidate, rules) {
     .map((value) => normalizeNationality(value))
     .filter((value) => value && !isJapaneseNationality(value));
 
-  if (isJapaneseNationality(nationality)) return true;
+  // Business rule:
+  // - Japanese candidates are judged only by age.
+  // - Nationality is often entered later, so empty nationality is treated as Japanese temporarily.
+  if (!nationality || isJapaneseNationality(nationality)) return true;
+
   if (nonJapaneseTargets.length > 0) {
-    if (!nationality) return null;
     const matched = nonJapaneseTargets.some((value) => value === nationality);
     if (!matched) return false;
   }
