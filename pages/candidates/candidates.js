@@ -1,7 +1,10 @@
-﻿// teleapo と同じAPI Gatewayの base
-const CANDIDATES_API_BASE = "/api";
-const SETTINGS_API_BASE = "/api";
-const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings/screening-rules`;
+﻿import { PRIMARY_API_BASE } from "../../scripts/api/endpoints.js";
+
+// teleapo ???API Gateway? base
+
+const CANDIDATES_API_BASE = PRIMARY_API_BASE;
+const SCREENING_RULES_ENDPOINT = `${CANDIDATES_API_BASE}/settings-screening-rules`;
+const SCREENING_RULES_FALLBACK_ENDPOINT = `${CANDIDATES_API_BASE}/settings/screening-rules`;
 
 // 一覧は「/candidates」（末尾スラッシュなし）
 const CANDIDATES_LIST_PATH = "/candidates";
@@ -58,20 +61,35 @@ const detailSectionKeys = [
 const employmentStatusOptions = ["未回答", "就業中", "離職中"];
 const PHASE_ORDER = [
   "未接触",
-  "通電",
   "架電中",
   "SMS送信",
+  "通電",
   "面談設定",
+  "初回面談設定",
   "実施",
+  "書類選考",
+  "書類選考中",
+  "一次面接調整",
+  "一次面接",
+  "二次面接調整",
+  "二次面接",
+  "最終面接",
+  "内定承諾待ち",
+  "内定承諾済み",
   "内定",
   "成約",
-  "失注"
+  "入社",
+  "失注",
+  "辞退",
+  "内定後辞退",
+  "入社後辞退"
 ];
 const CALENDAR_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const AUTO_OPEN_DETAIL_FROM_URL = false;
 
-let currentSortKey = "nextAction";
-let currentSortOrder = "asc";
-let candidateDetailCurrentTab = "main";
+let currentSortKey = "registeredAt";
+let currentSortOrder = "desc";
+let candidateDetailCurrentTab = "nextAction";
 
 const japaneseLevelOptions = [
   { value: "", label: "未設定" },
@@ -106,6 +124,8 @@ let screeningRulesLoading = false;
 let detailAutoSaveTimer = null;
 const nextActionCache = new Map();
 const contactPreferredTimeCache = new Map();
+const validityHydrationCache = new Map();
+const validityHydrationInFlight = new Set();
 let calendarViewDate = new Date();
 calendarViewDate.setDate(1);
 
@@ -126,7 +146,13 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   // ★追加: 媒体情報のマッピング
   candidate.source = candidate.source ?? candidate.applyRouteText ?? "";
   candidate.createdAt = candidate.createdAt ?? candidate.created_at ?? null;
-  candidate.registeredAt = candidate.createdAt ?? candidate.registeredAt ?? candidate.registered_at ?? null;
+  candidate.registeredAt =
+    candidate.registeredAt ??
+    candidate.registered_at ??
+    candidate.registeredDate ??
+    candidate.registered_date ??
+    candidate.createdAt ??
+    null;
   candidate.candidateName = candidate.candidateName ?? candidate.candidate_name ?? candidate.name ?? "";
   candidate.validApplication =
     candidate.validApplication ??
@@ -194,12 +220,29 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
   candidate.otherSelectionStatus = candidate.otherSelectionStatus ?? candidate.other_selection_status ?? "";
   candidate.attendanceConfirmed = candidate.attendanceConfirmed ?? candidate.first_interview_attended ?? null;
   candidate.advisorUserId = candidate.advisorUserId ?? candidate.advisor_user_id ?? null;
-  candidate.partnerUserId = candidate.partnerUserId ?? candidate.partner_user_id ?? null;
+  candidate.csUserId =
+    candidate.csUserId ??
+    candidate.cs_user_id ??
+    candidate.partnerUserId ??
+    candidate.partner_user_id ??
+    null;
+  candidate.partnerUserId =
+    candidate.partnerUserId ??
+    candidate.partner_user_id ??
+    candidate.csUserId ??
+    candidate.cs_user_id ??
+    null;
 
   // サーバー側で advisorName = partner_name, csName = cs_name とマッピングされている
   candidate.advisorName = candidate.advisorName ?? candidate.partner_name ?? "";
-  candidate.csName = candidate.csName ?? candidate.cs_name ?? "";
+  candidate.csName =
+    candidate.csName ??
+    candidate.cs_name ??
+    candidate.callerName ??
+    candidate.caller_name ??
+    "";
   candidate.partnerName = candidate.partnerName ?? candidate.partner_name ?? "";
+  syncCandidateAssignees(candidate);
 
   // リスト表示時のスワップロジックは、サーバー側で正しいマッピングを行っているため削除
   // advisorNameは server.js で partner_name カラムからマッピングされている
@@ -230,16 +273,99 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     recommendationDate: row.recommendationDate ?? row.recommended_at ?? null,
     interviewSetupDate: row.interviewSetupDate ?? row.first_interview_set_at ?? null,
     interviewDate: row.interviewDate ?? row.first_interview_at ?? null,
+    firstInterviewAdjustDate:
+      row.firstInterviewAdjustDate ??
+      row.firstInterviewSetAt ??
+      row.first_interview_set_at ??
+      row.interviewSetupDate ??
+      null,
+    firstInterviewDate:
+      row.firstInterviewDate ??
+      row.firstInterviewAt ??
+      row.first_interview_at ??
+      row.interviewDate ??
+      null,
     secondInterviewSetupDate: row.secondInterviewSetupDate ?? row.second_interview_set_at ?? null,
-    secondInterviewDate: row.secondInterviewDate ?? row.second_interview_at ?? null,
+    secondInterviewAdjustDate:
+      row.secondInterviewAdjustDate ??
+      row.secondInterviewSetAt ??
+      row.second_interview_set_at ??
+      row.secondInterviewSetupDate ??
+      null,
+    secondInterviewDate:
+      row.secondInterviewDate ??
+      row.secondInterviewAt ??
+      row.second_interview_at ??
+      null,
+    finalInterviewAdjustDate:
+      row.finalInterviewAdjustDate ??
+      row.finalInterviewSetAt ??
+      row.final_interview_set_at ??
+      row.finalInterviewSetupDate ??
+      null,
+    finalInterviewDate:
+      row.finalInterviewDate ??
+      row.finalInterviewAt ??
+      row.final_interview_at ??
+      null,
     offerDate: row.offerDate ?? row.offer_date ?? null,
     acceptanceDate: row.acceptanceDate ?? row.offer_accept_date ?? null,
     onboardingDate: row.onboardingDate ?? row.join_date ?? null,
-    preJoinDeclineDate: row.preJoinDeclineDate ?? row.pre_join_withdraw_date ?? null,
-    preJoinDeclineReason: row.preJoinDeclineReason ?? row.pre_join_withdraw_reason ?? "",
-    postJoinQuitDate: row.postJoinQuitDate ?? row.post_join_quit_date ?? null,
-    postJoinQuitReason: row.postJoinQuitReason ?? row.post_join_quit_reason ?? "",
-    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? null,
+    preJoinDeclineDate:
+      row.preJoinDeclineDate ??
+      row.declinedDate ??
+      row.pre_join_decline_at ??
+      row.pre_join_withdraw_date ??
+      null,
+    declinedDate:
+      row.declinedDate ??
+      row.preJoinDeclineDate ??
+      row.pre_join_decline_at ??
+      row.pre_join_withdraw_date ??
+      null,
+    declinedReason:
+      row.declinedReason ??
+      row.declined_reason ??
+      row.preJoinDeclineReason ??
+      row.pre_join_withdraw_reason ??
+      "",
+    preJoinDeclineReason:
+      row.preJoinDeclineReason ??
+      row.declinedReason ??
+      row.declined_reason ??
+      row.pre_join_withdraw_reason ??
+      "",
+    postJoinQuitDate:
+      row.postJoinQuitDate ??
+      row.earlyTurnoverDate ??
+      row.post_join_quit_at ??
+      row.post_join_quit_date ??
+      null,
+    earlyTurnoverDate:
+      row.earlyTurnoverDate ??
+      row.postJoinQuitDate ??
+      row.post_join_quit_at ??
+      row.post_join_quit_date ??
+      null,
+    postJoinQuitReason:
+      row.postJoinQuitReason ??
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.post_join_quit_reason ??
+      "",
+    earlyTurnoverReason:
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.postJoinQuitReason ??
+      row.post_join_quit_reason ??
+      "",
+    closeExpectedDate: row.closeExpectedDate ?? row.close_expected_at ?? row.closing_plan_date ?? null,
+    closingForecastDate:
+      row.closingForecastDate ??
+      row.closingForecastAt ??
+      row.closeExpectedDate ??
+      row.closing_plan_date ??
+      null,
     feeAmount: row.feeAmount ?? row.fee_amount ?? "",
     selectionNote: row.selectionNote ?? row.selection_note ?? "",
     status: row.status ?? row.stage_current ?? "",
@@ -345,13 +471,55 @@ function updateMastersFromDetail(detail) {
   const masters = detail?.masters;
   if (!masters) return;
   if (Array.isArray(masters.clients)) masterClients = masters.clients;
-  if (Array.isArray(masters.users)) masterUsers = masters.users;
+  if (Array.isArray(masters.users)) {
+    masterUsers = masters.users;
+    allCandidates.forEach((candidate) => syncCandidateAssignees(candidate));
+    filteredCandidates.forEach((candidate) => syncCandidateAssignees(candidate));
+  }
 }
 
 function resolveUserName(userId) {
   if (!userId) return "";
   const found = (masterUsers || []).find((user) => String(user.id) === String(userId));
   return found?.name ?? "";
+}
+
+function resolveUserIdByName(userName) {
+  const text = String(userName || "").trim();
+  if (!text) return null;
+  const candidates = (masterUsers || []).filter(
+    (user) => String(user?.name || "").trim() === text
+  );
+  if (candidates.length !== 1) return null;
+  return candidates[0]?.id ?? null;
+}
+
+function syncCandidateAssignees(candidate) {
+  if (!candidate) return;
+
+  if (!candidate.csUserId) {
+    candidate.csUserId = resolveUserIdByName(candidate.csName);
+  }
+  if (!candidate.advisorUserId) {
+    candidate.advisorUserId = resolveUserIdByName(candidate.advisorName);
+  }
+  if (!candidate.partnerUserId && candidate.csUserId) {
+    candidate.partnerUserId = candidate.csUserId;
+  }
+
+  if (candidate.csUserId) {
+    const resolved = resolveUserName(candidate.csUserId);
+    if (resolved) {
+      candidate.csName = resolved;
+    }
+  }
+  if (candidate.advisorUserId) {
+    const resolved = resolveUserName(candidate.advisorUserId);
+    if (resolved) {
+      candidate.advisorName = resolved;
+      candidate.partnerName = resolved;
+    }
+  }
 }
 
 function resolveClientName(clientId) {
@@ -383,8 +551,12 @@ function buildClientOptions(selectedId, selectedName) {
   return buildSelectOptions(fallback, selectedId, { blankLabel: "企業を選択" });
 }
 
-function buildUserOptions(selectedId) {
-  return buildSelectOptions(masterUsers || [], selectedId, { blankLabel: "担当者を選択" });
+function buildUserOptions(selectedId, selectedName = "") {
+  const users = Array.isArray(masterUsers) ? [...masterUsers] : [];
+  if (selectedId && !users.some((user) => String(user.id) === String(selectedId))) {
+    users.push({ id: selectedId, name: selectedName || String(selectedId) });
+  }
+  return buildSelectOptions(users, selectedId, { blankLabel: "担当者を選択" });
 }
 
 function buildBooleanOptions(value, { trueLabel = "報告済み", falseLabel = "未報告", blankLabel = "-" } = {}) {
@@ -418,6 +590,53 @@ export function mount() {
 
 export function unmount() {
   cleanupCandidatesEventListeners();
+}
+
+// =========================
+// 詳細ページ用マウント（別ページで表示する場合）
+// =========================
+export async function mountDetailPage(candidateId) {
+  if (!candidateId) {
+    console.error("候補者IDが指定されていません");
+    return false;
+  }
+
+  // イベントリスナー初期化
+  initializeDetailContentListeners();
+
+  // 候補者データを取得して表示
+  try {
+    const detail = await fetchCandidateDetailById(String(candidateId), { includeMaster: true });
+    if (!detail) {
+      setCandidateDetailLoading("候補者データが見つかりません。");
+      return false;
+    }
+
+    const normalized = normalizeCandidate(detail, { source: "detail" });
+    updateMastersFromDetail(detail);
+
+    // 正規化した候補者をグローバルリストにも追加（編集時に必要）
+    const existingIndex = allCandidates.findIndex(c => String(c.id) === String(normalized.id));
+    if (existingIndex >= 0) {
+      allCandidates[existingIndex] = { ...allCandidates[existingIndex], ...normalized };
+    } else {
+      allCandidates.push(normalized);
+    }
+
+    selectedCandidateId = String(normalized.id);
+    renderCandidateDetail(normalized, { preserveEditState: false });
+    return true;
+  } catch (error) {
+    console.error("候補者データの取得に失敗:", error);
+    setCandidateDetailLoading("データの取得に失敗しました。");
+    return false;
+  }
+}
+
+export function unmountDetailPage() {
+  detailSectionKeys.forEach((key) => (detailEditState[key] = false));
+  selectedCandidateId = null;
+  currentDetailCandidateId = null;
 }
 
 // =========================
@@ -487,7 +706,8 @@ function initializeCandidatesTabs() {
     calendarBody.addEventListener("click", handleCalendarEventClick);
   }
 
-  setCandidatesActiveTab("calendar");
+  const restoredTab = getReturnTabFromDetail() || "calendar";
+  setCandidatesActiveTab(restoredTab);
 }
 
 // =========================
@@ -526,15 +746,21 @@ async function loadCandidatesData(filtersOverride = {}) {
     updateHeaderSortStyles(); // Ensure headers reflect state
     updateCandidatesCount(filteredCandidates.length);
     prefetchNextActionDates(allCandidates);
+    if (screeningRules) {
+      void hydrateValidApplicationsFromDetail(filteredCandidates);
+    }
 
     lastSyncedAt = result.lastSyncedAt || null;
     updateLastSyncedDisplay(lastSyncedAt);
 
     refreshSelectionState();
+    closeCandidateModal({ clearSelection: true, force: true });
+
+    restoreScrollToCandidate();
 
     const { candidateIdFromUrl, shouldAutoOpenDetail } = getCandidateUrlParams();
     // ★ teleapo → candidates で ?candidateId= が来ている場合の自動詳細は明示時のみ
-    if (!openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
+    if (AUTO_OPEN_DETAIL_FROM_URL && !openedFromUrlOnce && candidateIdFromUrl && shouldAutoOpenDetail) {
       openedFromUrlOnce = true;
       try {
         await openCandidateById(candidateIdFromUrl);
@@ -550,6 +776,61 @@ async function loadCandidatesData(filtersOverride = {}) {
     updateCandidatesCount(0);
     updateLastSyncedDisplay(null);
   }
+}
+
+const RETURN_STATE_KEY = "candidates.returnState";
+
+function saveReturnState(candidateId) {
+  try {
+    const activeTab = document.querySelector("[data-candidates-tab].is-active")?.dataset?.candidatesTab || "list";
+    const payload = { tab: activeTab, candidateId: String(candidateId || "") };
+    sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function consumeReturnState() {
+  try {
+    const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(RETURN_STATE_KEY);
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getReturnTabFromDetail() {
+  let state = null;
+  try {
+    const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+    state = raw ? JSON.parse(raw) : null;
+  } catch {
+    state = null;
+  }
+  if (!state) return null;
+  // Always return to list when coming back from detail
+  return "list";
+}
+
+let pendingReturnCandidateId = null;
+
+function restoreScrollToCandidate() {
+  if (pendingReturnCandidateId) return;
+  const state = consumeReturnState();
+  if (!state?.candidateId) return;
+  pendingReturnCandidateId = state.candidateId;
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`.candidate-item[data-id="${CSS.escape(pendingReturnCandidateId)}"]`);
+    if (row) {
+      setCandidatesActiveTab("list");
+      row.scrollIntoView({ block: "center" });
+      row.classList.add("is-highlighted");
+      setTimeout(() => row.classList.remove("is-highlighted"), 1200);
+    }
+    pendingReturnCandidateId = null;
+  });
 }
 
 async function prefetchNextActionDates(candidates) {
@@ -639,14 +920,27 @@ function resolveValidApplication(candidate) {
   // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
   // ルールがあれば計算を行う
   if (screeningRules) {
-    return computeValidApplication(candidate, screeningRules);
+    const computedValue = computeValidApplication(candidate, screeningRules);
+    if (computedValue === true || computedValue === false) return computedValue;
   }
-  const raw =
-    candidate.validApplication ??
-    candidate.valid_application ??
-    candidate.is_effective_application ??
-    candidate.active_flag ??
-    candidate.valid;
+  return resolveValidApplicationRaw(candidate);
+}
+
+function resolveValidApplicationRaw(candidate) {
+  const explicitRaw =
+    candidate?.valid_application ??
+    candidate?.is_effective_application ??
+    candidate?.active_flag ??
+    candidate?.valid;
+
+  // Some APIs always return `validApplication: false` as a default value even when
+  // the DB value is actually NULL. Treat that fallback false as "unknown".
+  let raw = explicitRaw;
+  if ((raw === null || raw === undefined || raw === "")) {
+    if (candidate?.validApplication === true) raw = true;
+    else if (candidate?.validApplication === false) raw = null;
+  }
+
   if (typeof raw === "string") {
     const normalized = raw.trim().toLowerCase();
     if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
@@ -731,6 +1025,7 @@ function resolveCandidateAgeValue(candidate) {
 function normalizeNationality(value) {
   const text = String(value || "").trim();
   if (!text) return "";
+  if (["-", "ー", "未設定", "未入力", "未登録", "未指定"].includes(text)) return "";
   const normalized = text.toLowerCase();
   if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
     return "日本";
@@ -746,31 +1041,50 @@ function isJapaneseNationality(value) {
 function computeValidApplication(candidate, rules) {
   if (!candidate || !rules) return null;
   const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return false;
+  if (age === null) return null;
   if (!isUnlimitedMinAge(rules.minAge) && rules.minAge !== null && age < rules.minAge) return false;
   if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
 
   const nationality = normalizeNationality(candidate.nationality);
-  const allowedNationalities = (rules.targetNationalitiesList || []).map((value) => normalizeNationality(value));
-  if (allowedNationalities.length > 0) {
-    if (!nationality) return false;
-    const matched = allowedNationalities.some((value) => value === nationality);
+  const nonJapaneseTargets = (rules.targetNationalitiesList || [])
+    .map((value) => normalizeNationality(value))
+    .filter((value) => value && !isJapaneseNationality(value));
+
+  // Business rule:
+  // - Japanese candidates are judged only by age.
+  // - Nationality is often entered later, so empty nationality is treated as Japanese temporarily.
+  if (!nationality || isJapaneseNationality(nationality)) return true;
+
+  if (nonJapaneseTargets.length > 0) {
+    const matched = nonJapaneseTargets.some((value) => value === nationality);
     if (!matched) return false;
   }
 
-  if (isJapaneseNationality(nationality)) return true;
-
-  const jlpt = String(candidate.japaneseLevel || "").trim();
-  if (!jlpt) return false;
+  const jlptRaw = String(candidate.japaneseLevel || "").trim();
+  const jlpt = ["-", "ー", "未設定", "未入力", "未登録", "未指定"].includes(jlptRaw) ? "" : jlptRaw;
+  if (!jlpt) return null;
   const allowedJlptLevels = rules.allowedJlptLevels || [];
-  if (!allowedJlptLevels.length) return false;
+  if (!allowedJlptLevels.length) return null;
   return allowedJlptLevels.includes(jlpt);
+}
+
+function refreshCandidateValidity(candidate) {
+  if (!candidate || !screeningRules) return;
+  if (candidate.validApplicationLocked) return;
+  const computed = computeValidApplication(candidate, screeningRules);
+  if (computed === true || computed === false) {
+    candidate.validApplicationComputed = computed;
+  }
 }
 
 function applyScreeningRulesToCandidates() {
   if (!screeningRules || !allCandidates.length) return;
   allCandidates.forEach((candidate) => {
-    candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
+    if (candidate.validApplicationLocked) return;
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) {
+      candidate.validApplicationComputed = computed;
+    }
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -778,13 +1092,72 @@ function applyScreeningRulesToCandidates() {
   renderCandidatesTable(filteredCandidates);
   updateHeaderSortStyles();
   updateCandidatesCount(filteredCandidates.length);
+  void hydrateValidApplicationsFromDetail(filteredCandidates);
+}
+
+async function hydrateValidApplicationsFromDetail(list) {
+  if (!screeningRules || !Array.isArray(list) || list.length === 0) return;
+
+  const targets = list.filter((candidate) => {
+    const computed = computeValidApplication(candidate, screeningRules);
+    if (computed === true || computed === false) return false;
+    const id = String(candidate?.id ?? "");
+    if (!id) return false;
+    if (validityHydrationCache.has(id)) {
+      const cached = validityHydrationCache.get(id);
+      if (cached === true || cached === false) {
+        candidate.validApplicationComputed = cached;
+      }
+      return false;
+    }
+    return !validityHydrationInFlight.has(id);
+  });
+
+  if (targets.length === 0) return;
+
+  const concurrency = 6;
+  let index = 0;
+  const runWorker = async () => {
+    while (index < targets.length) {
+      const current = targets[index++];
+      const id = String(current?.id ?? "");
+      if (!id) continue;
+      if (validityHydrationInFlight.has(id)) continue;
+      validityHydrationInFlight.add(id);
+      try {
+        const detail = await fetchCandidateDetailById(id, { includeMaster: false });
+        const detailValue = resolveValidApplicationRaw(detail);
+        if (detailValue === true || detailValue === false) {
+          validityHydrationCache.set(id, detailValue);
+          const target = allCandidates.find((item) => String(item.id) === id);
+          if (target) {
+            target.validApplicationComputed = detailValue;
+            target.validApplicationLocked = true;
+          }
+          current.validApplicationComputed = detailValue;
+          current.validApplicationLocked = true;
+        }
+      } catch (error) {
+        console.warn(`[candidates] validity hydration failed for ${id}:`, error);
+      } finally {
+        validityHydrationInFlight.delete(id);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, runWorker));
+  renderCandidatesTable(filteredCandidates);
+  updateHeaderSortStyles();
 }
 
 async function loadScreeningRulesForCandidates() {
   if (screeningRulesLoading || screeningRulesLoaded) return;
   screeningRulesLoading = true;
   try {
-    const response = await fetch(SCREENING_RULES_ENDPOINT);
+    let response = await fetch(SCREENING_RULES_ENDPOINT);
+    if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
+      response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT);
+    }
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -991,10 +1364,8 @@ function parseFilterDate(value, { isEnd } = {}) {
 }
 
 function getCandidatePhaseList(candidate) {
-  const list = resolvePhaseValues(candidate);
-  const unique = Array.from(new Set(list.map((value) => String(value).trim()).filter(Boolean)));
-  if (unique.length > 0) return unique;
-  return [resolvePhaseDisplay(candidate)];
+  const list = resolveCurrentPhases(candidate);
+  return Array.from(new Set(list.map((value) => String(value).trim()).filter(Boolean)));
 }
 
 function applyCandidatesFilters(list, filters) {
@@ -1075,9 +1446,16 @@ function updateFilterSelectOptions(list) {
     if (Array.isArray(phaseList)) phases.push(...phaseList);
   });
 
+  const uniquePhases = buildUniqueValues(phases);
+  const orderedPhases = [
+    ...PHASE_ORDER.filter((phase) => uniquePhases.includes(phase)),
+    ...uniquePhases.filter((phase) => !PHASE_ORDER.includes(phase)),
+  ];
+
   setFilterSelectOptions("candidatesFilterSource", buildUniqueValues(sources));
   setFilterSelectOptions("candidatesFilterCompany", buildUniqueValues(companies));
   setFilterSelectOptions("candidatesFilterAdvisor", buildUniqueValues(advisors));
+  setFilterSelectOptions("candidatesFilterPhase", orderedPhases);
 }
 
 function getElementValue(id) {
@@ -1128,7 +1506,9 @@ function handleCalendarEventClick(event) {
   const card = event.target.closest("[data-candidate-id]");
   if (!card) return;
   const id = card.dataset.candidateId;
-  if (id) openCandidateById(id);
+  if (!id) return;
+  saveReturnState(id);
+  window.location.hash = `#/candidate-detail?id=${encodeURIComponent(id)}`;
 }
 
 function toDateKey(value) {
@@ -1250,7 +1630,7 @@ function buildTableRow(candidate) {
   return `
     <tr class="candidate-item" data-id="${escapeHtmlAttr(String(candidate.id))}">
       ${renderTextCell(candidate, "registeredAt", {
-    format: (value, row) => formatDateTimeJP(row.createdAt || value || row.registeredDate),
+    format: (value, row) => formatDateTimeJP(value || row.registeredDate || row.createdAt),
     readOnly: true,
   })}
       ${renderTextCell(candidate, "phase", {
@@ -1460,10 +1840,11 @@ async function fetchCandidateDetailById(id, { includeMaster = true } = {}) {
     const text = await res.text().catch(() => "");
     throw new Error(`Candidate detail HTTP ${res.status}: ${text}`);
   }
-  const detail = normalizeCandidate(await res.json());
+  const raw = await res.json();
   if (includeMaster) {
-    updateMastersFromDetail(detail);
+    updateMastersFromDetail(raw);
   }
+  const detail = normalizeCandidate(raw);
   if (detail?.masters) delete detail.masters;
   return detail;
 }
@@ -1520,13 +1901,9 @@ async function handleTableClick(event) {
   const id = row.dataset.id;
   if (!id) return;
 
-  try {
-    await openCandidateById(id);
-  } catch (e) {
-    console.error(e);
-    setCandidateDetailLoading("詳細の取得に失敗しました。ネットワーク状態を確認してください。");
-    openCandidateModal();
-  }
+  // 新しい詳細ページに遷移
+  saveReturnState(id);
+  window.location.hash = `#/candidate-detail?id=${encodeURIComponent(id)}`;
 }
 
 // =========================
@@ -1570,7 +1947,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function fetchClients() {
   try {
-    const res = await fetch("/api/clients");
+    const res = await fetch(candidatesApi("/clients"));
     if (!res.ok) throw new Error("Failed to fetch clients");
     clientList = await res.json();
   } catch (err) {
@@ -1644,138 +2021,210 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
 
   if (!preserveEditState && String(candidate.id) !== String(currentDetailCandidateId)) {
     resetDetailEditState();
-    candidateDetailCurrentTab = "main"; // 新しい候補者ではメインタブにリセット
   }
   currentDetailCandidateId = String(candidate.id);
 
   const resolvedValid = resolveValidApplication(candidate);
-  const validBadge = renderStatusPill(
-    resolvedValid ? "有効応募" : "無効応募",
-    resolvedValid ? "success" : "muted"
-  );
+  const validBadgeClass = resolvedValid ? "status-badge--valid" : "status-badge--invalid";
+  const validBadgeText = resolvedValid ? "有効応募" : "無効応募";
 
-  const header = `
-    <div class="candidate-detail-header bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      <div class="candidate-detail-header-left space-y-2">
-        <div class="candidate-header-title-row flex flex-wrap items-center gap-3">
-          <h3 class="candidate-detail-title text-2xl font-bold text-slate-900">${escapeHtml(candidate.candidateName || "-")}</h3>
-          <div class="candidate-header-badges flex flex-wrap items-center gap-2">
-            ${renderPhasePills(candidate)}
-            ${validBadge}
+  // 1. シンプルな戻るボタン (Modal only)
+  const showInlineBackButton = Boolean(document.getElementById("candidateDetailModal"));
+  const backButtonHtml = showInlineBackButton
+    ? `
+      <div class="mb-4">
+        <button type="button" class="detail-back-btn" onclick="closeCandidateModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+          </svg>
+          候補者一覧に戻る
+        </button>
+      </div>
+    `
+    : "";
+
+  // 2. 統合サマリーカード (Candidate Info + Meeting Info)
+  // 面談実施日・着座確認の値を準備
+  const attendanceValue = candidate.attendanceConfirmed ?? false;
+  const interviewDate = formatDateJP(candidate.firstInterviewDate) || "-";
+
+  const summaryCardHtml = `
+    <div class="candidate-summary-card">
+      <div class="summary-main-row">
+        <div class="summary-candidate-info">
+          <h2 class="summary-candidate-name">${escapeHtml(candidate.candidateName || "-")}</h2>
+          <div class="summary-badges">
+            ${renderPhaseBadges(candidate)}
+            <span class="status-badge ${validBadgeClass}">${validBadgeText}</span>
           </div>
         </div>
-        <div class="candidate-header-meta text-xs text-slate-500">
-          <span>登録日</span>
-          <strong class="text-slate-900">${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</strong>
+        <div class="summary-meta-info">
+           <div class="summary-meta-item">
+             <span class="meta-label">登録日</span>
+             <span class="meta-value">${formatDateTimeJP(candidate.createdAt || candidate.registeredAt || candidate.registeredDate)}</span>
+           </div>
+           <div class="summary-meta-item">
+             <span class="meta-label">担当CS</span>
+             <span class="meta-value">${escapeHtml(candidate.csName || "-")}</span>
+           </div>
+           <div class="summary-meta-item">
+             <span class="meta-label">担当パートナー</span>
+             <span class="meta-value">${escapeHtml(candidate.advisorName || "-")}</span>
+           </div>
         </div>
       </div>
-      <div class="candidate-detail-header-right flex items-start gap-3">
-        <div class="candidate-header-card bg-slate-50 border border-slate-100 shadow-sm rounded-lg px-4 py-3 text-xs">
-          <div><span>担当CS</span><strong>${escapeHtml(candidate.csName || "-")}</strong></div>
-          <div><span>担当パートナー</span><strong>${escapeHtml(candidate.advisorName || "-")}</strong></div>
+      
+      <div class="summary-divider"></div>
+
+      <div class="summary-meeting-row">
+        <div class="summary-meeting-item">
+          <span class="meeting-label">面談実施日</span>
+          <span class="meeting-value font-bold">${escapeHtml(interviewDate)}</span>
         </div>
-      </div>
-    </div>
-  `;
-
-  // タブナビゲーション
-  const tabs = [
-    { key: "main", label: "🏠 メイン", icon: "" },
-    { key: "profile", label: "👤 基本情報", icon: "" },
-    { key: "hearing", label: "📝 面談メモ", icon: "" },
-    { key: "teleapo", label: "📞 架電結果", icon: "" },
-    { key: "money", label: "💰 売上・返金", icon: "" },
-    { key: "documents", label: "📄 書類作成", icon: "" },
-  ];
-
-  const tabNav = `
-    <div class="candidate-detail-tabs flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg mt-4 mb-4">
-      ${tabs.map(tab => `
-        <button type="button" 
-          class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all ${candidateDetailCurrentTab === tab.key
-      ? 'bg-white text-indigo-700 shadow-sm'
-      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
-          data-detail-tab="${tab.key}">
-          ${tab.label}
-        </button>
-      `).join('')}
-    </div>
-  `;
-
-  // 面談実施日・着座確認のコンパクト表示（メインタブ用）
-  const attendanceValue = candidate.attendanceConfirmed ?? false;
-  const meetingConfirmHtml = `
-    <div class="bg-white rounded-lg border border-slate-200 p-4 mb-4">
-      <div class="flex items-center gap-6">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-600">面談実施日:</span>
-          <strong class="text-sm text-slate-900">${escapeHtml(formatDateJP(candidate.firstInterviewDate) || "-")}</strong>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-600">着座確認:</span>
-          <span class="px-2 py-0.5 text-xs font-medium rounded-full ${attendanceValue ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
-            ${attendanceValue ? "✓ 確認済" : "未確認"}
+        <div class="summary-meeting-item">
+          <span class="meeting-label">着座確認</span>
+          <span class="status-badge ${attendanceValue ? 'status-badge--valid' : 'status-badge--invalid'}">
+            ${attendanceValue ? "確認済" : "未確認"}
           </span>
         </div>
       </div>
     </div>
   `;
 
-  // タブ別コンテンツ
-  let tabContent = "";
+  // アンカーナビゲーション（絵文字なし）
+  const tabItems = [
+    { key: "nextAction", label: "次回アクション" },
+    { key: "selection", label: "選考進捗" },
+    { key: "profile", label: "基本情報" },
+    { key: "hearing", label: "面談メモ" },
+    { key: "cs", label: "架電結果" },
+    { key: "money", label: "売上・返金" },
+    { key: "documents", label: "書類作成" },
+  ];
 
-  switch (candidateDetailCurrentTab) {
-    case "main":
-      tabContent = `
-        ${meetingConfirmHtml}
-        ${renderDetailSection("次回アクション", renderNextActionSection(candidate), "nextAction")}
-        ${renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection")}
-      `;
-      break;
-    case "profile":
-      tabContent = `
-        ${renderDetailSection("求職者情報", renderApplicantInfoSection(candidate), "profile")}
-        ${renderDetailSection("担当者", renderAssigneeSection(candidate), "assignees")}
-      `;
-      break;
-    case "hearing":
-      tabContent = `
-        ${renderDetailSection("共有面談", renderHearingSection(candidate), "hearing")}
-      `;
-      break;
-    case "teleapo":
-      tabContent = `
-        ${renderDetailSection("CS項目", renderCsSection(candidate), "cs")}
-        ${renderDetailSection("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false })}
-      `;
-      break;
-    case "money":
-      tabContent = `
-        ${renderDetailSection("売上・返金", renderMoneySection(candidate), "money")}
-      `;
-      break;
-    case "documents":
-      tabContent = `
-        ${renderDetailSection("書類作成", renderDocumentsSection(candidate), "documents")}
-      `;
-      break;
-    default:
-      tabContent = `
-        ${meetingConfirmHtml}
-        ${renderDetailSection("次回アクション", renderNextActionSection(candidate), "nextAction")}
-        ${renderDetailSection("選考進捗", renderSelectionProgressSection(candidate), "selection")}
-      `;
-  }
+  const activeTabKey = tabItems.some(item => item.key === candidateDetailCurrentTab)
+    ? candidateDetailCurrentTab
+    : "nextAction";
+
+  const tabsHtml = `
+    <div class="detail-tabs candidate-detail-tabs">
+      ${tabItems.map((item, index) => `
+        <button type="button" class="detail-tab ${item.key === activeTabKey ? "is-active" : ""}" data-detail-tab="${item.key}">
+          ${item.label}
+        </button>
+      `).join("")}
+    </div>
+  `;
+
+  const tabContentMap = {
+    nextAction: renderDetailCard("次回アクション", renderNextActionSection(candidate), "nextAction"),
+    selection: renderDetailCard("選考進捗", renderSelectionProgressSection(candidate), "selection"),
+    profile: renderDetailCard("基本情報", renderApplicantInfoSection(candidate), "profile") +
+             renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
+    hearing: renderDetailCard("面談メモ", renderHearingSection(candidate), "hearing"),
+    cs: renderDetailCard("架電結果", renderCsSection(candidate), "cs") +
+        renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
+    money: renderDetailCard("売上・返金", renderMoneySection(candidate), "money"),
+    documents: renderDetailCard("書類作成", renderDocumentsSection(candidate), "documents"),
+  };
+
+  const tabPanelsHtml = `
+    <div class="detail-tab-panels">
+      ${tabItems.map((item) => `
+        <div class="detail-tab-panel ${item.key === activeTabKey ? "is-active" : ""}" data-detail-panel="${item.key}">
+          ${tabContentMap[item.key] || ""}
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+
 
   container.innerHTML = `
-    ${header}
-    ${tabNav}
-    <div class="candidate-detail-sections">
-      ${tabContent}
+    <div class="candidate-detail-wrapper">
+      ${backButtonHtml}
+      ${summaryCardHtml}
+      <div class="sticky-nav-wrapper">
+        ${tabsHtml}
+      </div>
+      ${tabPanelsHtml}
     </div>
   `;
 
   initializeDetailContentListeners();
+  initializeDetailTabs(activeTabKey); // タブリスナー初期化
+}
+
+// タブナビゲーションの初期化
+function initializeDetailTabs(defaultKey = "nextAction") {
+  const tabs = Array.from(document.querySelectorAll('[data-detail-tab]'));
+  const panels = Array.from(document.querySelectorAll('[data-detail-panel]'));
+  if (!tabs.length || !panels.length) return;
+
+  const activate = (key) => {
+    candidateDetailCurrentTab = key;
+    tabs.forEach((tab) => {
+      tab.classList.toggle('is-active', tab.dataset.detailTab === key);
+    });
+    panels.forEach((panel) => {
+      panel.classList.toggle('is-active', panel.dataset.detailPanel === key);
+    });
+  };
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      const key = tab.dataset.detailTab;
+      if (key) activate(key);
+    });
+  });
+
+  const initial = tabs.find(tab => tab.dataset.detailTab === defaultKey) || tabs[0];
+  if (initial?.dataset.detailTab) activate(initial.dataset.detailTab);
+}
+
+// 新しいカードレンダー関数（絵文字なし、統一デザイン）
+function renderDetailCard(title, body, key, options = {}) {
+  const editing = detailEditState[key];
+  const editable = options.editable !== false;
+
+  const cardClass = editing
+    ? "detail-card ring-2 ring-indigo-200"
+    : "detail-card";
+
+  const editBtn = editable
+    ? `<button type="button" class="detail-edit-btn--outlined ${editing ? 'is-active' : ''}" data-section-edit="${key}">
+        ${editing ? "保存" : "編集"}
+       </button>`
+    : "";
+
+  const editingBadge = editing
+    ? `<span class="ml-2 status-badge status-badge--phase">編集中</span>`
+    : "";
+
+  return `
+    <section class="${cardClass}" id="section-${key}" data-section="${key}">
+      <header class="detail-card-header">
+        <div class="flex items-center">
+          <h4>${title}</h4>
+          ${editingBadge}
+        </div>
+        ${editBtn}
+      </header>
+      <div class="detail-card-body">
+        ${body}
+      </div>
+    </section>
+  `;
+}
+
+// フェーズバッジ（絵文字なし）
+function renderPhaseBadges(candidate) {
+  const phases = resolveCurrentPhases(candidate);
+  if (phases.length === 0) return "";
+  return phases.map(phase =>
+    `<span class="status-badge status-badge--phase">${escapeHtml(phase)}</span>`
+  ).join("");
 }
 
 function getCandidateDetailPlaceholder() {
@@ -1904,6 +2353,7 @@ function updateSelectionStatusCell(index, status) {
 // -----------------------
 function resolveCurrentPhases(candidate) {
   let phases = Array.isArray(candidate.phaseList) ? candidate.phaseList : (candidate.phase ? [candidate.phase] : []);
+  phases = phases.map((phase) => (String(phase).trim() === "新規" ? "未接触" : phase));
 
   // 通電等の接触履歴がある場合は「未接触」を除外する
   const hasContact = candidate.hasConnected || candidate.hasSms || (candidate.callCount > 0);
@@ -2161,7 +2611,8 @@ function buildCandidateDetailPayload(candidate) {
     mandatoryInterviewItems: candidate.mandatoryInterviewItems,
     sharedInterviewDate: candidate.sharedInterviewDate,
     advisorUserId: candidate.advisorUserId,
-    partnerUserId: candidate.partnerUserId,
+    csUserId: candidate.csUserId,
+    partnerUserId: candidate.partnerUserId ?? candidate.csUserId ?? null,
 
     // その他（後方互換性のため残すものもあるが、Lambdaが使うものだけで良い）
     advisorName: candidate.advisorName,
@@ -2183,8 +2634,9 @@ function buildCandidateDetailPayload(candidate) {
     csChecklist: candidate.csChecklist,
   };
 
-  payload.advisor_user_id = candidate.advisorUserId;
-  payload.partner_user_id = candidate.partnerUserId;
+  payload.advisor_user_id = candidate.advisorUserId ?? null;
+  payload.cs_user_id = candidate.csUserId ?? null;
+  payload.partner_user_id = candidate.partnerUserId ?? candidate.csUserId ?? null;
   payload.japanese_level = candidate.japaneseLevel;
   payload.next_action_date = payload.nextActionDate;
 
@@ -2213,6 +2665,7 @@ function applyCandidateUpdate(updated, { preserveDetailState = true } = {}) {
   const mergedCandidate = mergeCandidateUpdate(updated);
   if (!mergedCandidate) return;
 
+  refreshCandidateValidity(mergedCandidate);
   renderCandidatesTable(filteredCandidates);
 
   if (selectedCandidateId && String(selectedCandidateId) === String(mergedCandidate.id)) {
@@ -2226,7 +2679,10 @@ function batchApplyCandidateUpdates(
   { preserveDetailState = true, renderDetail = true } = {}
 ) {
   if (!Array.isArray(updates) || updates.length === 0) return;
-  updates.forEach((updated) => mergeCandidateUpdate(updated));
+  updates.forEach((updated) => {
+    const merged = mergeCandidateUpdate(updated);
+    if (merged) refreshCandidateValidity(merged);
+  });
   renderCandidatesTable(filteredCandidates);
   if (renderDetail && selectedCandidateId) {
     const selected = getSelectedCandidate();
@@ -2357,22 +2813,43 @@ function openCandidateModal() {
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("has-modal-open");
 }
+function resolveCandidateForConfirm() {
+  const selected = getSelectedCandidate();
+  if (selected) return selected;
+  if (currentDetailCandidateId) {
+    const fromAll = allCandidates.find((item) => String(item.id) === String(currentDetailCandidateId));
+    if (fromAll) return fromAll;
+    const fromFiltered = filteredCandidates.find((item) => String(item.id) === String(currentDetailCandidateId));
+    if (fromFiltered) return fromFiltered;
+  }
+  return null;
+}
+
+export function confirmCandidateDetailClose() {
+  const candidate = resolveCandidateForConfirm();
+  if (!candidate) return true;
+  const tasks = candidate.tasks ?? candidate.detail?.tasks ?? [];
+  const hasIncompleteTasks = Array.isArray(tasks) && tasks.some((t) => !t.isCompleted);
+  const hasNextActionDate = Boolean(
+    candidate.nextActionDate ??
+    candidate.actionInfo?.nextActionDate ??
+    candidate.detail?.actionInfo?.nextActionDate ??
+    candidate.detail?.actionInfo?.next_action_date ??
+    null
+  );
+  if (!hasIncompleteTasks && !hasNextActionDate) {
+    return confirm("⚠️ 次回アクションが未設定です。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。\n\nこのまま画面を閉じますか？");
+  }
+  return true;
+}
+
 function closeCandidateModal({ clearSelection = true, force = false } = {}) {
   const modal = document.getElementById("candidateDetailModal");
   if (!modal) return;
 
   // バリデーション（強制クローズでない場合）
   if (!force) {
-    const candidate = getSelectedCandidate();
-    if (candidate) {
-      const hasIncompleteTasks = candidate.tasks && candidate.tasks.some(t => !t.isCompleted);
-      const hasNextActionDate = !!candidate.nextActionDate; // Check direct field
-
-      if (!hasIncompleteTasks && !hasNextActionDate) {
-        alert("⚠️ 次回アクションが未設定のため画面を閉じられません。\n\n・選考継続中：新規アクションを追加して保存してください。\n・選考終了：「選考完了」ボタンを押してください。");
-        return;
-      }
-    }
+    if (!confirmCandidateDetailClose()) return;
   }
 
   const wasOpen = modal.classList.contains("is-open");
@@ -2383,6 +2860,7 @@ function closeCandidateModal({ clearSelection = true, force = false } = {}) {
   if (clearSelection) selectedCandidateId = null;
   highlightSelectedRow();
 }
+window.closeCandidateModal = closeCandidateModal;
 function isCandidateModalOpen() {
   const modal = document.getElementById("candidateDetailModal");
   return modal ? modal.classList.contains("is-open") : false;
@@ -2462,18 +2940,6 @@ function cleanupCandidatesEventListeners() {
 // ====== Detail Content Handlers ======
 
 function handleDetailContentClick(event) {
-  // タブ切り替え
-  const tabBtn = event.target.closest("[data-detail-tab]");
-  if (tabBtn) {
-    const newTab = tabBtn.dataset.detailTab;
-    if (newTab && newTab !== candidateDetailCurrentTab) {
-      candidateDetailCurrentTab = newTab;
-      const candidate = getSelectedCandidate();
-      if (candidate) renderCandidateDetail(candidate, { preserveEditState: true });
-    }
-    return;
-  }
-
   const editBtn = event.target.closest("[data-section-edit]");
   if (editBtn) {
     toggleDetailSectionEdit(editBtn.dataset.sectionEdit);
@@ -2498,8 +2964,15 @@ function handleDetailContentClick(event) {
   // 完了登録ボタン（新しいtaskId方式）
   const completeBtn = event.target.closest("[data-complete-task-id]");
   if (completeBtn) {
-    const taskId = Number(completeBtn.dataset.completeTaskId);
+    const taskId = completeBtn.dataset.completeTaskId;
     handleCompleteTask(taskId);
+    return;
+  }
+
+  const deleteTaskBtn = event.target.closest("[data-delete-task-id]");
+  if (deleteTaskBtn) {
+    const taskId = deleteTaskBtn.dataset.deleteTaskId;
+    handleDeleteTask(taskId);
     return;
   }
 
@@ -2517,7 +2990,7 @@ function handleDetailContentClick(event) {
   if (resumeBtn) {
     const candidate = getSelectedCandidate();
     if (candidate && candidate.id) {
-      window.open(`/api/candidates/${candidate.id}/resume.pdf`, "_blank");
+      window.open(candidatesApi(`${candidateDetailPath(candidate.id)}/resume.pdf`), "_blank");
     }
     return;
   }
@@ -2526,7 +2999,7 @@ function handleDetailContentClick(event) {
   if (cvBtn) {
     const candidate = getSelectedCandidate();
     if (candidate && candidate.id) {
-      window.open(`/api/candidates/${candidate.id}/cv.pdf`, "_blank");
+      window.open(candidatesApi(`${candidateDetailPath(candidate.id)}/cv.pdf`), "_blank");
     }
     return;
   }
@@ -2534,7 +3007,7 @@ function handleDetailContentClick(event) {
 
 function syncDetailSectionInputs(sectionKey) {
   if (!sectionKey) return;
-  const section = document.querySelector(`.candidate-detail-section[data-section="${sectionKey}"]`);
+  const section = document.querySelector(`.candidate-detail-section[data-section="${sectionKey}"], .detail-card[data-section="${sectionKey}"]`);
   if (!section) {
     console.error(`[candidates] syncDetailSectionInputs: Section not found for key "${sectionKey}". Please reload.`);
     alert("画面の状態が古いため保存できませんでした。ページをリロードしてください。");
@@ -2708,6 +3181,64 @@ async function handleCompleteTask(taskId) {
   }
 }
 
+
+async function handleDeleteTask(taskId) {
+  const candidate = getSelectedCandidate();
+  if (!candidate || !taskId) return;
+
+  if (!confirm('この予定を削除しますか？')) {
+    return;
+  }
+
+  console.log("Starting handleDeleteTask", { taskId, candidateId: candidate.id });
+
+  try {
+    const currentTasks = candidate.tasks || [];
+    const newTasks = currentTasks.filter(t => String(t.id) !== String(taskId));
+    console.log("Tasks filtering:", { before: currentTasks.length, after: newTasks.length });
+
+    // Also filter meetingPlans if they share the same ID space (likely)
+    const currentMeetingPlans = candidate.meetingPlans || [];
+    const newMeetingPlans = currentMeetingPlans.filter(p => String(p.id) !== String(taskId));
+    console.log("MeetingPlans filtering:", { before: currentMeetingPlans.length, after: newMeetingPlans.length });
+
+    const payload = {
+      id: candidate.id,
+      detailMode: true,
+      tasks: newTasks,
+      meetingPlans: newMeetingPlans,
+      deleteTaskId: taskId // Keep legacy/command key
+    };
+
+    console.log("Sending DELETE payload:", payload);
+
+    const response = await fetch(candidatesApi(candidateDetailPath(candidate.id)), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Delete failed response:", text);
+      throw new Error(`HTTP ${response.status} ${response.statusText} - ${text.slice(0, 200)}`);
+    }
+
+    const json = await response.json();
+    console.log("Response JSON:", json);
+
+    const updated = normalizeCandidate(json);
+    applyCandidateUpdate(updated, { preserveDetailState: true });
+    console.log("Candidate updated successfully.");
+
+  } catch (error) {
+    console.error('タスク削除に失敗しました:', error);
+    alert(`タスク削除に失敗しました。\n${error.message}`);
+  }
+}
+
 function handleDetailFieldChange(event) {
   const target = event.target;
   if (!target) return;
@@ -2765,6 +3296,11 @@ function handleDetailFieldChange(event) {
 
   if (fieldPath === "advisorUserId") {
     candidate.advisorName = resolveUserName(candidate.advisorUserId);
+    candidate.partnerName = candidate.advisorName;
+  }
+  if (fieldPath === "csUserId") {
+    candidate.csName = resolveUserName(candidate.csUserId);
+    candidate.partnerUserId = candidate.csUserId;
   }
   if (fieldPath === "partnerUserId") {
     candidate.partnerName = resolveUserName(candidate.partnerUserId);
@@ -2914,16 +3450,20 @@ function renderAssigneeSection(candidate) {
   const fields = [
     {
       label: "担当CS",
-      value: candidate.csName,
-      input: "text",
-      path: "csName",
+      value: candidate.csUserId ?? "",
+      input: "select",
+      options: buildUserOptions(candidate.csUserId, candidate.csName),
+      path: "csUserId",
+      displayFormatter: () => candidate.csName || "-",
       span: 3,
     },
     {
-      label: "担当パートナー",
-      value: candidate.advisorName,
-      input: "text",
-      path: "advisorName",
+      label: "担当アドバイザー",
+      value: candidate.advisorUserId ?? "",
+      input: "select",
+      options: buildUserOptions(candidate.advisorUserId, candidate.advisorName),
+      path: "advisorUserId",
+      displayFormatter: () => candidate.advisorName || "-",
       span: 3,
     },
   ];
@@ -3214,21 +3754,35 @@ function normalizeSelectionRow(row) {
     route: row.route ?? row.source,
     status: resolveSelectionStageValue(row) || row.status, // Pill表示用
     recommendationDate: row.recommendationDate,
-    firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt,
-    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt,
-    secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt,
+    firstInterviewAdjustDate: row.firstInterviewAdjustDate ?? row.firstInterviewSetAt ?? row.interviewSetupDate,
+    firstInterviewDate: row.firstInterviewDate ?? row.firstInterviewAt ?? row.interviewDate,
+    secondInterviewAdjustDate: row.secondInterviewAdjustDate ?? row.secondInterviewSetAt ?? row.secondInterviewSetupDate,
     secondInterviewDate: row.secondInterviewDate ?? row.secondInterviewAt,
-    finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt,
+    finalInterviewAdjustDate: row.finalInterviewAdjustDate ?? row.finalInterviewSetAt ?? row.finalInterviewSetupDate,
     finalInterviewDate: row.finalInterviewDate ?? row.finalInterviewAt,
     offerDate: row.offerDate ?? row.offerAt,
     offerAcceptedDate: row.offerAcceptedDate ?? row.offerAcceptedAt ?? row.acceptanceDate,
     joinedDate: row.joinedDate ?? row.joinedAt ?? row.onboardingDate,
-    declinedDate: row.declinedDate ?? row.declinedAfterOfferDate ?? row.preJoinDeclineDate,
-    declinedReason: row.declinedReason ?? row.declinedAfterOfferReason ?? row.preJoinDeclineReason,
-    earlyTurnoverDate: row.earlyTurnoverDate ?? row.earlyTurnoverAt ?? row.postJoinQuitDate,
-    earlyTurnoverReason: row.earlyTurnoverReason ?? row.earlyTurnoverAt ?? row.postJoinQuitReason,
-    closingForecastDate: row.closingForecastDate ?? row.closingForecastAt ?? row.closeExpectedDate,
-    fee: row.fee ?? row.feeAmount,
+    declinedDate:
+      row.declinedDate ??
+      row.declinedAfterOfferDate ??
+      row.preJoinDeclineDate,
+    declinedReason:
+      row.declinedReason ??
+      row.declined_reason ??
+      row.declinedAfterOfferReason ??
+      row.preJoinDeclineReason,
+    earlyTurnoverDate:
+      row.earlyTurnoverDate ??
+      row.earlyTurnoverAt ??
+      row.postJoinQuitDate,
+    earlyTurnoverReason:
+      row.earlyTurnoverReason ??
+      row.early_turnover_reason ??
+      row.earlyTurnoverAt ??
+      row.postJoinQuitReason,
+    closingForecastDate: row.closingForecastDate ?? row.closingForecastAt ?? row.closeExpectedDate ?? row.closingPlanDate,
+    fee: row.fee ?? row.feeAmount ?? row.fee_amount,
     note: row.note ?? row.selectionNote,
   };
 }
@@ -3240,51 +3794,109 @@ function renderSelectionFlowCard(rawRow) {
 
   // Flow Steps Definition
   const steps = [
-    { label: "推薦", date: r.recommendationDate, sub: null, active: true },
-    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null },
-    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null },
-    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null },
-    { label: "内定", date: r.offerDate, sub: null },
-    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null },
+    { label: "推薦", date: r.recommendationDate, sub: null, keywords: ["推薦", "書類"] },
+    { label: "一次面接", date: r.firstInterviewDate, sub: r.firstInterviewAdjustDate ? `(調) ${formatDateJP(r.firstInterviewAdjustDate)}` : null, keywords: ["一次"] },
+    { label: "二次面接", date: r.secondInterviewDate, sub: r.secondInterviewAdjustDate ? `(調) ${formatDateJP(r.secondInterviewAdjustDate)}` : null, keywords: ["二次"] },
+    { label: "最終面接", date: r.finalInterviewDate, sub: r.finalInterviewAdjustDate ? `(調) ${formatDateJP(r.finalInterviewAdjustDate)}` : null, keywords: ["最終"] },
+    { label: "内定", date: r.offerDate, sub: null, keywords: ["内定", "オファー"] },
+    { label: "承諾/入社", date: r.joinedDate || r.offerAcceptedDate, sub: null, keywords: ["承諾", "入社"] },
   ];
 
-  // Determine current active step index based on dates
-  // Find the last step that has a confirmed date
-  let lastCompletedIndex = -1;
+  // Detect Drop/Failure Status
+  const isDropped = ["辞退", "不合格", "失注", "破談", "終了"].some(k => (r.status || "").includes(k));
+
+  // Find "Current" step based on Status Text matching (fallback to dates)
+  let statusIndex = -1;
+  if (r.status) {
+    steps.forEach((step, idx) => {
+      if (step.keywords && step.keywords.some(k => r.status.includes(k))) {
+        statusIndex = idx;
+      }
+    });
+  }
+
+  // Find the last step that has a confirmed date (Progress tracking)
+  let lastDateIndex = -1;
   steps.forEach((step, idx) => {
-    if (step.date) lastCompletedIndex = idx;
+    if (step.date) lastDateIndex = idx;
   });
 
+  // Decide the "Active" limit
+  // If we have a matching status, usage corresponding index. 
+  // Otherwise use the last date index.
+  // Exception: If we have disjoint dates (e.g. 1 and 6), lastDateIndex is 5.
+  const activeLimitIndex = (statusIndex > lastDateIndex) ? statusIndex : lastDateIndex;
+
   const flowHtml = steps.map((step, idx) => {
-    const isCompleted = idx <= lastCompletedIndex;
-    const isCurrent = idx === lastCompletedIndex;
     const hasDate = Boolean(step.date);
+    // Logic: Step is "reached" if index <= activeLimitIndex
+    const isReached = idx <= activeLimitIndex;
+
+    // Logic: Step is "Current" if it matches activeLimitIndex
+    const isCurrent = idx === activeLimitIndex;
+
+    // Logic: Dropped at this step?
+    const isDropStep = isDropped && isCurrent;
 
     // Circle Color
-    let circleClass = "bg-slate-200 text-slate-400"; // default
-    if (isCompleted) circleClass = "bg-indigo-600 text-white ring-2 ring-indigo-100";
-    if (isCurrent) circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+    let circleClass = "bg-slate-200 text-slate-400"; // default (future)
+    if (isReached) {
+      if (isDropStep) {
+        circleClass = "bg-red-500 text-white ring-4 ring-red-100 scale-110"; // Dropped
+      } else if (isCurrent) {
+        // Active/Current
+        circleClass = "bg-indigo-600 text-white ring-4 ring-indigo-200 scale-110";
+      } else {
+        // Passed
+        circleClass = hasDate
+          ? "bg-indigo-600 text-white"
+          : "bg-white border-2 border-indigo-600 text-indigo-600"; // Skipped (Hollow)
+      }
+    }
 
     // Bar Color (Connector to next)
-    let barClass = "bg-slate-200";
+    // Connecting idx to idx+1
+    let barHtml = "";
     if (idx < steps.length - 1) {
-      if (idx < lastCompletedIndex) barClass = "bg-indigo-600";
+      let barClass = "bg-slate-200 h-0.5"; // default
+      // If next step is also reached, we color the bar
+      if (idx < activeLimitIndex) {
+        // Check if next step was skipped (no date) -> Dashed line?
+        const nextHasDate = Boolean(steps[idx + 1].date);
+
+        if (isDropped && idx === activeLimitIndex - 1) {
+          // Line leading to drop step is solid Red? Or just Indigo?
+          // Usually Indigo up to the fail point.
+          barClass = "bg-indigo-600 h-0.5";
+        } else {
+          // Normal connection
+          barClass = nextHasDate ? "bg-indigo-600 h-0.5" : "border-t-2 border-indigo-400 border-dashed h-0 bg-transparent";
+        }
+      }
+      barHtml = `<div class="absolute top-3 left-1/2 w-full ${barClass} -z-0"></div>`;
     }
 
     const dateStr = formatDateJP(step.date);
-    const dateHtml = hasDate ? `<div class="text-[10px] font-bold text-indigo-700 mt-1">${dateStr}</div>` : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+    const dateHtml = hasDate
+      ? `<div class="text-[10px] font-bold ${isDropStep ? 'text-red-600' : 'text-indigo-700'} mt-1">${dateStr}</div>`
+      : `<div class="text-[10px] text-slate-300 mt-1">-</div>`;
+
+    let labelClass = "text-slate-700";
+    if (isDropStep) labelClass = "text-red-700 font-bold";
+    else if (isCurrent) labelClass = "text-indigo-800 font-bold";
+
     const subHtml = step.sub ? `<div class="text-[9px] text-slate-400">${step.sub}</div>` : "";
 
     return `
       <div class="flex-1 relative group">
         <!-- Connector Bar -->
-        ${idx < steps.length - 1 ? `<div class="absolute top-3 left-1/2 w-full h-0.5 ${barClass} -z-0"></div>` : ""}
+        ${barHtml}
         
         <div class="relative z-10 flex flex-col items-center">
-          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass}">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${circleClass} z-10">
             ${idx + 1}
           </div>
-          <div class="mt-2 text-xs font-medium text-slate-700 group-hover:text-indigo-800 transition-colors">${step.label}</div>
+          <div class="mt-2 text-xs font-medium ${labelClass} transition-colors">${step.label}</div>
           ${dateHtml}
           ${subHtml}
         </div>
@@ -3633,7 +4245,7 @@ function renderNextActionSection(candidate) {
               <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">予定</span>
             </div>
             <div class="text-sm text-slate-700">${escapeHtml(task.actionNote || '-')}</div>
-          </div>
+            <div class="mt-2 flex items-center justify-end gap-2 border-t border-slate-100 pt-2">\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-green-200 text-green-700 hover:bg-green-50 rounded" data-complete-task-id="${task.id}">完了</button>\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-50 rounded" data-delete-task-id="${task.id}">削除</button>\n            </div>\n          </div>
         `).join('')}
       </div>
     </div>
@@ -4068,5 +4680,3 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
-

@@ -16,6 +16,9 @@ const pool = new Pool({
 const PORT = process.env.PORT || 8080;
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname)));
 app.get("/api/clients", async (_req, res) => {
   const client = await pool.connect();
   try {
@@ -31,29 +34,456 @@ app.get("/api/clients", async (_req, res) => {
   }
 });
 
+function normalizeOptionalText(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
+
+function normalizeOptionalUserId(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const asNumber = Number(text);
+  if (Number.isFinite(asNumber) && String(asNumber) === text) {
+    return asNumber;
+  }
+  return text;
+}
+
+function normalizeOptionalList(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (Array.isArray(value)) {
+    const cleaned = value
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean);
+    return cleaned;
+  }
+  const text = String(value).trim();
+  if (!text) return [];
+  return text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractSalaryRange(payload = {}) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "salaryRange")) {
+    return { salaryMin: undefined, salaryMax: undefined };
+  }
+  if (payload.salaryRange === null) {
+    return { salaryMin: null, salaryMax: null };
+  }
+  const range = Array.isArray(payload.salaryRange) ? payload.salaryRange : [];
+  const min = range.length > 0 ? Number(range[0]) : null;
+  const max = range.length > 1 ? Number(range[1]) : null;
+  return {
+    salaryMin: Number.isFinite(min) ? min : null,
+    salaryMax: Number.isFinite(max) ? max : null,
+  };
+}
+
+async function handleClientsKpi(req, res) {
+  const fromCandidate = req.query.from ? new Date(req.query.from) : null;
+  const toCandidate = req.query.to ? new Date(req.query.to) : null;
+  const from =
+    fromCandidate && !Number.isNaN(fromCandidate.getTime())
+      ? fromCandidate
+      : null;
+  const to =
+    toCandidate && !Number.isNaN(toCandidate.getTime()) ? toCandidate : null;
+  const job = req.query.job ? String(req.query.job).trim() : null;
+  const client = await pool.connect();
+
+  try {
+    const { rows } = await client.query(
+      `
+        WITH stats AS (
+          SELECT
+            client_id,
+            COUNT(*) FILTER (WHERE recommendation_at IS NOT NULL) AS proposal,
+            COUNT(*) FILTER (
+              WHERE first_interview_set_at IS NOT NULL OR first_interview_at IS NOT NULL
+            ) AS doc_screen,
+            COUNT(*) FILTER (WHERE first_interview_at IS NOT NULL) AS interview1,
+            COUNT(*) FILTER (WHERE second_interview_at IS NOT NULL) AS interview2,
+            COUNT(*) FILTER (WHERE offer_at IS NOT NULL) AS offer,
+            COUNT(*) FILTER (WHERE joined_at IS NOT NULL) AS joined,
+            COUNT(*) FILTER (WHERE pre_join_decline_at IS NOT NULL) AS prejoin_declines,
+            COUNT(*) FILTER (WHERE post_join_quit_at IS NOT NULL) AS dropout_count,
+            AVG(
+              EXTRACT(EPOCH FROM (joined_at - recommendation_at)) / 86400.0
+            ) FILTER (WHERE joined_at IS NOT NULL AND recommendation_at IS NOT NULL) AS lead_time_days
+          FROM candidate_applications
+          WHERE ($1::timestamptz IS NULL OR recommendation_at >= $1::timestamptz)
+            AND ($2::timestamptz IS NULL OR recommendation_at <= $2::timestamptz)
+          GROUP BY client_id
+        )
+        SELECT
+          c.*,
+          COALESCE(s.proposal, 0) AS proposal,
+          COALESCE(s.doc_screen, 0) AS doc_screen,
+          COALESCE(s.interview1, 0) AS interview1,
+          COALESCE(s.interview2, 0) AS interview2,
+          COALESCE(s.offer, 0) AS offer,
+          COALESCE(s.joined, 0) AS joined,
+          COALESCE(s.prejoin_declines, 0) AS prejoin_declines,
+          COALESCE(s.dropout_count, 0) AS dropout_count,
+          COALESCE(s.lead_time_days, 0) AS lead_time_days
+        FROM clients c
+        LEFT JOIN stats s ON s.client_id = c.id
+        WHERE ($3::text IS NULL OR c.job_categories ILIKE '%' || $3 || '%')
+        ORDER BY c.name ASC
+      `,
+      [from, to, job]
+    );
+
+    const items = rows.map((row) => {
+      const salaryRange =
+        row.salary_min !== null || row.salary_max !== null
+          ? [row.salary_min || 0, row.salary_max || 0]
+          : null;
+      return {
+        id: row.id,
+        name: row.name,
+        companyName: row.name,
+        industry: row.industry,
+        location: row.location,
+        jobCategories: row.job_categories,
+        plannedHiresCount: row.planned_hires_count,
+        feeAmount: row.fee_amount,
+        selectionNote: row.selection_note,
+        contactName: row.contact_name,
+        contactEmail: row.contact_email,
+        warrantyPeriod: row.warranty_period,
+        feeDetails: row.fee_details,
+        contractNote: row.contract_note,
+        desiredTalent: {
+          salaryRange,
+          locations: row.desired_locations || [],
+          mustQualifications: row.must_qualifications || [],
+          niceQualifications: row.nice_qualifications || [],
+          personality: row.personality_traits || [],
+          experiences: row.required_experience || [],
+        },
+        proposal: row.proposal,
+        docScreen: row.doc_screen,
+        interview1: row.interview1,
+        interview2: row.interview2,
+        offer: row.offer,
+        joined: row.joined,
+        prejoinDeclines: row.prejoin_declines,
+        dropoutCount: row.dropout_count,
+        leadTime: Math.round(Number(row.lead_time_days) || 0),
+        refundAmount: 0,
+      };
+    });
+
+    res.json({ items });
+  } catch (error) {
+    console.error("Failed to fetch clients KPI", error);
+    res.status(500).json({ error: "紹介先企業の取得に失敗しました。" });
+  } finally {
+    client.release();
+  }
+}
+
+app.get("/api/clients/kpi", handleClientsKpi);
+app.get("/api/kpi/clients", handleClientsKpi);
+
+app.post("/api/clients", async (req, res) => {
+  const payload = req.body || {};
+  const name = normalizeOptionalText(payload.name || payload.companyName);
+  if (!name) {
+    res.status(400).json({ error: "企業名が必要です。" });
+    return;
+  }
+
+  const { salaryMin, salaryMax } = extractSalaryRange(payload);
+
+  const values = [
+    name,
+    normalizeOptionalText(payload.industry),
+    normalizeOptionalText(payload.location),
+    normalizeOptionalText(payload.jobCategories || payload.jobTitle),
+    payload.plannedHiresCount ?? null,
+    payload.feeAmount ?? null,
+    salaryMin,
+    salaryMax,
+    normalizeOptionalList(payload.mustQualifications),
+    normalizeOptionalList(payload.niceQualifications),
+    normalizeOptionalList(payload.desiredLocations),
+    normalizeOptionalList(payload.personalityTraits),
+    normalizeOptionalList(payload.requiredExperience),
+    normalizeOptionalText(payload.selectionNote),
+    normalizeOptionalText(payload.contactName),
+    normalizeOptionalText(payload.contactEmail),
+    normalizeOptionalText(payload.warrantyPeriod),
+    normalizeOptionalText(payload.feeDetails),
+    normalizeOptionalText(payload.contractNote),
+  ];
+
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `
+        INSERT INTO clients (
+          name,
+          industry,
+          location,
+          job_categories,
+          planned_hires_count,
+          fee_amount,
+          salary_min,
+          salary_max,
+          must_qualifications,
+          nice_qualifications,
+          desired_locations,
+          personality_traits,
+          required_experience,
+          selection_note,
+          contact_name,
+          contact_email,
+          warranty_period,
+          fee_details,
+          contract_note,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15, $16, $17, $18, $19,
+          NOW(), NOW()
+        )
+        RETURNING *
+      `,
+      values
+    );
+    res.status(201).json({ item: rows[0] });
+  } catch (error) {
+    console.error("Failed to create client", error);
+    res.status(500).json({ error: "企業の登録に失敗しました。" });
+  } finally {
+    client.release();
+  }
+});
+
+const deleteClientHandler = async (req, res) => {
+  const id = req.params?.id || req.query?.id || req.body?.id;
+  if (!id) {
+    res.status(400).json({ error: "IDが必要です。" });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    const { rowCount } = await client.query(
+      "DELETE FROM clients WHERE id = $1",
+      [id]
+    );
+
+    if (rowCount === 0) {
+      res.status(404).json({ error: "指定された企業が見つかりません。" });
+    } else {
+      res.json({ success: true, message: "企業を削除しました。" });
+    }
+  } catch (error) {
+    console.error("Failed to delete client", error);
+    res.status(500).json({ error: "企業の削除に失敗しました。" });
+  } finally {
+    client.release();
+  }
+};
+
+app.delete("/api/clients/:id", deleteClientHandler);
+app.delete("/api/clients", deleteClientHandler);
+app.delete("/clients/:id", deleteClientHandler);
+app.delete("/clients", deleteClientHandler);
+
+app.put("/api/clients", async (req, res) => {
+  const payload = req.body || {};
+  const id = payload.id;
+  if (!id) {
+    res.status(400).json({ error: "企業IDが必要です。" });
+    return;
+  }
+
+  const updates = [];
+  const values = [];
+  let index = 1;
+
+  const setField = (column, value) => {
+    updates.push(`${column} = $${index}`);
+    values.push(value);
+    index += 1;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(payload, "industry")) {
+    setField("industry", normalizeOptionalText(payload.industry));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "location")) {
+    setField("location", normalizeOptionalText(payload.location));
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(payload, "jobCategories") ||
+    Object.prototype.hasOwnProperty.call(payload, "jobTitle")
+  ) {
+    setField(
+      "job_categories",
+      normalizeOptionalText(payload.jobCategories || payload.jobTitle)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "plannedHiresCount")) {
+    setField("planned_hires_count", payload.plannedHiresCount ?? null);
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "feeAmount")) {
+    setField("fee_amount", payload.feeAmount ?? null);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "salaryRange")) {
+    const { salaryMin, salaryMax } = extractSalaryRange(payload);
+    setField("salary_min", salaryMin);
+    setField("salary_max", salaryMax);
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "mustQualifications")) {
+    setField(
+      "must_qualifications",
+      normalizeOptionalList(payload.mustQualifications)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "niceQualifications")) {
+    setField(
+      "nice_qualifications",
+      normalizeOptionalList(payload.niceQualifications)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "desiredLocations")) {
+    setField(
+      "desired_locations",
+      normalizeOptionalList(payload.desiredLocations)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "personalityTraits")) {
+    setField(
+      "personality_traits",
+      normalizeOptionalList(payload.personalityTraits)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "requiredExperience")) {
+    setField(
+      "required_experience",
+      normalizeOptionalList(payload.requiredExperience)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "selectionNote")) {
+    setField("selection_note", normalizeOptionalText(payload.selectionNote));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "contactName")) {
+    setField("contact_name", normalizeOptionalText(payload.contactName));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "contactEmail")) {
+    setField("contact_email", normalizeOptionalText(payload.contactEmail));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "warrantyPeriod")) {
+    setField("warranty_period", normalizeOptionalText(payload.warrantyPeriod));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "feeDetails")) {
+    setField("fee_details", normalizeOptionalText(payload.feeDetails));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "contractNote")) {
+    setField("contract_note", normalizeOptionalText(payload.contractNote));
+  }
+
+  if (updates.length === 0) {
+    res.status(400).json({ error: "更新内容がありません。" });
+    return;
+  }
+
+  setField("updated_at", new Date());
+  const idParamIndex = index;
+  values.push(id);
+
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `
+        UPDATE clients
+        SET ${updates.join(", ")}
+        WHERE id = $${idParamIndex}
+        RETURNING *
+      `,
+      values
+    );
+    if (rows.length === 0) {
+      res.status(404).json({ error: "企業が見つかりません。" });
+      return;
+    }
+    res.json({ item: rows[0] });
+  } catch (error) {
+    console.error("Failed to update client", error);
+    res.status(500).json({ error: "企業情報の更新に失敗しました。" });
+  } finally {
+    client.release();
+  }
+});
+
 // Ensure DB migration on startup
 (async () => {
   try {
     const client = await pool.connect();
     await client.query("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS next_action_content TEXT;");
+    await client.query("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS cs_name TEXT;");
+    await client.query("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS advisor_user_id BIGINT;");
+    await client.query("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS partner_user_id BIGINT;");
+    await client.query("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS cs_user_id BIGINT;");
 
-    // Add new columns to candidate_app_profile
+    // Add new columns to candidate_app_profile (if table still exists)
     await client.query(`
-      ALTER TABLE candidate_app_profile 
-      ADD COLUMN IF NOT EXISTS job_change_axis TEXT,
-      ADD COLUMN IF NOT EXISTS job_change_timing TEXT,
-      ADD COLUMN IF NOT EXISTS recommendation_text TEXT,
-      ADD COLUMN IF NOT EXISTS other_selection_status TEXT,
-      ADD COLUMN IF NOT EXISTS desired_interview_dates TEXT,
-      ADD COLUMN IF NOT EXISTS future_vision TEXT,
-      ADD COLUMN IF NOT EXISTS mandatory_interview_items TEXT,
-      ADD COLUMN IF NOT EXISTS shared_interview_date TEXT;
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name = 'candidate_app_profile'
+        ) THEN
+          ALTER TABLE candidate_app_profile
+            ADD COLUMN IF NOT EXISTS job_change_axis TEXT,
+            ADD COLUMN IF NOT EXISTS job_change_timing TEXT,
+            ADD COLUMN IF NOT EXISTS recommendation_text TEXT,
+            ADD COLUMN IF NOT EXISTS other_selection_status TEXT,
+            ADD COLUMN IF NOT EXISTS desired_interview_dates TEXT,
+            ADD COLUMN IF NOT EXISTS future_vision TEXT,
+            ADD COLUMN IF NOT EXISTS mandatory_interview_items TEXT,
+            ADD COLUMN IF NOT EXISTS shared_interview_date TEXT;
+        END IF;
+      END $$;
 
     ALTER TABLE candidate_applications
       ADD COLUMN IF NOT EXISTS closing_plan_date DATE,
       ADD COLUMN IF NOT EXISTS fee_amount TEXT,
       ADD COLUMN IF NOT EXISTS declined_reason TEXT,
       ADD COLUMN IF NOT EXISTS early_turnover_reason TEXT;
+
+    ALTER TABLE clients
+      ADD COLUMN IF NOT EXISTS job_categories TEXT,
+      ADD COLUMN IF NOT EXISTS planned_hires_count INTEGER,
+      ADD COLUMN IF NOT EXISTS fee_amount INTEGER,
+      ADD COLUMN IF NOT EXISTS salary_min INTEGER,
+      ADD COLUMN IF NOT EXISTS salary_max INTEGER,
+      ADD COLUMN IF NOT EXISTS must_qualifications TEXT[],
+      ADD COLUMN IF NOT EXISTS nice_qualifications TEXT[],
+      ADD COLUMN IF NOT EXISTS desired_locations TEXT[],
+      ADD COLUMN IF NOT EXISTS personality_traits TEXT[],
+      ADD COLUMN IF NOT EXISTS required_experience TEXT[],
+      ADD COLUMN IF NOT EXISTS selection_note TEXT,
+      ADD COLUMN IF NOT EXISTS contact_name TEXT,
+      ADD COLUMN IF NOT EXISTS contact_email TEXT,
+      ADD COLUMN IF NOT EXISTS warranty_period TEXT,
+      ADD COLUMN IF NOT EXISTS fee_details TEXT,
+      ADD COLUMN IF NOT EXISTS contract_note TEXT;
 
     -- 学歴テーブル
     CREATE TABLE IF NOT EXISTS candidate_educations (
@@ -273,8 +703,41 @@ function mapCandidateApplications(rows = []) {
   }));
 }
 
+let cachedCandidateAppProfileTable = null;
+
+async function resolveCandidateAppProfileTable(client) {
+  if (cachedCandidateAppProfileTable !== null) {
+    return cachedCandidateAppProfileTable;
+  }
+  try {
+    const { rows } = await client.query(
+      `
+        SELECT
+          to_regclass('public.candidate_app_profile') AS primary_table,
+          to_regclass('public.candidate_app_profile_deprecated') AS fallback_table
+      `
+    );
+    const row = rows[0] || {};
+    cachedCandidateAppProfileTable = row.primary_table || row.fallback_table || null;
+  } catch (error) {
+    console.error("Failed to resolve candidate_app_profile table", error);
+    cachedCandidateAppProfileTable = null;
+  }
+  return cachedCandidateAppProfileTable;
+}
+
+async function fetchCandidateAppProfileRow(client, candidateId) {
+  const table = await resolveCandidateAppProfileTable(client);
+  if (!table) return {};
+  const { rows } = await client.query(
+    `SELECT * FROM ${table} WHERE candidate_id = $1`,
+    [candidateId]
+  );
+  return rows[0] || {};
+}
+
 async function fetchCandidateRelations(client, candidateId) {
-  const [meetingResult, resumeResult, selectionResult, profileResult] = await Promise.all([
+  const [meetingResult, resumeResult, selectionResult, appProfile] = await Promise.all([
     client.query(
       `
         SELECT sequence, planned_date, attendance
@@ -303,21 +766,14 @@ async function fetchCandidateRelations(client, candidateId) {
       `,
       [candidateId]
     ),
-    client.query(
-      `
-        SELECT *
-        FROM candidate_app_profile
-        WHERE candidate_id = $1
-      `,
-      [candidateId]
-    ),
+    fetchCandidateAppProfileRow(client, candidateId),
   ]);
 
   return {
     meetingPlans: mapMeetingPlans(meetingResult.rows),
     resumeDocuments: mapResumeDocuments(resumeResult.rows),
     selectionProgress: mapCandidateApplications(selectionResult.rows),
-    appProfile: profileResult.rows[0] || {},
+    appProfile: appProfile || {},
   };
 }
 
@@ -391,8 +847,23 @@ function mapCandidateUpdateColumns(payload = {}) {
     company_name: payload.companyName ?? null,
     job_name: payload.jobName ?? null,
     work_location: payload.workLocation ?? null,
-    partner_name: payload.advisorName ?? null, // Map advisorName (frontend) to partner_name (db)
-    cs_name: payload.csName ?? null,           // Map csName (frontend) to cs_name (db)
+    advisor_user_id: normalizeOptionalUserId(
+      payload.advisorUserId ?? payload.advisor_user_id
+    ),
+    partner_user_id: normalizeOptionalUserId(
+      payload.partnerUserId ??
+      payload.partner_user_id ??
+      payload.csUserId ??
+      payload.cs_user_id
+    ),
+    cs_user_id: normalizeOptionalUserId(
+      payload.csUserId ??
+      payload.cs_user_id ??
+      payload.partnerUserId ??
+      payload.partner_user_id
+    ),
+    partner_name: payload.advisorName ?? payload.partnerName ?? null, // 担当アドバイザー表示名
+    cs_name: payload.csName ?? null, // 担当CS表示名
     caller_name: payload.callerName ?? null,
     introduction_chance: payload.introductionChance ?? null,
     phase: payload.phase ?? null,
@@ -589,6 +1060,9 @@ async function replaceCandidateApplications(client, candidateId, rows = []) {
 }
 
 async function replaceCandidateAppProfile(client, candidateId, payload = {}) {
+  const table = await resolveCandidateAppProfileTable(client);
+  if (!table) return;
+
   // education is mapped to final_education in this table
   const fields = {
     nationality: payload.nationality || null,
@@ -622,7 +1096,7 @@ async function replaceCandidateAppProfile(client, candidateId, payload = {}) {
   );
 
   const sql = `
-    INSERT INTO candidate_app_profile (
+    INSERT INTO ${table} (
       candidate_id, ${columns.join(", ")}, created_at, updated_at
     ) VALUES (
       $1, ${columns.map((_, i) => `$${i + 2}`).join(", ")}, NOW(), NOW()
@@ -647,10 +1121,6 @@ async function persistCandidateRelations(client, candidateId, payload) {
     replaceCandidateAppProfile(client, candidateId, payload),
   ]);
 }
-
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname)));
 
 function mapCandidate(row, extras = {}) {
   if (!row) return null;
@@ -681,6 +1151,9 @@ function mapCandidate(row, extras = {}) {
     companyName: row.company_name,
     jobName: row.job_name,
     workLocation: row.work_location ?? detail.workLocation,
+    advisorUserId: row.advisor_user_id ?? null,
+    csUserId: row.cs_user_id ?? row.partner_user_id ?? null,
+    partnerUserId: row.partner_user_id ?? row.cs_user_id ?? null,
     advisorName: row.partner_name, // 担当アドバイザーは partner_name に保存されている
     csName: row.cs_name, // 担当CSは cs_name に保存されている
     callerName: row.caller_name,
@@ -793,6 +1266,24 @@ async function getKintoneSettings(client) {
     return null;
   }
   return rows[0];
+}
+
+async function getCandidateMasters(client) {
+  const [clientsResult, usersResult] = await Promise.all([
+    client.query("SELECT id, name FROM clients ORDER BY name ASC"),
+    client.query("SELECT id, name FROM users ORDER BY name ASC"),
+  ]);
+
+  return {
+    clients: clientsResult.rows.map((row) => ({
+      id: row.id,
+      name: row.name ?? "",
+    })),
+    users: usersResult.rows.map((row) => ({
+      id: row.id,
+      name: row.name ?? "",
+    })),
+  };
 }
 
 app.get("/api/candidates", async (req, res) => {
@@ -935,6 +1426,7 @@ app.get("/api/candidates/:id", async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const includeMaster = String(req.query?.includeMaster || "").toLowerCase() === "true";
     const { rows } = await client.query(
       "SELECT * FROM candidates WHERE id = $1",
       [id]
@@ -944,7 +1436,16 @@ app.get("/api/candidates/:id", async (req, res) => {
       return;
     }
     const relations = await fetchCandidateRelations(client, rows[0].id);
-    res.json(mapCandidate(rows[0], relations));
+    const candidate = mapCandidate(rows[0], relations);
+    if (!includeMaster) {
+      res.json(candidate);
+      return;
+    }
+    const masters = await getCandidateMasters(client);
+    res.json({
+      ...candidate,
+      masters,
+    });
   } catch (error) {
     console.error("Failed to fetch candidate detail", error);
     res.status(500).json({ error: "候補者詳細の取得に失敗しました。" });
@@ -1267,8 +1768,7 @@ app.get("/api/candidates/:id/resume.pdf", async (req, res) => {
     }
     const c = candidates[0];
 
-    const { rows: profile } = await client.query("SELECT * FROM candidate_app_profile WHERE candidate_id = $1", [id]);
-    const p = profile[0] || {};
+    const p = await fetchCandidateAppProfileRow(client, id);
 
     const { rows: educations } = await client.query("SELECT * FROM candidate_educations WHERE candidate_id = $1 ORDER BY sequence", [id]);
     const { rows: workHistories } = await client.query("SELECT * FROM candidate_work_histories WHERE candidate_id = $1 ORDER BY sequence", [id]);
@@ -1326,8 +1826,7 @@ app.get("/api/candidates/:id/cv.pdf", async (req, res) => {
     }
     const c = candidates[0];
 
-    const { rows: profile } = await client.query("SELECT * FROM candidate_app_profile WHERE candidate_id = $1", [id]);
-    const p = profile[0] || {};
+    const p = await fetchCandidateAppProfileRow(client, id);
 
     const { rows: workHistories } = await client.query("SELECT * FROM candidate_work_histories WHERE candidate_id = $1 ORDER BY sequence", [id]);
 

@@ -31,8 +31,6 @@ const FIELD_MAPPING = {
   birthday: "生年月日",
   age: "年齢",
   email: "メールアドレス",
-  partner_name: "担当アドバイザー",
-  cs_name: "担当CS",
 };
 
 function normalizeDate(value) {
@@ -45,17 +43,6 @@ function normalizeDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
-}
-
-function normalizeKintoneValue(value) {
-  if (!value) return null;
-  // Kintone User Selection / Organization Selection field is an array of objects
-  if (Array.isArray(value)) {
-    if (value.length === 0) return null;
-    // Join all names with comma
-    return value.map((v) => v.name).filter(Boolean).join(", ") || null;
-  }
-  return value;
 }
 
 function mapRecord(record) {
@@ -80,8 +67,6 @@ function mapRecord(record) {
     email: get(FIELD_MAPPING.email),
     birthday,
     age: Number.isNaN(ageValue) ? null : ageValue,
-    partner_name: normalizeKintoneValue(get(FIELD_MAPPING.partner_name)),
-    cs_name: normalizeKintoneValue(get(FIELD_MAPPING.cs_name)),
     kintone_updated_time: normalizeDateTime(record[UPDATED_TIME_FIELD]?.value),
   };
 }
@@ -132,9 +117,9 @@ async function main() {
         INSERT INTO candidates (
           kintone_record_id, candidate_name, company_name, job_name, 
           registered_date, registered_at, source, phone, email, 
-          birthday, age, partner_name, cs_name, kintone_updated_time, updated_at
+          birthday, age, kintone_updated_time, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
         )
         ON CONFLICT (kintone_record_id) DO UPDATE SET
           candidate_name = EXCLUDED.candidate_name,
@@ -147,8 +132,6 @@ async function main() {
           email = EXCLUDED.email,
           birthday = EXCLUDED.birthday,
           age = EXCLUDED.age,
-          partner_name = COALESCE(candidates.partner_name, EXCLUDED.partner_name),
-          cs_name = COALESCE(candidates.cs_name, EXCLUDED.cs_name),
           kintone_updated_time = EXCLUDED.kintone_updated_time,
           updated_at = NOW()
       `;
@@ -165,8 +148,6 @@ async function main() {
         p.email,
         p.birthday,
         p.age,
-        p.partner_name,
-        p.cs_name,
         p.kintone_updated_time
       ];
 
