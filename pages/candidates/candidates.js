@@ -14,6 +14,14 @@ const candidateDetailPath = (id) => `/candidates/${encodeURIComponent(String(id)
 
 const candidatesApi = (path) => `${CANDIDATES_API_BASE}${path}`;
 
+function getCandidateDetailContainer() {
+  return (
+    document.getElementById("candidateDetailContent") ||
+    document.getElementById("candidateDetailContentPage") ||
+    null
+  );
+}
+
 // =========================
 // URLパラメータ（teleapo → candidates の遷移）
 // =========================
@@ -2193,7 +2201,7 @@ async function fetchCandidateDetailById(id, { includeMaster = true } = {}) {
 }
 
 function setCandidateDetailLoading(message = "読み込み中...") {
-  const container = document.getElementById("candidateDetailContent");
+  const container = getCandidateDetailContainer();
   if (!container) return;
   container.innerHTML = `
     <div class="candidate-detail-empty">
@@ -2333,7 +2341,7 @@ function highlightSelectedRow() {
 // 詳細モーダル描画
 // =========================
 function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
-  const container = document.getElementById("candidateDetailContent");
+  const container = getCandidateDetailContainer();
   if (!container) return;
 
   if (!candidate) {
@@ -2580,7 +2588,7 @@ function getCandidateDetailPlaceholder() {
 }
 
 function setCandidateDetailPlaceholder() {
-  const container = document.getElementById("candidateDetailContent");
+  const container = getCandidateDetailContainer();
   if (container) container.innerHTML = getCandidateDetailPlaceholder();
   currentDetailCandidateId = null;
   resetDetailEditState();
@@ -2679,7 +2687,8 @@ function resolveSelectionStageValue(row = {}) {
 }
 
 function updateSelectionStatusCell(index, status) {
-  const row = document.querySelector(`[data-selection-row="${index}"]`);
+  const root = getCandidateDetailContainer() || document;
+  const row = root.querySelector(`[data-selection-row="${index}"]`);
   if (!row) return;
   const cell = row.querySelector("[data-selection-status]");
   if (!cell) return;
@@ -2726,7 +2735,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   // DOMからの強制同期処理 (全入力フィールド)
   // Inputイベント漏れを防ぐため、保存直前に画面の値を正として取り込む
   // ---------------------------------------------------------
-  const detailContainer = document.getElementById("candidateDetailContent");
+  const detailContainer = getCandidateDetailContainer();
   if (detailContainer) {
     // 1. 一般フィールド (data-detail-fieldを持つもの)
     const inputs = detailContainer.querySelectorAll("[data-detail-field]");
@@ -2768,7 +2777,9 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   // ---------------------------------------------------------
   // 選考進捗の実DOMからの強制同期
   // ---------------------------------------------------------
-  const selectionRows = document.querySelectorAll("tr[data-selection-row]");
+  const selectionRows = detailContainer
+    ? detailContainer.querySelectorAll("tr[data-selection-row]")
+    : document.querySelectorAll("tr[data-selection-row]");
   if (selectionRows.length > 0) {
     const newProgress = [];
     selectionRows.forEach((row) => {
@@ -3046,7 +3057,7 @@ function batchApplyCandidateUpdates(
 // イベントハンドラ等
 // =========================
 function initializeDetailContentListeners() {
-  const container = document.getElementById("candidateDetailContent");
+  const container = getCandidateDetailContainer();
   if (!container) return;
 
   if (detailContentHandlers.click) {
@@ -3275,13 +3286,14 @@ function cleanupCandidatesEventListeners() {
   }
 
   const detailContent = document.getElementById("candidateDetailContent");
-  if (detailContent) {
-    if (detailContentHandlers.click) detailContent.removeEventListener("click", detailContentHandlers.click);
+  const detailContentPage = document.getElementById("candidateDetailContentPage");
+  [detailContent, detailContentPage].filter(Boolean).forEach((el) => {
+    if (detailContentHandlers.click) el.removeEventListener("click", detailContentHandlers.click);
     if (detailContentHandlers.input) {
-      detailContent.removeEventListener("input", detailContentHandlers.input);
-      detailContent.removeEventListener("change", detailContentHandlers.input);
+      el.removeEventListener("input", detailContentHandlers.input);
+      el.removeEventListener("change", detailContentHandlers.input);
     }
-  }
+  });
   detailContentHandlers.click = null;
   detailContentHandlers.input = null;
 }
