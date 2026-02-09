@@ -2890,7 +2890,9 @@ function handleDetailContentClick(event) {
   }
 
   const removeBtn = event.target.closest("[data-remove-row]");
+  console.log("[handleDetailContentClick] removeBtn check:", removeBtn, "target:", event.target);
   if (removeBtn) {
+    console.log("[handleDetailContentClick] removeBtn found:", removeBtn.dataset);
     handleDetailRemoveRow(
       removeBtn.dataset.removeRow,
       Number(removeBtn.dataset.index)
@@ -3051,8 +3053,13 @@ function handleDetailAddRow(type) {
 }
 
 function handleDetailRemoveRow(type, index) {
+  console.log("[handleDetailRemoveRow] called:", { type, index });
   const candidate = getSelectedCandidate();
-  if (!candidate || Number.isNaN(index)) return;
+  console.log("[handleDetailRemoveRow] candidate:", candidate);
+  if (!candidate || Number.isNaN(index)) {
+    console.warn("[handleDetailRemoveRow] Early return - candidate:", !!candidate, "index:", index);
+    return;
+  }
 
   switch (type) {
     case "meetingPlans": {
@@ -3078,8 +3085,9 @@ function handleDetailRemoveRow(type, index) {
       break;
   }
 
-  const current = getSelectedCandidate();
-  if (current) renderCandidateDetail(current, { preserveEditState: true });
+  console.log("[handleDetailRemoveRow] After deletion, selectionProgress length:", candidate.selectionProgress?.length);
+  // 変更を加えたのと同じcandidateオブジェクトを使って再描画
+  renderCandidateDetail(candidate, { preserveEditState: true });
 }
 
 async function handleCompleteTask(taskId) {

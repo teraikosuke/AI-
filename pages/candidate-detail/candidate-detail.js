@@ -4,7 +4,7 @@
  */
 
 // candidates.jsから必要な関数をインポート
-import { mountDetailPage, unmountDetailPage, confirmCandidateDetailClose } from '../candidates/candidates.js?v=20260322_09';
+import { mountDetailPage, unmountDetailPage, confirmCandidateDetailClose } from '../candidates/candidates.js?v=20260209_01';
 
 console.log('candidate-detail.js loaded');
 
