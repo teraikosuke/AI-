@@ -2463,10 +2463,10 @@ function renderCandidateDetail(candidate, { preserveEditState = false } = {}) {
     nextAction: renderDetailCard("次回アクション", renderNextActionSection(candidate), "nextAction"),
     selection: renderDetailCard("選考進捗", renderSelectionProgressSection(candidate), "selection"),
     profile: renderDetailCard("基本情報", renderApplicantInfoSection(candidate), "profile") +
-             renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
+      renderDetailCard("担当者", renderAssigneeSection(candidate), "assignees"),
     hearing: renderDetailCard("面談メモ", renderHearingSection(candidate), "hearing"),
     cs: renderDetailCard("架電結果", renderCsSection(candidate), "cs") +
-        renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
+      renderDetailCard("テレアポログ一覧", renderTeleapoLogsSection(candidate), "teleapoLogs", { editable: false }),
     money: renderDetailCard("売上・返金", renderMoneySection(candidate), "money"),
     documents: renderDetailCard("書類作成", renderDocumentsSection(candidate), "documents"),
   };
@@ -2818,11 +2818,15 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
 
   normalizeCandidate(candidate);
 
+  console.log("[saveCandidateRecord] Before ensureSelectionProgressClientIds, selectionProgress:", candidate.selectionProgress);
+
   // Ensure selection progress rows include clientId (Lambda requires it for INSERT).
   // This also supports free-text companyName input by resolving/creating clients.
   if (includeDetail) {
     await ensureSelectionProgressClientIds(candidate);
   }
+
+  console.log("[saveCandidateRecord] After ensureSelectionProgressClientIds, selectionProgress:", candidate.selectionProgress);
 
   const payload = includeDetail
     ? buildCandidateDetailPayload(candidate)
@@ -2855,6 +2859,14 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   }
 
   const updated = normalizeCandidate(await response.json());
+
+  // サーバーからのレスポンスにローカルで変更したselectionProgressを上書き
+  // （サーバーが空の配列を正しく返さない場合への対策）
+  if (includeDetail && Array.isArray(candidate.selectionProgress)) {
+    updated.selectionProgress = candidate.selectionProgress;
+    console.log("[saveCandidateRecord] Preserved local selectionProgress:", updated.selectionProgress);
+  }
+
   delete pendingInlineUpdates[String(candidate.id)];
   applyCandidateUpdate(updated, { preserveDetailState });
   return updated;
