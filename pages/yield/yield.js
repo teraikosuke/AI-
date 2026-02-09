@@ -5716,6 +5716,9 @@ function renderTrendChart(scope) {
   }
   destroyChart(scope, `${scope}TrendChart`);
   const config = buildTrendChartConfig(scope);
+  if (!config) {
+    return;
+  }
   state.dashboard[scope].charts[`${scope}TrendChart`] = new Chart(canvas, {
     type: 'line',
     data: config,
@@ -5734,14 +5737,10 @@ function renderCategoryChart({ scope, chartId, datasetKey, type }) {
   if (!canvas || !window.Chart) return;
 
   const breakdown = state.dashboard[scope]?.breakdown;
-  let dataset = null;
-  if (breakdown && breakdown[datasetKey]) {
-    dataset = breakdown[datasetKey];
-  } else {
-    dataset = mockDashboardData[scope]?.[datasetKey];
-  }
+  const dataset = breakdown?.[datasetKey];
 
-  if (!dataset || !Array.isArray(dataset.labels) || !Array.isArray(dataset.data)) {
+  if (!dataset || !Array.isArray(dataset.labels) || !Array.isArray(dataset.data) || !dataset.labels.length) {
+    destroyChart(scope, chartId);
     return;
   }
 
@@ -5774,22 +5773,14 @@ function renderCategoryChart({ scope, chartId, datasetKey, type }) {
 }
 
 function buildTrendChartConfig(scope) {
-  const current = state.dashboard[scope];
-  const trend = current.trendData;
+  const trend = state.dashboard[scope].trendData;
 
-  let labels = [];
-  let series = null;
-
-  if (trend && Array.isArray(trend.labels) && Array.isArray(trend.rates) && trend.labels.length) {
-    labels = trend.labels;
-    series = trend.rates;
-  } else {
-    const fallbackLabels =
-      current.trendMode === 'month'
-        ? createTrendDayLabels(current.year, current.month)
-        : DASHBOARD_MONTHS.map(month => `${month}月`);
-    labels = fallbackLabels;
+  if (!trend || !Array.isArray(trend.labels) || !Array.isArray(trend.rates) || !trend.labels.length) {
+    return null;
   }
+
+  const labels = trend.labels;
+  const series = trend.rates;
 
   const keyMap = {
     提案率: 'proposalRate',
@@ -5804,17 +5795,12 @@ function buildTrendChartConfig(scope) {
   const datasets = RATE_KEYS.map((label, idx) => {
     let data = [];
 
-    if (series) {
-      const key = keyMap[label] || null;
-      if (key) {
-        data = series.map(row => Number(row[key] || 0));
-      } else {
-        data = series.map(() => 0);
-      }
+    const key = keyMap[label] || null;
+    if (key) {
+      data = series.map(row => Number(row[key] || 0));
     } else {
-      data = labels.map((_, index) => generateRateValue(scope, label, current.trendMode, index, idx));
+      data = series.map(() => 0);
     }
-
     return {
       label,
       data,
