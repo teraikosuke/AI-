@@ -1969,7 +1969,7 @@ function renderGoalProgress(scope, data) {
       achv.textContent = `${percent}%`;
       setCardAchievementProgress(achv, percent);
     } else {
-      achv.textContent = '--%';
+      achv.textContent = '';
       setCardAchievementProgress(achv, 0);
     }
   });
@@ -2003,7 +2003,7 @@ function setDeltaValue(elementId, diff, isPercent = false) {
   const deltaEl = ensureDeltaElement(valueEl);
   if (!deltaEl) return;
   if (diff === null || diff === undefined || Number.isNaN(diff)) {
-    deltaEl.textContent = '--';
+    deltaEl.textContent = '';
     deltaEl.className = 'kpi-v2-delta delta-neutral';
     return;
   }
@@ -2124,7 +2124,7 @@ function renderPersonalSummary(rangeData, monthOverride) {
   if (summary.targetAmount > 0) {
     summary.achievementRate = Math.round((summary.currentAmount / summary.targetAmount) * 100);
   }
-  const rateText = summary.targetAmount > 0 ? `${summary.achievementRate}%` : '--%';
+  const rateText = summary.targetAmount > 0 ? `${summary.achievementRate}%` : '';
   setText('personalAchievementRate', rateText);
   setText('personalCurrent', `¥${summary.currentAmount.toLocaleString()}`);
   setText('personalTarget', `¥${summary.targetAmount.toLocaleString()}`);
@@ -2205,7 +2205,7 @@ function renderCompanyRevenueSummary(target = {}) {
   console.log('[yield] company revenue summary', { target, current, targetAmount, monthly: state.kpi.companyMonthly });
   setText('companyCurrent', `¥${current.toLocaleString()}`);
   setText('companyTarget', `¥${targetAmount.toLocaleString()}`);
-  setText('companyAchievementRate', targetAmount > 0 ? `${achv}%` : '--%');
+  setText('companyAchievementRate', targetAmount > 0 ? `${achv}%` : '');
   const bar = document.getElementById('companyAchievementBar');
   if (bar) {
     const normalized = Math.max(0, Math.min(achv, 100));
@@ -2220,7 +2220,7 @@ function renderCompanyGoalCards(target = {}, actuals = {}) {
     const rawTarget = target[targetKey];
     const hasValue = rawTarget !== undefined && rawTarget !== null;
     const goalValue = hasValue ? num(rawTarget) : 0;
-    setTextByRef(goalRef, hasValue ? goalValue.toLocaleString() : '--');
+    setTextByRef(goalRef, hasValue ? goalValue.toLocaleString() : '');
     const achvEl = document.querySelector(`[data-ref="${achvRef}"]`);
     if (!achvEl) return;
     if (goalValue > 0) {
@@ -2228,7 +2228,7 @@ function renderCompanyGoalCards(target = {}, actuals = {}) {
       achvEl.textContent = `${percent}%`;
       setCardAchievementProgress(achvEl, percent);
     } else {
-      achvEl.textContent = '--%';
+      achvEl.textContent = '';
       setCardAchievementProgress(achvEl, 0);
     }
   });
@@ -2260,7 +2260,7 @@ function renderCompanyRateGoals() {
       const fallbackVal = resolveFallbackTarget(key);
       const val = targets[key] !== undefined && targets[key] !== null ? targets[key] : fallbackVal;
       const hasVal = val !== undefined && val !== null;
-      el.textContent = hasVal ? `${val}%` : '--';
+    el.textContent = hasVal ? `${val}%` : '';
 
       // 編集機能
       el.style.cursor = 'pointer';
@@ -2282,7 +2282,7 @@ function renderCompanyRateGoals() {
         achvEl.textContent = `${rate}%`;
         setCardAchievementProgress(achvEl, rate);
       } else {
-        achvEl.textContent = '--%';
+        achvEl.textContent = '';
         setCardAchievementProgress(achvEl, 0);
       }
     }
@@ -2835,7 +2835,7 @@ async function renderPersonalTableRates(startDate, endDate) {
     const html = rates.map(r => `
       <div class="kpi-v2-card is-neutral is-compact">
         <div class="kpi-v2-label">${r.label}</div>
-        <div class="kpi-v2-value">${r.value !== undefined ? r.value : '--'}${r.unit}</div>
+        <div class="kpi-v2-value">${r.value !== undefined && r.value !== null ? `${r.value}${r.unit}` : ''}</div>
       </div>
     `).join('');
 
@@ -2944,15 +2944,15 @@ function renderDailyMatrix({ headerRow, body, dates, dailyData, resolveValues, s
 }
 
 function formatNumberCell(value) {
-  if (value === null || value === undefined || value === '') return '--';
+  if (value === null || value === undefined || value === '') return '';
   const numeric = num(value);
-  return Number.isFinite(numeric) ? numeric.toLocaleString() : '--';
+  return Number.isFinite(numeric) ? numeric.toLocaleString() : '';
 }
 
 function formatCurrencyCell(value) {
-  if (value === null || value === undefined || value === '') return '--';
+  if (value === null || value === undefined || value === '') return '';
   const numeric = num(value);
-  if (!Number.isFinite(numeric)) return '--';
+  if (!Number.isFinite(numeric)) return '';
   // 万円単位で表示
   const manyen = Math.round(numeric / 10000);
   return `¥${manyen.toLocaleString()}万`;
@@ -2961,7 +2961,7 @@ function formatCurrencyCell(value) {
 
 function formatAchievementCell(percent) {
   if (percent === null || Number.isNaN(percent)) {
-    return { value: '--%', className: 'daily-muted' };
+    return { value: '', className: 'daily-muted' };
   }
   const className = percent >= 100 ? 'daily-achv-high' : 'daily-achv-normal';
   return { value: `${percent}%`, className };
@@ -3112,7 +3112,7 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
   if (!period) {
     body.innerHTML = '';
     headerRow.innerHTML = '';
-    if (labelEl) labelEl.textContent = '評価期間：--';
+    if (labelEl) labelEl.textContent = '';
     return;
   }
 
@@ -3125,7 +3125,10 @@ function renderPersonalDailyTable(periodId, dailyData = {}) {
   const dates = enumerateDateRange(range.startDate, range.endDate);
   const advisorName = getAdvisorName();
   const periodTarget = goalSettingsService.getPersonalPeriodTarget(periodId, advisorName) || {};
-  if (labelEl) labelEl.textContent = `評価期間：${formatPeriodMonthLabel(period) || '--'}`;
+  if (labelEl) {
+    const labelText = formatPeriodMonthLabel(period) || '';
+    labelEl.textContent = labelText ? `評価期間：${labelText}` : '';
+  }
 
   const targetDepts = [];
   if (deptKey) targetDepts.push(deptKey);
@@ -3415,7 +3418,7 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
   if (!period) {
     body.innerHTML = '';
     headerRow.innerHTML = '';
-    if (labelEl) labelEl.textContent = '評価期間：--';
+    if (labelEl) labelEl.textContent = '';
     return;
   }
   const dates = enumeratePeriodDates(period);
@@ -3448,7 +3451,10 @@ function renderCompanyDailyTable(periodId, employeeId, dailyData = {}) {
       return { actual: actual[field.dataKey], target: expected };
     }
   });
-  if (labelEl) labelEl.textContent = `評価期間：${formatPeriodMonthLabel(period) || '--'}`;
+  if (labelEl) {
+    const labelText = formatPeriodMonthLabel(period) || '';
+    labelEl.textContent = labelText ? `評価期間：${labelText}` : '';
+  }
 }
 
 function getMsMetricOption(metricKey) {
@@ -5099,15 +5105,15 @@ function filterAndSortGeneric(rows, filters = {}) {
 }
 
 function formatAchvPercent(current, goal) {
-  if (goal === null || goal === undefined) return { text: '--%', className: 'daily-muted' };
-  if (!Number.isFinite(num(goal)) || num(goal) === 0) return { text: '--%', className: 'daily-muted' };
+  if (goal === null || goal === undefined) return { text: '', className: 'daily-muted' };
+  if (!Number.isFinite(num(goal)) || num(goal) === 0) return { text: '', className: 'daily-muted' };
   const percent = Math.round((num(current) / num(goal)) * 100);
   const className = percent >= 100 ? 'daily-achv-high' : 'daily-achv-normal';
   return { text: `${percent}%`, className };
 }
 
 function displayGoal(value) {
-  if (value === null || value === undefined) return '--';
+  if (value === null || value === undefined) return '';
   return num(value).toLocaleString();
 }
 
@@ -5525,9 +5531,12 @@ function updatePersonalPeriodLabels() {
   const dailyLabel = document.getElementById('personalDailyPeriodLabel');
   if (titleEl) titleEl.textContent = getPersonalSummaryTitleText();
   if (dailyLabel) {
-    dailyLabel.textContent = dailyPeriod
-      ? `評価期間：${formatPeriodMonthLabel(dailyPeriod) || '--'}`
-      : '評価期間：-';
+    if (!dailyPeriod) {
+      dailyLabel.textContent = '';
+    } else {
+      const labelText = formatPeriodMonthLabel(dailyPeriod) || '';
+      dailyLabel.textContent = labelText ? `評価期間：${labelText}` : '';
+    }
   }
 }
 
@@ -5540,9 +5549,12 @@ function syncEvaluationPeriodLabels() {
     titleEl.textContent = getPersonalSummaryTitleText();
   }
   if (dailyLabel) {
-    dailyLabel.textContent = dailyPeriod
-      ? `評価期間：${formatPeriodMonthLabel(dailyPeriod) || '--'}`
-      : '評価期間：-';
+    if (!dailyPeriod) {
+      dailyLabel.textContent = '';
+    } else {
+      const labelText = formatPeriodMonthLabel(dailyPeriod) || '';
+      dailyLabel.textContent = labelText ? `評価期間：${labelText}` : '';
+    }
   }
 }
 
