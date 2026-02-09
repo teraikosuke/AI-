@@ -91,6 +91,10 @@ let currentSortKey = "registeredAt";
 let currentSortOrder = "desc";
 let candidateDetailCurrentTab = "nextAction";
 
+const LIST_PAGE_SIZE = 50;
+const CALENDAR_BATCH_SIZE = 2000;
+const CALENDAR_MAX_ITEMS = 20000; // guardrail
+
 const japaneseLevelOptions = [
   { value: "", label: "未設定" },
   "N1",
@@ -118,6 +122,9 @@ let pendingInlineUpdates = {};
 let openedFromUrlOnce = false;
 let masterClients = [];
 let masterUsers = [];
+let listPage = 1;
+let listTotal = 0;
+let calendarCandidates = [];
 let screeningRules = null;
 let screeningRulesLoaded = false;
 let screeningRulesLoading = false;
@@ -410,7 +417,9 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     null;
   candidate.nextActionNote =
     candidate.nextActionNote ??
+    candidate.next_action_note ??
     candidate.actionInfo?.nextActionNote ??
+    candidate.actionInfo?.next_action_note ??
     candidate.detail?.actionInfo?.nextActionNote ??
     "";
   candidate.nextActionDate =
@@ -578,14 +587,21 @@ export function mount() {
   initializeCandidatesFilters();
   initializeSortControl();
   initializeTableInteraction();
+  initializePaginationControls();
   initializeCandidatesTabs();
   initializeDetailModal();
   initializeDetailContentListeners();
 
   openedFromUrlOnce = false;
   loadScreeningRulesForCandidates();
-  // まず一覧ロード
+  restoreListContextFromReturnState();
+  void loadFilterMasters();
+  // まず一覧ロード（ページング）
   loadCandidatesData();
+  // 初期表示がカレンダーの場合は、カレンダーも別ロード
+  if (isCandidatesTabActive("calendar")) {
+    void loadCandidatesCalendarData();
+  }
 }
 
 export function unmount() {
@@ -655,15 +671,46 @@ function initializeCandidatesFilters() {
   setFilterSelectOptions("candidatesFilterPhase", PHASE_ORDER);
 }
 
+async function loadFilterMasters() {
+  // Best-effort: on AWS, `/candidates?view=masters` returns facet lists.
+  // On local server implementations this might 404; ignore in that case.
+  try {
+    const url = candidatesApi(`${CANDIDATES_LIST_PATH}?view=masters`);
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json || typeof json !== "object") return;
+
+    const sources = Array.isArray(json.sources) ? json.sources : [];
+    const companies = Array.isArray(json.companies) ? json.companies : [];
+    const advisors = Array.isArray(json.advisors) ? json.advisors : [];
+    const phases = Array.isArray(json.phases) ? json.phases : [];
+
+    if (sources.length) setFilterSelectOptions("candidatesFilterSource", sources);
+    if (companies.length) setFilterSelectOptions("candidatesFilterCompany", companies);
+    if (advisors.length) setFilterSelectOptions("candidatesFilterAdvisor", advisors);
+
+    if (phases.length) {
+      const uniquePhases = buildUniqueValues(phases);
+      const orderedPhases = [
+        ...PHASE_ORDER.filter((phase) => uniquePhases.includes(phase)),
+        ...uniquePhases.filter((phase) => !PHASE_ORDER.includes(phase)),
+      ];
+      setFilterSelectOptions("candidatesFilterPhase", orderedPhases);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 function initializeSortControl() {
   const sortSelect = document.getElementById("candidatesSortOrder");
-  if (sortSelect) sortSelect.addEventListener("change", (e) => {
-    // Dropdown change updates global order only if key matches or just resets
-    currentSortOrder = e.target.value;
-    currentSortKey = "registeredAt"; // Dropdown implies registered date
-    handleFilterChange();
-    updateHeaderSortStyles();
-  });
+  if (!sortSelect) return;
+  // Server-side paging uses a fixed order (created_at DESC). Disable client sorting UI.
+  sortSelect.value = "desc";
+  sortSelect.disabled = true;
+  const label = sortSelect.closest("label");
+  if (label) label.classList.add("hidden");
 }
 
 function initializeTableInteraction() {
@@ -674,20 +721,19 @@ function initializeTableInteraction() {
     tableBody.addEventListener("change", handleInlineEdit);
   }
 
-  const tableHead = document.querySelector(".candidates-table-card thead");
-  if (tableHead) {
-    tableHead.addEventListener("click", (e) => {
-      const th = e.target.closest("th[data-sort-key]");
-      if (th) {
-        handleHeaderSort(th.dataset.sortKey);
-      }
-    });
-  }
+  // Header sort is disabled (server-side paging uses fixed order).
 
   const toggleButton = document.getElementById("candidatesToggleEdit");
   if (toggleButton) toggleButton.addEventListener("click", toggleCandidatesEditMode);
 
   ensureNextActionColumnPriority();
+}
+
+function initializePaginationControls() {
+  const prevBtn = document.getElementById("candidatesPagePrev");
+  const nextBtn = document.getElementById("candidatesPageNext");
+  if (prevBtn) prevBtn.addEventListener("click", () => gotoCandidatesPage(listPage - 1));
+  if (nextBtn) nextBtn.addEventListener("click", () => gotoCandidatesPage(listPage + 1));
 }
 
 function initializeCandidatesTabs() {
@@ -710,12 +756,17 @@ function initializeCandidatesTabs() {
   setCandidatesActiveTab(restoredTab);
 }
 
+function isCandidatesTabActive(tabKey) {
+  return Boolean(document.querySelector(`[data-candidates-tab].is-active[data-candidates-tab="${CSS.escape(String(tabKey))}"]`));
+}
+
 // =========================
 // 一覧取得（RDS連携）
 // =========================
 async function loadCandidatesData(filtersOverride = {}) {
   const filters = { ...collectFilters(), ...filtersOverride };
-  const queryString = buildCandidatesQuery(filters);
+  const offset = Math.max(0, (listPage - 1) * LIST_PAGE_SIZE);
+  const queryString = buildCandidatesQuery(filters, { limit: LIST_PAGE_SIZE, offset });
 
   try {
     const url = queryString
@@ -736,16 +787,14 @@ async function loadCandidatesData(filtersOverride = {}) {
         candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
       });
     }
-    updateFilterSelectOptions(allCandidates);
-    filteredCandidates = applyLocalFilters(allCandidates, filters);
-    // Apply current global sort state
-    filteredCandidates = sortCandidates(filteredCandidates, currentSortKey, currentSortOrder);
+    // Server-side filtering/paging: keep current page as-is.
+    filteredCandidates = allCandidates.slice();
     pendingInlineUpdates = {};
 
     renderCandidatesTable(filteredCandidates);
-    updateHeaderSortStyles(); // Ensure headers reflect state
-    updateCandidatesCount(filteredCandidates.length);
-    prefetchNextActionDates(allCandidates);
+    listTotal = Number(result.total ?? filteredCandidates.length ?? 0);
+    updateCandidatesCount(listTotal);
+    renderCandidatesPagination({ total: listTotal, page: listPage, pageSize: LIST_PAGE_SIZE, count: filteredCandidates.length });
     if (screeningRules) {
       void hydrateValidApplicationsFromDetail(filteredCandidates);
     }
@@ -773,9 +822,36 @@ async function loadCandidatesData(filtersOverride = {}) {
     allCandidates = [];
     filteredCandidates = [];
     renderCandidatesTable([]);
+    listTotal = 0;
     updateCandidatesCount(0);
+    renderCandidatesPagination({ total: 0, page: 1, pageSize: LIST_PAGE_SIZE, count: 0 });
     updateLastSyncedDisplay(null);
   }
+}
+
+function renderCandidatesPagination({ total = 0, page = 1, pageSize = LIST_PAGE_SIZE, count = 0 } = {}) {
+  const prevBtn = document.getElementById("candidatesPagePrev");
+  const nextBtn = document.getElementById("candidatesPageNext");
+  const info = document.getElementById("candidatesPageInfo");
+  const bar = document.getElementById("candidatesPaginationBar");
+
+  const totalPages = total > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = total === 0 ? 0 : Math.min((safePage - 1) * pageSize + Math.max(0, count), total);
+
+  if (info) info.textContent = total === 0 ? "-" : `${start}-${end}件 / 全${total}件（${safePage}/${totalPages}ページ）`;
+  if (prevBtn) prevBtn.disabled = safePage <= 1;
+  if (nextBtn) nextBtn.disabled = safePage >= totalPages;
+  if (bar) bar.classList.toggle("hidden", total === 0);
+}
+
+function gotoCandidatesPage(nextPage) {
+  const totalPages = listTotal > 0 ? Math.max(1, Math.ceil(listTotal / LIST_PAGE_SIZE)) : 1;
+  const target = Math.min(Math.max(1, Number(nextPage) || 1), totalPages);
+  if (target === listPage) return;
+  listPage = target;
+  loadCandidatesData();
 }
 
 const RETURN_STATE_KEY = "candidates.returnState";
@@ -783,10 +859,49 @@ const RETURN_STATE_KEY = "candidates.returnState";
 function saveReturnState(candidateId) {
   try {
     const activeTab = document.querySelector("[data-candidates-tab].is-active")?.dataset?.candidatesTab || "list";
-    const payload = { tab: activeTab, candidateId: String(candidateId || "") };
+    const payload = {
+      tab: activeTab,
+      candidateId: String(candidateId || ""),
+      page: listPage,
+      filters: collectFilters(),
+      calendarYear: calendarViewDate.getFullYear(),
+      calendarMonth: calendarViewDate.getMonth(),
+    };
     sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify(payload));
   } catch {
     // ignore
+  }
+}
+
+function peekReturnState() {
+  try {
+    const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function restoreListContextFromReturnState() {
+  const state = peekReturnState();
+  if (!state) return;
+  const filters = state.filters || {};
+  const setValue = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value !== undefined && value !== null) el.value = String(value);
+  };
+  setValue("candidatesFilterStartDate", filters.startDate || "");
+  setValue("candidatesFilterEndDate", filters.endDate || "");
+  setValue("candidatesFilterSource", filters.source || "");
+  setValue("candidatesFilterName", filters.name || "");
+  setValue("candidatesFilterCompany", filters.company || "");
+  setValue("candidatesFilterAdvisor", filters.advisor || "");
+  setValue("candidatesFilterValid", filters.valid || "");
+  setValue("candidatesFilterPhase", filters.phase || "");
+  const page = Number(state.page || 1);
+  if (Number.isFinite(page) && page > 0) listPage = Math.trunc(page);
+  if (Number.isFinite(state.calendarYear) && Number.isFinite(state.calendarMonth)) {
+    calendarViewDate = new Date(Number(state.calendarYear), Number(state.calendarMonth), 1);
   }
 }
 
@@ -872,7 +987,12 @@ async function prefetchNextActionDates(candidates) {
 }
 
 function handleFilterChange() {
+  // Reset list paging when filters change.
+  listPage = 1;
   loadCandidatesData();
+  if (isCandidatesTabActive("calendar")) {
+    void loadCandidatesCalendarData();
+  }
 }
 
 function collectFilters() {
@@ -1283,16 +1403,19 @@ function updateHeaderSortStyles() {
   });
 }
 
-function buildCandidatesQuery(filters) {
+function buildCandidatesQuery(filters, { limit = LIST_PAGE_SIZE, offset = 0, view = "" } = {}) {
   const p = new URLSearchParams();
+  if (filters.startDate) p.set("from", filters.startDate);
+  if (filters.endDate) p.set("to", filters.endDate);
   if (filters.source) p.set("source", filters.source);
-  if (filters.phase && filters.phase !== "未接触") p.set("phase", filters.phase);
+  if (filters.phase) p.set("phase", filters.phase);
   if (filters.advisor) p.set("advisor", filters.advisor);
   if (filters.name) p.set("name", filters.name);
   if (filters.company) p.set("company", filters.company);
   if (filters.valid) p.set("valid", filters.valid);
-  p.set("sort", filters.sortOrder || "desc");
-  p.set("limit", "200");
+  if (view) p.set("view", view);
+  p.set("limit", String(limit));
+  p.set("offset", String(offset));
   return p.toString();
 }
 
@@ -1480,7 +1603,9 @@ function setCandidatesActiveTab(tabKey) {
   });
 
   if (tabKey === "calendar") {
-    renderNextActionCalendar(filteredCandidates);
+    // Calendar is loaded separately from the list paging dataset.
+    renderNextActionCalendar(calendarCandidates);
+    void loadCandidatesCalendarData();
   }
 }
 
@@ -1499,7 +1624,10 @@ function handleCalendarNavClick(event) {
   }
 
   calendarViewDate = new Date(base.getFullYear(), base.getMonth(), 1);
-  renderNextActionCalendar(filteredCandidates);
+  renderNextActionCalendar(calendarCandidates);
+  if (isCandidatesTabActive("calendar")) {
+    void loadCandidatesCalendarData();
+  }
 }
 
 function handleCalendarEventClick(event) {
@@ -1523,6 +1651,72 @@ function toDateKey(value) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function formatDateYmd(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function resolveMonthRange(date) {
+  const base = date instanceof Date ? date : new Date();
+  const start = new Date(base.getFullYear(), base.getMonth(), 1);
+  const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+  return { from: formatDateYmd(start), to: formatDateYmd(end) };
+}
+
+async function loadCandidatesCalendarData(filtersOverride = {}) {
+  try {
+    const filters = { ...collectFilters(), ...filtersOverride };
+    const { from, to } = resolveMonthRange(calendarViewDate);
+
+    const items = [];
+    let offset = 0;
+    let total = 0;
+
+    while (items.length < CALENDAR_MAX_ITEMS) {
+      const qs = new URLSearchParams();
+      qs.set("view", "calendar");
+      qs.set("limit", String(CALENDAR_BATCH_SIZE));
+      qs.set("offset", String(offset));
+      qs.set("nextActionFrom", from);
+      qs.set("nextActionTo", to);
+      if (filters.name) qs.set("name", filters.name);
+
+      // Optional: carry other filters as hints (backend may ignore).
+      if (filters.source) qs.set("source", filters.source);
+      if (filters.company) qs.set("company", filters.company);
+      if (filters.advisor) qs.set("advisor", filters.advisor);
+      if (filters.phase) qs.set("phase", filters.phase);
+      if (filters.valid) qs.set("valid", filters.valid);
+
+      const url = candidatesApi(`${CANDIDATES_LIST_PATH}?${qs.toString()}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      const batch = Array.isArray(json.items) ? json.items : [];
+      total = Number(json.total ?? batch.length ?? 0);
+
+      batch.forEach((item) => {
+        items.push(normalizeCandidate({ ...item, id: String(item.id) }, { source: "list" }));
+      });
+
+      offset += batch.length;
+      if (batch.length === 0) break;
+      if (items.length >= total) break;
+    }
+
+    calendarCandidates = items;
+    renderNextActionCalendar(calendarCandidates);
+  } catch (e) {
+    console.error("カレンダーデータの取得に失敗しました。", e);
+    calendarCandidates = [];
+    renderNextActionCalendar(calendarCandidates);
+  }
 }
 
 function buildNextActionMap(list) {
@@ -1617,13 +1811,11 @@ function renderCandidatesTable(list) {
         <td colspan="8" class="text-center text-slate-500 py-6">条件に一致する候補者が見つかりません。</td>
       </tr>
     `;
-    renderNextActionCalendar(list);
     return;
   }
 
   tableBody.innerHTML = list.map((candidate) => buildTableRow(candidate)).join("");
   highlightSelectedRow();
-  renderNextActionCalendar(list);
 }
 
 function buildTableRow(candidate) {
