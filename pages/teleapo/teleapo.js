@@ -4562,7 +4562,7 @@ function updateInterviewFieldVisibility(resultValue) {
   const input = document.getElementById("dialFormInterviewAt");
   if (!field || !input) return;
   const shouldShow = shouldRequireInterview(resultValue ?? document.getElementById("dialFormResult")?.value);
-  field.classList.toggle("is-hidden", !shouldShow);
+  field.classList.toggle("hidden", !shouldShow);
   input.required = shouldShow;
   if (!shouldShow) input.value = "";
 }
@@ -4765,6 +4765,46 @@ function bindDialForm() {
     }
   });
 }
+
+async function updateCandidateFirstInterview(candidateId, interviewDate) {
+  const idNum = Number(candidateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return null;
+
+  const url = getCandidateDetailApiUrl(idNum);
+  if (!url) return null;
+
+  const session = getSession();
+  const token = session?.token;
+  if (!token) throw new Error("認証トークンがありません");
+
+  const body = {
+    detailMode: true,
+    firstInterviewDate: interviewDate,
+    phase: '一次面談設定',
+    updatedAt: new Date().toISOString()
+  };
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+
+  const updated = await res.json();
+  if (candidateDetailCache) {
+    candidateDetailCache.set(idNum, updated);
+  }
+  return updated;
+}
+
 function initDialForm() {
   syncDialFormCurrentUser();
   resetDialFormDefaults();
