@@ -4699,6 +4699,7 @@ function renderCsSection(candidate) {
     { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
     { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
+    { label: "初回面談日時", value: candidate.firstInterviewDate, path: "firstInterviewDate", type: "datetime-local" },
     { label: "新規接触予定日", value: candidate.firstContactPlannedAt, path: "firstContactPlannedAt", type: "date" },
 
   ];
@@ -4713,7 +4714,7 @@ function renderCsSection(candidate) {
               <div class="cs-summary-value">
                 ${editing && item.path
             ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
-            : item.html || (item.type === "date" ? formatDateJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
+            : item.html || (item.type === "date" ? formatDateJP(item.value) : item.type === "datetime-local" ? formatDateTimeJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
           }
               </div>
             </div>
