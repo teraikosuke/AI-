@@ -543,11 +543,13 @@ function buildSelectOptions(list, selectedValue, { blankLabel = "選択" } = {})
     base.map((item) => ({
       value: item.id ?? item.value ?? "",
       label: item.name ?? item.label ?? "",
+      disabled: Boolean(item?.disabled),
     }))
   );
   return options.map((option) => ({
     value: option.value,
     label: option.label,
+    disabled: option.disabled,
     selected: String(option.value) === String(selectedValue ?? ""),
   }));
 }
@@ -560,12 +562,25 @@ function buildClientOptions(selectedId, selectedName) {
   return buildSelectOptions(fallback, selectedId, { blankLabel: "企業を選択" });
 }
 
-function buildUserOptions(selectedId, selectedName = "") {
-  const users = Array.isArray(masterUsers) ? [...masterUsers] : [];
-  if (selectedId && !users.some((user) => String(user.id) === String(selectedId))) {
-    users.push({ id: selectedId, name: selectedName || String(selectedId) });
+function normalizeRoleValue(role) {
+  return String(role || "").trim().toLowerCase();
+}
+
+function buildUserOptions(selectedId, selectedName = "", { allowedRoles = null, blankLabel = "担当者を選択" } = {}) {
+  let users = Array.isArray(masterUsers) ? [...masterUsers] : [];
+  const allow = Array.isArray(allowedRoles) ? allowedRoles.map((r) => normalizeRoleValue(r)).filter(Boolean) : null;
+  if (allow && allow.length > 0) {
+    users = users.filter((user) => allow.includes(normalizeRoleValue(user?.role)));
   }
-  return buildSelectOptions(users, selectedId, { blankLabel: "担当者を選択" });
+  if (selectedId && !users.some((user) => String(user.id) === String(selectedId))) {
+    // Show current value even if it is not selectable (role mismatch, deleted user, etc.).
+    users.push({
+      id: selectedId,
+      name: selectedName ? `${selectedName} (選択不可)` : String(selectedId),
+      disabled: true,
+    });
+  }
+  return buildSelectOptions(users, selectedId, { blankLabel });
 }
 
 function buildBooleanOptions(value, { trueLabel = "報告済み", falseLabel = "未報告", blankLabel = "-" } = {}) {
@@ -3644,7 +3659,10 @@ function renderAssigneeSection(candidate) {
       label: "担当CS",
       value: candidate.csUserId ?? "",
       input: "select",
-      options: buildUserOptions(candidate.csUserId, candidate.csName),
+      options: buildUserOptions(candidate.csUserId, candidate.csName, {
+        allowedRoles: ["caller"], // role=caller is CS in this app
+        blankLabel: "担当CSを選択",
+      }),
       path: "csUserId",
       displayFormatter: () => candidate.csName || "-",
       span: 3,
@@ -3653,7 +3671,10 @@ function renderAssigneeSection(candidate) {
       label: "担当アドバイザー",
       value: candidate.advisorUserId ?? "",
       input: "select",
-      options: buildUserOptions(candidate.advisorUserId, candidate.advisorName),
+      options: buildUserOptions(candidate.advisorUserId, candidate.advisorName, {
+        allowedRoles: ["advisor"],
+        blankLabel: "担当アドバイザーを選択",
+      }),
       path: "advisorUserId",
       displayFormatter: () => candidate.advisorName || "-",
       span: 3,
@@ -4792,10 +4813,11 @@ function renderDetailFieldInput(field, value, sectionKey) {
           const isObject = option && typeof option === "object";
           const optValue = isObject ? option.value : option;
           const optLabel = isObject ? option.label : option;
+          const isDisabled = Boolean(isObject && option.disabled);
           const isSelected = isObject && "selected" in option
             ? option.selected
             : String(optValue ?? "") === String(value ?? "");
-          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+          return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
         })
         .join("")
       }
@@ -4837,10 +4859,11 @@ function renderTableSelect(options, path, sectionKey, valueType) {
       const isObject = option && typeof option === "object";
       const optValue = isObject ? option.value : option;
       const optLabel = isObject ? option.label : option;
+      const isDisabled = Boolean(isObject && option.disabled);
       const isSelected = isObject && "selected" in option
         ? option.selected
         : String(optValue ?? "") === String(selectedValue ?? "");
-      return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
+      return `<option value="${escapeHtmlAttr(optValue ?? "")}" ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}>${escapeHtml(optLabel ?? "")}</option>`;
     })
     .join("");
   return `<select class="detail-table-input" ${dataset}${valueTypeAttr}>${html}</select>`;
