@@ -3913,11 +3913,11 @@ function renderHearingSection(candidate) {
   const attendanceValue = candidate.attendanceConfirmed ?? false;
   const confirmationFields = [
     {
-      label: "共有面談実施日",
-      value: candidate.sharedInterviewDate,
-      type: "date",
-      path: "sharedInterviewDate",
-      displayFormatter: formatDateJP,
+      label: "初回面談日時",
+      value: candidate.firstInterviewDate,
+      type: "datetime-local",
+      path: "firstInterviewDate",
+      displayFormatter: formatDateTimeJP,
       span: 1,
     },
     {
