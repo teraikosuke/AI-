@@ -872,12 +872,16 @@ function initializeTableInteraction() {
     tableBody.addEventListener("change", handleInlineEdit);
   }
 
-  // Header sort is disabled (server-side paging uses fixed order).
+  const tableHead = document.querySelector(".candidates-table-card thead");
+  if (tableHead) {
+    tableHead.addEventListener("click", handleCandidatesHeaderClick);
+  }
 
   const toggleButton = document.getElementById("candidatesToggleEdit");
   if (toggleButton) toggleButton.addEventListener("click", toggleCandidatesEditMode);
 
   ensureNextActionColumnPriority();
+  updateHeaderSortStyles();
 }
 
 function initializePaginationControls() {
@@ -938,11 +942,12 @@ async function loadCandidatesData(filtersOverride = {}) {
         candidate.validApplicationComputed = computeValidApplication(candidate, screeningRules);
       });
     }
-    // Server-side filtering/paging: keep current page as-is.
-    filteredCandidates = allCandidates.slice();
+    // Server-side filtering/paging: keep current page as-is, but allow local sort.
+    filteredCandidates = sortCandidates(allCandidates.slice(), currentSortKey, currentSortOrder);
     pendingInlineUpdates = {};
 
     renderCandidatesTable(filteredCandidates);
+    updateHeaderSortStyles();
     listTotal = Number(result.total ?? filteredCandidates.length ?? 0);
     updateCandidatesCount(listTotal);
     renderCandidatesPagination({ total: listTotal, page: listPage, pageSize: LIST_PAGE_SIZE, count: filteredCandidates.length });
@@ -1520,6 +1525,14 @@ function sortCandidates(list, key, order) {
     }
     return direction * (aVal - bVal);
   });
+}
+
+function handleCandidatesHeaderClick(event) {
+  const header = event.target.closest("th[data-sort-key]");
+  if (!header) return;
+  const key = header.dataset.sortKey;
+  if (!key) return;
+  handleHeaderSort(key);
 }
 
 function handleHeaderSort(key) {
@@ -3255,6 +3268,8 @@ function cleanupCandidatesEventListeners() {
     tableBody.removeEventListener("input", handleInlineEdit);
     tableBody.removeEventListener("change", handleInlineEdit);
   }
+  const tableHead = document.querySelector(".candidates-table-card thead");
+  if (tableHead) tableHead.removeEventListener("click", handleCandidatesHeaderClick);
 
   const toggleButton = document.getElementById("candidatesToggleEdit");
   if (toggleButton) toggleButton.removeEventListener("click", toggleCandidatesEditMode);
