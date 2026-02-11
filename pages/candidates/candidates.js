@@ -1,4 +1,10 @@
 ﻿import { PRIMARY_API_BASE } from "../../scripts/api/endpoints.js";
+import { getSession } from "../../scripts/auth.js";
+import {
+  normalizeScreeningRulesPayload as normalizeScreeningRulesPayloadShared,
+  computeValidApplication as computeValidApplicationShared,
+  resolveValidApplicationRaw as resolveValidApplicationRawShared,
+} from "../../scripts/services/validApplication.js?v=20260211_04";
 
 // teleapo ???API Gateway? base
 
@@ -130,12 +136,15 @@ let pendingInlineUpdates = {};
 let openedFromUrlOnce = false;
 let masterClients = [];
 let masterUsers = [];
+let masterCsUsers = [];
+let masterAdvisorUsers = [];
 let listPage = 1;
 let listTotal = 0;
 let calendarCandidates = [];
 let screeningRules = null;
 let screeningRulesLoaded = false;
 let screeningRulesLoading = false;
+let screeningRulesLoadPromise = null;
 let detailAutoSaveTimer = null;
 const nextActionCache = new Map();
 const contactPreferredTimeCache = new Map();
@@ -176,6 +185,7 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
     candidate.validApplication ??
     candidate.valid_application ??
     candidate.is_effective_application ??
+    candidate.isEffective ??
     candidate.active_flag ??
     candidate.valid ??
     null;
@@ -484,6 +494,33 @@ function normalizeCandidate(candidate, { source = "detail" } = {}) {
 
   // --- ★ここまで ---
 
+  // ★追加: テレアポログのマッピング
+  candidate.teleapoLogs = Array.isArray(candidate.teleapoLogs) ? candidate.teleapoLogs : [];
+  candidate.csSummary = candidate.csSummary || {};
+
+  // ★追加: ログからサマリを再計算 (サーバー側の集計漏れ対策)
+  if (candidate.teleapoLogs.length > 0) {
+    const logs = candidate.teleapoLogs;
+    // 架電回数の最大値
+    const maxCallNo = Math.max(...logs.map((l) => Number(l.callNo || 0)), 0);
+
+    // 通電実績
+    const connectedLogs = logs
+      .filter((l) => l.result === "通電")
+      .sort((a, b) => new Date(b.calledAt) - new Date(a.calledAt));
+    const hasConnected = connectedLogs.length > 0;
+    const lastConnectedAt = hasConnected ? connectedLogs[0].calledAt : null;
+
+    // サーバー値より計算値を優先（または補完）
+    if (maxCallNo > (Number(candidate.csSummary.callCount) || 0)) {
+      candidate.csSummary.callCount = maxCallNo;
+    }
+    if (hasConnected) {
+      candidate.csSummary.hasConnected = true;
+      if (lastConnectedAt) candidate.csSummary.lastConnectedAt = lastConnectedAt;
+    }
+  }
+
   return candidate;
 }
 
@@ -493,6 +530,8 @@ function updateMastersFromDetail(detail) {
   if (Array.isArray(masters.clients)) masterClients = masters.clients;
   if (Array.isArray(masters.users)) {
     masterUsers = masters.users;
+    masterCsUsers = Array.isArray(masters.csUsers) ? masters.csUsers : [];
+    masterAdvisorUsers = Array.isArray(masters.advisorUsers) ? masters.advisorUsers : [];
     allCandidates.forEach((candidate) => syncCandidateAssignees(candidate));
     filteredCandidates.forEach((candidate) => syncCandidateAssignees(candidate));
   }
@@ -710,8 +749,8 @@ function normalizeRoleValue(role) {
   return String(role || "").trim().toLowerCase();
 }
 
-function buildUserOptions(selectedId, selectedName = "", { allowedRoles = null, blankLabel = "担当者を選択" } = {}) {
-  let users = Array.isArray(masterUsers) ? [...masterUsers] : [];
+function buildUserOptions(selectedId, selectedName = "", { allowedRoles = null, blankLabel = "担当者を選択", sourceList = null } = {}) {
+  let users = Array.isArray(sourceList) ? [...sourceList] : (Array.isArray(masterUsers) ? [...masterUsers] : []);
   const allow = Array.isArray(allowedRoles) ? allowedRoles.map((r) => normalizeRoleValue(r)).filter(Boolean) : null;
   if (allow && allow.length > 0) {
     users = users.filter((user) => allow.includes(normalizeRoleValue(user?.role)));
@@ -752,7 +791,7 @@ export function mount() {
   initializeDetailContentListeners();
 
   openedFromUrlOnce = false;
-  loadScreeningRulesForCandidates();
+  void loadScreeningRulesForCandidates({ force: true });
   restoreListContextFromReturnState();
   void loadFilterMasters();
   // まず一覧ロード（ページング）
@@ -781,6 +820,7 @@ export async function mountDetailPage(candidateId) {
 
   // 候補者データを取得して表示
   try {
+    await loadScreeningRulesForCandidates({ force: true });
     const detail = await fetchCandidateDetailById(String(candidateId), { includeMaster: true });
     if (!detail) {
       setCandidateDetailLoading("候補者データが見つかりません。");
@@ -788,6 +828,7 @@ export async function mountDetailPage(candidateId) {
     }
 
     const normalized = normalizeCandidate(detail, { source: "detail" });
+    refreshCandidateValidity(normalized);
     updateMastersFromDetail(detail);
 
     // 正規化した候補者をグローバルリストにも追加（編集時に必要）
@@ -940,6 +981,10 @@ async function loadCandidatesData(filtersOverride = {}) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const result = await response.json();
+
+    // 一覧再取得時は詳細由来の有効応募キャッシュを一旦クリアして、
+    // 画面ごとに最新データで再評価する。
+    validityHydrationCache.clear();
 
     allCandidates = Array.isArray(result.items)
       ? result.items.map((item) => normalizeCandidate({ ...item, id: String(item.id) }, { source: "list" }))
@@ -1199,176 +1244,69 @@ function parseCandidateDate(value) {
 }
 
 function resolveValidApplication(candidate) {
+  const rawValue = resolveValidApplicationRaw(candidate);
+  if (rawValue === true || rawValue === false) return rawValue;
   const computed = candidate?.validApplicationComputed;
   if (computed === true || computed === false) return computed;
-  // 詳細モーダルなどで再取得したオブジェクトでも判定ロジックを適用するため、
-  // ルールがあれば計算を行う
   if (screeningRules) {
     const computedValue = computeValidApplication(candidate, screeningRules);
-    if (computedValue === true || computedValue === false) return computedValue;
+    if (computedValue === true || computedValue === false) {
+      if (candidate) candidate.validApplicationComputed = computedValue;
+      return computedValue;
+    }
   }
-  return resolveValidApplicationRaw(candidate);
+  const cacheKey = candidate?.id != null ? String(candidate.id) : "";
+  if (cacheKey && validityHydrationCache.has(cacheKey)) {
+    const cached = validityHydrationCache.get(cacheKey);
+    if (cached === true || cached === false) return cached;
+  }
+  return rawValue;
 }
 
 function resolveValidApplicationRaw(candidate) {
-  const explicitRaw =
-    candidate?.valid_application ??
-    candidate?.is_effective_application ??
-    candidate?.active_flag ??
-    candidate?.valid;
-
-  // Some APIs always return `validApplication: false` as a default value even when
-  // the DB value is actually NULL. Treat that fallback false as "unknown".
-  let raw = explicitRaw;
-  if ((raw === null || raw === undefined || raw === "")) {
-    if (candidate?.validApplication === true) raw = true;
-    else if (candidate?.validApplication === false) raw = null;
-  }
-
-  if (typeof raw === "string") {
-    const normalized = raw.trim().toLowerCase();
-    if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
-    if (["false", "0", "no", "無効", "無効応募"].includes(normalized)) return false;
-  }
-  if (raw === null || raw === undefined || raw === "") return null;
-  return Boolean(raw);
+  return resolveValidApplicationRawShared(candidate);
 }
 
 function normalizeScreeningRulesPayload(payload) {
-  const source = payload?.rules || payload?.item || payload?.data || payload || {};
-  const minAge = parseRuleNumber(source.minAge ?? source.min_age);
-  const maxAge = parseRuleNumber(source.maxAge ?? source.max_age);
-  const nationalitiesRaw =
-    source.targetNationalities ??
-    source.target_nationalities ??
-    source.allowedNationalities ??
-    source.allowed_nationalities ??
-    source.nationalities ??
-    "";
-  const allowedJlptRaw =
-    source.allowedJlptLevels ??
-    source.allowed_jlpt_levels ??
-    source.allowed_japanese_levels ??
-    [];
-  return {
-    minAge,
-    maxAge,
-    targetNationalities: normalizeCommaText(nationalitiesRaw),
-    targetNationalitiesList: parseListValue(nationalitiesRaw),
-    allowedJlptLevels: parseListValue(allowedJlptRaw),
-  };
-}
-
-function parseRuleNumber(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-function parseListValue(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  if (value === null || value === undefined) return [];
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function normalizeCommaText(value) {
-  if (value === null || value === undefined) return "";
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
-  }
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .join(", ");
-}
-
-function isUnlimitedMinAge(value) {
-  if (value === null || value === undefined || value === "") return true;
-  return Number(value) <= 0;
-}
-
-function isUnlimitedMaxAge(value) {
-  if (value === null || value === undefined || value === "") return true;
-  return Number(value) >= 100;
-}
-
-function resolveCandidateAgeValue(candidate) {
-  const direct = candidate.age ?? candidate.ageText ?? candidate.age_value;
-  if (direct !== null && direct !== undefined && direct !== "") {
-    const parsed = Number(direct);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  const computed = calculateAge(candidate.birthday);
-  return computed !== null ? computed : null;
-}
-
-function normalizeNationality(value) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  if (["-", "ー", "未設定", "未入力", "未登録", "未指定"].includes(text)) return "";
-  const normalized = text.toLowerCase();
-  if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
-    return "日本";
-  }
-  if (text === "日本国") return "日本";
-  return text;
-}
-
-function isJapaneseNationality(value) {
-  return normalizeNationality(value) === "日本";
+  return normalizeScreeningRulesPayloadShared(payload);
 }
 
 function computeValidApplication(candidate, rules) {
-  if (!candidate || !rules) return null;
-  const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return null;
-  if (!isUnlimitedMinAge(rules.minAge) && rules.minAge !== null && age < rules.minAge) return false;
-  if (!isUnlimitedMaxAge(rules.maxAge) && rules.maxAge !== null && age > rules.maxAge) return false;
+  return computeValidApplicationShared(candidate, rules);
+}
 
-  const nationality = normalizeNationality(candidate.nationality);
-  const nonJapaneseTargets = (rules.targetNationalitiesList || [])
-    .map((value) => normalizeNationality(value))
-    .filter((value) => value && !isJapaneseNationality(value));
-
-  // Business rule:
-  // - Japanese candidates are judged only by age.
-  // - Nationality is often entered later, so empty nationality is treated as Japanese temporarily.
-  if (!nationality || isJapaneseNationality(nationality)) return true;
-
-  if (nonJapaneseTargets.length > 0) {
-    const matched = nonJapaneseTargets.some((value) => value === nationality);
-    if (!matched) return false;
-  }
-
-  const jlptRaw = String(candidate.japaneseLevel || "").trim();
-  const jlpt = ["-", "ー", "未設定", "未入力", "未登録", "未指定"].includes(jlptRaw) ? "" : jlptRaw;
-  if (!jlpt) return null;
-  const allowedJlptLevels = rules.allowedJlptLevels || [];
-  if (!allowedJlptLevels.length) return null;
-  return allowedJlptLevels.includes(jlpt);
+function syncScreeningInputsFromDetail(target, source) {
+  if (!target || !source) return;
+  const fields = ["birthday", "age", "ageText", "age_value", "nationality", "japaneseLevel", "japanese_level"];
+  fields.forEach((field) => {
+    const value = source[field];
+    if (value === undefined || value === null || value === "") return;
+    target[field] = value;
+  });
 }
 
 function refreshCandidateValidity(candidate) {
   if (!candidate || !screeningRules) return;
-  if (candidate.validApplicationLocked) return;
   const computed = computeValidApplication(candidate, screeningRules);
   if (computed === true || computed === false) {
     candidate.validApplicationComputed = computed;
+    return;
   }
+  const cacheKey = candidate?.id != null ? String(candidate.id) : "";
+  if (cacheKey && validityHydrationCache.has(cacheKey)) {
+    const cached = validityHydrationCache.get(cacheKey);
+    if (cached === true || cached === false) {
+      candidate.validApplicationComputed = cached;
+      return;
+    }
+  }
+  candidate.validApplicationComputed = null;
 }
 
 function applyScreeningRulesToCandidates() {
   if (!screeningRules || !allCandidates.length) return;
   allCandidates.forEach((candidate) => {
-    if (candidate.validApplicationLocked) return;
-    const computed = computeValidApplication(candidate, screeningRules);
-    if (computed === true || computed === false) {
-      candidate.validApplicationComputed = computed;
-    }
+    refreshCandidateValidity(candidate);
   });
   const filters = collectFilters();
   filteredCandidates = applyLocalFilters(allCandidates, filters);
@@ -1383,8 +1321,6 @@ async function hydrateValidApplicationsFromDetail(list) {
   if (!screeningRules || !Array.isArray(list) || list.length === 0) return;
 
   const targets = list.filter((candidate) => {
-    const computed = computeValidApplication(candidate, screeningRules);
-    if (computed === true || computed === false) return false;
     const id = String(candidate?.id ?? "");
     if (!id) return false;
     if (validityHydrationCache.has(id)) {
@@ -1410,16 +1346,29 @@ async function hydrateValidApplicationsFromDetail(list) {
       validityHydrationInFlight.add(id);
       try {
         const detail = await fetchCandidateDetailById(id, { includeMaster: false });
-        const detailValue = resolveValidApplicationRaw(detail);
+        const computedFromDetail = computeValidApplication(detail, screeningRules);
+        const detailValue =
+          computedFromDetail === true || computedFromDetail === false
+            ? computedFromDetail
+            : resolveValidApplicationRaw(detail);
         if (detailValue === true || detailValue === false) {
           validityHydrationCache.set(id, detailValue);
           const target = allCandidates.find((item) => String(item.id) === id);
           if (target) {
+            syncScreeningInputsFromDetail(target, detail);
             target.validApplicationComputed = detailValue;
-            target.validApplicationLocked = true;
           }
+          syncScreeningInputsFromDetail(current, detail);
           current.validApplicationComputed = detailValue;
-          current.validApplicationLocked = true;
+        } else {
+          validityHydrationCache.set(id, null);
+          const target = allCandidates.find((item) => String(item.id) === id);
+          if (target) {
+            syncScreeningInputsFromDetail(target, detail);
+            target.validApplicationComputed = null;
+          }
+          syncScreeningInputsFromDetail(current, detail);
+          current.validApplicationComputed = null;
         }
       } catch (error) {
         console.warn(`[candidates] validity hydration failed for ${id}:`, error);
@@ -1434,27 +1383,49 @@ async function hydrateValidApplicationsFromDetail(list) {
   updateHeaderSortStyles();
 }
 
-async function loadScreeningRulesForCandidates() {
-  if (screeningRulesLoading || screeningRulesLoaded) return;
-  screeningRulesLoading = true;
-  try {
-    let response = await fetch(SCREENING_RULES_ENDPOINT);
-    if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
-      response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT);
-    }
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const data = await response.json();
-    screeningRules = normalizeScreeningRulesPayload(data);
-    screeningRulesLoaded = true;
-  } catch (error) {
-    console.error("有効応募判定ルールの取得に失敗しました。", error);
-    screeningRules = null;
-  } finally {
-    screeningRulesLoading = false;
-    applyScreeningRulesToCandidates();
+async function loadScreeningRulesForCandidates({ force = false } = {}) {
+  if (!force && screeningRulesLoaded) return screeningRules;
+  if (screeningRulesLoadPromise) return screeningRulesLoadPromise;
+
+  if (force) {
+    screeningRulesLoaded = false;
+    validityHydrationCache.clear();
+    validityHydrationInFlight.clear();
   }
+
+  screeningRulesLoading = true;
+  screeningRulesLoadPromise = (async () => {
+    try {
+      const token = getSession()?.token;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      let response = await fetch(SCREENING_RULES_ENDPOINT, {
+        headers,
+        cache: "no-store",
+      });
+      if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
+        response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT, {
+          headers,
+          cache: "no-store",
+        });
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      screeningRules = normalizeScreeningRulesPayload(data);
+      screeningRulesLoaded = true;
+    } catch (error) {
+      console.error("有効応募判定ルールの取得に失敗しました。", error);
+      screeningRules = null;
+    } finally {
+      screeningRulesLoading = false;
+      screeningRulesLoadPromise = null;
+      applyScreeningRulesToCandidates();
+    }
+    return screeningRules;
+  })();
+
+  return screeningRulesLoadPromise;
 }
 
 function resolvePhaseValues(candidate) {
@@ -3853,6 +3824,7 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.csUserId, candidate.csName, {
         allowedRoles: ["caller"], // role=caller is CS in this app
         blankLabel: "担当CSを選択",
+        sourceList: masterCsUsers,
       }),
       path: "csUserId",
       displayFormatter: () => candidate.csName || "-",
@@ -3865,6 +3837,7 @@ function renderAssigneeSection(candidate) {
       options: buildUserOptions(candidate.advisorUserId, candidate.advisorName, {
         allowedRoles: ["advisor"],
         blankLabel: "担当アドバイザーを選択",
+        sourceList: masterAdvisorUsers,
       }),
       path: "advisorUserId",
       displayFormatter: () => candidate.advisorName || "-",
@@ -3898,9 +3871,9 @@ function renderApplicantInfoSection(candidate) {
     { label: "連絡希望時間帯", value: candidate.contactPreferredTime, path: "contactPreferredTime", span: 2 },
   ];
   const applicationFields = [
-    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName", span: 2 },
+    { label: "応募企業名", value: candidate.applyCompanyName, path: "applyCompanyName", span: 2, editable: false },
     { label: "応募求人名", value: candidate.applyJobName, path: "applyJobName", span: 2 },
-    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText", span: 2 },
+    { label: "応募経路", value: candidate.applyRouteText, path: "applyRouteText", span: 2, editable: false },
     { label: "備考", value: candidate.applicationNote, input: "textarea", path: "applicationNote", span: "full" },
   ];
   return [
@@ -3940,13 +3913,13 @@ function renderHearingSection(candidate) {
     { label: "希望年収", value: candidate.desiredIncome, path: "desiredIncome", span: 1, displayFormatter: formatMoneyToMan },
     { label: "就業ステータス", value: candidate.employmentStatus, input: "select", options: employmentStatusOptions, path: "employmentStatus", span: 2 },
     { label: "転職理由", value: candidate.careerReason, input: "textarea", path: "careerReason", span: "full" },
-    { label: "転職軸", value: candidate.jobChangeAxis, input: "textarea", path: "jobChangeAxis", span: "full" },
-    { label: "転職時期", value: candidate.jobChangeTiming, path: "jobChangeTiming", span: 2 },
+    { label: "転職軸", value: candidate.careerMotivation, input: "textarea", path: "careerMotivation", span: "full" },
+    { label: "転職時期", value: candidate.transferTiming, path: "transferTiming", span: 2 },
     { label: "将来のビジョン・叶えたいこと", value: candidate.futureVision, input: "textarea", path: "futureVision", span: "full" },
     { label: "資格・スキル", value: candidate.skills, input: "textarea", path: "skills", span: "full" },
     { label: "人物像・性格", value: candidate.personality, input: "textarea", path: "personality", span: "full" },
     { label: "実務経験", value: candidate.workExperience, input: "textarea", path: "workExperience", span: "full" },
-    { label: "推薦文", value: candidate.recommendationText, input: "textarea", path: "recommendationText", span: "full" },
+    { label: "推薦文", value: candidate.firstInterviewNote, input: "textarea", path: "firstInterviewNote", span: "full" },
     { label: "他社選考状態", value: candidate.otherSelectionStatus, input: "textarea", path: "otherSelectionStatus", span: "full" },
     {
       label: "面談メモ",
@@ -3955,7 +3928,7 @@ function renderHearingSection(candidate) {
       path: "firstInterviewNote",
       span: "full",
     },
-    { label: "面接希望日", value: candidate.desiredInterviewDates, input: "textarea", path: "desiredInterviewDates", span: "full" },
+    { label: "面接希望日", value: candidate.interviewPreferredDate, input: "textarea", path: "interviewPreferredDate", span: "full" },
   ];
 
   return [
@@ -4022,14 +3995,6 @@ function renderSelectionProgressSection(candidate) {
             <div class="form-group">
               <label class="block text-xs font-medium text-slate-500 mb-1">応募経路</label>
               ${renderTableInput(r.route, `${pathPrefix}.route`, "text", "selection")}
-            </div>
-            <div class="form-group">
-              <label class="block text-xs font-medium text-slate-500 mb-1">選考状況</label>
-              <div class="flex items-center gap-2">
-                 ${renderTableInput(row.status, `${pathPrefix}.status`, "text", "selection")}
-                 <!-- Note: Status might be better as select, but keeping text to match existing input type behavior (or maybe it was free text?) -->
-                 <!-- Original used row.status, normalizing function uses row.status as well. -->
-              </div>
             </div>
           </div>
 
@@ -4124,10 +4089,7 @@ function renderSelectionProgressSection(candidate) {
                 <label class="block text-xs font-medium text-red-400 mb-1">離職理由</label>
                 ${renderTableInput(r.earlyTurnoverReason, `${pathPrefix}.earlyTurnoverReason`, "text", "selection")}
              </div>
-             <div class="md:col-span-3">
-                <label class="block text-xs font-medium text-slate-500 mb-1">備考</label>
-                ${renderTableTextarea(r.note, `${pathPrefix}.note`, "selection")}
-             </div>
+           
           </div>
         </div>
       </div>
@@ -4368,19 +4330,29 @@ function renderSelectionFlowCard(rawRow) {
 
 function renderTeleapoLogsSection(candidate) {
   const rows = candidate.teleapoLogs || [];
+  const latestResult = rows.length > 0 ? rows[0].result : (candidate.teleapoResult || "");
+
+  const resultHtml = latestResult
+    ? `<div class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
+         <div class="text-xs text-blue-500 font-bold mb-1">最新の架電結果</div>
+         <div class="text-sm text-slate-700">${escapeHtml(latestResult)}</div>
+       </div>`
+    : "";
+
   if (rows.length === 0) {
     return `
-    <div class="detail-table-wrapper">
-      <table class="detail-table">
-        <thead>
-          <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
-        </thead>
-        <tbody>
-          <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
-        </tbody>
-      </table>
-      </div>
-    `;
+    ${resultHtml}
+  <div class="detail-table-wrapper">
+    <table class="detail-table">
+      <thead>
+        <tr><th>架電回数</th><th>担当者</th><th>結果</th><th>日時</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" class="detail-empty-row text-center py-3">テレアポログはありません。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  `;
   }
 
   const bodyHtml = rows
@@ -4388,7 +4360,7 @@ function renderTeleapoLogsSection(candidate) {
       const cells = [
         row.callNo,
         row.callerName,
-        row.memo,
+        row.result,
         formatDateTimeJP(row.calledAt),
       ]
         .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
@@ -4398,100 +4370,143 @@ function renderTeleapoLogsSection(candidate) {
     .join("");
 
   return `
-    <div class="detail-table-wrapper">
-      <table class="detail-table">
-        <thead>
-          <tr><th>架電回数</th><th>担当者</th><th>メモ</th><th>日時</th></tr>
-        </thead>
-        <tbody>${bodyHtml}</tbody>
-      </table>
-    </div>
-    `;
+    ${resultHtml}
+  <div class="detail-table-wrapper">
+    <table class="detail-table">
+      <thead>
+        <tr><th>架電回数</th><th>担当者</th><th>結果</th><th>日時</th></tr>
+      </thead>
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  </div>
+  `;
 }
 
 function renderMoneySection(candidate) {
-  const rows = candidate.moneyInfo || [];
-  const hasRows = rows.length > 0;
   const editing = detailEditState.money;
+  const progress = candidate.selectionProgress || [];
 
-  const orderBody = hasRows
-    ? rows
-      .map((row, index) => {
-        const canEdit = editing && row.joinDate;
-        const feeCell = canEdit
-          ? renderTableInput(row.feeAmount, `moneyInfo.${index}.feeAmount`, "number", "money", "number")
-          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.feeAmount))}</span>`;
-        const reportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.orderReported), `moneyInfo.${index}.orderReported`, "money", "boolean")
-          : renderBooleanPill(row.orderReported);
-        return `
-    <tr>
-            <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
-            <td>${feeCell}</td>
-            <td class="text-center">${reportCell}</td>
-          </tr>
-    `;
-      })
-      .join("")
-    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注情報はありません。</td></tr>`;
+  // 受注情報の抽出 (内定承諾 or 入社 or 入社後辞退)
+  const orderRows = progress
+    .map((item, index) => ({ ...item, originalIndex: index }))
+    .filter((item) => {
+      const stage = resolveSelectionStageValue(item);
+      // 内定承諾済み以降のステータスを表示対象とする
+      return ["内定承諾済み", "入社", "入社後辞退", "早期退職"].includes(stage);
+    });
 
-  const refundBody = hasRows
-    ? rows
-      .map((row, index) => {
-        const retirementDate = row.preJoinWithdrawDate || row.postJoinQuitDate || "";
-        const refundType = row.preJoinWithdrawDate
-          ? "内定後辞退"
-          : row.postJoinQuitDate
-            ? "入社後辞退"
-            : row.joinDate
-              ? "入社"
-              : "-";
-        const canEdit = editing && (row.preJoinWithdrawDate || row.postJoinQuitDate);
-        const refundAmountCell = canEdit
-          ? renderTableInput(row.refundAmount, `moneyInfo.${index}.refundAmount`, "number", "money", "number")
-          : `<span class="detail-value">${escapeHtml(formatMoneyToMan(row.refundAmount))}</span>`;
-        const refundReportCell = canEdit
-          ? renderTableSelect(buildBooleanOptions(row.refundReported), `moneyInfo.${index}.refundReported`, "money", "boolean")
-          : renderBooleanPill(row.refundReported);
-        return `
-    <tr>
-            <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
-            <td>${refundAmountCell}</td>
-            <td><span class="detail-value">${escapeHtml(formatDisplayValue(formatDateJP(retirementDate)))}</span></td>
-            <td><span class="detail-value">${escapeHtml(formatDisplayValue(refundType))}</span></td>
-            <td class="text-center">${refundReportCell}</td>
-          </tr>
+  // 返金情報の抽出 (内定後辞退, 入社後辞退, 早期退職)
+  const refundRows = progress
+    .map((item, index) => ({ ...item, originalIndex: index }))
+    .filter((item) => {
+      const stage = resolveSelectionStageValue(item);
+      return ["内定後辞退", "入社後辞退", "早期退職"].includes(stage) || (Number(item.refundAmount) > 0);
+    });
+
+  const renderOrderRow = (row) => {
+    const idx = row.originalIndex;
+    const feeAmount = row.feeAmount;
+    const orderReported = row.orderReported;
+
+    // 編集中かつ、まだ確定していない(編集中は常に編集可で良いか)
+    const canEdit = editing;
+
+    const feeCell = canEdit
+      ? renderTableInput(feeAmount, `selectionProgress.${idx}.feeAmount`, "number", "money", "number")
+      : `<span class="detail-value">${escapeHtml(formatMoneyToMan(feeAmount))}</span>`;
+
+    const reportCell = canEdit
+      // boolean options: true="済", false="未"
+      ? renderTableSelect(buildBooleanOptions(orderReported), `selectionProgress.${idx}.orderReported`, "money", "boolean")
+      : renderBooleanPill(orderReported, { trueLabel: "済", falseLabel: "未" });
+
+    return `
+      <tr>
+        <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
+        <td>${feeCell}</td>
+        <td class="text-center">${reportCell}</td>
+      </tr>
     `;
-      })
-      .join("")
-    : `<tr><td colspan="5" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>`;
+  };
+
+  const renderRefundRow = (row) => {
+    const idx = row.originalIndex;
+    const refundAmount = row.refundAmount;
+    const refundReported = row.refundReported;
+
+    // 退職日等の判定
+    const retirementDate = row.earlyTurnoverDate || row.postJoinQuitDate || row.preJoinWithdrawDate;
+    const stage = resolveSelectionStageValue(row);
+
+    const canEdit = editing;
+
+    const amountCell = canEdit
+      ? renderTableInput(refundAmount, `selectionProgress.${idx}.refundAmount`, "number", "money", "number")
+      : `<span class="detail-value">${escapeHtml(formatMoneyToMan(refundAmount))}</span>`;
+
+    const reportCell = canEdit
+      ? renderTableSelect(buildBooleanOptions(refundReported), `selectionProgress.${idx}.refundReported`, "money", "boolean")
+      : renderBooleanPill(refundReported, { trueLabel: "済", falseLabel: "未" });
+
+    return `
+      <tr>
+        <td><span class="detail-value">${escapeHtml(formatDisplayValue(row.companyName))}</span></td>
+        <td>${amountCell}</td>
+        <td><span class="detail-value">${escapeHtml(formatDateJP(retirementDate))}</span></td>
+        <td><span class="detail-value">${escapeHtml(stage)}</span></td>
+        <td class="text-center">${reportCell}</td>
+      </tr>
+    `;
+  };
+
+  const orderBody = orderRows.length > 0
+    ? orderRows.map(renderOrderRow).join("")
+    : `<tr><td colspan="3" class="detail-empty-row text-center py-3">受注対象の案件はありません。</td></tr>`;
+
+  const refundBody = refundRows.length > 0
+    ? refundRows.map(renderRefundRow).join("")
+    : `<tr><td colspan="5" class="detail-empty-row text-center py-3">返金・減額対象の案件はありません。</td></tr>`;
 
   const orderTable = `
-    <div class="detail-table-wrapper">
+    <div class="detail-table-wrapper mb-6">
+      <h5 class="font-bold mb-2 text-slate-700">入社承諾後（売上）</h5>
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>受注金額（税抜）</th><th>受注報告</th></tr>
+          <tr>
+            <th class="w-1/3">企業名</th>
+            <th class="w-1/3">受注金額（税抜）</th>
+            <th class="w-1/3 text-center">受注報告</th>
+          </tr>
         </thead>
         <tbody>${orderBody}</tbody>
       </table>
     </div>
-    `;
+  `;
 
   const refundTable = `
     <div class="detail-table-wrapper">
+      <h5 class="font-bold mb-2 text-slate-700">返金・減額</h5>
       <table class="detail-table">
         <thead>
-          <tr><th>企業名</th><th>返金・減額（税抜）</th><th>退職日</th><th>返金区分</th><th>返金報告</th></tr>
+          <tr>
+            <th class="w-1/4">企業名</th>
+            <th class="w-1/4">返金・減額（税抜）</th>
+            <th class="w-1/6">退職/辞退日</th>
+            <th class="w-1/6">区分</th>
+            <th class="w-1/6 text-center">返金報告</th>
+          </tr>
         </thead>
         <tbody>${refundBody}</tbody>
       </table>
     </div>
-    `;
+  `;
 
-  return [
-    renderDetailSubsection("入社承諾後", orderTable),
-    renderDetailSubsection("返金・減額", refundTable),
-  ].join("");
+  return `
+    <div class="space-y-6">
+      ${orderTable}
+      ${refundTable}
+    </div>
+  `;
 }
 
 function renderAfterAcceptanceSection(candidate) {
@@ -4502,7 +4517,7 @@ function renderAfterAcceptanceSection(candidate) {
   ];
   const reportStatuses =
     (data.reportStatuses || [])
-      .map((s) => `<span class="cs-pill is-active">${escapeHtml(s)}</span>`)
+      .map((s) => `< span class="cs-pill is-active" > ${escapeHtml(s)}</span > `)
       .join("") || "-";
   return `
     ${renderDetailGridFields(fields, "afterAcceptance")}
@@ -4532,7 +4547,7 @@ function renderRefundSection(candidate) {
 
   if (!items.length) {
     return `
-    <div class="detail-table-wrapper">
+    < div class="detail-table-wrapper" >
       <table class="detail-table">
         <thead>
           <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
@@ -4541,7 +4556,7 @@ function renderRefundSection(candidate) {
           <tr><td colspan="4" class="detail-empty-row text-center py-3">返金情報はありません。</td></tr>
         </tbody>
       </table>
-      </div>
+      </div >
     `;
   }
 
@@ -4553,21 +4568,21 @@ function renderRefundSection(candidate) {
         formatMoneyToMan(item.refundAmount),
         item.reportStatus || "-",
       ]
-        .map((v) => `<td><span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td>`)
+        .map((v) => `< td > <span class="detail-value">${escapeHtml(formatDisplayValue(v))}</span></td > `)
         .join("");
-      return `<tr>${cells}</tr>`;
+      return `< tr > ${cells}</tr > `;
     })
     .join("");
 
   return `
-    <div class="detail-table-wrapper">
+    < div class="detail-table-wrapper" >
       <table class="detail-table">
         <thead>
           <tr><th>企業名</th><th>退職日</th><th>返金・減額（税抜）</th><th>返金報告</th></tr>
         </thead>
         <tbody>${bodyHtml}</tbody>
       </table>
-    </div>
+    </div >
     `;
 }
 
@@ -4598,9 +4613,14 @@ function renderNextActionSection(candidate) {
           <span class="next-action-date text-lg font-bold text-indigo-900">次回アクション: ${escapeHtml(formatDateJP(displayTask.actionDate))}</span>
         </div>
         ${displayTask.id ? `
-        <button type="button" class="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 font-medium shadow-sm transition-colors" data-complete-task-id="${displayTask.id}">
-          ✓ 完了登録
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 font-medium shadow-sm transition-colors" data-complete-task-id="${displayTask.id}">
+            ✓ 完了登録
+          </button>
+          <button type="button" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-md text-sm hover:bg-red-50 font-medium shadow-sm transition-colors" data-delete-task-id="${displayTask.id}">
+            削除
+          </button>
+        </div>
         ` : ''}
       </div>
       <div class="mt-2 text-sm text-slate-700">${escapeHtml(displayTask.actionNote || '-')}</div>
@@ -4628,7 +4648,7 @@ function renderNextActionSection(candidate) {
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
       <p class="text-xs text-blue-800 mb-2">💡 新しいアクションを追加するには、以下を入力して「編集」→「完了して保存」してください。</p>
     </div>
-  `;
+    `;
 
   const fields = [
     { label: "次回アクション日", value: candidate.nextActionDate || "", path: "nextActionDate", type: "date", displayFormatter: formatDateJP, span: 3 },
@@ -4649,7 +4669,11 @@ function renderNextActionSection(candidate) {
               <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">予定</span>
             </div>
             <div class="text-sm text-slate-700">${escapeHtml(task.actionNote || '-')}</div>
-            <div class="mt-2 flex items-center justify-end gap-2 border-t border-slate-100 pt-2">\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-green-200 text-green-700 hover:bg-green-50 rounded" data-complete-task-id="${task.id}">完了</button>\n              <button type="button" class="text-xs px-2 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-50 rounded" data-delete-task-id="${task.id}">削除</button>\n            </div>\n          </div>
+            <div class="mt-2 flex items-center justify-end gap-2 border-t border-slate-100 pt-2">
+              <button type="button" class="text-xs px-2 py-1 bg-white border border-green-200 text-green-700 hover:bg-green-50 rounded" data-complete-task-id="${task.id}">完了</button>
+              <button type="button" class="text-xs px-2 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-50 rounded" data-delete-task-id="${task.id}">削除</button>
+            </div>
+          </div>
         `).join('')}
       </div>
     </div>
@@ -4688,20 +4712,30 @@ function renderNextActionSection(candidate) {
 
 function renderCsSection(candidate) {
   const csSummary = candidate.csSummary || {};
-  const hasSms = Boolean(candidate.smsSent ?? candidate.smsConfirmed ?? csSummary.hasSms);
-  const hasConnected = Boolean(candidate.phoneConnected ?? csSummary.hasConnected);
+  const hasSms = Boolean(csSummary.hasSms ?? candidate.smsSent ?? candidate.smsConfirmed);
+  const hasConnected = Boolean(csSummary.hasConnected ?? candidate.phoneConnected);
   const callCount = csSummary.callCount ?? candidate.callCount ?? 0;
   const lastConnectedAt = candidate.callDate ?? csSummary.lastConnectedAt ?? null;
   const editing = detailEditState.cs;
+
+  // 設定日の自動解決: 架電ログから「設定」を含む最新のものを優先する
+  let scheduleConfirmedAt = candidate.scheduleConfirmedAt;
+
+  if (Array.isArray(candidate.teleapoLogs)) {
+    // 日付降順にソートされている前提でfind (されてなければsortが必要だが通常新しい順)
+    const settingLog = candidate.teleapoLogs.find(l => l.result && l.result.includes("設定"));
+    if (settingLog) {
+      scheduleConfirmedAt = settingLog.calledAt;
+    }
+  }
 
   const items = [
     { label: "SMS送信", html: renderBooleanPill(hasSms, { trueLabel: "送信済", falseLabel: "未送信" }) },
     { label: "架電回数", value: Number(callCount) > 0 ? `${callCount} 回` : "-" },
     { label: "通電", html: renderBooleanPill(hasConnected, { trueLabel: "通電済", falseLabel: "未通電" }) },
     { label: "通電日", value: formatDateJP(lastConnectedAt) },
-    { label: "設定日", value: candidate.scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
+    { label: "設定日", value: scheduleConfirmedAt, path: "scheduleConfirmedAt", type: "date" },
     { label: "初回面談日時", value: candidate.firstInterviewDate, path: "firstInterviewDate", type: "datetime-local" },
-    { label: "新規接触予定日", value: candidate.firstContactPlannedAt, path: "firstContactPlannedAt", type: "date" },
 
   ];
 
@@ -4709,17 +4743,28 @@ function renderCsSection(candidate) {
     <div class="cs-summary-grid">
       ${items
       .map(
-        (item) => `
+        (item) => {
+          let content = "";
+          if (editing && item.path) {
+            content = renderDetailFieldInput({ path: item.path, type: item.type }, candidate[item.path], "cs");
+          } else if (item.html) {
+            content = item.html;
+          } else {
+            const val = item.value !== undefined ? item.value : candidate[item.path];
+            if (item.type === "date") content = formatDateJP(val);
+            else if (item.type === "datetime-local") content = formatDateTimeJP(val);
+            else content = escapeHtml(formatDisplayValue(val));
+          }
+
+          return `
             <div class="cs-summary-item">
               <span class="cs-summary-label">${escapeHtml(item.label)}</span>
               <div class="cs-summary-value">
-                ${editing && item.path
-            ? renderDetailFieldInput({ path: item.path, type: item.type }, item.value, "cs")
-            : item.html || (item.type === "date" ? formatDateJP(item.value) : item.type === "datetime-local" ? formatDateTimeJP(item.value) : escapeHtml(formatDisplayValue(item.value)))
-          }
+                ${content}
               </div>
             </div>
-          `
+          `;
+        }
       )
       .join("")
     }
@@ -4728,118 +4773,13 @@ function renderCsSection(candidate) {
 }
 
 // ========== 書類作成セクション ==========
+// ========== 書類作成セクション ==========
 function renderDocumentsSection(candidate) {
-  const editing = detailEditState.documents;
-  const educations = candidate.educations || [];
-  const workHistories = candidate.workHistories || [];
-
-  const renderEducationRow = (edu, index) => {
-    if (editing) {
-      return `
-        <div class="education-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-education-index="${index}">
-          <div class="col-span-2">
-            <label class="block text-xs text-slate-500 mb-1">学校名</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="schoolName" value="${escapeHtml(edu.schoolName || edu.school_name || '')}">
-          </div>
-          <div class="col-span-2">
-            <label class="block text-xs text-slate-500 mb-1">学部・学科</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="department" value="${escapeHtml(edu.department || '')}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">入学年月</label>
-            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="admissionDate" value="${formatMonthValue(edu.admissionDate || edu.admission_date)}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">卒業年月</label>
-            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-edu-field="graduationDate" value="${formatMonthValue(edu.graduationDate || edu.graduation_date)}">
-          </div>
-          <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-education="${index}">削除</button>
-        </div>
-      `;
-    }
-    return `
-      <tr>
-        <td class="px-3 py-2 text-sm">${escapeHtml(edu.schoolName || edu.school_name || '-')}</td>
-        <td class="px-3 py-2 text-sm">${escapeHtml(edu.department || '-')}</td>
-        <td class="px-3 py-2 text-sm">${formatMonthJP(edu.admissionDate || edu.admission_date)}</td>
-        <td class="px-3 py-2 text-sm">${formatMonthJP(edu.graduationDate || edu.graduation_date)}</td>
-      </tr>
-    `;
-  };
-
-  const renderWorkRow = (work, index) => {
-    if (editing) {
-      return `
-        <div class="work-row grid grid-cols-6 gap-2 mb-2 p-3 bg-slate-50 rounded border border-slate-200" data-work-index="${index}">
-          <div class="col-span-2">
-            <label class="block text-xs text-slate-500 mb-1">会社名</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="companyName" value="${escapeHtml(work.companyName || work.company_name || '')}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">部署・職種</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="department" value="${escapeHtml(work.department || '')}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">役職</label>
-            <input type="text" class="w-full px-2 py-1 border rounded text-sm" data-work-field="position" value="${escapeHtml(work.position || '')}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">入社年月</label>
-            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-work-field="joinDate" value="${formatMonthValue(work.joinDate || work.join_date)}">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">退職年月</label>
-            <input type="month" class="w-full px-2 py-1 border rounded text-sm" data-work-field="leaveDate" value="${formatMonthValue(work.leaveDate || work.leave_date)}">
-          </div>
-          <div class="col-span-6">
-            <label class="block text-xs text-slate-500 mb-1">業務内容</label>
-            <textarea class="w-full px-2 py-1 border rounded text-sm" rows="2" data-work-field="jobDescription">${escapeHtml(work.jobDescription || work.job_description || '')}</textarea>
-          </div>
-          <button type="button" class="col-span-6 text-right text-red-500 text-xs hover:underline" data-remove-work="${index}">削除</button>
-        </div>
-      `;
-    }
-    return `
-      <tr>
-        <td class="px-3 py-2 text-sm">${escapeHtml(work.companyName || work.company_name || '-')}</td>
-        <td class="px-3 py-2 text-sm">${escapeHtml(work.department || '-')}</td>
-        <td class="px-3 py-2 text-sm">${escapeHtml(work.position || '-')}</td>
-        <td class="px-3 py-2 text-sm">${formatMonthJP(work.joinDate || work.join_date)}</td>
-        <td class="px-3 py-2 text-sm">${formatMonthJP(work.leaveDate || work.leave_date) || '現職'}</td>
-      </tr>
-    `;
-  };
-
-  const educationHtml = editing
-    ? `<div id="educationRepeater">${educations.map((e, i) => renderEducationRow(e, i)).join('')}</div>
-       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-education>+ 学歴を追加</button>`
-    : `<table class="w-full text-left border-collapse">
-         <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">学校名</th><th class="px-3 py-2 text-xs font-medium">学部・学科</th><th class="px-3 py-2 text-xs font-medium">入学</th><th class="px-3 py-2 text-xs font-medium">卒業</th></tr></thead>
-         <tbody>${educations.length ? educations.map((e, i) => renderEducationRow(e, i)).join('') : '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
-       </table>`;
-
-  const workHtml = editing
-    ? `<div id="workRepeater">${workHistories.map((w, i) => renderWorkRow(w, i)).join('')}</div>
-       <button type="button" class="mt-2 px-3 py-1 text-sm text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50" data-add-work>+ 職歴を追加</button>`
-    : `<table class="w-full text-left border-collapse">
-         <thead><tr class="bg-slate-100"><th class="px-3 py-2 text-xs font-medium">会社名</th><th class="px-3 py-2 text-xs font-medium">部署</th><th class="px-3 py-2 text-xs font-medium">役職</th><th class="px-3 py-2 text-xs font-medium">入社</th><th class="px-3 py-2 text-xs font-medium">退職</th></tr></thead>
-         <tbody>${workHistories.length ? workHistories.map((w, i) => renderWorkRow(w, i)).join('') : '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">登録なし</td></tr>'}</tbody>
-       </table>`;
-
   return `
-    <div class="space-y-6">
-      <div>
-        <h5 class="text-md font-semibold text-slate-700 mb-3">📚 学歴</h5>
-        ${educationHtml}
-      </div>
-      <div>
-        <h5 class="text-md font-semibold text-slate-700 mb-3">💼 職歴</h5>
-        ${workHtml}
-      </div>
-      <div class="flex gap-3 pt-4 border-t border-slate-200">
-        <button type="button" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-500" data-download-resume>📄 履歴書をダウンロード</button>
-        <button type="button" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-500" data-download-cv>📝 職務経歴書をダウンロード</button>
-      </div>
+    <div class="p-12 text-center">
+      <div class="text-4xl mb-4">🚧</div>
+      <h3 class="text-lg font-semibold text-slate-700 mb-2">Coming Soon...</h3>
+      <p class="text-slate-500">書類作成機能は現在開発中です。</p>
     </div>
   `;
 }
@@ -4848,14 +4788,14 @@ function formatMonthValue(value) {
   if (!value) return '';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${d.getFullYear()} -${String(d.getMonth() + 1).padStart(2, '0')} `;
 }
 
 function formatMonthJP(value) {
   if (!value) return '-';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '-';
-  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+  return `${d.getFullYear()}年${d.getMonth() + 1} 月`;
 }
 
 function parseDateValue(value) {
@@ -4909,8 +4849,16 @@ function pickNextAction(candidate) {
 
 function renderMemoSection(candidate) {
   const editing = detailEditState.memo;
+  // 初回面談日時 (架電管理画面等で設定された値)
+  const firstInterviewAt = candidate.firstInterviewAt ? formatDateTimeJP(candidate.firstInterviewAt) : "-";
+
   if (editing) {
     return `
+    <div class="mb-4 border-b border-slate-100 pb-4">
+      <label class="block text-xs font-bold text-slate-500 mb-1">初回面談日時</label>
+      <div class="text-base text-slate-900">${escapeHtml(firstInterviewAt)}</div>
+      <p class="text-xs text-slate-400 mt-1">※日時の変更は基本情報または選考進捗から行ってください。</p>
+    </div>
     <label class="detail-textarea-field">
       <span>自由メモ</span>
       ${renderTableTextarea(candidate.memoDetail, "memoDetail", "memo")}
@@ -4918,6 +4866,10 @@ function renderMemoSection(candidate) {
     `;
   }
   return `
+    <div class="mb-4 border-b border-slate-100 pb-4">
+      <label class="block text-xs font-bold text-slate-500 mb-1">初回面談日時</label>
+      <div class="text-base text-slate-900 font-medium">${escapeHtml(firstInterviewAt)}</div>
+    </div>
     <label class="detail-textarea-field">
       <span>自由メモ</span>
       <span class="detail-value">${escapeHtml(candidate.memoDetail || "-")}</span>
@@ -4957,7 +4909,7 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
         const spanClass = resolveDetailGridSpanClass(field);
 
         // 編集モードで編集可能なフィールド
-        if (editing && field.path) {
+        if (editing && field.path && field.editable !== false) {
           return `
               <div class="detail-grid-item ${spanClass}">
                 <dt>${field.label}</dt>
@@ -4966,20 +4918,29 @@ function renderDetailGridFields(fields, sectionKey, options = {}) {
             `;
         }
 
-        // 閲覧モード
+        // 閲覧モード（または編集不可フィールド）
         const displayValue = field.displayFormatter ? field.displayFormatter(value) : formatDisplayValue(value);
         const inner =
           field.link && value
             ? `<a href="${value}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a>`
             : escapeHtml(displayValue);
 
+        // editable: false のフィールドは編集不可スタイル
+        const isReadOnly = field.editable === false;
+        const containerClass = isReadOnly
+          ? "bg-slate-100 text-slate-600 -mx-2 px-2 py-1 rounded cursor-not-allowed"
+          : "group relative cursor-pointer hover:bg-slate-100 -mx-2 px-2 py-1 rounded transition-colors";
+        const editIcon = isReadOnly
+          ? ""
+          : `<span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 opacity-0 group-hover:opacity-100 text-xs">✎</span>`;
+
         return `
             <div class="detail-grid-item ${spanClass}">
               <dt>${field.label}</dt>
               <dd>
-                <div class="group relative cursor-pointer hover:bg-slate-100 -mx-2 px-2 py-1 rounded transition-colors" data-section-edit="${sectionKey}" title="クリックして編集">
+                <div class="${containerClass}" ${isReadOnly ? '' : `data-section-edit="${sectionKey}" title="クリックして編集"`}>
                   <span class="detail-value">${inner}</span>
-                  <span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                  ${editIcon}
                 </div>
               </dd>
             </div>
@@ -5072,7 +5033,7 @@ function formatInputValue(value, type) {
     const day = String(d.getDate()).padStart(2, "0");
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${y} -${m} -${day}T${hh}:${mm} `;
+    return `${y}-${m}-${day}T${hh}:${mm}`;
   }
   return value;
 }
@@ -5115,6 +5076,8 @@ async function handleCandidateDetailClick(e) {
   // 2. Edit Toggle
   const editBtn = e.target.closest("[data-section-edit]");
   if (editBtn) {
+    // Skip - handled by handleDetailContentClick to avoid double-toggle
+    return;
     const key = editBtn.dataset.sectionEdit;
     if (key && detailEditState.hasOwnProperty(key)) {
       if (detailEditState[key]) {

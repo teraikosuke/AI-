@@ -5,6 +5,7 @@
 
 import { getSession, hasRole, onAuthChange } from './auth.js';
 import { authRepo } from './api/repositories/auth.js?v=20260120_2';
+import { MODULE_VERSIONS } from './module-versions.js';
 
 const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
@@ -12,15 +13,15 @@ const routes = {
   login: () => import("../pages/login/login.js"),
   mypage: () => import("../pages/mypage/mypage.js?v=20260206_01"),
   members: () => import("../pages/members/members.js"),
-  yield: () => import("../pages/yield/yield.js?v=20260206_02"),
-  "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260203_01"),
-  "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260203_01"),
-  "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260203_01"),
-  candidates: () => import("../pages/candidates/candidates.js?v=20260209_04"),
-  "candidate-detail": () => import("../pages/candidate-detail/candidate-detail.js?v=20260209_03"),
+  yield: () => import("../pages/yield/yield.js?v=20260211_01"),
+  "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260211_01"),
+  "yield-company": () => import("../pages/yield-company/yield-company.js?v=20260211_01"),
+  "yield-admin": () => import("../pages/yield-admin/yield-admin.js?v=20260211_01"),
+  candidates: () => import(`../pages/candidates/candidates.js?v=${MODULE_VERSIONS.candidates}`),
+  "candidate-detail": () => import(`../pages/candidate-detail/candidate-detail.js?v=${MODULE_VERSIONS.candidateDetail}`),
   "ad-performance": () => import("../pages/ad-performance/ad-performance.js?v=20260322_14"),
-  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260209_1"),
-  referral: () => import("../pages/referral/referral.js?v=20260322_60"),
+  teleapo: () => import("../pages/teleapo/teleapo.js?v=20260211_02"),
+  referral: () => import("../pages/referral/referral.js?v=20260322_61"),
   settings: () => import("../pages/settings/settings.js?v=20260322_01"),
   "goal-settings": () => import("../pages/goal-settings/goal-settings.js"),
   "kpi-summery-test": () => import("../pages/kpi-summery-test/kpi-summery-test.js"),
@@ -149,7 +150,7 @@ export async function navigate(to) {
   const segments = pathPart.split("/").filter(Boolean);
   const toValue = to ? String(to) : "";
   const [toPath, toQueryRaw] = toValue.split("?");
-  const rawPage = toPath || segments[0] || "candidates";
+  const rawPage = toPath || segments[0] || (getSession() ? "candidates" : "login");
   const toQuery = toQueryRaw ? `?${toQueryRaw}` : "";
 
   // ルーターガード（beforeNavigate）で実際に表示すべきページを決定
@@ -341,7 +342,10 @@ export function boot() {
 
   // Handle auth changes
   addEventListener("auth:change", () => {
-    navigate(location.hash.replace("#/", "") || "yield");
+    const currentHash = location.hash.replace("#/", "") || "";
+    const session = getSession();
+    const defaultPage = session ? "yield" : "login";
+    navigate(currentHash || defaultPage);
   });
 
   // Handle navigation clicks

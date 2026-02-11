@@ -1,4 +1,5 @@
 import { getSession } from '../../scripts/auth.js';
+import { PRIMARY_API_BASE } from '../../scripts/api/endpoints.js';
 
 let screeningForm;
 let screeningStatusElement;
@@ -16,7 +17,7 @@ const DEFAULT_SCREENING_RULES = {
 };
 let currentScreeningRules = { ...DEFAULT_SCREENING_RULES };
 
-const SETTINGS_API_BASE = "https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod";
+const SETTINGS_API_BASE = PRIMARY_API_BASE;
 const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
 
 export function mount() {

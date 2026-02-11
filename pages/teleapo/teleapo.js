@@ -2,6 +2,11 @@
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
 import { PRIMARY_API_BASE } from '../../scripts/api/endpoints.js';
 import { getSession } from '../../scripts/auth.js';
+import {
+  normalizeScreeningRulesPayload as normalizeScreeningRulesPayloadShared,
+  computeValidApplication as computeValidApplicationShared,
+  resolveValidApplicationRaw as resolveValidApplicationRawShared
+} from '../../scripts/services/validApplication.js?v=20260211_04';
 
 console.log('teleapo.js loaded');
 
@@ -111,6 +116,7 @@ const TELEAPO_HEATMAP_DAYS = ['月', '火', '水', '木', '金'];
 const TELEAPO_HEATMAP_SLOTS = ['09-11', '11-13', '13-15', '15-17', '17-19'];
 const SETTINGS_API_BASE = PRIMARY_API_BASE;
 const SCREENING_RULES_ENDPOINT = `${SETTINGS_API_BASE}/settings-screening-rules`;
+const SCREENING_RULES_FALLBACK_ENDPOINT = `${SETTINGS_API_BASE}/settings/screening-rules`;
 // Candidate detail URL (hash router + query)
 const CANDIDATE_ID_PARAM = 'candidateId';
 const TARGET_CANDIDATE_STORAGE_KEY = 'target_candidate_id';
@@ -135,6 +141,7 @@ let candidateDetailRequests = new Map();
 let screeningRules = null;
 let screeningRulesLoaded = false;
 let screeningRulesLoading = false;
+let screeningRulesLoadPromise = null;
 let validApplicationDetailCache = new Map();
 let validApplicationQueue = [];
 let validApplicationQueueSet = new Set();
@@ -550,118 +557,12 @@ function resolveCandidatePhaseDisplay(candidate) {
   return "未接触";
 }
 
-function parseRuleNumber(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-function parseListValue(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  if (value === null || value === undefined) return [];
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function normalizeScreeningRulesPayload(payload) {
-  const source = payload?.rules || payload?.item || payload?.data || payload || {};
-  const minAge = parseRuleNumber(source.minAge ?? source.min_age);
-  const maxAge = parseRuleNumber(source.maxAge ?? source.max_age);
-  const nationalitiesRaw =
-    source.targetNationalities ??
-    source.target_nationalities ??
-    source.allowedNationalities ??
-    source.allowed_nationalities ??
-    source.nationalities ??
-    "";
-  const allowedJlptRaw =
-    source.allowedJlptLevels ??
-    source.allowed_jlpt_levels ??
-    source.allowed_japanese_levels ??
-    [];
-  return {
-    minAge,
-    maxAge,
-    targetNationalitiesList: parseListValue(nationalitiesRaw),
-    allowedJlptLevels: parseListValue(allowedJlptRaw),
-  };
-}
-
-function normalizeNationality(value) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  const normalized = text.toLowerCase();
-  if (normalized === "japan" || normalized === "jpn" || normalized === "jp" || normalized === "japanese") {
-    return "日本";
-  }
-  if (text === "日本国" || text === "日本国籍" || text === "日本人" || text === "日本国民") return "日本";
-  return text;
-}
-
-function isJapaneseNationality(value) {
-  return normalizeNationality(value) === "日本";
-}
-
-function hasValidApplicationInputs(candidate, rules) {
-  if (!candidate || !rules) return false;
-  const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return false;
-  const nationality = normalizeNationality(candidate?.nationality ?? "");
-  if (!nationality) return false;
-  if (isJapaneseNationality(nationality)) return true;
-  const jlpt = String(candidate?.japaneseLevel ?? candidate?.japanese_level ?? "").trim();
-  return Boolean(jlpt);
-}
-
-function resolveCandidateAgeValue(candidate) {
-  const birthday =
-    candidate?.birthday ??
-    candidate?.birth_date ??
-    candidate?.birthDate ??
-    candidate?.birthdate ??
-    "";
-  const computed = calculateAgeFromBirthday(birthday);
-  if (computed !== null) return computed;
-  const direct = candidate?.age ?? candidate?.age_years ?? candidate?.ageYears;
-  if (direct !== null && direct !== undefined && direct !== "") {
-    const parsed = Number(direct);
-    if (Number.isFinite(parsed)) return parsed;
-    const match = String(direct).match(/\d+/);
-    if (match) {
-      const fromText = Number(match[0]);
-      if (Number.isFinite(fromText)) return fromText;
-    }
-  }
-  return null;
+  return normalizeScreeningRulesPayloadShared(payload);
 }
 
 function computeValidApplication(candidate, rules) {
-  if (!candidate || !rules) return null;
-  const age = resolveCandidateAgeValue(candidate);
-  if (age === null) return false;
-  if (rules.minAge !== null && rules.minAge !== undefined && rules.minAge > 0 && age < rules.minAge) return false;
-  if (rules.maxAge !== null && rules.maxAge !== undefined && rules.maxAge < 100 && age > rules.maxAge) return false;
-
-  const nationality = normalizeNationality(candidate?.nationality ?? "");
-  const allowedNationalities = (rules.targetNationalitiesList || [])
-    .map((value) => normalizeNationality(value))
-    .filter((value) => value && !isJapaneseNationality(value));
-
-  if (isJapaneseNationality(nationality)) return true;
-
-  if (allowedNationalities.length > 0) {
-    if (!nationality) return false;
-    const matched = allowedNationalities.some((value) => value === nationality);
-    if (!matched) return false;
-  }
-
-  const jlpt = String(candidate?.japaneseLevel ?? candidate?.japanese_level ?? "").trim();
-  if (!jlpt) return false;
-  const allowedJlptLevels = rules.allowedJlptLevels || [];
-  if (!allowedJlptLevels.length) return false;
-  return allowedJlptLevels.includes(jlpt);
+  return computeValidApplicationShared(candidate, rules);
 }
 
 function resolveCandidateIdValue(candidate) {
@@ -678,7 +579,6 @@ function resolveCandidateIdValue(candidate) {
 
 function updateValidApplicationDetailCache(candidate, { force = false } = {}) {
   if (!screeningRules || !candidate) return null;
-  if (!hasValidApplicationInputs(candidate, screeningRules)) return null;
   const idNum = resolveCandidateIdValue(candidate);
   if (!Number.isFinite(idNum)) return null;
   if (!force && validApplicationDetailCache.has(idNum)) {
@@ -687,15 +587,21 @@ function updateValidApplicationDetailCache(candidate, { force = false } = {}) {
     return cached;
   }
   const computed = computeValidApplication(candidate, screeningRules);
-  if (computed === true || computed === false) {
+  const resolved =
+    computed === true || computed === false
+      ? computed
+      : resolveValidApplicationRawShared(candidate);
+  if (resolved === true || resolved === false) {
     const prev = validApplicationDetailCache.get(idNum);
-    validApplicationDetailCache.set(idNum, computed);
-    candidate.validApplicationComputed = computed;
-    if (prev !== computed) {
+    validApplicationDetailCache.set(idNum, resolved);
+    candidate.validApplicationComputed = resolved;
+    if (prev !== resolved) {
       scheduleValidApplicationRefresh();
     }
-    return computed;
+    return resolved;
   }
+  candidate.validApplicationComputed = null;
+  validApplicationDetailCache.delete(idNum);
   return null;
 }
 
@@ -709,7 +615,9 @@ function resolveValidApplicationFromDetail(candidate) {
 }
 
 function isValidApplicationCandidate(candidate) {
-  if (screeningRules && hasValidApplicationInputs(candidate, screeningRules)) {
+  const rawValue = resolveValidApplicationRawShared(candidate);
+  if (rawValue === true || rawValue === false) return rawValue;
+  if (screeningRules) {
     const computed = computeValidApplication(candidate, screeningRules);
     if (computed === true || computed === false) {
       updateValidApplicationDetailCache(candidate, { force: true });
@@ -718,22 +626,7 @@ function isValidApplicationCandidate(candidate) {
   }
   const detailValue = resolveValidApplicationFromDetail(candidate);
   if (detailValue === true || detailValue === false) return detailValue;
-  const raw = candidate?.validApplication
-    ?? candidate?.valid_application
-    ?? candidate?.validApplicationComputed
-    ?? candidate?.valid_application_computed
-    ?? candidate?.valid
-    ?? candidate?.isValidApplication
-    ?? candidate?.isEffective
-    ?? candidate?.is_effective
-    ?? candidate?.is_effective_application
-    ?? candidate?.active_flag;
-  if (typeof raw === "string") {
-    const normalized = raw.trim().toLowerCase();
-    if (["true", "1", "yes", "有効", "有効応募"].includes(normalized)) return true;
-    if (["false", "0", "no", "無効", "無効応募"].includes(normalized)) return false;
-  }
-  return Boolean(raw);
+  return rawValue;
 }
 
 function formatCandidateDateTime(value) {
@@ -914,24 +807,40 @@ function applyScreeningRulesToTeleapoCandidates() {
 }
 
 async function loadScreeningRulesForTeleapo({ force = false } = {}) {
-  if (screeningRulesLoading) return;
-  if (!force && screeningRulesLoaded) return;
-  screeningRulesLoading = true;
-  try {
-    const response = await fetch(SCREENING_RULES_ENDPOINT);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const data = await response.json();
-    screeningRules = normalizeScreeningRulesPayload(data);
-  } catch (error) {
-    console.error("有効応募判定ルールの取得に失敗しました。", error);
-    screeningRules = null;
-  } finally {
-    screeningRulesLoading = false;
-    screeningRulesLoaded = Boolean(screeningRules);
-    applyScreeningRulesToTeleapoCandidates();
+  if (!force && screeningRulesLoaded) return screeningRules;
+  if (screeningRulesLoadPromise) return screeningRulesLoadPromise;
+
+  if (force) {
+    screeningRulesLoaded = false;
   }
+
+  screeningRulesLoading = true;
+  screeningRulesLoadPromise = (async () => {
+    try {
+      const token = getSession()?.token;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      let response = await fetch(SCREENING_RULES_ENDPOINT, { headers, cache: "no-store" });
+      if (!response.ok && SCREENING_RULES_FALLBACK_ENDPOINT) {
+        response = await fetch(SCREENING_RULES_FALLBACK_ENDPOINT, { headers, cache: "no-store" });
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      screeningRules = normalizeScreeningRulesPayload(data);
+      screeningRulesLoaded = true;
+    } catch (error) {
+      console.error("有効応募判定ルールの取得に失敗しました。", error);
+      screeningRules = null;
+    } finally {
+      screeningRulesLoading = false;
+      screeningRulesLoadPromise = null;
+      applyScreeningRulesToTeleapoCandidates();
+    }
+    return screeningRules;
+  })();
+
+  return screeningRulesLoadPromise;
 }
 
 function fetchCandidatePhone(candidateId) {
@@ -4447,7 +4356,7 @@ export function mount() {
     // データロード後に目標値があれば再描画されるが、ここでもロードしておく
     refreshForRangeChange();
   });
-  loadScreeningRulesForTeleapo();
+  void loadScreeningRulesForTeleapo({ force: true });
   // 1. 候補者マスタ取得 (datalist用)
   loadCandidates();
 

@@ -1,5 +1,6 @@
 // ==========================================
 import { goalSettingsService } from '../../scripts/services/goalSettings.js';
+import { resolveValidApplicationRaw as resolveValidApplicationRawShared } from '../../scripts/services/validApplication.js?v=20260211_04';
 
 
 // 状態管理変数
@@ -1067,7 +1068,7 @@ function normalizeCandidateDetailForMatch(candidate) {
   const applyCompanyName = candidate?.applyCompanyName ?? candidate?.apply_company_name ?? candidate?.companyName ?? candidate?.company_name ?? summary.companyName ?? '';
   const applyJobName = candidate?.applyJobName ?? candidate?.apply_job_name ?? candidate?.jobName ?? candidate?.job_name ?? summary.title ?? '';
   const applyRouteText = candidate?.applyRouteText ?? candidate?.apply_route_text ?? candidate?.source ?? '';
-  const validApplication = candidate?.validApplication ?? candidate?.valid_application ?? candidate?.is_effective_application ?? candidate?.active_flag ?? null;
+  const validApplication = resolveValidApplicationRawShared(candidate);
   const phone = candidate?.phone ?? candidate?.phone_number ?? candidate?.tel ?? '';
   const email = candidate?.email ?? candidate?.email_address ?? '';
   const selectionProgress = Array.isArray(candidate?.selectionProgress ?? candidate?.selection_progress)

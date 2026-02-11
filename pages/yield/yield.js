@@ -21,7 +21,7 @@ const DEFAULT_ADVISOR_USER_ID = 30;
 const DEFAULT_CALC_MODE = 'cohort';
 const DEFAULT_RATE_CALC_MODE = 'base';
 const RATE_CALC_MODE_STORAGE_KEY = 'yieldRateCalcMode.v1';
-const YIELD_UI_VERSION = '20260203_14';
+const YIELD_UI_VERSION = '20260211_01';
 
 if (typeof window !== 'undefined') {
   window.__yieldVersion = YIELD_UI_VERSION;
@@ -221,7 +221,7 @@ function getCalcMode() {
 }
 
 function getCalcModeLabel(mode = getCalcMode()) {
-  return normalizeCalcMode(mode) === 'cohort' ? '応募時期優先' : 'リアルタイム優先';
+  return normalizeCalcMode(mode) === 'cohort' ? '応募月計上' : '発生月計上';
 }
 
 function buildCalcModeParams() {
@@ -243,7 +243,7 @@ function getRateCalcMode() {
 }
 
 function getRateCalcModeLabel(mode = getRateCalcMode()) {
-  return mode === 'step' ? '前段階を分母' : '新規面談数を分母';
+  return mode === 'step' ? '前段階から' : '新規面談数から';
 }
 
 async function mergeMembersWithDailyItems(items) {
