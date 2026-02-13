@@ -384,6 +384,44 @@
   box-shadow: 0 4px 12px rgba(67, 56, 202, 0.2);
 }
 
+.mypage-ghost-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.mypage-candidates-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.mypage-page-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mypage-page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mypage-page-info {
+  font-size: 0.78rem;
+  color: #475569;
+  min-width: 120px;
+  text-align: center;
+}
+
 /* Yieldサマリースロット */
 .mypage-yield-slot {
   margin: 0;

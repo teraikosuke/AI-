@@ -11,7 +11,7 @@ const POST_LOGIN_REDIRECT_KEY = 'dashboard.postLoginRedirect';
 
 const routes = {
   login: () => import("../pages/login/login.js"),
-  mypage: () => import("../pages/mypage/mypage.js?v=20260206_01"),
+  mypage: () => import("../pages/mypage/mypage.js?v=20260213_01"),
   members: () => import("../pages/members/members.js"),
   yield: () => import("../pages/yield/yield.js?v=20260211_01"),
   "yield-personal": () => import("../pages/yield-personal/yield-personal.js?v=20260211_01"),
@@ -51,7 +51,7 @@ const pageCSS = {
   "yield-personal": "pages/yield/yield.css?v=20260203_01",
   "yield-company": "pages/yield/yield.css?v=20260203_01",
   "yield-admin": "pages/yield/yield.css?v=20260203_01",
-  mypage: "pages/mypage/mypage.css?v=20260202_02",
+  mypage: "pages/mypage/mypage.css?v=20260213_01",
   candidates: "pages/candidates/candidates.css?v=20260322_57",
   "candidate-detail": "pages/candidate-detail/candidate-detail.css?v=20260322_02",
   "ad-performance": "pages/ad-performance/ad-performance.css?v=20260133",

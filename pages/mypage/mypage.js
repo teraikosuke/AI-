@@ -5,12 +5,15 @@ import { mount as mountGoalSettings } from '../goal-settings/goal-settings.js';
 
 const MYPAGE_API_BASE = 'https://st70aifr22.execute-api.ap-northeast-1.amazonaws.com/prod';
 const MYPAGE_PATH = '/mypage';
+const MYPAGE_FETCH_LIMIT = 50;
+const CANDIDATES_PAGE_SIZE = 10;
 
 const state = {
   roleView: 'advisor',
   closedVisible: false,
   closedCandidates: [],
   candidates: [],
+  candidatesPage: 1,
   toggleHandler: null,
   eventHandlers: [],
   calendarMonth: null,
@@ -86,7 +89,7 @@ async function loadMypageData(session, { monthKey } = {}) {
   const url = new URL(`${MYPAGE_API_BASE}${MYPAGE_PATH}`);
   url.searchParams.set('userId', String(userId));
   url.searchParams.set('role', state.roleView);
-  url.searchParams.set('limit', '10');
+  url.searchParams.set('limit', String(MYPAGE_FETCH_LIMIT));
   url.searchParams.set('month', resolvedMonthKey);
 
   const headers = { Accept: 'application/json' };
@@ -129,6 +132,7 @@ async function loadMypageData(session, { monthKey } = {}) {
     state.calendarPending = mockData.calendar.pendingTasks;
     state.calendarCompleted = mockData.calendar.completedTasks;
     state.calendarProgress = mockData.calendar.progressEvents;
+    state.candidatesPage = 1;
     renderCalendar();
     renderNotifications(mockData.notifications);
     renderCandidates(mockData.candidates, mockData.closedCandidates);
@@ -158,6 +162,7 @@ async function loadMypageData(session, { monthKey } = {}) {
     state.calendarPending = data.calendar?.pendingTasks || [];
     state.calendarCompleted = data.calendar?.completedTasks || [];
     state.calendarProgress = data.calendar?.progressEvents || [];
+    state.candidatesPage = 1;
     renderCalendar();
     renderNotifications(data.notifications || []);
     renderCandidates(data.candidates || [], data.closedCandidates || []);
@@ -172,9 +177,30 @@ function bindActions() {
   if (toggle) {
     state.toggleHandler = () => {
       state.closedVisible = !state.closedVisible;
+      state.candidatesPage = 1;
       renderCandidates(state.candidates, state.closedCandidates);
     };
     toggle.addEventListener('click', state.toggleHandler);
+  }
+
+  const candidatesPrev = document.getElementById('mypageCandidatesPagePrev');
+  if (candidatesPrev) {
+    const handler = () => {
+      state.candidatesPage = Math.max(1, state.candidatesPage - 1);
+      renderCandidates(state.candidates, state.closedCandidates);
+    };
+    candidatesPrev.addEventListener('click', handler);
+    state.eventHandlers.push({ element: candidatesPrev, handler });
+  }
+
+  const candidatesNext = document.getElementById('mypageCandidatesPageNext');
+  if (candidatesNext) {
+    const handler = () => {
+      state.candidatesPage += 1;
+      renderCandidates(state.candidates, state.closedCandidates);
+    };
+    candidatesNext.addEventListener('click', handler);
+    state.eventHandlers.push({ element: candidatesNext, handler });
   }
 
   ['mypageTasksBody', 'mypageUpcomingBody', 'mypageCandidatesBody'].forEach((bodyId) => {
@@ -529,8 +555,12 @@ function renderCandidates(candidates, closedCandidates) {
   const empty = document.getElementById('mypageCandidatesEmpty');
   const subtitle = document.getElementById('mypageCandidatesSubtitle');
   const toggle = document.getElementById('mypageCandidatesToggleClosed');
+  const pagination = document.getElementById('mypageCandidatesPagination');
+  const pageInfo = document.getElementById('mypageCandidatesPageInfo');
+  const pagePrev = document.getElementById('mypageCandidatesPagePrev');
+  const pageNext = document.getElementById('mypageCandidatesPageNext');
 
-  if (!head || !body || !empty || !subtitle || !toggle) return;
+  if (!head || !body || !empty || !subtitle || !toggle || !pagination || !pageInfo || !pagePrev || !pageNext) return;
 
   state.candidates = candidates;
   state.closedCandidates = closedCandidates;
@@ -541,13 +571,16 @@ function renderCandidates(candidates, closedCandidates) {
     ? '担当CSが自分の候補者（クローズは非表示）'
     : '担当パートナーが自分で、通電前の候補者';
 
-  if (isAdvisor && closedCandidates.length > 0) {
+  if (isAdvisor) {
     toggle.hidden = false;
+    toggle.disabled = closedCandidates.length === 0;
     toggle.textContent = state.closedVisible
       ? `クローズを非表示 (${closedCandidates.length})`
       : `クローズを表示 (${closedCandidates.length})`;
   } else {
-    toggle.hidden = true;
+    toggle.hidden = false;
+    toggle.disabled = true;
+    toggle.textContent = 'クローズを表示 (0)';
   }
 
   head.innerHTML = isAdvisor
@@ -570,14 +603,29 @@ function renderCandidates(candidates, closedCandidates) {
     ? candidates.concat(closedCandidates)
     : candidates;
 
-  if (!visibleCandidates.length) {
+  const totalCount = visibleCandidates.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / CANDIDATES_PAGE_SIZE));
+  state.candidatesPage = Math.min(Math.max(1, state.candidatesPage), totalPages);
+  const startIndex = (state.candidatesPage - 1) * CANDIDATES_PAGE_SIZE;
+  const endIndex = Math.min(startIndex + CANDIDATES_PAGE_SIZE, totalCount);
+  const pageCandidates = visibleCandidates.slice(startIndex, endIndex);
+
+  pagination.hidden = totalCount <= CANDIDATES_PAGE_SIZE;
+  pagePrev.disabled = state.candidatesPage <= 1;
+  pageNext.disabled = state.candidatesPage >= totalPages;
+  pageInfo.textContent = totalCount === 0
+    ? '0件'
+    : `${startIndex + 1}-${endIndex} / ${totalCount}件`;
+
+  if (!pageCandidates.length) {
     body.innerHTML = '';
     empty.classList.add('is-visible');
+    pagination.hidden = true;
     return;
   }
 
   empty.classList.remove('is-visible');
-  body.innerHTML = visibleCandidates
+  body.innerHTML = pageCandidates
     .map((candidate) => {
       const name = escapeHtml(candidate.candidateName || '-');
       const phaseLabel = escapeHtml(candidate.phase || '-');
