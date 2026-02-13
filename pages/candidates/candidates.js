@@ -721,6 +721,95 @@ async function ensureSelectionProgressClientIds(candidate) {
   }
 }
 
+function normalizeMoneyNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeMoneyBoolean(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return null;
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function syncMoneyInfoFromSelectionProgress(candidate) {
+  if (!candidate || !Array.isArray(candidate.selectionProgress)) return;
+
+  const existing = Array.isArray(candidate.moneyInfo) ? candidate.moneyInfo : [];
+  const moneyByAppId = new Map();
+
+  existing.forEach((row = {}) => {
+    const appId = row.applicationId ?? row.application_id;
+    if (appId === null || appId === undefined || appId === "") return;
+    moneyByAppId.set(String(appId), { ...row });
+  });
+
+  candidate.selectionProgress.forEach((row = {}) => {
+    const appId = row.id ?? row.applicationId ?? row.application_id;
+    if (appId === null || appId === undefined || appId === "") return;
+
+    const key = String(appId);
+    const prev = moneyByAppId.get(key) || { applicationId: appId };
+    const next = { ...prev };
+
+    const clientId = row.clientId ?? row.client_id ?? prev.clientId ?? prev.client_id ?? null;
+    const companyName = row.companyName ?? row.company_name ?? prev.companyName ?? prev.company_name ?? "";
+
+    next.applicationId = prev.applicationId ?? appId;
+    next.application_id = prev.application_id ?? appId;
+    next.clientId = clientId;
+    next.client_id = clientId;
+    next.companyName = companyName;
+    next.company_name = companyName;
+
+    if (hasOwn(row, "feeAmount") || hasOwn(row, "fee_amount")) {
+      const feeAmount = normalizeMoneyNumber(row.feeAmount ?? row.fee_amount);
+      next.feeAmount = feeAmount;
+      next.fee_amount = feeAmount;
+    }
+
+    if (hasOwn(row, "refundAmount") || hasOwn(row, "refund_amount")) {
+      const refundAmount = normalizeMoneyNumber(row.refundAmount ?? row.refund_amount);
+      next.refundAmount = refundAmount;
+      next.refund_amount = refundAmount;
+    }
+
+    if (hasOwn(row, "orderReported") || hasOwn(row, "order_reported")) {
+      const orderReported = normalizeMoneyBoolean(row.orderReported ?? row.order_reported);
+      next.orderReported = orderReported;
+      next.order_reported = orderReported;
+    }
+
+    if (hasOwn(row, "refundReported") || hasOwn(row, "refund_reported")) {
+      const refundReported = normalizeMoneyBoolean(row.refundReported ?? row.refund_reported);
+      next.refundReported = refundReported;
+      next.refund_reported = refundReported;
+    }
+
+    if (hasOwn(row, "preJoinWithdrawDate") || hasOwn(row, "pre_join_withdraw_date") || hasOwn(row, "preJoinDeclineDate")) {
+      const preJoinWithdrawDate = row.preJoinWithdrawDate ?? row.pre_join_withdraw_date ?? row.preJoinDeclineDate ?? null;
+      next.preJoinWithdrawDate = preJoinWithdrawDate;
+      next.pre_join_withdraw_date = preJoinWithdrawDate;
+    }
+
+    if (hasOwn(row, "postJoinQuitDate") || hasOwn(row, "post_join_quit_date")) {
+      const postJoinQuitDate = row.postJoinQuitDate ?? row.post_join_quit_date ?? null;
+      next.postJoinQuitDate = postJoinQuitDate;
+      next.post_join_quit_date = postJoinQuitDate;
+    }
+
+    moneyByAppId.set(key, next);
+  });
+
+  candidate.moneyInfo = Array.from(moneyByAppId.values());
+}
+
 function buildSelectOptions(list, selectedValue, { blankLabel = "選択" } = {}) {
   const base = Array.isArray(list) ? list : [];
   const options = [{ value: "", label: blankLabel }].concat(
@@ -2821,6 +2910,7 @@ async function saveCandidateRecord(candidate, { preserveDetailState = true, incl
   // This also supports free-text companyName input by resolving/creating clients.
   if (includeDetail) {
     await ensureSelectionProgressClientIds(candidate);
+    syncMoneyInfoFromSelectionProgress(candidate);
   }
 
   console.log("[saveCandidateRecord] After ensureSelectionProgressClientIds, selectionProgress:", candidate.selectionProgress);
